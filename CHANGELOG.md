@@ -1,54 +1,54 @@
 # Changelog
 
-All notable changes to MacPerfMonitor are documented here.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project aims to follow [Semantic Versioning](https://semver.org/).
+Notable changes to Mac Performance Monitor. This project follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
+[Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-06-10
+## [1.1.5] - 2026-07-05
 
-The first tagged, notarised public release.
+The first public, open-source (MIT) release.
 
-### Added
+Mac Performance Monitor is a macOS performance analyzer and logger that lives in
+your menu bar. It records CPU, memory pressure, GPU, network, battery, and
+per-process usage to a local database, then helps you find trends, leaks, and the
+processes behind them.
 
-- **Sampling core.** Periodic, low-overhead sampling of every process and of
-  system-wide memory, built on `libproc`, `mach`, and `sysctl` through a thin C
-  shim, including Rosetta translation detection.
-- **Local persistence.** A bounded, retention-managed SQLite store (via GRDB)
-  for process and system history. No data leaves the machine.
-- **Memory taxonomy.** A breakdown of where memory goes (app memory, cached
-  files, compressed, wired, and more), with the formulas documented for audit.
-- **Pressure-first dashboard.** A plain-language verdict, headline tiles, a hero
-  pressure timeline (0 to 100 index) with selectable ranges, a taxonomy stacked
-  bar, and a swap trend.
-- **Process explorer.** A live, sortable, filterable process table with a detail
-  inspector charting footprint, CPU, file descriptors, and disk I/O over time.
-- **History and leak detection.** Top consumers over time, a leak board for
-  steadily climbing processes, and a pressure-event log.
-- **Insights and alerts.** Quiet-by-default notifications for critical pressure,
-  sustained swap, per-process ceilings, and suspected leaks, with edge-triggering
-  and hysteresis. Configurable in Settings.
-- **Menu bar presence.** A pressure-tinted template glyph with a popover summary,
-  built for a menu-bar-first lifecycle.
-- **First-run onboarding.** A short, skippable, re-openable flow teaching the
-  pressure-first mental model.
-- **Accessibility.** VoiceOver labels and live value summaries on charts and
-  process rows, Dynamic Type and semantic colours, and Reduce Motion honoured for
-  chart animation.
-- **Self-monitoring.** MacPerfMonitor samples its own process and shows its footprint
-  in Settings, staying well under a 60 MB idle budget.
-- **Repository hygiene.** Project documentation, license, contribution guidance,
-  code of conduct, security policy, and a strict formatter configuration.
-- **Continuous integration.** A GitHub Actions workflow that builds, tests, and
-  lints on every push and pull request with no secrets, so any fork gets green
-  CI. A separate, tag-triggered release workflow builds a universal binary,
-  signs it with a Developer ID, notarises and staples it, builds a DMG, and
-  publishes it to GitHub Releases, with all signing credentials confined to
-  encrypted secrets used only on the release job.
-- **Homebrew cask.** A `Casks/macperfmonitor.rb` cask, as a secondary install channel,
-  pointing at the GitHub Release DMG.
+### Features
 
-[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/Zesty0wl/mac-performance-monitor/releases/tag/v1.0.0
+- **Dashboard:** memory pressure as a 0 to 100 index, a processor timeline, CPU
+  cores, a memory composition breakdown, swap, and live network throughput, with a
+  plain-language verdict.
+- **Process explorer:** a live, sortable, filterable table of every process, plus a
+  detail inspector charting memory footprint, CPU, file descriptors, and disk I/O
+  over time, with Rosetta status and code-signing details.
+- **Energy:** battery health and wear, an energy-flow view of what is drawing power,
+  charge history, and the top energy users.
+- **Network:** download and upload throughput, per-adapter detail, and connection
+  configuration, with optional per-app tracking.
+- **Analytics:** build your own per-process charts (memory, CPU, network, file
+  descriptors, disk I/O) over any window, from a configurable-resolution local log.
+- **Insights:** plain-language callouts for what changed, a pressure-event history,
+  and the heaviest consumers by memory, CPU, energy, or network.
+- **Process groups:** group related apps and helpers into a stack and see its
+  blended footprint as a share of the device.
+- **Leak detection:** flags processes whose footprint climbs steadily.
+- **Deep-dive diagnostics:** explains what a process is and whether its behavior is
+  normal, using signed, updatable check packs and a process glossary.
+- **Menu bar:** pressure, CPU, GPU, network, and battery readouts, each with a quick
+  popover.
+- **Alerts:** quiet-by-default notifications for critical pressure, sustained swap,
+  per-process ceilings, and suspected leaks, with hysteresis so they do not spam.
+
+### Under the hood
+
+- Apple silicon only. Distributed as a Developer ID signed, notarized, stapled
+  installer (`.pkg`), with in-app auto-updates via Sparkle from GitHub Releases.
+- No telemetry. Every sample is stored locally in SQLite (via GRDB) and never
+  leaves your Mac.
+- A clean split between a headless, unit-tested data layer and the SwiftUI app. CI
+  builds, tests, and lints on every push and pull request.
+
+[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.1.5.118...HEAD
+[1.1.5]: https://github.com/Zesty0wl/mac-performance-monitor/releases/tag/v1.1.5.118
