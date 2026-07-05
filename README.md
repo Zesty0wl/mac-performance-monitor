@@ -4,31 +4,31 @@
 
 A native macOS **performance analyzer and logger** that lives in your menu bar. It
 continuously records CPU, memory pressure, GPU, network, battery, and per-process
-usage to a local database — then helps you make sense of it: trends, leaks,
-pressure events, and on-device diagnostics.
+usage to a local database, then helps you make sense of it: trends, leaks, pressure
+events, and on-device diagnostics.
 
-Free and open source. No telemetry — every sample stays on your Mac.
+Free and open source. No telemetry. Every sample stays on your Mac.
 
 ![Dashboard](docs/images/dashboard.png)
 
 ## Features
 
-- **Menu bar at a glance** — live memory-pressure, CPU, GPU, network, and battery
+- **Menu bar at a glance:** live memory-pressure, CPU, GPU, network, and battery
   readouts, each with a quick popover.
-- **Dashboard** — a plain-language verdict, headline tiles, the pressure timeline
+- **Dashboard:** a plain-language verdict, headline tiles, the pressure timeline
   with selectable ranges, a memory breakdown, and a swap trend.
-- **Process explorer** — a live, sortable, filterable table of every process, with a
+- **Process explorer:** a live, sortable, filterable table of every process, with a
   detail inspector for footprint, CPU, file descriptors, disk I/O, and Rosetta status
   over time.
-- **Process groups** — group related apps and helpers into a stack and see its
-  blended footprint as a share of the device.
-- **History & logging** — configurable-resolution logging to a local SQLite store;
+- **Process groups:** group related apps and helpers into a stack and see its blended
+  footprint as a share of the device.
+- **History and logging:** configurable-resolution logging to a local SQLite store;
   top consumers over any window you pick.
-- **Leak detection** — flags processes whose footprint climbs steadily, plus a log of
+- **Leak detection:** flags processes whose footprint climbs steadily, plus a log of
   pressure events over time.
-- **Deep-dive diagnostics** — explains what a process is and whether its behavior is
+- **Deep-dive diagnostics:** explains what a process is and whether its behavior is
   normal, using signed, updatable check packs.
-- **Insights & alerts** — quiet-by-default notifications for critical pressure,
+- **Insights and alerts:** quiet-by-default notifications for critical pressure,
   sustained swap, per-process ceilings, and suspected leaks.
 
 ## Screenshots
@@ -40,7 +40,7 @@ Free and open source. No telemetry — every sample stays on your Mac.
 ## Install
 
 Download `MacPerformanceMonitor.pkg` from the [Releases](../../releases) page and
-double-click it. It's Developer ID–signed and notarized by Apple, so it installs and
+double-click it. It's Developer ID signed and notarized by Apple, so it installs and
 launches without security warnings, and keeps itself up to date via Sparkle.
 
 ### Build from source
@@ -64,7 +64,7 @@ it does.
 
 ## Contributing
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) and the
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and the
 [Code of Conduct](CODE_OF_CONDUCT.md). Security reports go through
 [SECURITY.md](SECURITY.md).
 
