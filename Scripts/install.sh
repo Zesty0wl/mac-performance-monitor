@@ -23,7 +23,7 @@
 # Flags:
 #   --no-launch      install but do not launch afterwards
 #   --skip-notarize  sign + install + launch only (still Developer ID signed; for
-#                    fast local iteration — NOT for anything you distribute)
+#                    fast local iteration, NOT for anything you distribute)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -70,10 +70,10 @@ if [[ -z "$DEVELOPER_ID_APP" ]]; then
 fi
 
 # Bump the build number (CFBundleVersion) by one on every install, so each build
-# that lands in /Applications is uniquely versioned — LaunchServices and the
-# notary both key off it, and it makes "which build is this?" answerable. The
-# marketing version (CFBundleShortVersionString) is left to deliberate releases.
-# Done before bundling, since bundle.sh copies this Info.plist into the app.
+# that lands in /Applications is uniquely versioned (LaunchServices and the notary
+# both key off it), and it makes "which build is this?" answerable. The marketing
+# version (CFBundleShortVersionString) is bumped by Scripts/deploy.sh at release
+# time. Done before bundling, since bundle.sh copies this Info.plist into the app.
 INFO_PLIST="Resources/Info.plist"
 CURRENT_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")"
 if [[ "$CURRENT_BUILD" =~ ^[0-9]+$ ]]; then

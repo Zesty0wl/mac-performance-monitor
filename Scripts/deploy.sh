@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# deploy.sh — cut a GitHub Release for the build currently in build/.
+# deploy.sh: cut a GitHub Release. Bump the version, build, sign, notarize, publish.
 #
-# Run it AFTER Scripts/install.sh (which bumps the build, builds, signs,
-# notarizes, staples, installs to /Applications and launches). deploy.sh does
-# NOT bump or rebuild — it packages and publishes the exact bundle now in build/,
-# so the build you just tested locally is the one users get, via BOTH channels:
+# deploy.sh owns the marketing-version bump (--dot / --minor / --major) and then
+# delegates the release build to Scripts/install.sh (which bumps the build number,
+# builds, Developer ID signs, notarizes, staples, and installs to /Applications).
+# It then packages and publishes that bundle to GitHub Releases, via BOTH channels:
 #
 #   • Sparkle (existing users) -> <archive>.zip + appcast.xml (Release assets)
 #   • Manual download          -> MacPerformanceMonitor.pkg   (Release asset)
@@ -28,14 +28,15 @@
 # staples it. It refuses to publish an app that isn't already notarized + stapled.
 #
 # Usage:
-#   Scripts/deploy.sh [--skip-upload]
+#   Scripts/deploy.sh [--dot|--minor|--major] [--skip-upload]
+#     --dot           bump the patch version (default), e.g. 1.2.0 -> 1.2.1
+#     --minor         bump the minor version,           e.g. 1.2.0 -> 1.3.0
+#     --major         bump the major version,           e.g. 1.2.0 -> 2.0.0
 #     --skip-upload   build the zip + pkg + appcast locally, but do NOT create the
 #                     GitHub Release (no gh calls). Handy for a dry run.
 #
-# Prerequisites:
-#   - build/Mac Performance Monitor.app: Developer ID signed, notarized, stapled
-#     (Scripts/install.sh leaves it so — never install.sh --skip-notarize).
-#   - Developer ID Installer cert in the keychain (DEVELOPER_ID_INSTALLER to override).
+# Prerequisites (run from Terminal.app so notarization can reach the keychain):
+#   - Developer ID Application + Developer ID Installer certs in the keychain.
 #   - notarytool keychain profile (NOTARY_PROFILE, default macperfmon-notary).
 #   - Sparkle EdDSA key: secrets/sparkle_private_key.pem (or the login keychain).
 #   - gh CLI authenticated with write access to $REPO (GITHUB_REPO to override).
@@ -57,23 +58,55 @@ ARCHIVE_BASENAME="MacPerformanceMonitor"   # no spaces — it ends up in a URL
 
 # ---- argument parsing ------------------------------------------------------
 SKIP_UPLOAD=0
+BUMP="dot"  # version bump: dot (default) | minor | major
 for arg in "$@"; do
   case "$arg" in
     --skip-upload) SKIP_UPLOAD=1 ;;
+    --major) BUMP="major" ;;
+    --minor) BUMP="minor" ;;
+    --dot|--patch) BUMP="dot" ;;
     *) echo "deploy.sh: unknown argument '$arg'" >&2; exit 2 ;;
   esac
 done
 
-# ---- validate the built app ------------------------------------------------
-if [[ ! -d "$APP" ]]; then
-  echo "error: $APP not found. Build it first (Scripts/install.sh)." >&2
+# ---- bump the version, then build/sign/notarize via install.sh -------------
+# deploy owns the marketing-version bump; install.sh does the release build
+# (build-number bump, Developer ID sign, notarize, staple, install). The version
+# must be set before the build, since it is baked into the signed, notarized app.
+INFO_PLIST="Resources/Info.plist"
+CURRENT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")"
+if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+  V_MAJOR="${BASH_REMATCH[1]}"; V_MINOR="${BASH_REMATCH[2]}"; V_PATCH="${BASH_REMATCH[3]}"
+  case "$BUMP" in
+    major) V_MAJOR=$((V_MAJOR + 1)); V_MINOR=0; V_PATCH=0 ;;
+    minor) V_MINOR=$((V_MINOR + 1)); V_PATCH=0 ;;
+    dot)   V_PATCH=$((V_PATCH + 1)) ;;
+  esac
+  NEXT_VERSION="$V_MAJOR.$V_MINOR.$V_PATCH"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEXT_VERSION" "$INFO_PLIST"
+  echo "==> Version ($BUMP bump): $CURRENT_VERSION -> $NEXT_VERSION"
+else
+  echo "error: CFBundleShortVersionString '$CURRENT_VERSION' is not X.Y.Z; cannot bump." >&2
   exit 1
 fi
-# Refuse to publish a build that isn't notarized + stapled: Sparkle downloaders
+
+echo "==> Building the release (install.sh: build, sign, notarize, staple, install)"
+if ! Scripts/install.sh --no-launch; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $CURRENT_VERSION" "$INFO_PLIST"
+  echo "error: release build failed; reverted the version to $CURRENT_VERSION. Fix the" >&2
+  echo "       issue (often notarization: run deploy.sh from Terminal.app), then retry." >&2
+  exit 1
+fi
+
+# ---- validate the built app ------------------------------------------------
+if [[ ! -d "$APP" ]]; then
+  echo "error: $APP not found; the install.sh build step did not produce it." >&2
+  exit 1
+fi
+# Sanity-check the freshly built app is notarized + stapled: Sparkle downloaders
 # (and the pkg payload) verify Gatekeeper offline, so an unstapled build fails.
 if ! xcrun stapler validate "$APP" >/dev/null 2>&1; then
-  echo "error: $APP is not notarized + stapled." >&2
-  echo "       Run Scripts/install.sh (NOT --skip-notarize) before this." >&2
+  echo "error: $APP is not notarized + stapled after the build." >&2
   exit 1
 fi
 
