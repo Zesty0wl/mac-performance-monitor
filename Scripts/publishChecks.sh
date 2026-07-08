@@ -19,14 +19,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-KEY="catalog-signing.pem"
+KEY="secrets/catalog-signing.pem"
 DIR="checks"
 MANIFEST="$DIR/manifest.json"
 SIG="$DIR/manifest.json.sig"
 
 if [[ ! -f "$KEY" ]]; then
   echo "error: $KEY not found (the private signing key)." >&2
-  echo "  Generate it once:  openssl genpkey -algorithm ed25519 -out $KEY && chmod 600 $KEY" >&2
+  echo "  Generate it once:  mkdir -p secrets && openssl genpkey -algorithm ed25519 -out $KEY && chmod 600 $KEY" >&2
   echo "  Then embed the public key in CheckCatalogStore:" >&2
   echo "    openssl pkey -in $KEY -pubout -outform DER | tail -c 32 | base64" >&2
   exit 1

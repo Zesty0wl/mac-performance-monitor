@@ -17,7 +17,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-KEY="catalog-signing.pem"
+KEY="secrets/catalog-signing.pem"
 SRC="Resources/glossary.json"
 DIR="glossary"
 OUT="$DIR/glossary.json"

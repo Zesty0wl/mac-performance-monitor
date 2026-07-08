@@ -6,6 +6,19 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-07
+
+### Added
+
+- **Analytics timeline:** a draggable timeline under the charts. In the multi-chart
+  grid, panning, zooming, or scrolling the timeline moves every chart together. Drag
+  the bar to pan, drag its edges to zoom, or scroll and pinch to zoom about the
+  pointer.
+- **Chart zoom on the charts:** scroll-wheel and pinch now zoom the analytics charts
+  directly, in both the grid and the focused single-chart view.
+- **Statistics overlay:** in single-chart mode, an optional panel showing each
+  process's average, peak, current value, and trend across the visible window.
+
 ## [1.1.5] - 2026-07-05
 
 The first public, open-source (MIT) release.
@@ -50,5 +63,6 @@ processes behind them.
 - A clean split between a headless, unit-tested data layer and the SwiftUI app. CI
   builds, tests, and lints on every push and pull request.
 
-[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.1.5.118...HEAD
+[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.2.0.127...HEAD
+[1.2.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.1.5.118...v1.2.0.127
 [1.1.5]: https://github.com/Zesty0wl/mac-performance-monitor/releases/tag/v1.1.5.118

@@ -71,6 +71,11 @@ struct PerformanceMonitorView: View {
     /// resolution (twice the grid's point budget) whenever the data, the zoom,
     /// or the focus changes.
     @State private var focusedSeries: [PerfSeries] = []
+    /// Optional statistics overlay for the focused chart (average, peak, trend
+    /// per process over the visible window). Persisted so the choice sticks.
+    @AppStorage("perfmon.showFocusedStats") private var showStats = false
+    /// The per-process stats backing that overlay, rebuilt with the focused series.
+    @State private var focusedStats: [SeriesStat] = []
     /// A finer-tier re-read of the zoomed interval (see `fetchDetailIfUseful`):
     /// zooming a coarse span into a window that raw/minute retention still
     /// covers swaps in real higher-resolution points instead of stretching the
@@ -117,6 +122,9 @@ struct PerformanceMonitorView: View {
             controlBar
             chartArea
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if !selected.isEmpty {
+                timelineScrubber
+            }
             seriesPanel
         }
         .padding(16)
@@ -134,6 +142,7 @@ struct PerformanceMonitorView: View {
             reload(spinner: true)
         }
         .onChange(of: monitor.identities) { syncDerivedState() }
+        .onChange(of: showStats) { rebuildFocusedStats() }
         .onReceive(liveTimestamps) { ts in
             guard appState.mainWindowVisible else { return }
             let previous = now
@@ -202,6 +211,21 @@ struct PerformanceMonitorView: View {
                 }
             }
         }
+    }
+
+    /// The shared time-range scrubber under the charts. It marks the visible
+    /// window inside the full span; dragging, scrolling, or pinching it drives
+    /// the same zoom the focused chart uses, so in the grid every chart pans and
+    /// zooms together.
+    private var timelineScrubber: some View {
+        TimelineScrubber(
+            fullDomain: xDomain,
+            visibleDomain: visibleDomain,
+            minSpan: Self.minZoomSpan,
+            onScrub: { setVisibleWindow($0) },
+            onZoom: { applyZoom(anchor: $0, factor: $1) },
+            onPan: { applyPan(deltaSeconds: $0) }
+        )
     }
 
     /// Fires every base sampling tick (~1 Hz), so the Analytics chart's live edge
@@ -280,10 +304,15 @@ struct PerformanceMonitorView: View {
             let series = seriesByMetric[metric] ?? []
             PerformanceChart(
                 series: series,
-                xDomain: xDomain,
+                xDomain: visibleDomain,
                 minTop: metric.minTop,
                 highlighted: highlighted,
                 accessibilityTitle: metric.label,
+                scrollZoom: ChartZoomActions(
+                    zoom: { applyZoom(anchor: $0, factor: $1) },
+                    pan: { applyPan(deltaSeconds: $0) },
+                    selectRange: { applySelect($0) }
+                ),
                 yFormat: metric.format
             )
             .equatable()
@@ -341,6 +370,13 @@ struct PerformanceMonitorView: View {
                 .foregroundStyle(.tertiary)
                 .lineLimit(1)
 
+                Toggle(isOn: $showStats) {
+                    Label("Stats", systemImage: "chart.bar.xaxis")
+                }
+                .toggleStyle(.button)
+                .controlSize(.small)
+                .help("Show average, peak, current and trend for the visible window")
+
                 HStack(spacing: 2) {
                     Button {
                         applyZoom(anchor: visibleMidpoint, factor: 0.5)
@@ -389,6 +425,13 @@ struct PerformanceMonitorView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .overlay(alignment: .topLeading) {
+                if showStats && !focusedStats.isEmpty {
+                    statsCard(metric: metric)
+                        .padding(10)
+                        .allowsHitTesting(false)
+                }
+            }
 
             // Hidden Esc handler: reset the zoom first, then leave focus.
             Button("") {
@@ -405,6 +448,64 @@ struct PerformanceMonitorView: View {
             Color(nsColor: .controlBackgroundColor),
             in: RoundedRectangle(cornerRadius: 12)
         )
+    }
+
+    /// The floating statistics table over the focused chart: one row per process
+    /// with its average, peak, current value and trend across the visible window.
+    private func statsCard(metric: PerfMetric) -> some View {
+        let window = Self.durationLabel(
+            visibleDomain.upperBound.timeIntervalSince(visibleDomain.lowerBound))
+        return VStack(alignment: .leading, spacing: 5) {
+            Text("Statistics \u{00B7} \(window)")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 3) {
+                GridRow {
+                    Text("")
+                    Text("Avg").gridColumnAlignment(.trailing)
+                    Text("Peak").gridColumnAlignment(.trailing)
+                    Text("Now").gridColumnAlignment(.trailing)
+                    Text("Trend").gridColumnAlignment(.trailing)
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                ForEach(focusedStats) { stat in
+                    GridRow {
+                        HStack(spacing: 5) {
+                            Circle().fill(stat.color).frame(width: 7, height: 7)
+                            Text(stat.name)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .frame(maxWidth: 140, alignment: .leading)
+                        }
+                        Text(metric.format(stat.average))
+                        Text(metric.format(stat.peak))
+                        Text(metric.format(stat.current))
+                        trendLabel(stat)
+                    }
+                    .font(.caption2.monospacedDigit())
+                }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.secondary.opacity(0.15))
+        )
+        .fixedSize()
+    }
+
+    @ViewBuilder
+    private func trendLabel(_ stat: SeriesStat) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: stat.trend.symbol)
+            if stat.trend != .flat {
+                Text(stat.changeText)
+            }
+        }
+        .foregroundStyle(stat.trend.color)
     }
 
     /// "viewing 42 min of 6 hr \u{00B7} 1-min buckets \u{2192} raw 2-sec samples" — what's
@@ -615,17 +716,17 @@ struct PerformanceMonitorView: View {
 
     private func focus(_ metric: PerfMetric) {
         focusedMetric = metric
-        zoomDomain = nil
-        zoomDetail = nil
+        // Keep the current visible window (the timeline's zoom) so focusing a
+        // chart opens it exactly where the grid was.
         rebuildFocusedSeries()
     }
 
     private func exitFocus() {
         focusedMetric = nil
-        zoomDomain = nil
-        zoomDetail = nil
-        detailFetchToken += 1
+        // Keep zoomDomain + zoomDetail: the timeline's window is shared, so the
+        // grid stays where the user left it after leaving focus.
         focusedSeries = []
+        focusedStats = []
     }
 
     /// Zoom about `anchor`, keeping it fixed on screen. factor > 1 zooms in.
@@ -670,6 +771,15 @@ struct PerformanceMonitorView: View {
         setZoom(lower: range.lowerBound, span: selectedSpan)
     }
 
+    /// Set the visible window from the timeline scrubber: enforce the minimum
+    /// span, then reuse `setZoom` to clamp it into the full window and snap back
+    /// to the full view when it covers the whole span.
+    private func setVisibleWindow(_ range: ClosedRange<Date>) {
+        let newSpan = max(
+            range.upperBound.timeIntervalSince(range.lowerBound), Self.minZoomSpan)
+        setZoom(lower: range.lowerBound, span: newSpan)
+    }
+
     /// Clamp the requested window into the span's full window; snap back to
     /// the full view (nil) when zoomed all the way out.
     private func setZoom(lower: Date, span newSpan: TimeInterval) {
@@ -686,7 +796,7 @@ struct PerformanceMonitorView: View {
         let domain = lo...lo.addingTimeInterval(newSpan)
         guard domain != zoomDomain else { return }
         zoomDomain = domain
-        rebuildFocusedSeries()
+        rebuildChartSeries()
         scheduleDetailFetch()
     }
 
@@ -694,7 +804,7 @@ struct PerformanceMonitorView: View {
         zoomDomain = nil
         zoomDetail = nil
         detailFetchToken += 1  // cancel any pending fetch
-        rebuildFocusedSeries()
+        rebuildChartSeries()
     }
 
     /// Recompute the focused chart's series for the visible domain: slice the
@@ -715,24 +825,12 @@ struct PerformanceMonitorView: View {
         let visibleSpan = domain.upperBound.timeIntervalSince(domain.lowerBound)
         let bucketWidth = visibleSpan / Double(Self.maxPointsFocused)
         let detail = activeDetail
-        focusedSeries = selected.compactMap { id in
-            let source: [ProcessHistoryPoint]
-            if let detailPoints = detail?.series[id] {
-                // Extend the fetched detail with any live samples newer than it,
-                // so a zoom riding the live edge keeps streaming in real time
-                // instead of freezing at the fetch's right edge.
-                let cutoff = detailPoints.last?.date ?? .distantPast
-                let liveTail = (rawSeries[id] ?? []).filter { $0.date > cutoff }
-                source = liveTail.isEmpty ? detailPoints : detailPoints + liveTail
-            } else {
-                source = rawSeries[id] ?? []
-            }
-            guard !source.isEmpty else { return nil }
-            let sliced = Self.slice(source, domain: domain)
-            let points = downsample(metric.points(from: sliced), bucketWidth: bucketWidth)
-            guard !points.isEmpty else { return nil }
-            return PerfSeries(id: id, name: name(for: id), color: color(for: id), points: points)
+        focusedSeries = selected.compactMap {
+            buildSeries(
+                id: $0, metric: metric, domain: domain,
+                bucketWidth: bucketWidth, detail: detail)
         }
+        rebuildFocusedStats()
     }
 
     /// The points inside `domain` plus one on each side, so lines run off the
@@ -768,7 +866,7 @@ struct PerformanceMonitorView: View {
     /// samples where they exist and minute buckets where they don't. Fetched
     /// with padding so small pans reuse the same slice.
     private func fetchDetailIfUseful() {
-        guard focusedMetric != nil, let zoom = zoomDomain, let window = span.window else { return }
+        guard let zoom = zoomDomain, let window = span.window else { return }
         let sourceRes = Self.tierResolution(window.granularity)
         let zoomSpan = zoom.upperBound.timeIntervalSince(zoom.lowerBound)
         let desiredRes = zoomSpan / Double(Self.maxPointsFocused)
@@ -810,7 +908,7 @@ struct PerformanceMonitorView: View {
             ids, granularity: candidate, from: queryFrom, to: queryTo
         ) { map in
             guard token == self.detailFetchToken, ids == self.selected,
-                self.focusedMetric != nil
+                self.zoomDomain != nil
             else { return }
             // Stitch: below the fetched slice, the span tier's already-loaded
             // window points stand in — so the detail is valid for any pan and
@@ -825,7 +923,7 @@ struct PerformanceMonitorView: View {
             self.zoomDetail = ZoomDetail(
                 domain: Date.distantPast...queryTo, granularity: candidate,
                 stitchAt: queryFrom, series: merged)
-            self.rebuildFocusedSeries()
+            self.rebuildChartSeries()
         }
     }
 
@@ -842,19 +940,73 @@ struct PerformanceMonitorView: View {
     /// reload, a live append, or a selection sync — so `body` only ever reads
     /// the prepared arrays.
     private func rebuildChartSeries() {
-        let bucketWidth = span.seconds / Double(Self.maxPointsPerSeries)
+        let domain = visibleDomain
+        let visibleSpan = domain.upperBound.timeIntervalSince(domain.lowerBound)
+        let bucketWidth = visibleSpan / Double(Self.maxPointsPerSeries)
+        let detail = activeDetail
         var result: [PerfMetric: [PerfSeries]] = [:]
         for metric in PerfMetric.allCases {
-            result[metric] = selected.compactMap { id in
-                guard let raw = rawSeries[id], !raw.isEmpty else { return nil }
-                let points = downsample(metric.points(from: raw), bucketWidth: bucketWidth)
-                guard !points.isEmpty else { return nil }
-                return PerfSeries(
-                    id: id, name: name(for: id), color: color(for: id), points: points)
+            result[metric] = selected.compactMap {
+                buildSeries(
+                    id: $0, metric: metric, domain: domain,
+                    bucketWidth: bucketWidth, detail: detail)
             }
         }
         seriesByMetric = result
         rebuildFocusedSeries()
+    }
+
+    /// Slice one process's backing points to `domain` (preferring the fetched
+    /// finer-tier detail when it covers the window), project the metric, and
+    /// downsample to `bucketWidth`. Shared by the grid and the focused chart so
+    /// every chart honours the same visible window the timeline sets.
+    private func buildSeries(
+        id: ProcessIdentity, metric: PerfMetric, domain: ClosedRange<Date>,
+        bucketWidth: TimeInterval, detail: ZoomDetail?
+    ) -> PerfSeries? {
+        let points = downsample(
+            windowPoints(id: id, metric: metric, domain: domain, detail: detail),
+            bucketWidth: bucketWidth)
+        guard !points.isEmpty else { return nil }
+        return PerfSeries(id: id, name: name(for: id), color: color(for: id), points: points)
+    }
+
+    /// The metric's points across `domain` (with `slice`'s one-sample edge
+    /// padding), before downsampling — the shared input to both the plotted
+    /// series and the statistics overlay, so they read exactly the same window.
+    private func windowPoints(
+        id: ProcessIdentity, metric: PerfMetric, domain: ClosedRange<Date>,
+        detail: ZoomDetail?
+    ) -> [PerfPoint] {
+        let source: [ProcessHistoryPoint]
+        if let detailPoints = detail?.series[id] {
+            // Extend the fetched detail with any live samples newer than it, so a
+            // zoom riding the live edge keeps streaming instead of freezing.
+            let cutoff = detailPoints.last?.date ?? .distantPast
+            let liveTail = (rawSeries[id] ?? []).filter { $0.date > cutoff }
+            source = liveTail.isEmpty ? detailPoints : detailPoints + liveTail
+        } else {
+            source = rawSeries[id] ?? []
+        }
+        guard !source.isEmpty else { return [] }
+        return metric.points(from: Self.slice(source, domain: domain))
+    }
+
+    /// Recompute the statistics overlay over the exact visible window from the
+    /// raw projected points (not the peak-preserving downsample), so the average
+    /// and minimum are honest. Only runs while the overlay is on and focused.
+    private func rebuildFocusedStats() {
+        guard showStats, let metric = focusedMetric else {
+            if !focusedStats.isEmpty { focusedStats = [] }
+            return
+        }
+        let domain = visibleDomain
+        let detail = activeDetail
+        focusedStats = selected.compactMap { id in
+            let points = windowPoints(id: id, metric: metric, domain: domain, detail: detail)
+                .filter { domain.contains($0.date) }
+            return SeriesStat(points: points, id: id, name: name(for: id), color: color(for: id))
+        }
     }
 
     // MARK: - Data loading
@@ -1091,6 +1243,88 @@ struct PerformanceMonitorView: View {
             return PerfMetric.memory.format(Double(last.footprint))
         }
         return "\u{2014}"
+    }
+}
+
+// MARK: - Statistics
+
+/// One process's summary stats over the focused chart's visible window.
+private struct SeriesStat: Identifiable {
+    let id: ProcessIdentity
+    let name: String
+    let color: Color
+    let average: Double
+    let peak: Double
+    let minimum: Double
+    let current: Double
+    let trend: TrendDirection
+    /// Signed fraction the fitted trend line moves across the window, relative to
+    /// the mean; drives the trend arrow and its percentage read-out.
+    let changeFraction: Double
+
+    var changeText: String {
+        "\(Int((abs(changeFraction) * 100).rounded()))%"
+    }
+
+    init?(points: [PerfPoint], id: ProcessIdentity, name: String, color: Color) {
+        guard let first = points.first, let last = points.last else { return nil }
+        self.id = id
+        self.name = name
+        self.color = color
+        let values = points.map(\.value)
+        let count = Double(values.count)
+        self.average = values.reduce(0, +) / count
+        self.peak = values.max() ?? 0
+        self.minimum = values.min() ?? 0
+        self.current = last.value
+        // Least-squares slope over (seconds since start, value), expressed as the
+        // change the fitted line makes across the window.
+        let t0 = first.date.timeIntervalSince1970
+        var sx = 0.0, sy = 0.0, sxx = 0.0, sxy = 0.0
+        for p in points {
+            let x = p.date.timeIntervalSince1970 - t0
+            sx += x
+            sy += p.value
+            sxx += x * x
+            sxy += x * p.value
+        }
+        let denom = count * sxx - sx * sx
+        let span = last.date.timeIntervalSince(first.date)
+        let change: Double
+        if denom != 0, span > 0 {
+            change = (count * sxy - sx * sy) / denom * span
+        } else {
+            change = last.value - first.value
+        }
+        let fraction = change / max(abs(self.average), 1e-9)
+        self.changeFraction = fraction
+        if fraction > 0.05 {
+            self.trend = .rising
+        } else if fraction < -0.05 {
+            self.trend = .falling
+        } else {
+            self.trend = .flat
+        }
+    }
+}
+
+private enum TrendDirection: Equatable {
+    case rising, falling, flat
+
+    var symbol: String {
+        switch self {
+        case .rising: return "arrow.up.right"
+        case .falling: return "arrow.down.right"
+        case .flat: return "arrow.right"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .rising: return .orange
+        case .falling: return .green
+        case .flat: return .secondary
+        }
     }
 }
 

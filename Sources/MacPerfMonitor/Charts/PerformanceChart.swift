@@ -44,6 +44,11 @@ struct PerformanceChart: View, Equatable {
     /// cursor, and horizontal two-finger scroll pans. Scrubbing moves to
     /// hover-only. Nil (the grid cells) keeps the original hover/drag scrub.
     var zoomActions: ChartZoomActions? = nil
+    /// When set (the grid cells), scroll-wheel and pinch zoom the shared window
+    /// while hover and drag keep scrubbing, so scrolling over any chart zooms them
+    /// all. `zoomActions` (the focused chart) supersedes this with full drag-pan /
+    /// Option-select.
+    var scrollZoom: ChartZoomActions? = nil
     let yFormat: (Double) -> String
 
     /// Used with `.equatable()` so the ~2,400 marks per cell are only rebuilt
@@ -314,7 +319,9 @@ struct PerformanceChart: View, Equatable {
 
     // MARK: - Interaction overlays
 
-    /// The original passive overlay: hover or drag scrubs the read-out.
+    /// The grid cells' overlay: hover or drag scrubs the read-out, and (when
+    /// `scrollZoom` is set) scroll-wheel and pinch zoom the shared window so every
+    /// chart zooms together. The focused chart uses `zoomableOverlay` instead.
     private func scrubOverlay(proxy: ChartProxy, geometry: GeometryProxy) -> some View {
         Rectangle()
             .fill(.clear)
@@ -333,6 +340,30 @@ struct PerformanceChart: View, Equatable {
                         updateScrub(at: value.location, proxy: proxy, geometry: geometry)
                     }
                     .onEnded { _ in scrubDate = nil }
+            )
+            .simultaneousGesture(
+                MagnifyGesture()
+                    .onChanged { value in
+                        guard let scrollZoom else { return }
+                        let factor = value.magnification / magnifyLast
+                        magnifyLast = value.magnification
+                        let anchor =
+                            plotDate(atX: value.startLocation.x, proxy: proxy, geometry: geometry)
+                            ?? domainMidpoint
+                        scrollZoom.zoom(anchor, Double(factor))
+                    }
+                    .onEnded { _ in magnifyLast = 1 }
+            )
+            .background(
+                Group {
+                    if let scrollZoom {
+                        ScrollWheelCatcher { location, dx, dy in
+                            handleScroll(
+                                scrollZoom, location: location, dx: dx, dy: dy,
+                                proxy: proxy, geometry: geometry)
+                        }
+                    }
+                }
             )
     }
 
