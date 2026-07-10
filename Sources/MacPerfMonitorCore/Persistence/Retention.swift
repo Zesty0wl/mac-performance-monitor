@@ -291,7 +291,7 @@ public enum Retention {
 
         try db.execute(
             sql: """
-                INSERT INTO system_minute (bucket, pressure_avg, pressure_max, app_avg, wired_avg, compressed_avg, cached_avg, swap_used_avg, cpu_avg, cpu_max, samples, battery_charge_avg, battery_power_avg, battery_health_avg, battery_cycles_max, battery_temp_avg, net_in_avg, net_in_max, net_out_avg, net_out_max)
+                INSERT INTO system_minute (bucket, pressure_avg, pressure_max, app_avg, wired_avg, compressed_avg, cached_avg, swap_used_avg, cpu_avg, cpu_max, samples, battery_charge_avg, battery_power_avg, battery_health_avg, battery_cycles_max, battery_temp_avg, net_in_avg, net_in_max, net_out_avg, net_out_max, disk_read_avg, disk_read_max, disk_write_avg, disk_write_max, disk_read_iops_avg, disk_read_iops_max, disk_write_iops_avg, disk_write_iops_max)
                 SELECT CAST(timestamp / \(b) AS INTEGER) * \(b) AS b,
                        AVG(pressure_percent), MAX(pressure_percent),
                        CAST(AVG(app_memory) AS INTEGER), CAST(AVG(wired) AS INTEGER),
@@ -299,7 +299,10 @@ public enum Retention {
                        CAST(AVG(swap_used) AS INTEGER), AVG(cpu_load), MAX(cpu_load), COUNT(*),
                        AVG(battery_charge), AVG(battery_power), AVG(battery_health),
                        MAX(battery_cycles), AVG(battery_temp),
-                       AVG(net_in), MAX(net_in), AVG(net_out), MAX(net_out)
+                       AVG(net_in), MAX(net_in), AVG(net_out), MAX(net_out),
+                       AVG(disk_read), MAX(disk_read), AVG(disk_write), MAX(disk_write),
+                       AVG(disk_read_iops), MAX(disk_read_iops),
+                       AVG(disk_write_iops), MAX(disk_write_iops)
                 FROM system_samples
                 WHERE timestamp >= ? AND timestamp < ?
                 GROUP BY b
@@ -316,7 +319,13 @@ public enum Retention {
                   battery_cycles_max = excluded.battery_cycles_max,
                   battery_temp_avg = excluded.battery_temp_avg,
                   net_in_avg = excluded.net_in_avg, net_in_max = excluded.net_in_max,
-                  net_out_avg = excluded.net_out_avg, net_out_max = excluded.net_out_max
+                  net_out_avg = excluded.net_out_avg, net_out_max = excluded.net_out_max,
+                  disk_read_avg = excluded.disk_read_avg, disk_read_max = excluded.disk_read_max,
+                  disk_write_avg = excluded.disk_write_avg, disk_write_max = excluded.disk_write_max,
+                  disk_read_iops_avg = excluded.disk_read_iops_avg,
+                  disk_read_iops_max = excluded.disk_read_iops_max,
+                  disk_write_iops_avg = excluded.disk_write_iops_avg,
+                  disk_write_iops_max = excluded.disk_write_iops_max
                 """, arguments: [watermark, completeUpTo])
 
         try setMeta(db, "minute_watermark", completeUpTo)
@@ -368,7 +377,7 @@ public enum Retention {
 
         try db.execute(
             sql: """
-                INSERT INTO system_hour (bucket, pressure_avg, pressure_max, app_avg, wired_avg, compressed_avg, cached_avg, swap_used_avg, cpu_avg, cpu_max, samples, battery_charge_avg, battery_power_avg, battery_health_avg, battery_cycles_max, battery_temp_avg, net_in_avg, net_in_max, net_out_avg, net_out_max)
+                INSERT INTO system_hour (bucket, pressure_avg, pressure_max, app_avg, wired_avg, compressed_avg, cached_avg, swap_used_avg, cpu_avg, cpu_max, samples, battery_charge_avg, battery_power_avg, battery_health_avg, battery_cycles_max, battery_temp_avg, net_in_avg, net_in_max, net_out_avg, net_out_max, disk_read_avg, disk_read_max, disk_write_avg, disk_write_max, disk_read_iops_avg, disk_read_iops_max, disk_write_iops_avg, disk_write_iops_max)
                 SELECT CAST(bucket / 3600 AS INTEGER) * 3600 AS b,
                        SUM(pressure_avg * samples) / SUM(samples), MAX(pressure_max),
                        CAST(SUM(app_avg * samples) / SUM(samples) AS INTEGER),
@@ -384,7 +393,11 @@ public enum Retention {
                        MAX(battery_cycles_max),
                        SUM(battery_temp_avg * samples) / SUM(samples),
                        SUM(net_in_avg * samples) / SUM(samples), MAX(net_in_max),
-                       SUM(net_out_avg * samples) / SUM(samples), MAX(net_out_max)
+                       SUM(net_out_avg * samples) / SUM(samples), MAX(net_out_max),
+                       SUM(disk_read_avg * samples) / SUM(samples), MAX(disk_read_max),
+                       SUM(disk_write_avg * samples) / SUM(samples), MAX(disk_write_max),
+                       SUM(disk_read_iops_avg * samples) / SUM(samples), MAX(disk_read_iops_max),
+                       SUM(disk_write_iops_avg * samples) / SUM(samples), MAX(disk_write_iops_max)
                 FROM system_minute
                 WHERE bucket >= ? AND bucket < ?
                 GROUP BY b
@@ -401,7 +414,13 @@ public enum Retention {
                   battery_cycles_max = excluded.battery_cycles_max,
                   battery_temp_avg = excluded.battery_temp_avg,
                   net_in_avg = excluded.net_in_avg, net_in_max = excluded.net_in_max,
-                  net_out_avg = excluded.net_out_avg, net_out_max = excluded.net_out_max
+                  net_out_avg = excluded.net_out_avg, net_out_max = excluded.net_out_max,
+                  disk_read_avg = excluded.disk_read_avg, disk_read_max = excluded.disk_read_max,
+                  disk_write_avg = excluded.disk_write_avg, disk_write_max = excluded.disk_write_max,
+                  disk_read_iops_avg = excluded.disk_read_iops_avg,
+                  disk_read_iops_max = excluded.disk_read_iops_max,
+                  disk_write_iops_avg = excluded.disk_write_iops_avg,
+                  disk_write_iops_max = excluded.disk_write_iops_max
                 """, arguments: [watermark, completeUpTo])
 
         try setMeta(db, "hour_watermark", completeUpTo)

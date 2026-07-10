@@ -244,8 +244,9 @@ public final class SampleStore {
                  page_ins, page_outs, compressions, decompressions,
                  page_ins_delta, page_outs_delta, compressions_delta, decompressions_delta, cpu_load,
                  battery_present, battery_charge, battery_power, battery_charging, battery_health,
-                 battery_cycles, battery_temp, net_in, net_out)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 battery_cycles, battery_temp, net_in, net_out,
+                 disk_read, disk_write, disk_read_iops, disk_write_iops)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """)
         try statement.execute(
             arguments: [
@@ -263,6 +264,8 @@ public final class SampleStore {
                 s.batteryPresent, s.batteryCharge, s.batteryPowerWatts, s.batteryIsCharging,
                 s.batteryHealthPercent, s.batteryCycleCount, s.batteryTemperatureCelsius,
                 s.networkInBytesPerSec, s.networkOutBytesPerSec,
+                s.diskReadBytesPerSec, s.diskWriteBytesPerSec,
+                s.diskReadOperationsPerSec, s.diskWriteOperationsPerSec,
             ])
     }
 
@@ -466,7 +469,11 @@ public final class SampleStore {
             batteryCycleCount: row["battery_cycles"],
             batteryTemperatureCelsius: row["battery_temp"],
             networkInBytesPerSec: row["net_in"],
-            networkOutBytesPerSec: row["net_out"]
+            networkOutBytesPerSec: row["net_out"],
+            diskReadBytesPerSec: row["disk_read"],
+            diskWriteBytesPerSec: row["disk_write"],
+            diskReadOperationsPerSec: row["disk_read_iops"],
+            diskWriteOperationsPerSec: row["disk_write_iops"]
         )
     }
 

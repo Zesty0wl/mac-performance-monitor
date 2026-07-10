@@ -24,6 +24,7 @@ struct DashboardView: View {
     /// can show a spinner while a range change is still loading — but not during
     /// the silent 5-second refresh of the same range.
     @State private var loadedRange: HistoryWindow?
+    @State private var topDiskConsumers: [ProcessConsumer] = []
 
     private let topology = CPUTopology.current
 
@@ -42,10 +43,12 @@ struct DashboardView: View {
                 pressurePanel
                 processorPanel
                 networkPanel
+                diskPanel
             } rail: {
                 coresPanel
                 compositionPanel
                 swapPanel
+                topDiskPanel
             }
             .padding(20)
         }
@@ -242,6 +245,72 @@ struct DashboardView: View {
         }
     }
 
+    private var diskPanel: some View {
+        let rates = model.smoothedDiskRates
+        let disk = model.latestDisk
+        return DashboardPanel("Physical disk", systemImage: "internaldrive") {
+            HStack(spacing: 24) {
+                diskStat("Read", rates?.readBytesPerSec, DiskStyle.read)
+                diskStat("Write", rates?.writeBytesPerSec, DiskStyle.write)
+                if let disk {
+                    cpuStat(
+                        "IOPS",
+                        "\(Int((disk.readOperationsPerSec + disk.writeOperationsPerSec).rounded()))",
+                        .primary)
+                }
+                Spacer(minLength: 0)
+            }
+            DiskChart(points: points, showsTimeAxis: true)
+                .frame(height: 150)
+                .chartReloading(awaitingData)
+            footnote(
+                "Physical traffic across real internal and external disks. Disk images are excluded."
+            )
+        }
+    }
+
+    private var topDiskPanel: some View {
+        DashboardPanel("Top disk processes", systemImage: "list.number") {
+            if topDiskConsumers.isEmpty {
+                Text("No attributed disk activity in this range.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(topDiskConsumers.prefix(6)) { process in
+                    HStack(spacing: 7) {
+                        Image(
+                            nsImage: ProcessIconProvider.shared.icon(
+                                forPath: process.executablePath)
+                        )
+                        .resizable()
+                        .frame(width: 16, height: 16)
+                        Text(process.displayName)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer()
+                        Text(ByteFormat.rate(process.averageDisk))
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+            footnote("Kernel-attributed I/O; it may not add up to physical traffic.")
+        }
+    }
+
+    private func diskStat(_ label: String, _ value: Double?, _ tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label.uppercased())
+                .font(.caption2.weight(.semibold))
+                .tracking(0.6)
+                .foregroundStyle(.secondary)
+            Text(value.map { ByteFormat.rate($0) } ?? "--")
+                .font(.title3.monospacedDigit().weight(.semibold))
+                .foregroundStyle(tint)
+        }
+    }
+
     // MARK: - Shared bits
 
     @ViewBuilder private var buildingHistoryNote: some View {
@@ -306,7 +375,11 @@ struct DashboardView: View {
                 swapUsed: system.swapUsed,
                 cpuLoad: system.cpuLoad,
                 networkInBytesPerSec: system.networkInBytesPerSec,
-                networkOutBytesPerSec: system.networkOutBytesPerSec
+                networkOutBytesPerSec: system.networkOutBytesPerSec,
+                diskReadBytesPerSec: system.diskReadBytesPerSec,
+                diskWriteBytesPerSec: system.diskWriteBytesPerSec,
+                diskReadOperationsPerSec: system.diskReadOperationsPerSec,
+                diskWriteOperationsPerSec: system.diskWriteOperationsPerSec
             )
             if let last = pts.last {
                 if live.date > last.date { pts.append(live) }
@@ -323,6 +396,10 @@ struct DashboardView: View {
             self.history = pts
             self.loadedRange = requested
             self.rebuildPoints()
+        }
+        model.loadTopConsumers(window: requested, metric: .averageDisk, limit: 6) { rows in
+            guard self.range == requested else { return }
+            self.topDiskConsumers = rows
         }
     }
 }

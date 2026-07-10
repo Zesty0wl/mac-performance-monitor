@@ -5,6 +5,24 @@ import SwiftUI
 @MainActor
 final class CombinedStatusItemController: NSObject {
     private static let panelDefaultsKey = "combinedMenuBarPanel"
+    private static let alarmImage: NSImage = {
+        let size = NSSize(width: 12, height: 12)
+        let image = NSImage(size: size, flipped: false) { rect in
+            guard
+                let base = NSImage(
+                    systemSymbolName: "exclamationmark.triangle.fill",
+                    accessibilityDescription: nil),
+                let symbol = base.withSymbolConfiguration(
+                    .init(pointSize: 10, weight: .semibold))
+            else { return false }
+            symbol.draw(in: rect)
+            NSColor.systemRed.setFill()
+            rect.fill(using: .sourceAtop)
+            return true
+        }
+        image.isTemplate = false
+        return image
+    }()
 
     private let model: SamplerModel
     private let appState: AppState
@@ -113,16 +131,16 @@ final class CombinedStatusItemController: NSObject {
             ? [configuration.focusedMetric] : configuration.selectedMetrics
         let readouts = CombinedMenuBarReadouts.current(for: metrics, model: model)
         let alarmCount = model.activeAlertKinds.count
-        let isDark = button.effectiveAppearance.isDarkMenuBar
         let signature =
-            "\(configuration.presentation.rawValue)|\(isDark)|\(alarmCount)|"
+            "\(configuration.presentation.rawValue)|\(alarmCount)|"
             + readouts.map {
                 "\($0.metric.rawValue):\($0.value):\($0.secondaryValue ?? ""):\($0.isAlarm)"
             }.joined(separator: "|")
         guard signature != shownSignature else { return }
         button.image = CombinedMenuBarImage.image(
-            readouts: readouts, presentation: configuration.presentation,
-            alarmCount: alarmCount, isDark: isDark)
+            readouts: readouts, presentation: configuration.presentation)
+        button.imagePosition = alarmCount > 0 ? .imageLeading : .imageOnly
+        button.attributedTitle = alarmTitle(count: alarmCount)
         let summary = readouts.map {
             [$0.metric.title, $0.value, $0.secondaryValue].compactMap { $0 }.joined(separator: " ")
         }.joined(separator: ", ")
@@ -131,6 +149,26 @@ final class CombinedStatusItemController: NSObject {
         button.toolTip = summary + alarmSuffix
         button.setAccessibilityLabel("\(AppInfo.displayName), \(summary)\(alarmSuffix)")
         shownSignature = signature
+    }
+
+    private func alarmTitle(count: Int) -> NSAttributedString {
+        guard count > 0 else { return NSAttributedString(string: "") }
+        let attachment = NSTextAttachment()
+        attachment.image = Self.alarmImage
+        attachment.bounds = NSRect(x: 0, y: -1, width: 12, height: 12)
+        let title = NSMutableAttributedString(
+            attributedString: NSAttributedString(attachment: attachment))
+        if count > 1 {
+            title.append(
+                NSAttributedString(
+                    string: "\(count)",
+                    attributes: [
+                        .font: NSFont.systemFont(ofSize: 8, weight: .bold),
+                        .foregroundColor: NSColor.systemRed,
+                        .baselineOffset: 1,
+                    ]))
+        }
+        return title
     }
 
     @objc private func togglePopover(_ sender: Any?) {
@@ -184,6 +222,7 @@ final class CombinedStatusItemController: NSObject {
             configuration.presentation == .focus
             ? [configuration.focusedMetric] : configuration.selectedMetrics
         guard !metrics.isEmpty else { return nil }
+        let readouts = CombinedMenuBarReadouts.current(for: metrics, model: model)
         let local: NSPoint
         if let event = NSApp.currentEvent,
             (event.type == .leftMouseDown || event.type == .leftMouseUp),
@@ -203,12 +242,12 @@ final class CombinedStatusItemController: NSObject {
                 x: (button.bounds.width - (button.image?.size.width ?? 0)) / 2,
                 y: 0, width: button.image?.size.width ?? button.bounds.width,
                 height: button.bounds.height)
+        if model.activeAlertKinds.count > 0, local.x > imageRect.maxX {
+            return readouts.first(where: \.isAlarm)?.metric
+        }
         let imageX = min(max(local.x - imageRect.minX, 0), imageRect.width)
-        let readouts = CombinedMenuBarReadouts.current(for: metrics, model: model)
         return CombinedMenuBarImage.metric(
-            at: imageX, readouts: readouts, presentation: configuration.presentation,
-            alarmCount: model.activeAlertKinds.count,
-            isDark: button.effectiveAppearance.isDarkMenuBar)
+            at: imageX, readouts: readouts, presentation: configuration.presentation)
     }
 
     private func selectPanel(_ metric: MenuBarMetric) {
@@ -246,6 +285,7 @@ final class CombinedStatusItemController: NSObject {
         case .cpu: return .cpu
         case .energy: return .energy
         case .network: return .network
+        case .disk: return .disk
         case .gpu: return nil
         }
     }

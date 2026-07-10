@@ -17,7 +17,7 @@ extension MenuBarMetric {
             ])
         case .cpu:
             return activeKinds.contains(.highCPU)
-        case .gpu, .energy, .network:
+        case .gpu, .energy, .network, .disk:
             return false
         }
     }
@@ -62,6 +62,12 @@ enum CombinedMenuBarReadouts {
                 "\(ByteFormat.rateCompact(rates.inBytesPerSec))↓",
                 "\(ByteFormat.rateCompact(rates.outBytesPerSec))↑"
             )
+        case .disk:
+            guard let rates = model.smoothedDiskRates else { return ("--↓", "--↑") }
+            return (
+                "\(ByteFormat.rateCompact(rates.readBytesPerSec))↓",
+                "\(ByteFormat.rateCompact(rates.writeBytesPerSec))↑"
+            )
         }
     }
 }
@@ -71,25 +77,30 @@ enum CombinedMenuBarImage {
     private static let stripSeparatorWidth: CGFloat = 1.5
 
     static func image(
-        readouts: [CombinedMenuBarReadout], presentation: MenuBarPresentation,
-        alarmCount: Int, isDark: Bool
+        readouts: [CombinedMenuBarReadout], presentation: MenuBarPresentation
     ) -> NSImage {
-        switch presentation {
-        case .focus:
-            return focusImage(readout: readouts[0], alarmCount: alarmCount, isDark: isDark)
-        case .strip:
-            return stripImage(readouts: readouts, alarmCount: alarmCount, isDark: isDark)
-        }
+        let image =
+            switch presentation {
+            case .focus:
+                focusImage(readout: readouts[0])
+            case .strip:
+                stripImage(readouts: readouts)
+            }
+        // A status item is mirrored to every display. Template tinting lets each
+        // menu bar choose its own contrasting color instead of sharing pixels
+        // baked for whichever display was active on the last sample.
+        image.isTemplate = true
+        return image
     }
 
     static func metric(
         at imageX: CGFloat, readouts: [CombinedMenuBarReadout],
-        presentation: MenuBarPresentation, alarmCount: Int, isDark: Bool
+        presentation: MenuBarPresentation
     ) -> MenuBarMetric? {
         guard let first = readouts.first else { return nil }
         guard presentation == .strip else { return first.metric }
 
-        let layouts = readouts.map { layout(for: $0, isDark: isDark) }
+        let layouts = readouts.map { layout(for: $0) }
         var x: CGFloat = 0
         for index in readouts.indices {
             let end = x + layouts[index].width
@@ -104,19 +115,16 @@ enum CombinedMenuBarImage {
             }
         }
 
-        if alarmCount > 0, let alarmMetric = readouts.first(where: \.isAlarm)?.metric {
-            return alarmMetric
-        }
         return readouts.last?.metric
     }
 
-    private static func focusImage(
-        readout: CombinedMenuBarReadout, alarmCount: Int, isDark: Bool
-    ) -> NSImage {
-        let color = normalColor(isDark: isDark)
+    private static func focusImage(readout: CombinedMenuBarReadout) -> NSImage {
+        let color = NSColor.black
         let label = attributed(
             readout.metric.shortTitle,
             font: MenuBarReadoutImage.valueFont(size: 8, weight: .semibold), color: color)
+        let hasDirectionalValues = readout.secondaryValue != nil
+        let labelWidth: CGFloat = hasDirectionalValues ? 14 : ceil(label.size().width)
         let valueFont = MenuBarReadoutImage.valueFont(
             size: readout.secondaryValue == nil ? 13 * 1.05 : 13 * 0.95, weight: .bold)
         let primary =
@@ -143,13 +151,19 @@ enum CombinedMenuBarImage {
             max(
                 primary.size().width, secondary?.size().width ?? 0, networkSample?.size().width ?? 0
             ))
-        let alarmWidth = alarmBadgeWidth(count: alarmCount)
-        let width = ceil(label.size().width) + gap + valuesWidth + alarmWidth + 1
+        let width = labelWidth + gap + valuesWidth + 1
         let height: CGFloat = secondary == nil ? 20 : 22
 
         return MenuBarReadoutImage.render(width: width, height: height) { size in
-            label.draw(at: NSPoint(x: 0, y: (size.height - label.size().height) / 2))
-            let valueX = label.size().width + gap
+            if hasDirectionalValues {
+                drawSymbol(
+                    readout.metric.symbolName,
+                    in: NSRect(x: 0, y: (size.height - 13) / 2, width: 13, height: 13),
+                    color: color, pointSize: 11)
+            } else {
+                label.draw(at: NSPoint(x: 0, y: (size.height - label.size().height) / 2))
+            }
+            let valueX = labelWidth + gap
             if let secondary {
                 primary.draw(
                     at: NSPoint(
@@ -163,25 +177,15 @@ enum CombinedMenuBarImage {
                         x: valueX,
                         y: (size.height - primary.size().height) / 2))
             }
-            if alarmWidth > 0 {
-                drawAlarmBadge(
-                    count: alarmCount,
-                    in: NSRect(
-                        x: size.width - alarmWidth + 1, y: (size.height - 12) / 2,
-                        width: alarmWidth - 1, height: 12))
-            }
         }
     }
 
-    private static func stripImage(
-        readouts: [CombinedMenuBarReadout], alarmCount: Int, isDark: Bool
-    ) -> NSImage {
-        let layouts = readouts.map { layout(for: $0, isDark: isDark) }
-        let alarmWidth = alarmBadgeWidth(count: alarmCount)
+    private static func stripImage(readouts: [CombinedMenuBarReadout]) -> NSImage {
+        let layouts = readouts.map { layout(for: $0) }
         let contentWidth =
             layouts.reduce(0) { $0 + $1.width }
             + stripSeparatorWidth * CGFloat(max(0, layouts.count - 1))
-        let width = contentWidth + alarmWidth
+        let width = contentWidth
         let height: CGFloat = 22
 
         return MenuBarReadoutImage.render(width: width, height: height) { size in
@@ -190,13 +194,6 @@ enum CombinedMenuBarImage {
                 layout.draw(at: x, height: size.height)
                 x += layout.width
                 if index < layouts.count - 1 { x += stripSeparatorWidth }
-            }
-            if alarmWidth > 0 {
-                drawAlarmBadge(
-                    count: alarmCount,
-                    in: NSRect(
-                        x: size.width - alarmWidth + 1, y: (size.height - 12) / 2,
-                        width: alarmWidth - 1, height: 12))
             }
         }
     }
@@ -208,11 +205,10 @@ enum CombinedMenuBarImage {
         func draw(at x: CGFloat, height: CGFloat) { draw(x, height) }
     }
 
-    private static func layout(
-        for readout: CombinedMenuBarReadout, isDark: Bool
-    ) -> CellLayout {
-        let color = normalColor(isDark: isDark)
+    private static func layout(for readout: CombinedMenuBarReadout) -> CellLayout {
+        let color = NSColor.black
         if let secondary = readout.secondaryValue {
+            let labelWidth: CGFloat = 14
             let figureFont = MenuBarReadoutImage.valueFont(size: 10 * 0.95, weight: .bold)
             let arrowFont = MenuBarReadoutImage.valueFont(size: 10, weight: .medium)
             let top = directionalAttributed(
@@ -221,8 +217,14 @@ enum CombinedMenuBarImage {
                 secondary, figureFont: figureFont, arrowFont: arrowFont, color: color)
             let sample = directionalAttributed(
                 "999M↓", figureFont: figureFont, arrowFont: arrowFont, color: color)
-            let width = ceil(max(top.size().width, bottom.size().width, sample.size().width)) + 1
+            let figuresWidth = ceil(max(top.size().width, bottom.size().width, sample.size().width))
+            let gap: CGFloat = 2
+            let width = labelWidth + gap + figuresWidth + 1
             return CellLayout(width: width) { x, height in
+                drawSymbol(
+                    readout.metric.symbolName,
+                    in: NSRect(x: x, y: (height - 13) / 2, width: 13, height: 13),
+                    color: color, pointSize: 11)
                 top.draw(
                     at: NSPoint(x: x + width - top.size().width, y: height - top.size().height))
                 bottom.draw(at: NSPoint(x: x + width - bottom.size().width, y: 0))
@@ -272,10 +274,6 @@ enum CombinedMenuBarImage {
         return result
     }
 
-    private static func normalColor(isDark: Bool) -> NSColor {
-        isDark ? .white : .black
-    }
-
     private static func drawSymbol(
         _ name: String, in rect: NSRect, color: NSColor, pointSize: CGFloat
     ) {
@@ -289,23 +287,4 @@ enum CombinedMenuBarImage {
         rect.fill(using: .sourceAtop)
     }
 
-    private static func drawAlarmBadge(count: Int, in rect: NSRect) {
-        let symbolRect = NSRect(x: rect.minX, y: rect.minY, width: 12, height: rect.height)
-        drawSymbol(
-            "exclamationmark.triangle.fill", in: symbolRect, color: .systemRed, pointSize: 10)
-        if count > 1 {
-            let countText = attributed(
-                "\(count)", font: MenuBarReadoutImage.valueFont(size: 8, weight: .bold),
-                color: .systemRed)
-            countText.draw(
-                at: NSPoint(
-                    x: symbolRect.maxX,
-                    y: rect.midY - countText.size().height / 2))
-        }
-    }
-
-    private static func alarmBadgeWidth(count: Int) -> CGFloat {
-        guard count > 0 else { return 0 }
-        return count > 1 ? 22 : 14
-    }
 }

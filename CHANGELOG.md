@@ -6,6 +6,32 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-07-10
+
+### Added
+
+- **Physical disk activity:** optional Disk readout in the combined menu bar,
+  with read and write throughput, IOPS, device identity, service time, errors,
+  retries, and a live process-attributed leaderboard.
+- **Disk history:** physical read and write trends on Dashboard, range-aware top
+  disk processes, Disk ranking in Insights, and separate read and write charts
+  in each process detail.
+
+### Changed
+
+- **Clear directional readouts:** Network and Disk use distinct system icons with
+  fixed-width download/upload or read/write rows, so changing values do not move
+  their arrows.
+
+### Fixed
+
+- **Stable Disk panel:** the process leaderboard always reserves eight ranked
+  rows, so scans can reorder activity without moving the Open and Settings
+  controls.
+- **Correct multi-display contrast:** each copy of the combined status item now
+  follows its own display's menu bar appearance. Light and dark menu bars remain
+  legible at the same time instead of both following whichever display was active.
+
 ## [1.3.0] - 2026-07-10
 
 ### Added
@@ -147,7 +173,8 @@ processes behind them.
 - A clean split between a headless, unit-tested data layer and the SwiftUI app. CI
   builds, tests, and lints on every push and pull request.
 
-[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.0.148...HEAD
+[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.1.158...HEAD
+[1.3.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.0.148...v1.3.1.158
 [1.3.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.2.1.131...v1.3.0.148
 [1.2.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.2.0.127...v1.2.1.131
 [1.2.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.1.5.118...v1.2.0.127

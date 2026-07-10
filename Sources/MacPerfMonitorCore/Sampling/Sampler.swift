@@ -24,6 +24,9 @@ public final class Sampler {
         /// in `system`, plus the live-only session totals and primary interface.
         /// Nil before the first interface read.
         public var network: NetworkSample?
+        /// Live physical-device details. Aggregate rates are also persisted on
+        /// `system`; this richer form powers the Disk popover's device list.
+        public var disk: DiskSample?
 
         /// `cpu` defaults to `.zero` and `battery`/`network` to nil so call sites
         /// that predate those features (the persistence tests, which build
@@ -34,7 +37,8 @@ public final class Sampler {
             unreadableProcessCount: Int,
             cpu: CPUSample = .zero,
             battery: BatterySample? = nil,
-            network: NetworkSample? = nil
+            network: NetworkSample? = nil,
+            disk: DiskSample? = nil
         ) {
             self.system = system
             self.processes = processes
@@ -42,6 +46,7 @@ public final class Sampler {
             self.cpu = cpu
             self.battery = battery
             self.network = network
+            self.disk = disk
         }
     }
 
@@ -51,6 +56,8 @@ public final class Sampler {
     private let batteryReader: BatteryReader
     /// System-wide network throughput reader (always on; cheap getifaddrs walk).
     private let networkReader: NetworkReader
+    /// Physical block-device activity (always on; cheap IOKit property reads).
+    private let diskReader: DiskReader
     /// GPU utilization reader (IOAccelerator). Only read when `tickSystem` is asked
     /// to (the menubar GPU item gates it), so it costs nothing when GPU is off.
     private let gpuReader = GPUReader()
@@ -107,6 +114,11 @@ public final class Sampler {
         var wakeups: UInt64
     }
     private var lastEnergy: [ProcessIdentity: EnergyState] = [:]
+    private struct DiskState {
+        var read: UInt64
+        var written: UInt64
+    }
+    private var lastDisk: [ProcessIdentity: DiskState] = [:]
     /// Separate inter-tick clocks for the two paths, so the cheap system/CPU
     /// sample (`tickSystem`) can run at a faster cadence than the heavy
     /// per-process scan (`tickProcesses`) without their deltas interfering.
@@ -180,13 +192,15 @@ public final class Sampler {
         memoryReader: SystemMemoryReader = SystemMemoryReader(),
         cpuReader: CPUReader = CPUReader(),
         batteryReader: BatteryReader = BatteryReader(),
-        networkReader: NetworkReader = NetworkReader()
+        networkReader: NetworkReader = NetworkReader(),
+        diskReader: DiskReader = DiskReader()
     ) {
         self.processReader = processReader
         self.memoryReader = memoryReader
         self.cpuReader = cpuReader
         self.batteryReader = batteryReader
         self.networkReader = networkReader
+        self.diskReader = diskReader
     }
 
     /// Install (or remove) the privileged reader used to fill coverage gaps.
@@ -213,11 +227,11 @@ public final class Sampler {
     /// per-process scan. Used by the CLI and tests; the live app calls
     /// `tickSystem` and `tickProcesses` separately on different cadences.
     public func tick(now: Date = Date()) -> Snapshot {
-        let (system, cpu, battery, network, _) = tickSystem(now: now)
+        let (system, cpu, battery, network, disk, _) = tickSystem(now: now)
         let (processes, unreadable) = tickProcesses(now: now)
         return Snapshot(
             system: system, processes: processes, unreadableProcessCount: unreadable, cpu: cpu,
-            battery: battery, network: network)
+            battery: battery, network: network, disk: disk)
     }
 
     /// The cheap system-wide sample: total/per-core CPU and the memory/pressure
@@ -229,7 +243,7 @@ public final class Sampler {
     )
         -> (
             system: SystemSample, cpu: CPUSample, battery: BatterySample?, network: NetworkSample?,
-            gpu: GPUSample?
+            disk: DiskSample?, gpu: GPUSample?
         )
     {
         let wallDeltaSeconds = lastSystemTime.map { now.timeIntervalSince($0) } ?? 0
@@ -246,6 +260,7 @@ public final class Sampler {
         }
         let battery = cachedBattery
         let network = networkReader.read(now: now)
+        let disk = diskReader.read(now: now)
         // Gated: only walk the IOAccelerator registry when something shows GPU.
         var gpu = readGPU ? gpuReader.read() : nil
         if readGPU, gpu != nil {
@@ -263,9 +278,9 @@ public final class Sampler {
         }
         let system = sampleSystem(
             now: now, wallDeltaSeconds: wallDeltaSeconds, cpuLoad: cpu.totalUsage, battery: battery,
-            network: network)
+            network: network, disk: disk)
         lastSystemTime = now
-        return (system, cpu, battery, network, gpu)
+        return (system, cpu, battery, network, disk, gpu)
     }
 
     /// The heavy per-process scan: enumerate every visible process, read its
@@ -294,6 +309,8 @@ public final class Sampler {
         newCPU.reserveCapacity(pids.count)
         var newEnergy: [ProcessIdentity: EnergyState] = [:]
         newEnergy.reserveCapacity(pids.count)
+        var newDisk: [ProcessIdentity: DiskState] = [:]
+        newDisk.reserveCapacity(pids.count)
         var newStaticCache: [ProcessIdentity: StaticInfo] = [:]
         newStaticCache.reserveCapacity(pids.count)
         var unreadablePIDs: [pid_t] = []
@@ -324,6 +341,7 @@ public final class Sampler {
                     networkRates: networkRates,
                     newCPU: &newCPU,
                     newEnergy: &newEnergy,
+                    newDisk: &newDisk,
                     newStaticCache: &newStaticCache,
                     teamIDBudget: &teamIDBudget
                 ))
@@ -368,6 +386,7 @@ public final class Sampler {
                             networkRates: networkRates,
                             newCPU: &newCPU,
                             newEnergy: &newEnergy,
+                            newDisk: &newDisk,
                             newStaticCache: &newStaticCache,
                             teamIDBudget: &teamIDBudget
                         ))
@@ -378,6 +397,7 @@ public final class Sampler {
 
         lastCPU = newCPU
         lastEnergy = newEnergy
+        lastDisk = newDisk
         staticCache = newStaticCache
         lastProcessTime = now
 
@@ -470,10 +490,29 @@ public final class Sampler {
         networkRates: [Int32: Double],
         newCPU: inout [ProcessIdentity: CPUState],
         newEnergy: inout [ProcessIdentity: EnergyState],
+        newDisk: inout [ProcessIdentity: DiskState],
         newStaticCache: inout [ProcessIdentity: StaticInfo],
         teamIDBudget: inout Int
     ) -> ProcessSample {
         let identity = ProcessIdentity(pid: pid, startTime: info.startTime)
+
+        var diskReadBytesPerSec = 0.0
+        var diskWriteBytesPerSec = 0.0
+        if let rusage {
+            let diskNow = DiskState(
+                read: rusage.diskBytesRead,
+                written: rusage.diskBytesWritten)
+            newDisk[identity] = diskNow
+            if let prior = lastDisk[identity], wallDeltaNanos > 0 {
+                let seconds = wallDeltaNanos / 1_000_000_000
+                if diskNow.read >= prior.read {
+                    diskReadBytesPerSec = Double(diskNow.read - prior.read) / seconds
+                }
+                if diskNow.written >= prior.written {
+                    diskWriteBytesPerSec = Double(diskNow.written - prior.written) / seconds
+                }
+            }
+        }
 
         let cpuNow = CPUState(user: info.cpuTimeUser, system: info.cpuTimeSystem)
         newCPU[identity] = cpuNow
@@ -565,6 +604,8 @@ public final class Sampler {
             fdOther: fd.other,
             diskBytesRead: rusage?.diskBytesRead ?? 0,
             diskBytesWritten: rusage?.diskBytesWritten ?? 0,
+            diskReadBytesPerSec: diskReadBytesPerSec,
+            diskWriteBytesPerSec: diskWriteBytesPerSec,
             energyNanojoules: energyNow,
             energyImpact: EnergyImpact.estimate(
                 cpuPercent: cpuPercent,
@@ -585,6 +626,7 @@ public final class Sampler {
     public func reset() {
         lastCPU.removeAll()
         lastEnergy.removeAll()
+        lastDisk.removeAll()
         staticCache.removeAll()
         lastSystemTime = nil
         lastProcessTime = nil
@@ -594,6 +636,7 @@ public final class Sampler {
         cachedBattery = nil
         lastBatteryReadAt = nil
         networkReader.reset()
+        diskReader.reset()
         privilegedFailureStreak = 0
         privilegedQuietUntil = nil
     }
@@ -606,7 +649,7 @@ public final class Sampler {
     /// and feeds the persisted system-history CPU timeline.
     private func sampleSystem(
         now: Date, wallDeltaSeconds: TimeInterval, cpuLoad: Double, battery: BatterySample?,
-        network: NetworkSample?
+        network: NetworkSample?, disk: DiskSample?
     ) -> SystemSample {
         let totalRAM = memoryReader.totalRAM
         let vm = memoryReader.sampleVM()
@@ -692,7 +735,11 @@ public final class Sampler {
             batteryCycleCount: battery?.cycleCount ?? 0,
             batteryTemperatureCelsius: battery?.temperatureCelsius ?? 0,
             networkInBytesPerSec: network?.inBytesPerSec ?? 0,
-            networkOutBytesPerSec: network?.outBytesPerSec ?? 0
+            networkOutBytesPerSec: network?.outBytesPerSec ?? 0,
+            diskReadBytesPerSec: disk?.readBytesPerSec ?? 0,
+            diskWriteBytesPerSec: disk?.writeBytesPerSec ?? 0,
+            diskReadOperationsPerSec: disk?.readOperationsPerSec ?? 0,
+            diskWriteOperationsPerSec: disk?.writeOperationsPerSec ?? 0
         )
     }
 

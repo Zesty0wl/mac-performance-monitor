@@ -310,14 +310,24 @@ struct ProcessDetailView: View {
                 yFormat: { String(format: "%.0f", max($0, 0)) }
             )
 
-            chartBlock(
-                title: "Disk I/O",
-                systemImage: "internaldrive",
-                caption: "Read + write throughput between ticks.",
-                samples: diskRateSamples,
-                tint: .indigo,
-                yFormat: { "\(ByteFormat.string(UInt64(max($0, 0))))/s" }
-            )
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Disk I/O", systemImage: "internaldrive")
+                    .font(.subheadline.weight(.semibold))
+                chartBlock(
+                    title: "Read",
+                    systemImage: "arrow.down",
+                    caption: "Kernel-attributed read throughput between samples.",
+                    samples: diskRateSamples.read,
+                    tint: DiskStyle.read,
+                    yFormat: { ByteFormat.rate(max($0, 0)) })
+                chartBlock(
+                    title: "Write",
+                    systemImage: "arrow.up",
+                    caption: "Kernel-attributed write throughput between samples.",
+                    samples: diskRateSamples.write,
+                    tint: DiskStyle.write,
+                    yFormat: { ByteFormat.rate(max($0, 0)) })
+            }
         }
     }
 
@@ -379,20 +389,26 @@ struct ProcessDetailView: View {
 
     /// Disk throughput (bytes/second) from the difference between consecutive
     /// cumulative counters. Counter resets (process replaced) clamp to zero.
-    private var diskRateSamples: [MetricSample] {
+    private var diskRateSamples: (read: [MetricSample], write: [MetricSample]) {
         let points = chartPoints
-        guard points.count > 1 else { return [] }
-        var out: [MetricSample] = []
-        out.reserveCapacity(points.count - 1)
+        guard points.count > 1 else { return ([], []) }
+        var read: [MetricSample] = []
+        var write: [MetricSample] = []
+        read.reserveCapacity(points.count - 1)
+        write.reserveCapacity(points.count - 1)
         for i in 1..<points.count {
             let dt = points[i].date.timeIntervalSince(points[i - 1].date)
             guard dt > 0 else { continue }
-            let current = points[i].diskRead &+ points[i].diskWritten
-            let previous = points[i - 1].diskRead &+ points[i - 1].diskWritten
-            let delta = current >= previous ? current - previous : 0
-            out.append(MetricSample(date: points[i].date, value: Double(delta) / dt))
+            let readDelta =
+                points[i].diskRead >= points[i - 1].diskRead
+                ? points[i].diskRead - points[i - 1].diskRead : 0
+            let writeDelta =
+                points[i].diskWritten >= points[i - 1].diskWritten
+                ? points[i].diskWritten - points[i - 1].diskWritten : 0
+            read.append(MetricSample(date: points[i].date, value: Double(readDelta) / dt))
+            write.append(MetricSample(date: points[i].date, value: Double(writeDelta) / dt))
         }
-        return out
+        return (read, write)
     }
 }
 

@@ -530,14 +530,21 @@ private struct TopConsumersSection: View {
     var leakingIDs: Set<ProcessIdentity> = []
     var loading: Bool = false
 
-    private func value(_ consumer: ProcessConsumer) -> UInt64 {
-        metric == .averageFootprint ? consumer.averageFootprint : consumer.peakFootprint
+    private func value(_ consumer: ProcessConsumer) -> Double {
+        switch metric {
+        case .averageFootprint: return Double(consumer.averageFootprint)
+        case .peakFootprint: return Double(consumer.peakFootprint)
+        case .averageCPU: return consumer.averageCPU
+        case .averageEnergy: return consumer.averageEnergy
+        case .averageNetwork: return consumer.averageNetwork
+        case .averageDisk: return consumer.averageDisk
+        }
     }
 
     var body: some View {
         HistorySection(
             "Top consumers", systemImage: "chart.bar.fill",
-            subtitle: "Heaviest memory users over the selected window."
+            subtitle: consumerSubtitle
         ) {
             HStack {
                 Picker("Window", selection: $window) {
@@ -570,11 +577,22 @@ private struct TopConsumersSection: View {
                         if index > 0 { Divider() }
                         ConsumerRow(
                             rank: index + 1, consumer: consumer, metric: metric,
-                            fraction: top > 0 ? Double(value(consumer)) / Double(top) : 0,
+                            fraction: top > 0 ? value(consumer) / top : 0,
                             isLeaking: leakingIDs.contains(consumer.identity))
                     }
                 }
             }
+        }
+    }
+
+    private var consumerSubtitle: String {
+        switch metric {
+        case .averageFootprint, .peakFootprint:
+            return "Heaviest memory users over the selected window."
+        case .averageCPU: return "Highest average CPU use over the selected window."
+        case .averageEnergy: return "Highest average energy impact over the selected window."
+        case .averageNetwork: return "Highest average network throughput over the selected window."
+        case .averageDisk: return "Highest attributed disk throughput over the selected window."
         }
     }
 }
@@ -612,7 +630,7 @@ private struct ConsumerRow: View {
                         LeakIndicator()
                     }
                     Spacer(minLength: 8)
-                    Text(ByteFormat.string(primaryValue))
+                    Text(primaryText)
                         .font(.body.monospacedDigit().weight(.semibold))
                 }
                 ProportionBar(fraction: fraction, tint: isLeaking ? .orange : .blue)
@@ -625,17 +643,35 @@ private struct ConsumerRow: View {
         .processRowActions(identity: consumer.identity)
     }
 
-    private var primaryValue: UInt64 {
-        metric == .averageFootprint ? consumer.averageFootprint : consumer.peakFootprint
+    private var primaryText: String {
+        switch metric {
+        case .averageFootprint: return ByteFormat.string(consumer.averageFootprint)
+        case .peakFootprint: return ByteFormat.string(consumer.peakFootprint)
+        case .averageCPU: return String(format: "%.1f%%", consumer.averageCPU)
+        case .averageEnergy: return String(format: "%.0f", consumer.averageEnergy)
+        case .averageNetwork: return ByteFormat.rate(consumer.averageNetwork)
+        case .averageDisk: return ByteFormat.rate(consumer.averageDisk)
+        }
     }
 
     private var secondaryLine: String {
-        let other =
-            metric == .averageFootprint
-            ? "peak \(ByteFormat.string(consumer.peakFootprint))"
-            : "avg \(ByteFormat.string(consumer.averageFootprint))"
-        return
-            "\(other) · \(String(format: "%.1f", consumer.averageCPU))% CPU · \(consumer.sampleCount) samples"
+        switch metric {
+        case .averageFootprint:
+            return
+                "peak \(ByteFormat.string(consumer.peakFootprint)) · \(consumer.sampleCount) samples"
+        case .peakFootprint:
+            return
+                "avg \(ByteFormat.string(consumer.averageFootprint)) · \(consumer.sampleCount) samples"
+        case .averageCPU:
+            return
+                "avg \(ByteFormat.string(consumer.averageFootprint)) memory · \(consumer.sampleCount) samples"
+        case .averageEnergy:
+            return "relative energy impact · \(consumer.sampleCount) samples"
+        case .averageNetwork:
+            return "download + upload · \(consumer.sampleCount) samples"
+        case .averageDisk:
+            return "attributed read + write · \(consumer.sampleCount) samples"
+        }
     }
 }
 

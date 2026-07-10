@@ -51,6 +51,10 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
 
     public var diskBytesRead: UInt64
     public var diskBytesWritten: UInt64
+    /// Instantaneous rates derived from the cumulative counters above over the
+    /// real interval between process scans. First sightings and resets are zero.
+    public var diskReadBytesPerSec: Double
+    public var diskWriteBytesPerSec: Double
 
     /// Kernel per-process energy accounting (nanojoules, cumulative). Best-effort
     /// and often 0; `energyImpact` is the figure the UI ranks by.
@@ -130,6 +134,8 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
         fdOther: Int32,
         diskBytesRead: UInt64,
         diskBytesWritten: UInt64,
+        diskReadBytesPerSec: Double = 0,
+        diskWriteBytesPerSec: Double = 0,
         energyNanojoules: UInt64 = 0,
         energyImpact: Double = 0,
         networkBytesPerSec: Double = 0,
@@ -162,6 +168,8 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
         self.fdOther = fdOther
         self.diskBytesRead = diskBytesRead
         self.diskBytesWritten = diskBytesWritten
+        self.diskReadBytesPerSec = diskReadBytesPerSec
+        self.diskWriteBytesPerSec = diskWriteBytesPerSec
         self.energyNanojoules = energyNanojoules
         self.energyImpact = energyImpact
         self.networkBytesPerSec = networkBytesPerSec

@@ -121,7 +121,6 @@ private struct GeneralSettingsView: View {
 private struct MenuBarDockSettingsView: View {
     @EnvironmentObject private var model: SamplerModel
     @EnvironmentObject private var menuBar: CombinedMenuBarConfiguration
-    @Environment(\.colorScheme) private var colorScheme
     /// Shared with `DockIconController`, so toggling shows or hides the Dock icon
     /// live. Off by default — the app is menubar-first.
     @AppStorage(DockIconController.defaultsKey) private var showDockIcon = false
@@ -246,8 +245,7 @@ private struct MenuBarDockSettingsView: View {
             ? [menuBar.focusedMetric] : menuBar.selectedMetrics
         let readouts = CombinedMenuBarReadouts.current(for: metrics, model: model)
         return CombinedMenuBarImage.image(
-            readouts: readouts, presentation: menuBar.presentation,
-            alarmCount: model.activeAlertKinds.count, isDark: colorScheme == .dark)
+            readouts: readouts, presentation: menuBar.presentation)
     }
 }
 

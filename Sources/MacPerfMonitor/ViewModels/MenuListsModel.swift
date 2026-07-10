@@ -9,6 +9,7 @@ enum MenuListKind: CaseIterable {
     case cpu
     case energy
     case network
+    case disk
 }
 
 /// The top-process lists for the menu-bar popovers (and the Network tab's
@@ -31,6 +32,8 @@ final class MenuListsModel: ObservableObject {
     /// Top processes by network throughput, for the network dropdown and the
     /// Network tab. Empty unless per-app network tracking is enabled.
     @Published private(set) var topNetwork: [ProcessSample] = []
+    /// Top processes by kernel-attributed read + write throughput.
+    @Published private(set) var topDisk: [ProcessSample] = []
 
     func update(_ kind: MenuListKind, with rows: [ProcessSample]) {
         // Skip no-op publishes: an unchanged list (e.g. the always-empty
@@ -41,6 +44,7 @@ final class MenuListsModel: ObservableObject {
         case .cpu: if rows != topCPU { topCPU = rows }
         case .energy: if rows != topEnergy { topEnergy = rows }
         case .network: if rows != topNetwork { topNetwork = rows }
+        case .disk: if rows != topDisk { topDisk = rows }
         }
     }
 }

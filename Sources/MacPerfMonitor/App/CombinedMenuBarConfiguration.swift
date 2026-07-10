@@ -7,6 +7,7 @@ enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
     case gpu
     case energy
     case network
+    case disk
 
     var id: String { rawValue }
 
@@ -17,6 +18,7 @@ enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
         case .gpu: return "GPU"
         case .energy: return "Energy"
         case .network: return "Network"
+        case .disk: return "Disk"
         }
     }
 
@@ -27,6 +29,7 @@ enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
         case .gpu: return "GPU"
         case .energy: return "BAT"
         case .network: return "NET"
+        case .disk: return "DSK"
         }
     }
 
@@ -37,6 +40,7 @@ enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
         case .gpu: return "display"
         case .energy: return "bolt.fill"
         case .network: return "network"
+        case .disk: return "internaldrive"
         }
     }
 }
@@ -139,6 +143,11 @@ final class CombinedMenuBarConfiguration: ObservableObject {
         if defaults.object(forKey: legacyNetworkKey) as? Bool ?? true {
             migrated.append(.network)
         }
+        // Disk did not exist before the combined-item preference. Existing users
+        // keep their chosen width; new users (no legacy keys at all) get Disk.
+        let hasLegacySelection = [legacyCPUKey, legacyGPUKey, legacyEnergyKey, legacyNetworkKey]
+            .contains { defaults.object(forKey: $0) != nil }
+        if !hasLegacySelection { migrated.append(.disk) }
         return migrated
     }
 }

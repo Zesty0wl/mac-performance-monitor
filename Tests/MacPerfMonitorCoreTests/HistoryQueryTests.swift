@@ -121,4 +121,31 @@ final class HistoryQueryTests: XCTestCase {
             window: .oneHour, now: Date(timeIntervalSince1970: 1_700_000_400))
         XCTAssertTrue(top.isEmpty)
     }
+
+    func testTopConsumersRankByAverageDiskThroughput() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_400)
+        var busy = Make.process(
+            timestamp: base, pid: 1000, startTime: startTime, name: "Busy",
+            diskBytesRead: 1_000, diskBytesWritten: 2_000)
+        var quiet = Make.process(
+            timestamp: base, pid: 2000, startTime: startTime, name: "Quiet",
+            diskBytesRead: 1_000, diskBytesWritten: 2_000)
+        try store.insert(Make.system(timestamp: base), processes: [busy, quiet])
+
+        busy.timestamp = base.addingTimeInterval(10)
+        busy.diskBytesRead = 81_000
+        busy.diskBytesWritten = 22_000
+        quiet.timestamp = base.addingTimeInterval(10)
+        quiet.diskBytesRead = 11_000
+        quiet.diskBytesWritten = 2_000
+        try store.insert(
+            Make.system(timestamp: base.addingTimeInterval(10)), processes: [busy, quiet])
+
+        let ranked = try store.topConsumers(
+            window: .oneHour, metric: .averageDisk, limit: 10,
+            now: base.addingTimeInterval(11))
+        XCTAssertEqual(ranked.map(\.name), ["Busy", "Quiet"])
+        XCTAssertEqual(ranked[0].averageDisk, 10_000, accuracy: 0.001)
+        XCTAssertEqual(ranked[1].averageDisk, 1_000, accuracy: 0.001)
+    }
 }

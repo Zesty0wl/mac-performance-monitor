@@ -462,6 +462,7 @@ private struct OnboardingMenuBarStep: View {
         case .gpu: return "GPU activity, power, memory, and temperature."
         case .energy: return "Charge, power flow, and top energy users."
         case .network: return "Download, upload, latency, and top network apps."
+        case .disk: return "Physical read and write activity, devices, and top processes."
         }
     }
 }

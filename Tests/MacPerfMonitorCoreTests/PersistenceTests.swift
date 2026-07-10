@@ -56,7 +56,7 @@ final class PersistenceTests: XCTestCase {
         XCTAssertEqual(processes.first?.name, "TestProc")
     }
 
-    func testPerformanceIndexesIncludeNetworkAndProcessAge() throws {
+    func testPerformanceIndexesIncludeNetworkDiskAndProcessAge() throws {
         let indexes = try store.databasePool.read { db -> [String: [String]] in
             var result: [String: [String]] = [:]
             for name in ["idx_process_samples_consumer", "idx_processes_last_seen"] {
@@ -69,7 +69,7 @@ final class PersistenceTests: XCTestCase {
             indexes["idx_process_samples_consumer"],
             [
                 "process_id", "timestamp", "footprint_readable", "phys_footprint",
-                "cpu_percent", "energy_impact", "net_total",
+                "cpu_percent", "energy_impact", "net_total", "disk_read", "disk_written",
             ])
         XCTAssertEqual(indexes["idx_processes_last_seen"], ["last_seen"])
     }

@@ -158,6 +158,8 @@ struct CombinedMenuBarContentView: View {
             BatteryMenuBarContentView(dismiss: dismiss, embedded: true)
         case .network:
             NetworkMenuBarContentView(dismiss: dismiss, embedded: true)
+        case .disk:
+            DiskMenuBarContentView(dismiss: dismiss)
         }
     }
 
@@ -219,7 +221,7 @@ struct CombinedMenuBarContentView: View {
         case .cpu: return .processes
         case .energy: return .battery
         case .network: return .network
-        case .pressure, .gpu: return .dashboard
+        case .pressure, .gpu, .disk: return .dashboard
         }
     }
 

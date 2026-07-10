@@ -71,6 +71,13 @@ public struct SystemSample: Sendable, Codable {
     /// Upload (sent) throughput, bytes/second.
     public var networkOutBytesPerSec: Double
 
+    /// Physical block-device throughput summed across real internal and external
+    /// disks. Virtual disk images are excluded by `DiskReader`.
+    public var diskReadBytesPerSec: Double
+    public var diskWriteBytesPerSec: Double
+    public var diskReadOperationsPerSec: Double
+    public var diskWriteOperationsPerSec: Double
+
     public init(
         timestamp: Date,
         totalRAM: UInt64,
@@ -104,7 +111,11 @@ public struct SystemSample: Sendable, Codable {
         batteryCycleCount: Int = 0,
         batteryTemperatureCelsius: Double = 0,
         networkInBytesPerSec: Double = 0,
-        networkOutBytesPerSec: Double = 0
+        networkOutBytesPerSec: Double = 0,
+        diskReadBytesPerSec: Double = 0,
+        diskWriteBytesPerSec: Double = 0,
+        diskReadOperationsPerSec: Double = 0,
+        diskWriteOperationsPerSec: Double = 0
     ) {
         self.timestamp = timestamp
         self.totalRAM = totalRAM
@@ -139,5 +150,9 @@ public struct SystemSample: Sendable, Codable {
         self.batteryTemperatureCelsius = batteryTemperatureCelsius
         self.networkInBytesPerSec = networkInBytesPerSec
         self.networkOutBytesPerSec = networkOutBytesPerSec
+        self.diskReadBytesPerSec = diskReadBytesPerSec
+        self.diskWriteBytesPerSec = diskWriteBytesPerSec
+        self.diskReadOperationsPerSec = diskReadOperationsPerSec
+        self.diskWriteOperationsPerSec = diskWriteOperationsPerSec
     }
 }

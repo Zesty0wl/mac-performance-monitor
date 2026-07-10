@@ -28,6 +28,10 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
     // battery scalars so call sites that predate network history still build.
     public var networkInBytesPerSec: Double
     public var networkOutBytesPerSec: Double
+    public var diskReadBytesPerSec: Double
+    public var diskWriteBytesPerSec: Double
+    public var diskReadOperationsPerSec: Double
+    public var diskWriteOperationsPerSec: Double
 
     public var id: Date { date }
 
@@ -45,7 +49,11 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
         batteryHealthPercent: Double = 0,
         batteryTemperatureCelsius: Double = 0,
         networkInBytesPerSec: Double = 0,
-        networkOutBytesPerSec: Double = 0
+        networkOutBytesPerSec: Double = 0,
+        diskReadBytesPerSec: Double = 0,
+        diskWriteBytesPerSec: Double = 0,
+        diskReadOperationsPerSec: Double = 0,
+        diskWriteOperationsPerSec: Double = 0
     ) {
         self.date = date
         self.pressurePercent = pressurePercent
@@ -61,6 +69,10 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
         self.batteryTemperatureCelsius = batteryTemperatureCelsius
         self.networkInBytesPerSec = networkInBytesPerSec
         self.networkOutBytesPerSec = networkOutBytesPerSec
+        self.diskReadBytesPerSec = diskReadBytesPerSec
+        self.diskWriteBytesPerSec = diskWriteBytesPerSec
+        self.diskReadOperationsPerSec = diskReadOperationsPerSec
+        self.diskWriteOperationsPerSec = diskWriteOperationsPerSec
     }
 }
 
@@ -101,7 +113,8 @@ extension SampleStore {
                 db,
                 sql: """
                     SELECT timestamp, pressure_percent, app_memory, wired, compressed, cached_files, swap_used, cpu_load,
-                           battery_charge, battery_power, battery_health, battery_temp, net_in, net_out
+                           battery_charge, battery_power, battery_health, battery_temp, net_in, net_out,
+                           disk_read, disk_write, disk_read_iops, disk_write_iops
                     FROM system_samples
                     WHERE timestamp >= ?
                     ORDER BY timestamp ASC
@@ -117,7 +130,8 @@ extension SampleStore {
                 sql: """
                     SELECT bucket, pressure_avg, app_avg, wired_avg, compressed_avg, cached_avg, swap_used_avg, cpu_avg,
                            battery_charge_avg, battery_power_avg, battery_health_avg, battery_temp_avg,
-                           net_in_avg, net_out_avg
+                           net_in_avg, net_out_avg,
+                           disk_read_avg, disk_write_avg, disk_read_iops_avg, disk_write_iops_avg
                     FROM \(table)
                     WHERE bucket >= ?
                     ORDER BY bucket ASC
@@ -127,7 +141,7 @@ extension SampleStore {
     }
 
     /// Positional decode shared by the raw and aggregate queries, which list the
-    /// same 14 columns in the same order. Reading by index (`row[0]`) rather than
+    /// same 18 columns in the same order. Reading by index (`row[0]`) rather than
     /// by name (`row["..."]`) avoids a column-name→index lookup per field per row,
     /// which over a few hundred points × 14 columns was a measurable read cost.
     private static func decodeHistoryPoint(_ row: Row) -> SystemHistoryPoint {
@@ -146,7 +160,11 @@ extension SampleStore {
             batteryHealthPercent: row[10],
             batteryTemperatureCelsius: row[11],
             networkInBytesPerSec: row[12],
-            networkOutBytesPerSec: row[13]
+            networkOutBytesPerSec: row[13],
+            diskReadBytesPerSec: row[14],
+            diskWriteBytesPerSec: row[15],
+            diskReadOperationsPerSec: row[16],
+            diskWriteOperationsPerSec: row[17]
         )
     }
 }

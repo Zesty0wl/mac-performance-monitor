@@ -95,6 +95,9 @@ final class SamplerModel: ObservableObject {
     /// full tick rate. The most recent also carries the live session totals and
     /// primary interface for the menu. Touched only on the main thread.
     private var recentNetworkSamples: [NetworkSample] = []
+    /// Recent physical-device samples for the ~5 s menu bar smoothing window.
+    /// The most recent entry also carries per-device identity and health counters.
+    private var recentDiskSamples: [DiskSample] = []
 
     /// The most recent battery sample, captured every fast tick (~1 Hz). The
     /// published `latest` snapshot carries battery only on the slower heavy
@@ -795,7 +798,8 @@ final class SamplerModel: ObservableObject {
     /// the kernel pressure event so an alert is not delayed. Then hops to main to
     /// publish.
     private func tick(forceHeavy: Bool = false) {
-        let (system, cpu, battery, network, gpu) = sampler.tickSystem(readGPU: gpuSamplingEnabled)
+        let (system, cpu, battery, network, disk, gpu) = sampler.tickSystem(
+            readGPU: gpuSamplingEnabled)
 
         heavyTickCounter += 1
         tableTickCounter += 1
@@ -830,7 +834,7 @@ final class SamplerModel: ObservableObject {
             let snapshot = Sampler.Snapshot(
                 system: system, processes: result.processes,
                 unreadableProcessCount: result.unreadableProcessCount, cpu: cpu, battery: battery,
-                network: network)
+                network: network, disk: disk)
             if !didLogFirstTick {
                 didLogFirstTick = true
                 AppLog.sampler.notice(
@@ -854,7 +858,8 @@ final class SamplerModel: ObservableObject {
         // so menubar/dashboard system figures stay live at the fast rate.
         let snapshot = Sampler.Snapshot(
             system: system, processes: carriedProcesses,
-            unreadableProcessCount: carriedUnreadable, cpu: cpu, battery: battery, network: network)
+            unreadableProcessCount: carriedUnreadable, cpu: cpu, battery: battery,
+            network: network, disk: disk)
         let processes = carriedProcesses
         // In full mode the scan runs for the database even with every window and
         // popover closed — but the main-thread trail/menu/table rebuilds it used
@@ -895,6 +900,7 @@ final class SamplerModel: ObservableObject {
             self.systemHistory.append(system)
             self.appendRecentCPU(cpu)
             self.appendRecentNetwork(network)
+            self.appendRecentDisk(disk)
             self.recentBattery = battery
             // GPU is sampled only while the menubar GPU item is on; smooth it like
             // CPU so the icon figure settles, and drop the history when it goes off.
@@ -953,9 +959,19 @@ final class SamplerModel: ObservableObject {
         }
     }
 
+    private func appendRecentDisk(_ disk: DiskSample?) {
+        guard let disk else { return }
+        recentDiskSamples.append(disk)
+        if recentDiskSamples.count > cpuSmoothingTicks {
+            recentDiskSamples.removeFirst(recentDiskSamples.count - cpuSmoothingTicks)
+        }
+    }
+
     /// The most recent network sample (live session totals + primary interface),
     /// or nil until the first interface read lands.
     var latestNetwork: NetworkSample? { recentNetworkSamples.last }
+
+    var latestDisk: DiskSample? { recentDiskSamples.last }
 
     /// The freshest GPU sample (utilization, render/tiler, in-use memory, name), or
     /// nil when the GPU item is off or before the first read. Drives the popover.
@@ -991,6 +1007,22 @@ final class SamplerModel: ObservableObject {
         let inSum = recentNetworkSamples.reduce(0.0) { $0 + $1.inBytesPerSec }
         let outSum = recentNetworkSamples.reduce(0.0) { $0 + $1.outBytesPerSec }
         return (inSum / n, outSum / n)
+    }
+
+    var smoothedDiskRates: (readBytesPerSec: Double, writeBytesPerSec: Double)? {
+        guard !recentDiskSamples.isEmpty else { return nil }
+        let count = Double(recentDiskSamples.count)
+        let read = recentDiskSamples.reduce(0.0) { $0 + $1.readBytesPerSec }
+        let write = recentDiskSamples.reduce(0.0) { $0 + $1.writeBytesPerSec }
+        return (read / count, write / count)
+    }
+
+    func diskReadTrail() -> [Double] {
+        systemHistory.elements().map(\.diskReadBytesPerSec)
+    }
+
+    func diskWriteTrail() -> [Double] {
+        systemHistory.elements().map(\.diskWriteBytesPerSec)
     }
 
     /// The recent total-throughput trail (bytes/sec, most recent last), for the
@@ -1056,6 +1088,17 @@ final class SamplerModel: ObservableObject {
                         processes.sorted { $0.networkBytesPerSec > $1.networkBytesPerSec }
                             .prefix(menuListLimit))
                     : [])
+        }
+        if kinds.contains(.disk) {
+            menuLists.update(
+                .disk,
+                with: Array(
+                    processes.sorted {
+                        let lhsRate = $0.diskReadBytesPerSec + $0.diskWriteBytesPerSec
+                        let rhsRate = $1.diskReadBytesPerSec + $1.diskWriteBytesPerSec
+                        if lhsRate != rhsRate { return lhsRate > rhsRate }
+                        return $0.pid < $1.pid
+                    }.prefix(menuListLimit)))
         }
     }
 

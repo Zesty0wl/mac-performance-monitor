@@ -60,6 +60,9 @@ public enum ConsumerMetric: String, Sendable, CaseIterable, Identifiable {
     /// Time-weighted mean network throughput across the window (bytes/second,
     /// download + upload). Only meaningful when per-app network tracking is on.
     case averageNetwork
+    /// Mean kernel-attributed disk throughput across the process's observed
+    /// portion of the window, derived from cumulative read and write endpoints.
+    case averageDisk
 
     public var id: String { rawValue }
 
@@ -70,6 +73,7 @@ public enum ConsumerMetric: String, Sendable, CaseIterable, Identifiable {
         case .averageCPU: return "CPU"
         case .averageEnergy: return "Energy"
         case .averageNetwork: return "Network"
+        case .averageDisk: return "Disk"
         }
     }
 
@@ -82,6 +86,7 @@ public enum ConsumerMetric: String, Sendable, CaseIterable, Identifiable {
         case .averageCPU: return "avg_cpu"
         case .averageEnergy: return "avg_energy"
         case .averageNetwork: return "avg_net"
+        case .averageDisk: return "avg_disk"
         }
     }
 }
@@ -105,6 +110,8 @@ public struct ProcessConsumer: Sendable, Identifiable, Equatable {
     public var averageEnergy: Double
     /// Mean network throughput across the window (bytes/second, download+upload).
     public var averageNetwork: Double
+    /// Mean attributed read + write throughput over the observed window.
+    public var averageDisk: Double
     /// Number of underlying samples contributing to the aggregate.
     public var sampleCount: Int
 
@@ -128,6 +135,7 @@ public struct ProcessConsumer: Sendable, Identifiable, Equatable {
         averageCPU: Double,
         averageEnergy: Double = 0,
         averageNetwork: Double = 0,
+        averageDisk: Double = 0,
         sampleCount: Int
     ) {
         self.identity = identity
@@ -141,6 +149,7 @@ public struct ProcessConsumer: Sendable, Identifiable, Equatable {
         self.averageCPU = averageCPU
         self.averageEnergy = averageEnergy
         self.averageNetwork = averageNetwork
+        self.averageDisk = averageDisk
         self.sampleCount = sampleCount
     }
 }
@@ -220,9 +229,15 @@ extension SampleStore {
                            SUM(s.cpu_percent * s.dt) / SUM(s.dt) AS avg_cpu,
                            SUM(s.energy_impact * s.dt) / SUM(s.dt) AS avg_energy,
                            SUM(s.net_total * s.dt) / SUM(s.dt) AS avg_net,
+                           CASE WHEN MAX(s.timestamp) > MIN(s.timestamp)
+                                THEN ((MAX(s.disk_read) - MIN(s.disk_read))
+                                    + (MAX(s.disk_written) - MIN(s.disk_written)))
+                                    / (MAX(s.timestamp) - MIN(s.timestamp))
+                                ELSE 0 END AS avg_disk,
                            COUNT(*) AS n
                     FROM (
-                        SELECT process_id, phys_footprint, cpu_percent, energy_impact, net_total,
+                        SELECT process_id, timestamp, phys_footprint, cpu_percent, energy_impact,
+                               net_total, disk_read, disk_written,
                                COALESCE(
                                  LEAD(timestamp) OVER (PARTITION BY process_id ORDER BY timestamp),
                                  timestamp + 1) - timestamp AS dt
@@ -258,6 +273,11 @@ extension SampleStore {
                            SUM(t.cpu_avg * t.samples) / SUM(t.samples) AS avg_cpu,
                            SUM(t.energy_avg * t.samples) / SUM(t.samples) AS avg_energy,
                            SUM(t.net_avg * t.samples) / SUM(t.samples) AS avg_net,
+                           CASE WHEN MAX(t.bucket) > MIN(t.bucket)
+                                THEN ((MAX(t.disk_read_max) - MIN(t.disk_read_max))
+                                    + (MAX(t.disk_written_max) - MIN(t.disk_written_max)))
+                                    / (MAX(t.bucket) - MIN(t.bucket))
+                                ELSE 0 END AS avg_disk,
                            SUM(t.samples) AS n
                     FROM \(table) t
                     JOIN processes p ON p.id = t.process_id
@@ -270,7 +290,7 @@ extension SampleStore {
         }
     }
 
-    /// Positional decode (raw and aggregate SELECTs list the same 13 columns in
+    /// Positional decode (raw and aggregate SELECTs list the same 14 columns in
     /// the same order), avoiding a name lookup per field per row.
     private static func decodeConsumer(_ row: Row) -> ProcessConsumer {
         let pid: Int32 = row[0]
@@ -292,7 +312,8 @@ extension SampleStore {
             averageCPU: row[9],
             averageEnergy: row[10],
             averageNetwork: row[11],
-            sampleCount: row[12]
+            averageDisk: row[12],
+            sampleCount: row[13]
         )
     }
 }

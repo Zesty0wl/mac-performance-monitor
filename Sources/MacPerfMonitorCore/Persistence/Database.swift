@@ -156,6 +156,12 @@ public enum MacPerfMonitorDatabase {
             try db.execute(sql: "PRAGMA analysis_limit = 1000")
             try db.execute(sql: "ANALYZE")
         }
+        // Physical block-device activity from IOKit. Read/write throughput and
+        // IOPS are instantaneous system rates; minute/hour tiers retain each
+        // direction's mean and peak like network throughput.
+        migrator.registerMigration("v11-system-disk-activity") { db in
+            try db.execute(sql: Schema.v11)
+        }
         return migrator
     }
 }
@@ -426,6 +432,47 @@ enum Schema {
             ON process_samples(process_id, timestamp, footprint_readable,
                                phys_footprint, cpu_percent, energy_impact, net_total);
         CREATE INDEX idx_processes_last_seen ON processes(last_seen);
+        """
+
+    static let v11 = """
+        ALTER TABLE system_samples ADD COLUMN disk_read REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_samples ADD COLUMN disk_write REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_samples ADD COLUMN disk_read_iops REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_samples ADD COLUMN disk_write_iops REAL NOT NULL DEFAULT 0;
+
+        ALTER TABLE system_minute ADD COLUMN disk_read_avg REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_minute ADD COLUMN disk_read_max REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_minute ADD COLUMN disk_write_avg REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_minute ADD COLUMN disk_write_max REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_minute ADD COLUMN disk_read_iops_avg REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_minute ADD COLUMN disk_read_iops_max REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_minute ADD COLUMN disk_write_iops_avg REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_minute ADD COLUMN disk_write_iops_max REAL NOT NULL DEFAULT 0;
+
+        ALTER TABLE system_hour ADD COLUMN disk_read_avg REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_hour ADD COLUMN disk_read_max REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_hour ADD COLUMN disk_write_avg REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_hour ADD COLUMN disk_write_max REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_hour ADD COLUMN disk_read_iops_avg REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_hour ADD COLUMN disk_read_iops_max REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_hour ADD COLUMN disk_write_iops_avg REAL NOT NULL DEFAULT 0;
+        ALTER TABLE system_hour ADD COLUMN disk_write_iops_max REAL NOT NULL DEFAULT 0;
+
+        DROP INDEX idx_process_samples_consumer;
+        CREATE INDEX idx_process_samples_consumer
+            ON process_samples(process_id, timestamp, footprint_readable,
+                               phys_footprint, cpu_percent, energy_impact, net_total,
+                               disk_read, disk_written);
+        DROP INDEX idx_process_minute_consumer;
+        CREATE INDEX idx_process_minute_consumer
+            ON process_minute(bucket, process_id, samples, footprint_avg,
+                              footprint_max, cpu_avg, energy_avg, net_avg,
+                              disk_read_max, disk_written_max);
+        DROP INDEX idx_process_hour_consumer;
+        CREATE INDEX idx_process_hour_consumer
+            ON process_hour(bucket, process_id, samples, footprint_avg,
+                            footprint_max, cpu_avg, energy_avg, net_avg,
+                            disk_read_max, disk_written_max);
         """
 }
 
