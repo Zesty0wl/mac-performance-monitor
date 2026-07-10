@@ -8,7 +8,6 @@ struct CombinedMenuBarReadout {
     var isAlarm: Bool
 }
 
-
 extension MenuBarMetric {
     func isAlarm(in activeKinds: Set<Alert.Kind>) -> Bool {
         switch self {
@@ -61,7 +60,8 @@ enum CombinedMenuBarReadouts {
             guard let rates = model.smoothedNetworkRates else { return ("--↓", "--↑") }
             return (
                 "\(ByteFormat.rateCompact(rates.inBytesPerSec))↓",
-                "\(ByteFormat.rateCompact(rates.outBytesPerSec))↑")
+                "\(ByteFormat.rateCompact(rates.outBytesPerSec))↑"
+            )
         }
     }
 }
@@ -140,7 +140,9 @@ enum CombinedMenuBarImage {
         }
         let gap: CGFloat = 4
         let valuesWidth = ceil(
-            max(primary.size().width, secondary?.size().width ?? 0, networkSample?.size().width ?? 0))
+            max(
+                primary.size().width, secondary?.size().width ?? 0, networkSample?.size().width ?? 0
+            ))
         let alarmWidth = alarmBadgeWidth(count: alarmCount)
         let width = ceil(label.size().width) + gap + valuesWidth + alarmWidth + 1
         let height: CGFloat = secondary == nil ? 20 : 22
@@ -164,8 +166,9 @@ enum CombinedMenuBarImage {
             if alarmWidth > 0 {
                 drawAlarmBadge(
                     count: alarmCount,
-                    in: NSRect(x: size.width - alarmWidth + 1, y: (size.height - 12) / 2,
-                               width: alarmWidth - 1, height: 12))
+                    in: NSRect(
+                        x: size.width - alarmWidth + 1, y: (size.height - 12) / 2,
+                        width: alarmWidth - 1, height: 12))
             }
         }
     }
@@ -175,7 +178,8 @@ enum CombinedMenuBarImage {
     ) -> NSImage {
         let layouts = readouts.map { layout(for: $0, isDark: isDark) }
         let alarmWidth = alarmBadgeWidth(count: alarmCount)
-        let contentWidth = layouts.reduce(0) { $0 + $1.width }
+        let contentWidth =
+            layouts.reduce(0) { $0 + $1.width }
             + stripSeparatorWidth * CGFloat(max(0, layouts.count - 1))
         let width = contentWidth + alarmWidth
         let height: CGFloat = 22
@@ -190,8 +194,9 @@ enum CombinedMenuBarImage {
             if alarmWidth > 0 {
                 drawAlarmBadge(
                     count: alarmCount,
-                    in: NSRect(x: size.width - alarmWidth + 1, y: (size.height - 12) / 2,
-                               width: alarmWidth - 1, height: 12))
+                    in: NSRect(
+                        x: size.width - alarmWidth + 1, y: (size.height - 12) / 2,
+                        width: alarmWidth - 1, height: 12))
             }
         }
     }
@@ -218,7 +223,8 @@ enum CombinedMenuBarImage {
                 "999M↓", figureFont: figureFont, arrowFont: arrowFont, color: color)
             let width = ceil(max(top.size().width, bottom.size().width, sample.size().width)) + 1
             return CellLayout(width: width) { x, height in
-                top.draw(at: NSPoint(x: x + width - top.size().width, y: height - top.size().height))
+                top.draw(
+                    at: NSPoint(x: x + width - top.size().width, y: height - top.size().height))
                 bottom.draw(at: NSPoint(x: x + width - bottom.size().width, y: 0))
             }
         }
@@ -235,13 +241,16 @@ enum CombinedMenuBarImage {
         let width = ceil(max(value.size().width, sample.size().width, label.size().width)) + 1
         return CellLayout(width: width) { x, height in
             label.draw(
-                at: NSPoint(x: x + (width - label.size().width) / 2,
-                            y: height - label.size().height))
+                at: NSPoint(
+                    x: x + (width - label.size().width) / 2,
+                    y: height - label.size().height))
             value.draw(at: NSPoint(x: x + (width - value.size().width) / 2, y: 0))
         }
     }
 
-    private static func attributed(_ text: String, font: NSFont, color: NSColor)
+    private static func attributed(
+        _ text: String, font: NSFont, color: NSColor
+    )
         -> NSAttributedString
     {
         NSAttributedString(string: text, attributes: [.font: font, .foregroundColor: color])

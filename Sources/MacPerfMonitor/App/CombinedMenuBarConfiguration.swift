@@ -41,7 +41,6 @@ enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
     }
 }
 
-
 enum MenuBarPresentation: String, CaseIterable, Identifiable {
     case focus
     case strip
@@ -85,7 +84,8 @@ final class CombinedMenuBarConfiguration: ObservableObject {
         presentation =
             defaults.string(forKey: Self.presentationDefaultsKey)
             .flatMap(MenuBarPresentation.init(rawValue:)) ?? .strip
-        focusedMetric = savedFocus.flatMap { loadedMetrics.contains($0) ? $0 : nil }
+        focusedMetric =
+            savedFocus.flatMap { loadedMetrics.contains($0) ? $0 : nil }
             ?? loadedMetrics[0]
         persistSelection()
     }

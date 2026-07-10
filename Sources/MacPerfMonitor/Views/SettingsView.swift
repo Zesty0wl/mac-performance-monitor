@@ -156,7 +156,8 @@ private struct MenuBarDockSettingsView: View {
                         .accessibilityLabel("Menu bar preview")
                         .padding(.horizontal, 9)
                         .frame(height: 26)
-                        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 5))
+                        .background(
+                            Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 5))
                 }
             } header: {
                 Text("Combined Item")
@@ -176,7 +177,8 @@ private struct MenuBarDockSettingsView: View {
             } header: {
                 Text("Read-outs")
             } footer: {
-                Text("Choose any combination and order. At least one read-out must remain selected.")
+                Text(
+                    "Choose any combination and order. At least one read-out must remain selected.")
             }
 
             Section {
@@ -217,14 +219,18 @@ private struct MenuBarDockSettingsView: View {
             .disabled(isSelected && menuBar.selectedMetrics.count == 1)
 
             if isSelected, let index = menuBar.selectedMetrics.firstIndex(of: metric) {
-                Button { menuBar.move(metric, by: -1) } label: {
+                Button {
+                    menuBar.move(metric, by: -1)
+                } label: {
                     Image(systemName: "chevron.up")
                 }
                 .buttonStyle(.borderless)
                 .disabled(index == 0)
                 .help("Move \(metric.title) earlier")
 
-                Button { menuBar.move(metric, by: 1) } label: {
+                Button {
+                    menuBar.move(metric, by: 1)
+                } label: {
                     Image(systemName: "chevron.down")
                 }
                 .buttonStyle(.borderless)

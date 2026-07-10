@@ -126,7 +126,8 @@ final class CombinedStatusItemController: NSObject {
         let summary = readouts.map {
             [$0.metric.title, $0.value, $0.secondaryValue].compactMap { $0 }.joined(separator: " ")
         }.joined(separator: ", ")
-        let alarmSuffix = alarmCount > 0 ? ", \(alarmCount) active alarm\(alarmCount == 1 ? "" : "s")" : ""
+        let alarmSuffix =
+            alarmCount > 0 ? ", \(alarmCount) active alarm\(alarmCount == 1 ? "" : "s")" : ""
         button.toolTip = summary + alarmSuffix
         button.setAccessibilityLabel("\(AppInfo.displayName), \(summary)\(alarmSuffix)")
         shownSignature = signature
@@ -250,7 +251,8 @@ final class CombinedStatusItemController: NSObject {
     }
 
     private func reconcileGPUSampling() {
-        let shouldSample = configuration.selectedMetrics.contains(.gpu)
+        let shouldSample =
+            configuration.selectedMetrics.contains(.gpu)
             || (popover?.isShown == true && currentPanel == .gpu)
         guard shouldSample != gpuSamplingActive else { return }
         gpuSamplingActive = shouldSample

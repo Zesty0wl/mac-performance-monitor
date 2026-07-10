@@ -11,7 +11,6 @@ final class CombinedMenuBarPanelSelection: ObservableObject {
     }
 }
 
-
 struct CombinedMenuBarContentView: View {
     @EnvironmentObject private var model: SamplerModel
     @EnvironmentObject private var appState: AppState
@@ -101,7 +100,8 @@ struct CombinedMenuBarContentView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
                     .background(
-                        selection.metric == metric ? Color.accentColor.opacity(0.16) : .clear)
+                        selection.metric == metric ? Color.accentColor.opacity(0.16) : .clear
+                    )
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -109,7 +109,8 @@ struct CombinedMenuBarContentView: View {
                 .help(
                     configuration.isSelected(metric)
                         ? "\(metric.title), shown in the menu bar"
-                        : metric.title)
+                        : metric.title
+                )
                 .accessibilityLabel(metric.title)
                 .accessibilityValue(readout?.value ?? "Unavailable")
             }
