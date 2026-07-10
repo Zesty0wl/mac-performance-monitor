@@ -264,6 +264,13 @@ final class SamplerModel: ObservableObject {
     private let readQueue = DispatchQueue(
         label: "uk.co.bzwrd.macperfmonitor.dbread", qos: .userInitiated)
 
+    /// Large, uncached trace exports must not queue ahead of chart and tab
+    /// reads. GRDB's WAL pool supports concurrent readers, so export gets an
+    /// independent queue and reports failures instead of turning them into an
+    /// empty-history message.
+    private let exportReadQueue = DispatchQueue(
+        label: "uk.co.bzwrd.macperfmonitor.dbexport", qos: .userInitiated)
+
     /// Background queue for periodic database maintenance (the retention pass +
     /// WAL checkpoint), so the once-a-minute roll-up/trim/vacuum spike never
     /// runs inside a tick. Retention commits short per-step transactions, so a
@@ -273,6 +280,9 @@ final class SamplerModel: ObservableObject {
     /// Guards against overlapping retention passes if one runs longer than the
     /// retention cadence (e.g. a large size-cap trim). Confined to `queue`.
     private var retentionInFlight = false
+    /// Invalidates background history work whenever the persistence store is
+    /// enabled, disabled, or replaced. Confined to `queue`.
+    private var persistenceGeneration = 0
 
     /// The most recent leak-board scan and when it ran, confined to `readQueue`.
     /// Every consumer — `loadLeakBoard` and the Insights bundle — reads through
@@ -670,6 +680,7 @@ final class SamplerModel: ObservableObject {
         queue.async { [weak self] in
             guard let self, enabled != self.persistenceEnabled else { return }
             self.persistenceEnabled = enabled
+            self.persistenceGeneration &+= 1
             if enabled {
                 if self.store == nil {
                     do {
@@ -689,6 +700,9 @@ final class SamplerModel: ObservableObject {
                 // menu-bar-only mode is genuinely database-free.
                 self.store?.checkpoint()
                 self.store = nil
+                self.readQueue.async { [weak self] in self?.clearHistoryCaches() }
+                self.leakingIDs.removeAll()
+                DispatchQueue.main.async { self.leakingProcessIDs.removeAll() }
             }
             // The scan cadence depends on whether logging is on (it speeds up to
             // feed high-res logging when enabled), so recompute it here too.
@@ -1186,14 +1200,18 @@ final class SamplerModel: ObservableObject {
     /// read cache lives on `readQueue`, the alert engine's leaking set on
     /// `queue`, and the published row highlight on main.
     private func scheduleLeakScan(_ store: SampleStore) {
+        let generation = persistenceGeneration
         leakScanQueue.async { [weak self] in
             let entries = (try? store.leakBoard()) ?? []
             guard let self else { return }
-            self.readQueue.async {
-                self.cachedLeakBoard = (Date(), entries)
-                self.cachedLeakSeries = nil
-            }
             self.queue.async {
+                guard generation == self.persistenceGeneration,
+                    self.persistenceEnabled, self.store === store
+                else { return }
+                self.readQueue.async {
+                    self.cachedLeakBoard = (Date(), entries)
+                    self.cachedLeakSeries = nil
+                }
                 self.leakingIDs = Set(entries.map(\.identity))
                 let published = self.leakingIDs
                 DispatchQueue.main.async { self.leakingProcessIDs = published }
@@ -1669,6 +1687,32 @@ final class SamplerModel: ObservableObject {
         }
     }
 
+    func loadProcessHistoriesForExport(
+        _ identities: [ProcessIdentity],
+        granularity: HistoryWindow.Granularity,
+        from: Date,
+        to: Date,
+        maximumPointCount: Int,
+        isCancelled: @escaping @Sendable () -> Bool,
+        completion:
+            @escaping (
+                Result<[ProcessIdentity: [ProcessHistoryPoint]], Error>
+            ) -> Void
+    ) {
+        guard let store, !identities.isEmpty else {
+            completion(.success([:]))
+            return
+        }
+        exportReadQueue.async {
+            let result = Result {
+                try store.processHistories(
+                    for: identities, granularity: granularity, from: from, to: to,
+                    maximumPointCount: maximumPointCount, isCancelled: isCancelled)
+            }
+            DispatchQueue.main.async { completion(result) }
+        }
+    }
+
     /// The finest tier that actually has data covering `from…to`, so the Analytics
     /// chart can render a span at its true available resolution rather than the
     /// tier its fixed window would pick. Delivered on the main thread.
@@ -1842,8 +1886,26 @@ final class SamplerModel: ObservableObject {
         let report = Self.buildGroupReport(
             store, rule: group.rule, window: window, glossary: glossary, device: device,
             weights: weights)
+        cachedGroupReports = cachedGroupReports.filter {
+            $0.key.id != group.id || $0.key.window != window || $0.key == key
+        }
         cachedGroupReports[key] = (Date(), report)
         return report
+    }
+
+    /// Release all arrays sourced from the history database. Confined to
+    /// `readQueue`, like every cache it clears, and called when logging is
+    /// disabled so menu-bar-only mode does not retain data it can no longer use.
+    private func clearHistoryCaches() {
+        cachedLeakBoard = nil
+        cachedConsumers.removeAll(keepingCapacity: false)
+        cachedEnergyConsumers.removeAll(keepingCapacity: false)
+        cachedGroupReports.removeAll(keepingCapacity: false)
+        cachedSystemHistory.removeAll(keepingCapacity: false)
+        cachedRecentSystemHistory.removeAll(keepingCapacity: false)
+        cachedPressureEvents = nil
+        cachedLeakSeries = nil
+        cachedConsumerSeries = nil
     }
 
     private static func buildGroupReport(

@@ -181,7 +181,8 @@ struct TimelineScrubber: View {
                         x0: x0, x1: x1)
                 }
                 guard let drag else { return }
-                let cursor = date(atX: value.location.x, proxy: proxy, plot: plot)
+                let cursor =
+                    date(atX: value.location.x, proxy: proxy, plot: plot)
                     ?? drag.startCursor
                 switch drag.kind {
                 case .pan:

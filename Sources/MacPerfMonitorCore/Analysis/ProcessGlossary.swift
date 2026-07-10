@@ -14,22 +14,29 @@ public struct ProcessGlossary: Codable, Sendable, Equatable {
     }
 
     /// How an entry is matched to a running process. Fields are tried most-specific
-    /// first (see `lookup`); a generic catch-all uses `bundleIDPrefix` / `pathPrefix`.
+    /// first (see `lookup`); generic catch-alls use prefix or pattern fields.
     public struct Match: Codable, Sendable, Equatable {
         public var name: String?  // exact executable name, e.g. "mDNSResponder"
         public var bundleID: String?  // exact bundle id
         public var bundleIDPrefix: String?  // e.g. "com.google.Chrome.helper", "com.apple."
+        public var path: String?  // exact executable path, e.g. "/usr/bin/log"
         public var pathPrefix: String?  // e.g. "/System/Library/"
+        public var pathSuffix: String?  // stable tail below a versioned or UUID directory
+        public var pathPattern: String?  // case-sensitive substring of the executable path
         public var namePattern: String?  // case-insensitive substring of the name
 
         public init(
             name: String? = nil, bundleID: String? = nil, bundleIDPrefix: String? = nil,
-            pathPrefix: String? = nil, namePattern: String? = nil
+            path: String? = nil, pathPrefix: String? = nil, pathSuffix: String? = nil,
+            pathPattern: String? = nil, namePattern: String? = nil
         ) {
             self.name = name
             self.bundleID = bundleID
             self.bundleIDPrefix = bundleIDPrefix
+            self.path = path
             self.pathPrefix = pathPrefix
+            self.pathSuffix = pathSuffix
+            self.pathPattern = pathPattern
             self.namePattern = namePattern
         }
     }
@@ -48,8 +55,8 @@ public struct ProcessGlossary: Codable, Sendable, Equatable {
         public var expectedHigh: Bool?
 
         public var id: String {
-            match.bundleID ?? match.name ?? match.bundleIDPrefix ?? match.pathPrefix
-                ?? match.namePattern ?? title
+            match.bundleID ?? match.path ?? match.name ?? match.bundleIDPrefix ?? match.pathPrefix
+                ?? match.pathSuffix ?? match.pathPattern ?? match.namePattern ?? title
         }
 
         public init(
@@ -67,9 +74,10 @@ public struct ProcessGlossary: Codable, Sendable, Equatable {
     }
 
     /// The best entry for a process, most-specific first:
-    /// exact bundle id → exact name → longest bundle-id prefix → longest path prefix
-    /// → name substring. Returns nil when nothing matches (the caller can fall back
-    /// to `generic`).
+    /// exact bundle id → exact path → longest path suffix/substring → exact name →
+    /// longest bundle-id prefix → longest path prefix → name substring. Path-aware
+    /// rules keep generic executable names such as `log` or `tracer` from labeling
+    /// unrelated software. Returns nil when nothing matches.
     public func lookup(name: String, bundleID: String?, path: String?) -> Entry? {
         // The kernel name (p_comm) is truncated to ~15 chars, so entries key on the
         // FULL name recovered from the executable's filename. Match that (and the raw
@@ -78,6 +86,9 @@ public struct ProcessGlossary: Codable, Sendable, Equatable {
         if let bundleID, let e = entries.first(where: { $0.match.bundleID == bundleID }) {
             return e
         }
+        if let path, let e = entries.first(where: { $0.match.path == path }) { return e }
+        if let path, let e = longestSuffixMatch(path, keyPath: \.match.pathSuffix) { return e }
+        if let path, let e = longestContainsMatch(path, keyPath: \.match.pathPattern) { return e }
         if let e = entries.first(where: { $0.match.name == resolved || $0.match.name == name }) {
             return e
         }
@@ -99,6 +110,20 @@ public struct ProcessGlossary: Codable, Sendable, Equatable {
     private func longestPrefixMatch(_ value: String, keyPath: KeyPath<Entry, String?>) -> Entry? {
         entries
             .filter { ($0[keyPath: keyPath]).map(value.hasPrefix) ?? false }
+            .max { ($0[keyPath: keyPath]?.count ?? 0) < ($1[keyPath: keyPath]?.count ?? 0) }
+    }
+
+    private func longestSuffixMatch(_ value: String, keyPath: KeyPath<Entry, String?>) -> Entry? {
+        entries
+            .filter { ($0[keyPath: keyPath]).map(value.hasSuffix) ?? false }
+            .max { ($0[keyPath: keyPath]?.count ?? 0) < ($1[keyPath: keyPath]?.count ?? 0) }
+    }
+
+    private func longestContainsMatch(
+        _ value: String, keyPath: KeyPath<Entry, String?>
+    ) -> Entry? {
+        entries
+            .filter { ($0[keyPath: keyPath]).map(value.contains) ?? false }
             .max { ($0[keyPath: keyPath]?.count ?? 0) < ($1[keyPath: keyPath]?.count ?? 0) }
     }
 

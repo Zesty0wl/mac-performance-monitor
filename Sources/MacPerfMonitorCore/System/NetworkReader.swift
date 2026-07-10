@@ -34,7 +34,8 @@ public final class NetworkReader {
     /// call (no previous counters to difference yet) and whenever no time has
     /// elapsed. Returns nil only if the interface list cannot be read at all.
     public func read(now: Date = Date()) -> NetworkSample? {
-        guard let counters = Self.interfaceCounters() else { return nil }
+        guard let snapshot = Self.interfaceSnapshot() else { return nil }
+        let counters = snapshot.counters
 
         let dt = lastTime.map { now.timeIntervalSince($0) } ?? 0
         var deltaIn: UInt64 = 0
@@ -64,7 +65,7 @@ public final class NetworkReader {
 
         // The local IPv4 of the active interface, preferring the busiest one, then
         // en0, then any en*; for the network menu's "via Wi-Fi · 192.168.x.y" line.
-        let ipv4 = Self.interfaceIPv4()
+        let ipv4 = snapshot.ipv4
         let localIP = busiest.flatMap { ipv4[$0.name] } ?? ipv4["en0"] ?? ipv4.values.sorted().first
 
         return NetworkSample(
@@ -85,56 +86,46 @@ public final class NetworkReader {
         lastTime = nil
     }
 
-    /// The current cumulative in/out byte counters for each physical (`en*`)
-    /// interface, or nil if the interface list could not be read.
-    private static func interfaceCounters() -> [String: (inBytes: UInt32, outBytes: UInt32)]? {
+    private struct InterfaceSnapshot {
+        var counters: [String: (inBytes: UInt32, outBytes: UInt32)]
+        var ipv4: [String: String]
+    }
+
+    /// Read counters and addresses in one `getifaddrs` walk. The linked list has
+    /// one entry per address family, so AF_LINK and AF_INET data for the same
+    /// interface naturally land in the two dictionaries below.
+    private static func interfaceSnapshot() -> InterfaceSnapshot? {
         var firstAddr: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&firstAddr) == 0, let firstAddr else { return nil }
         defer { freeifaddrs(firstAddr) }
 
-        var result: [String: (inBytes: UInt32, outBytes: UInt32)] = [:]
+        var counters: [String: (inBytes: UInt32, outBytes: UInt32)] = [:]
+        var ipv4: [String: String] = [:]
         for ptr in sequence(first: firstAddr, next: { $0.pointee.ifa_next }) {
             let ifa = ptr.pointee
-            guard let addr = ifa.ifa_addr,
-                Int32(addr.pointee.sa_family) == AF_LINK,
-                let raw = ifa.ifa_data
-            else { continue }
-
+            guard let addr = ifa.ifa_addr else { continue }
             let name = String(cString: ifa.ifa_name)
             // Physical Ethernet/Wi-Fi only. Counting tunnels/bridges/loopback
             // would double-count traffic that also crosses an en* interface.
             guard name.hasPrefix("en") else { continue }
 
-            let data = raw.assumingMemoryBound(to: if_data.self).pointee
-            result[name] = (UInt32(data.ifi_ibytes), UInt32(data.ifi_obytes))
-        }
-        return result
-    }
-
-    /// The first IPv4 address of each physical (`en*`) interface, keyed by name.
-    /// A second cheap `getifaddrs` walk (AF_INET this time); the local IP changes
-    /// rarely, so the negligible per-tick cost is fine.
-    private static func interfaceIPv4() -> [String: String] {
-        var firstAddr: UnsafeMutablePointer<ifaddrs>?
-        guard getifaddrs(&firstAddr) == 0, let firstAddr else { return [:] }
-        defer { freeifaddrs(firstAddr) }
-
-        var result: [String: String] = [:]
-        for ptr in sequence(first: firstAddr, next: { $0.pointee.ifa_next }) {
-            let ifa = ptr.pointee
-            guard let addr = ifa.ifa_addr, Int32(addr.pointee.sa_family) == AF_INET else {
+            switch Int32(addr.pointee.sa_family) {
+            case AF_LINK:
+                guard let raw = ifa.ifa_data else { continue }
+                let data = raw.assumingMemoryBound(to: if_data.self).pointee
+                counters[name] = (UInt32(data.ifi_ibytes), UInt32(data.ifi_obytes))
+            case AF_INET where ipv4[name] == nil:
+                var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                if getnameinfo(
+                    addr, socklen_t(addr.pointee.sa_len), &host, socklen_t(host.count), nil, 0,
+                    NI_NUMERICHOST) == 0
+                {
+                    ipv4[name] = String(cString: host)
+                }
+            default:
                 continue
             }
-            let name = String(cString: ifa.ifa_name)
-            guard name.hasPrefix("en"), result[name] == nil else { continue }
-            var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-            if getnameinfo(
-                addr, socklen_t(addr.pointee.sa_len), &host, socklen_t(host.count), nil, 0,
-                NI_NUMERICHOST) == 0
-            {
-                result[name] = String(cString: host)
-            }
         }
-        return result
+        return InterfaceSnapshot(counters: counters, ipv4: ipv4)
     }
 }

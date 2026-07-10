@@ -148,6 +148,43 @@ final class ProcessHistoryTests: XCTestCase {
         XCTAssertTrue(map.isEmpty)
     }
 
+    func testProcessHistorySliceEnforcesPointLimitWhileReading() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        for index in 0..<3 {
+            try insertTick(
+                base.addingTimeInterval(Double(index)),
+                footprint: UInt64(100 + index) * 1024 * 1024)
+        }
+        let identity = ProcessIdentity(pid: 1000, startTime: startTime)
+
+        let exact = try store.processHistories(
+            for: [identity], granularity: .raw,
+            from: base, to: base.addingTimeInterval(1), maximumPointCount: 2)
+        XCTAssertEqual(exact[identity]?.count, 2)
+
+        XCTAssertThrowsError(
+            try store.processHistories(
+                for: [identity], granularity: .raw,
+                from: base, to: base.addingTimeInterval(2), maximumPointCount: 2)
+        ) { error in
+            XCTAssertEqual(error as? ProcessHistoryReadError, .pointLimitExceeded(2))
+        }
+    }
+
+    func testProcessHistorySliceHonoursCancellation() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        try insertTick(base, footprint: 100 * 1024 * 1024)
+        let identity = ProcessIdentity(pid: 1000, startTime: startTime)
+
+        XCTAssertThrowsError(
+            try store.processHistories(
+                for: [identity], granularity: .raw,
+                from: base, to: base, isCancelled: { true })
+        ) { error in
+            XCTAssertEqual(error as? ProcessHistoryReadError, .cancelled)
+        }
+    }
+
     func testProcessHistoryFeedsLeakDetector() throws {
         let base = Date(timeIntervalSince1970: 1_700_000_000)
         let spacing: TimeInterval = 20

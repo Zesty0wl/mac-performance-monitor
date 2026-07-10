@@ -3,7 +3,7 @@ import MacPerfMonitorCore
 import SwiftUI
 
 /// One plotted point on a Performance Monitor series.
-struct PerfPoint: Identifiable, Equatable {
+struct PerfPoint: Identifiable, Equatable, Sendable {
     var date: Date
     var value: Double
     var id: Date { date }
@@ -20,7 +20,7 @@ struct PerfSeries: Identifiable, Equatable {
     var points: [PerfPoint]
 
     /// Stable, unique key for the Swift Charts foreground-style scale.
-    var key: String { "\(id.pid)/\(Int(id.startTime.timeIntervalSince1970))" }
+    var key: String { "\(id.pid)/\(id.startTime.timeIntervalSince1970.bitPattern)" }
 }
 
 /// The Performance Monitor's hero chart: several processes overlaid on one set

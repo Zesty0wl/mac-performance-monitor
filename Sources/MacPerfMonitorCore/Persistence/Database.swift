@@ -147,6 +147,15 @@ public enum MacPerfMonitorDatabase {
             try db.execute(sql: "PRAGMA analysis_limit = 1000")
             try db.execute(sql: "ANALYZE")
         }
+        // Network was added after the original raw consumer index, so reading
+        // `net_total` forced a table lookup for every matching raw row. Rebuild
+        // that index as genuinely covering, and index process last-seen time so
+        // group membership and dimension pruning do not scan the whole catalog.
+        migrator.registerMigration("v10-raw-network-and-process-age-indexes") { db in
+            try db.execute(sql: Schema.v10)
+            try db.execute(sql: "PRAGMA analysis_limit = 1000")
+            try db.execute(sql: "ANALYZE")
+        }
         return migrator
     }
 }
@@ -409,6 +418,14 @@ enum Schema {
         CREATE INDEX idx_process_hour_consumer
             ON process_hour(bucket, process_id, samples, footprint_avg,
                             footprint_max, cpu_avg, energy_avg, net_avg);
+        """
+
+    static let v10 = """
+        DROP INDEX idx_process_samples_consumer;
+        CREATE INDEX idx_process_samples_consumer
+            ON process_samples(process_id, timestamp, footprint_readable,
+                               phys_footprint, cpu_percent, energy_impact, net_total);
+        CREATE INDEX idx_processes_last_seen ON processes(last_seen);
         """
 }
 

@@ -27,6 +27,9 @@ struct ContentView: View {
     /// any @State held inside the tab.
     @State private var processSelection: ProcessIdentity?
     @State private var didAutoSelectProcess = false
+    /// Lives above `TabGate`, so switching tabs does not discard an open trace.
+    /// Closing the main window still unmounts `ContentView` and releases it.
+    @State private var importedTrace: ImportedTrace?
 
     var body: some View {
         TabView(selection: $tab) {
@@ -48,9 +51,11 @@ struct ContentView: View {
                 .tabItem { Label("Network", systemImage: "network") }
                 .tag(Tab.network)
 
-            TabGate(isActive: tab == .analytics) { PerformanceMonitorView() }
-                .tabItem { Label("Analytics", systemImage: "chart.xyaxis.line") }
-                .tag(Tab.analytics)
+            TabGate(isActive: tab == .analytics) {
+                AnalyticsView(imported: $importedTrace)
+            }
+            .tabItem { Label("Analytics", systemImage: "chart.xyaxis.line") }
+            .tag(Tab.analytics)
 
             TabGate(isActive: tab == .insights) { InsightsView() }
                 .tabItem { Label("Insights", systemImage: "lightbulb") }
@@ -100,6 +105,8 @@ struct ContentView: View {
             AppLog.ui.notice("ContentView appeared")
             // A notification click may have set a target before this mounted.
             if appState.navigationTarget != nil { tab = .processes }
+            // A Finder-opened trace routes to the Analytics tab.
+            if appState.pendingTraceURL != nil { tab = .analytics }
             if appState.showBatteryTab {
                 tab = .battery
                 appState.showBatteryTab = false
@@ -123,6 +130,9 @@ struct ContentView: View {
                 tab = .network
                 appState.showNetworkTab = false
             }
+        }
+        .onChange(of: appState.pendingTraceURL) { _, url in
+            if url != nil { tab = .analytics }
         }
     }
 }

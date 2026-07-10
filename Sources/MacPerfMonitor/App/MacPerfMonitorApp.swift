@@ -252,6 +252,11 @@ final class AppState: ObservableObject {
     /// Network tab. Same observe-then-clear pattern as `showBatteryTab`.
     @Published var showNetworkTab = false
 
+    /// A `.mpmtrace` file opened from Finder, awaiting display. `ContentView`
+    /// switches to the Analytics tab and `AnalyticsView` decodes and shows it,
+    /// then clears this. Nil when nothing is pending.
+    @Published var pendingTraceURL: URL?
+
     /// True when the one-time prompt offering elevated (helper-backed) coverage
     /// should be shown. Set on first launch; cleared once the user decides.
     @Published var helperPromptPending = false
@@ -648,6 +653,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             NotificationCenter.default.post(name: .macperfmonitorShowMainWindow, object: nil)
         }
         return true
+    }
+
+    /// Handle a `.mpmtrace` file opened from Finder (or the `open` command).
+    /// Route it to the Analytics tab, opening the main window if the menubar-
+    /// first app has none up. `AnalyticsView` decodes and displays it.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard
+            let url = urls.first(where: {
+                $0.pathExtension.lowercased() == ProcessTraceCodec.fileExtension
+            })
+        else { return }
+        appState.pendingTraceURL = url
+        NotificationCenter.default.post(name: .macperfmonitorShowMainWindow, object: nil)
     }
 
     /// Re-read the helper status whenever the app becomes active. Approval is

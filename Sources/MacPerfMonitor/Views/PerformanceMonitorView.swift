@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import MacPerfMonitorCore
 import SwiftUI
@@ -14,9 +15,19 @@ struct PerformanceMonitorView: View {
     @EnvironmentObject private var monitor: MonitorSelection
     @EnvironmentObject private var appState: AppState
 
+    /// Show the decoded trace an Import produced. Owned by the `AnalyticsView`
+    /// wrapper, which swaps this live view for the read-only trace viewer.
+    let onImport: (ImportedTrace) -> Void
+
     /// The per-app network opt-in. The network chart is per-process, so it only
     /// appears here when this is on; system-wide network lives on the Network tab.
     @AppStorage(SamplerModel.perAppNetworkDefaultsKey) private var trackPerAppNetwork = true
+
+    /// Presents the export configuration sheet.
+    @State private var showExport = false
+    /// Set when opening an imported trace file fails, driving an alert.
+    @State private var importError: String?
+    @State private var importRequestID: UUID?
 
     @State private var span: PerfSpan = .live
 
@@ -84,6 +95,7 @@ struct PerformanceMonitorView: View {
     /// Debounce/invalidation token for the detail fetch: bumped on every zoom
     /// change and reset, so only the latest scheduled fetch lands.
     @State private var detailFetchToken = 0
+    @State private var zoomUpdates = FrameCoalescedValue<ClosedRange<Date>?>()
 
     private struct ZoomDetail {
         /// The interval the detail can serve. The lower bound is `distantPast`
@@ -136,6 +148,7 @@ struct PerformanceMonitorView: View {
         .onChange(of: span) {
             // A new span means a new full window: any zoom (and its fetched
             // detail) belongs to the old one.
+            zoomUpdates.cancel()
             zoomDomain = nil
             zoomDetail = nil
             detailFetchToken += 1
@@ -159,6 +172,19 @@ struct PerformanceMonitorView: View {
             }
         }
         .onChange(of: appState.mainWindowVisible) { _, visible in if visible { reload() } }
+        .sheet(isPresented: $showExport) {
+            TraceExportSheet(currentView: visibleDomain, preselected: monitor.identities)
+                .environmentObject(model)
+        }
+        .alert(
+            "Could not open trace",
+            isPresented: Binding(
+                get: { importError != nil }, set: { if !$0 { importError = nil } })
+        ) {
+            Button("OK", role: .cancel) { importError = nil }
+        } message: {
+            Text(importError ?? "")
+        }
     }
 
     /// The middle of the tab: a single empty-state card until processes are
@@ -250,6 +276,27 @@ struct PerformanceMonitorView: View {
         HStack(spacing: 12) {
             spanPicker
             Spacer(minLength: 12)
+            Button {
+                showExport = true
+            } label: {
+                Label("Export\u{2026}", systemImage: "square.and.arrow.up")
+            }
+            .controlSize(.small)
+            .help("Export selected processes' recorded data to a shareable file.")
+            Button {
+                importTrace()
+            } label: {
+                if importRequestID == nil {
+                    Label("Import\u{2026}", systemImage: "square.and.arrow.down")
+                } else {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("Opening trace")
+                }
+            }
+            .controlSize(.small)
+            .disabled(importRequestID != nil)
+            .help("Open a shared trace file and view it here.")
         }
     }
 
@@ -263,6 +310,33 @@ struct PerformanceMonitorView: View {
         .labelsHidden()
         .fixedSize()
         .help("Live streams in real time; the others show logged history.")
+    }
+
+    /// Open a `.mpmtrace` file and hand the decoded trace up to the Analytics
+    /// wrapper, which swaps this live view for the read-only trace viewer.
+    private func importTrace() {
+        let panel = NSOpenPanel()
+        panel.title = "Open Trace"
+        panel.allowedContentTypes = [TraceFileType.utType]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        // The app is an accessory (LSUIElement); activate it so the panel comes
+        // to the front instead of opening behind everything.
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let requestID = UUID()
+        importRequestID = requestID
+        TraceFileLoader.load(url) { result in
+            guard importRequestID == requestID else { return }
+            importRequestID = nil
+            switch result {
+            case .success(let trace):
+                onImport(trace)
+            case .failure(let error):
+                importError =
+                    (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            }
+        }
     }
 
     // MARK: - Chart card
@@ -727,12 +801,14 @@ struct PerformanceMonitorView: View {
         // grid stays where the user left it after leaving focus.
         focusedSeries = []
         focusedStats = []
+        rebuildChartSeries()
     }
 
     /// Zoom about `anchor`, keeping it fixed on screen. factor > 1 zooms in.
     private func applyZoom(anchor: Date, factor: Double) {
         guard factor > 0, factor.isFinite else { return }
-        let current = visibleDomain
+        let pending = zoomUpdates.current(or: zoomDomain)
+        let current = pending ?? xDomain
         let currentSpan = current.upperBound.timeIntervalSince(current.lowerBound)
         let fullSpan = span.seconds
         let newSpan = min(max(currentSpan / factor, Self.minZoomSpan), fullSpan)
@@ -743,7 +819,7 @@ struct PerformanceMonitorView: View {
     }
 
     private func applyPan(deltaSeconds: TimeInterval) {
-        guard let current = zoomDomain else { return }  // full view: nothing to pan
+        guard let current = zoomUpdates.current(or: zoomDomain) else { return }
         let currentSpan = current.upperBound.timeIntervalSince(current.lowerBound)
         setZoom(lower: current.lowerBound.addingTimeInterval(deltaSeconds), span: currentSpan)
     }
@@ -785,7 +861,7 @@ struct PerformanceMonitorView: View {
     private func setZoom(lower: Date, span newSpan: TimeInterval) {
         let full = xDomain
         if newSpan >= span.seconds - 0.5 {
-            if zoomDomain != nil { resetZoom() }
+            if zoomUpdates.current(or: zoomDomain) != nil { resetZoom() }
             return
         }
         var lo = lower
@@ -794,17 +870,23 @@ struct PerformanceMonitorView: View {
             lo = full.upperBound.addingTimeInterval(-newSpan)
         }
         let domain = lo...lo.addingTimeInterval(newSpan)
-        guard domain != zoomDomain else { return }
-        zoomDomain = domain
-        rebuildChartSeries()
-        scheduleDetailFetch()
+        guard domain != zoomUpdates.current(or: zoomDomain) else { return }
+        submitZoom(domain)
     }
 
     private func resetZoom() {
-        zoomDomain = nil
-        zoomDetail = nil
-        detailFetchToken += 1  // cancel any pending fetch
-        rebuildChartSeries()
+        submitZoom(nil)
+    }
+
+    private func submitZoom(_ domain: ClosedRange<Date>?) {
+        zoomUpdates.submit(domain) { committed in
+            guard committed != zoomDomain else { return }
+            zoomDomain = committed
+            if committed == nil { zoomDetail = nil }
+            detailFetchToken += 1
+            rebuildChartSeries()
+            if committed != nil { scheduleDetailFetch() }
+        }
     }
 
     /// Recompute the focused chart's series for the visible domain: slice the
@@ -831,19 +913,6 @@ struct PerformanceMonitorView: View {
                 bucketWidth: bucketWidth, detail: detail)
         }
         rebuildFocusedStats()
-    }
-
-    /// The points inside `domain` plus one on each side, so lines run off the
-    /// chart edges (the scale clips them) and the disk-rate differencing keeps
-    /// its left neighbour.
-    private static func slice(
-        _ points: [ProcessHistoryPoint], domain: ClosedRange<Date>
-    ) -> [ProcessHistoryPoint] {
-        guard let lo = points.firstIndex(where: { $0.date >= domain.lowerBound }),
-            let hi = points.lastIndex(where: { $0.date <= domain.upperBound }),
-            lo <= hi
-        else { return [] }
-        return Array(points[max(lo - 1, 0)...min(hi + 1, points.count - 1)])
     }
 
     /// Debounced: zoom gestures arrive continuously, and the fetch only matters
@@ -940,6 +1009,10 @@ struct PerformanceMonitorView: View {
     /// reload, a live append, or a selection sync — so `body` only ever reads
     /// the prepared arrays.
     private func rebuildChartSeries() {
+        if focusedMetric != nil {
+            rebuildFocusedSeries()
+            return
+        }
         let domain = visibleDomain
         let visibleSpan = domain.upperBound.timeIntervalSince(domain.lowerBound)
         let bucketWidth = visibleSpan / Double(Self.maxPointsPerSeries)
@@ -964,7 +1037,7 @@ struct PerformanceMonitorView: View {
         id: ProcessIdentity, metric: PerfMetric, domain: ClosedRange<Date>,
         bucketWidth: TimeInterval, detail: ZoomDetail?
     ) -> PerfSeries? {
-        let points = downsample(
+        let points = PerfSeriesBuilder.downsample(
             windowPoints(id: id, metric: metric, domain: domain, detail: detail),
             bucketWidth: bucketWidth)
         guard !points.isEmpty else { return nil }
@@ -989,7 +1062,7 @@ struct PerformanceMonitorView: View {
             source = rawSeries[id] ?? []
         }
         guard !source.isEmpty else { return [] }
-        return metric.points(from: Self.slice(source, domain: domain))
+        return metric.points(from: PerfSeriesBuilder.slice(source, domain: domain))
     }
 
     /// Recompute the statistics overlay over the exact visible window from the
@@ -1126,46 +1199,6 @@ struct PerformanceMonitorView: View {
         return points.filter { $0.date >= cutoff }
     }
 
-    /// Collapse a dense series to one peak sample per fixed time bucket. The
-    /// bucket boundaries are anchored to absolute time (not to the array's
-    /// index), so they stay put as the live window advances: appending a sample
-    /// only ever changes the rightmost bucket, and the middle of the chart holds
-    /// still instead of shimmering. Keeping each bucket's maximum preserves
-    /// spikes rather than averaging them away. Series already coarser than the
-    /// bucket width pass through untouched.
-    private func downsample(_ points: [PerfPoint], bucketWidth: TimeInterval) -> [PerfPoint] {
-        guard bucketWidth > 0, points.count > 2 else { return points }
-        var result: [PerfPoint] = []
-        result.reserveCapacity(points.count)
-        var currentBucket = bucketIndex(points[0].date, bucketWidth)
-        var peak = points[0]
-        for point in points.dropFirst() {
-            let bucket = bucketIndex(point.date, bucketWidth)
-            if bucket == currentBucket {
-                if point.value > peak.value { peak = point }
-            } else {
-                result.append(peak)
-                currentBucket = bucket
-                peak = point
-            }
-        }
-        result.append(peak)
-        // Keep the live right edge tracking `now` at the data rate. The final
-        // bucket's point sits at its peak's time, which can be up to a bucket
-        // behind (e.g. ~12 s on a 1-hour span), so the endpoint looks frozen
-        // between bucket boundaries even though samples arrive every ~2 s.
-        // Appending the actual latest sample makes the endpoint advance every
-        // tick, so the chart streams live regardless of the span's bucket width.
-        if let last = points.last, last.date > peak.date {
-            result.append(last)
-        }
-        return result
-    }
-
-    private func bucketIndex(_ date: Date, _ width: TimeInterval) -> Int {
-        Int((date.timeIntervalSince1970 / width).rounded(.down))
-    }
-
     // MARK: - Selection management
 
     private func toggle(_ id: ProcessIdentity) {
@@ -1243,88 +1276,6 @@ struct PerformanceMonitorView: View {
             return PerfMetric.memory.format(Double(last.footprint))
         }
         return "\u{2014}"
-    }
-}
-
-// MARK: - Statistics
-
-/// One process's summary stats over the focused chart's visible window.
-private struct SeriesStat: Identifiable {
-    let id: ProcessIdentity
-    let name: String
-    let color: Color
-    let average: Double
-    let peak: Double
-    let minimum: Double
-    let current: Double
-    let trend: TrendDirection
-    /// Signed fraction the fitted trend line moves across the window, relative to
-    /// the mean; drives the trend arrow and its percentage read-out.
-    let changeFraction: Double
-
-    var changeText: String {
-        "\(Int((abs(changeFraction) * 100).rounded()))%"
-    }
-
-    init?(points: [PerfPoint], id: ProcessIdentity, name: String, color: Color) {
-        guard let first = points.first, let last = points.last else { return nil }
-        self.id = id
-        self.name = name
-        self.color = color
-        let values = points.map(\.value)
-        let count = Double(values.count)
-        self.average = values.reduce(0, +) / count
-        self.peak = values.max() ?? 0
-        self.minimum = values.min() ?? 0
-        self.current = last.value
-        // Least-squares slope over (seconds since start, value), expressed as the
-        // change the fitted line makes across the window.
-        let t0 = first.date.timeIntervalSince1970
-        var sx = 0.0, sy = 0.0, sxx = 0.0, sxy = 0.0
-        for p in points {
-            let x = p.date.timeIntervalSince1970 - t0
-            sx += x
-            sy += p.value
-            sxx += x * x
-            sxy += x * p.value
-        }
-        let denom = count * sxx - sx * sx
-        let span = last.date.timeIntervalSince(first.date)
-        let change: Double
-        if denom != 0, span > 0 {
-            change = (count * sxy - sx * sy) / denom * span
-        } else {
-            change = last.value - first.value
-        }
-        let fraction = change / max(abs(self.average), 1e-9)
-        self.changeFraction = fraction
-        if fraction > 0.05 {
-            self.trend = .rising
-        } else if fraction < -0.05 {
-            self.trend = .falling
-        } else {
-            self.trend = .flat
-        }
-    }
-}
-
-private enum TrendDirection: Equatable {
-    case rising, falling, flat
-
-    var symbol: String {
-        switch self {
-        case .rising: return "arrow.up.right"
-        case .falling: return "arrow.down.right"
-        case .flat: return "arrow.right"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .rising: return .orange
-        case .falling: return .green
-        case .flat: return .secondary
-        }
     }
 }
 

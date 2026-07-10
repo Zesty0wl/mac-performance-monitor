@@ -44,6 +44,21 @@ public struct ProcessHistoryPoint: Sendable, Identifiable, Equatable {
     }
 }
 
+public enum ProcessHistoryReadError: Error, LocalizedError, Equatable {
+    case pointLimitExceeded(Int)
+    case cancelled
+
+    public var errorDescription: String? {
+        switch self {
+        case .pointLimitExceeded(let limit):
+            return
+                "The requested history exceeds the supported limit of \(limit.formatted()) points. Choose fewer processes, a shorter timeframe, or a coarser resolution."
+        case .cancelled:
+            return "The history read was cancelled."
+        }
+    }
+}
+
 extension SampleStore {
     /// The raw per-process SELECT shared by the single- and multi-process
     /// readers. Bound with `[pid, start_time, since]`, oldest first.
@@ -59,14 +74,14 @@ extension SampleStore {
     /// Positional decode (the raw and aggregate SELECTs list the same 7 columns
     /// in the same order). Reading by index avoids a name lookup per field per
     /// row — these series can be hundreds of points each, several at a time.
-    private static func decodePoint(_ row: Row) -> ProcessHistoryPoint {
-        let ts: Double = row[0]
-        let fp: Int64 = row[1]
-        let cpu: Double = row[2]
-        let fd: Int64 = row[3]
-        let dr: Int64 = row[4]
-        let dw: Int64 = row[5]
-        let net: Double = row[6]
+    private static func decodePoint(_ row: Row, offset: Int = 0) -> ProcessHistoryPoint {
+        let ts: Double = row[offset]
+        let fp: Int64 = row[offset + 1]
+        let cpu: Double = row[offset + 2]
+        let fd: Int64 = row[offset + 3]
+        let dr: Int64 = row[offset + 4]
+        let dw: Int64 = row[offset + 5]
+        let net: Double = row[offset + 6]
         return ProcessHistoryPoint(
             date: Date(timeIntervalSince1970: ts),
             footprint: SQLInt.read(fp),
@@ -107,6 +122,97 @@ extension SampleStore {
             arguments: [identity.pid, identity.startTime.timeIntervalSince1970])
     }
 
+    /// Resolve many stable identities in bounded statements. Two bind variables
+    /// per identity keep chunks below SQLite's conservative 999-variable limit.
+    private static func processIDs(
+        _ db: Database, identities: [ProcessIdentity]
+    ) throws -> [Int64: ProcessIdentity] {
+        var result: [Int64: ProcessIdentity] = [:]
+        var start = 0
+        while start < identities.count {
+            let chunk = Array(identities[start..<min(start + 400, identities.count)])
+            let predicates = repeatElement("(pid = ? AND start_time = ?)", count: chunk.count)
+                .joined(separator: " OR ")
+            var arguments: [any DatabaseValueConvertible] = []
+            arguments.reserveCapacity(chunk.count * 2)
+            for identity in chunk {
+                arguments.append(identity.pid)
+                arguments.append(identity.startTime.timeIntervalSince1970)
+            }
+            let rows = try Row.fetchAll(
+                db,
+                sql: "SELECT id, pid, start_time FROM processes WHERE \(predicates)",
+                arguments: StatementArguments(arguments))
+            for row in rows {
+                let id: Int64 = row[0]
+                let pid: Int32 = row[1]
+                let startTime: Double = row[2]
+                result[id] = ProcessIdentity(
+                    pid: pid, startTime: Date(timeIntervalSince1970: startTime))
+            }
+            start += chunk.count
+        }
+        return result
+    }
+
+    /// One ordered set read per bounded process-id chunk, partitioned directly
+    /// into per-identity arrays while the cursor advances. This replaces the
+    /// former one-query-per-process loop used by Analytics and trace export.
+    private static func batchedHistories(
+        _ db: Database,
+        identities: [ProcessIdentity],
+        table: String?,
+        from: Double,
+        to: Double? = nil,
+        maximumPointCount: Int? = nil,
+        isCancelled: (() -> Bool)? = nil
+    ) throws -> [ProcessIdentity: [ProcessHistoryPoint]] {
+        let identityByID = try processIDs(db, identities: identities)
+        let processIDs = Array(identityByID.keys)
+        guard !processIDs.isEmpty else { return [:] }
+
+        var result: [ProcessIdentity: [ProcessHistoryPoint]] = [:]
+        var pointCount = 0
+        var start = 0
+        while start < processIDs.count {
+            if isCancelled?() == true { throw ProcessHistoryReadError.cancelled }
+            let chunk = Array(processIDs[start..<min(start + 500, processIDs.count)])
+            let placeholders = repeatElement("?", count: chunk.count).joined(separator: ",")
+            let timeColumn = table == nil ? "timestamp" : "bucket"
+            let source = table ?? "process_samples"
+            let columns =
+                table == nil
+                ? "timestamp, phys_footprint, cpu_percent, fd_total, disk_read, disk_written, net_total"
+                : "bucket, footprint_avg, cpu_avg, fd_max, disk_read_max, disk_written_max, net_avg"
+            let upperBound = to == nil ? "" : " AND \(timeColumn) <= ?"
+            let sql = """
+                SELECT process_id, \(columns)
+                FROM \(source)
+                WHERE process_id IN (\(placeholders))
+                  AND \(timeColumn) >= ?\(upperBound)
+                ORDER BY process_id ASC, \(timeColumn) ASC
+                """
+            var arguments: [any DatabaseValueConvertible] = chunk
+            arguments.append(from)
+            if let to { arguments.append(to) }
+
+            let cursor = try Row.fetchCursor(
+                db, sql: sql, arguments: StatementArguments(arguments))
+            while let row = try cursor.next() {
+                if isCancelled?() == true { throw ProcessHistoryReadError.cancelled }
+                if let maximumPointCount, pointCount >= maximumPointCount {
+                    throw ProcessHistoryReadError.pointLimitExceeded(maximumPointCount)
+                }
+                let processID: Int64 = row[0]
+                guard let identity = identityByID[processID] else { continue }
+                result[identity, default: []].append(decodePoint(row, offset: 1))
+                pointCount += 1
+            }
+            start += chunk.count
+        }
+        return result
+    }
+
     /// Per-process time-series for one process over a window, oldest first. The
     /// 1-hour window reads raw `process_samples` (every 2-second point, so the
     /// charts scrub smoothly and the leak detector sees everything); the longer
@@ -123,12 +229,12 @@ extension SampleStore {
                 guard let processID = try Self.processRowID(db, identity) else { return [] }
                 return try Row.fetchAll(
                     db, sql: Self.aggregateSQL(table: table), arguments: [processID, since]
-                ).map(Self.decodePoint)
+                ).map { Self.decodePoint($0) }
             }
             return try Row.fetchAll(
                 db, sql: Self.pointSQL,
                 arguments: [identity.pid, identity.startTime.timeIntervalSince1970, since]
-            ).map(Self.decodePoint)
+            ).map { Self.decodePoint($0) }
         }
     }
 
@@ -149,7 +255,7 @@ extension SampleStore {
                     since.timeIntervalSince1970,
                 ]
             )
-            .map(Self.decodePoint)
+            .map { Self.decodePoint($0) }
         }
     }
 
@@ -168,23 +274,8 @@ extension SampleStore {
         let since = now.addingTimeInterval(-window.seconds).timeIntervalSince1970
         let table = Self.processTable(for: window)
         return try databasePool.read { db in
-            var result: [ProcessIdentity: [ProcessHistoryPoint]] = [:]
-            for identity in identities {
-                let points: [ProcessHistoryPoint]
-                if let table {
-                    guard let processID = try Self.processRowID(db, identity) else { continue }
-                    points = try Row.fetchAll(
-                        db, sql: Self.aggregateSQL(table: table), arguments: [processID, since]
-                    ).map(Self.decodePoint)
-                } else {
-                    points = try Row.fetchAll(
-                        db, sql: Self.pointSQL,
-                        arguments: [identity.pid, identity.startTime.timeIntervalSince1970, since]
-                    ).map(Self.decodePoint)
-                }
-                if !points.isEmpty { result[identity] = points }
-            }
-            return result
+            try Self.batchedHistories(
+                db, identities: identities, table: table, from: since)
         }
     }
 
@@ -222,7 +313,9 @@ extension SampleStore {
         for identities: [ProcessIdentity],
         granularity: HistoryWindow.Granularity,
         from: Date,
-        to: Date
+        to: Date,
+        maximumPointCount: Int? = nil,
+        isCancelled: (() -> Bool)? = nil
     ) throws -> [ProcessIdentity: [ProcessHistoryPoint]] {
         guard !identities.isEmpty, from <= to else { return [:] }
         let lo = from.timeIntervalSince1970
@@ -234,24 +327,9 @@ extension SampleStore {
         case .hour: table = "process_hour"
         }
         return try databasePool.read { db in
-            var result: [ProcessIdentity: [ProcessHistoryPoint]] = [:]
-            for identity in identities {
-                let points: [ProcessHistoryPoint]
-                if let table {
-                    guard let processID = try Self.processRowID(db, identity) else { continue }
-                    points = try Row.fetchAll(
-                        db, sql: Self.aggregateSliceSQL(table: table),
-                        arguments: [processID, lo, hi]
-                    ).map(Self.decodePoint)
-                } else {
-                    points = try Row.fetchAll(
-                        db, sql: Self.pointSliceSQL,
-                        arguments: [identity.pid, identity.startTime.timeIntervalSince1970, lo, hi]
-                    ).map(Self.decodePoint)
-                }
-                if !points.isEmpty { result[identity] = points }
-            }
-            return result
+            try Self.batchedHistories(
+                db, identities: identities, table: table, from: lo, to: hi,
+                maximumPointCount: maximumPointCount, isCancelled: isCancelled)
         }
     }
 
@@ -295,15 +373,8 @@ extension SampleStore {
         guard !identities.isEmpty else { return [:] }
         let since = now.addingTimeInterval(-seconds).timeIntervalSince1970
         return try databasePool.read { db in
-            var result: [ProcessIdentity: [ProcessHistoryPoint]] = [:]
-            for identity in identities {
-                let points = try Row.fetchAll(
-                    db, sql: Self.pointSQL,
-                    arguments: [identity.pid, identity.startTime.timeIntervalSince1970, since]
-                ).map(Self.decodePoint)
-                if !points.isEmpty { result[identity] = points }
-            }
-            return result
+            try Self.batchedHistories(
+                db, identities: identities, table: nil, from: since)
         }
     }
 }

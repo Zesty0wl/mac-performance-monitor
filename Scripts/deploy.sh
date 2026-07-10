@@ -29,9 +29,12 @@
 #
 # Usage:
 #   Scripts/deploy.sh [--dot|--minor|--major] [--skip-upload]
+#   Scripts/deploy.sh --resume [--skip-upload]
 #     --dot           bump the patch version (default), e.g. 1.2.0 -> 1.2.1
 #     --minor         bump the minor version,           e.g. 1.2.0 -> 1.3.0
 #     --major         bump the major version,           e.g. 1.2.0 -> 2.0.0
+#     --resume        reuse the existing notarized app without bumping or rebuilding;
+#                     resumes pkg, appcast, and GitHub publication after a failure
 #     --skip-upload   build the zip + pkg + appcast locally, but do NOT create the
 #                     GitHub Release (no gh calls). Handy for a dry run.
 #
@@ -58,44 +61,70 @@ ARCHIVE_BASENAME="MacPerformanceMonitor"   # no spaces — it ends up in a URL
 
 # ---- argument parsing ------------------------------------------------------
 SKIP_UPLOAD=0
+RESUME=0
+BUMP_EXPLICIT=0
 BUMP="dot"  # version bump: dot (default) | minor | major
 for arg in "$@"; do
   case "$arg" in
     --skip-upload) SKIP_UPLOAD=1 ;;
-    --major) BUMP="major" ;;
-    --minor) BUMP="minor" ;;
-    --dot|--patch) BUMP="dot" ;;
+    --resume) RESUME=1 ;;
+    --major) BUMP="major"; BUMP_EXPLICIT=1 ;;
+    --minor) BUMP="minor"; BUMP_EXPLICIT=1 ;;
+    --dot|--patch) BUMP="dot"; BUMP_EXPLICIT=1 ;;
     *) echo "deploy.sh: unknown argument '$arg'" >&2; exit 2 ;;
   esac
 done
+if [[ "$RESUME" -eq 1 && "$BUMP_EXPLICIT" -eq 1 ]]; then
+  echo "error: --resume cannot be combined with a version-bump flag." >&2
+  exit 2
+fi
 
 # ---- bump the version, then build/sign/notarize via install.sh -------------
 # deploy owns the marketing-version bump; install.sh does the release build
 # (build-number bump, Developer ID sign, notarize, staple, install). The version
 # must be set before the build, since it is baked into the signed, notarized app.
 INFO_PLIST="Resources/Info.plist"
-CURRENT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")"
-if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-  V_MAJOR="${BASH_REMATCH[1]}"; V_MINOR="${BASH_REMATCH[2]}"; V_PATCH="${BASH_REMATCH[3]}"
-  case "$BUMP" in
-    major) V_MAJOR=$((V_MAJOR + 1)); V_MINOR=0; V_PATCH=0 ;;
-    minor) V_MINOR=$((V_MINOR + 1)); V_PATCH=0 ;;
-    dot)   V_PATCH=$((V_PATCH + 1)) ;;
-  esac
-  NEXT_VERSION="$V_MAJOR.$V_MINOR.$V_PATCH"
-  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEXT_VERSION" "$INFO_PLIST"
-  echo "==> Version ($BUMP bump): $CURRENT_VERSION -> $NEXT_VERSION"
+if [[ "$RESUME" -eq 1 ]]; then
+  echo "==> Resuming an existing release: no version bump, build bump, or rebuild"
+  if [[ ! -d "$APP" ]]; then
+    echo "error: --resume requires the existing release app at $APP." >&2
+    exit 1
+  fi
+  SOURCE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")"
+  SOURCE_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")"
+  BUNDLE_INFO="$APP/Contents/Info.plist"
+  BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$BUNDLE_INFO")"
+  BUNDLE_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$BUNDLE_INFO")"
+  if [[ "$SOURCE_VERSION" != "$BUNDLE_VERSION" || "$SOURCE_BUILD" != "$BUNDLE_BUILD" ]]; then
+    echo "error: source is $SOURCE_VERSION ($SOURCE_BUILD), but $APP is" >&2
+    echo "       $BUNDLE_VERSION ($BUNDLE_BUILD). Refusing to resume mismatched bytes." >&2
+    exit 1
+  fi
+  echo "    Reusing $BUNDLE_VERSION (build $BUNDLE_BUILD)"
 else
-  echo "error: CFBundleShortVersionString '$CURRENT_VERSION' is not X.Y.Z; cannot bump." >&2
-  exit 1
-fi
+  CURRENT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")"
+  if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+    V_MAJOR="${BASH_REMATCH[1]}"; V_MINOR="${BASH_REMATCH[2]}"; V_PATCH="${BASH_REMATCH[3]}"
+    case "$BUMP" in
+      major) V_MAJOR=$((V_MAJOR + 1)); V_MINOR=0; V_PATCH=0 ;;
+      minor) V_MINOR=$((V_MINOR + 1)); V_PATCH=0 ;;
+      dot)   V_PATCH=$((V_PATCH + 1)) ;;
+    esac
+    NEXT_VERSION="$V_MAJOR.$V_MINOR.$V_PATCH"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEXT_VERSION" "$INFO_PLIST"
+    echo "==> Version ($BUMP bump): $CURRENT_VERSION -> $NEXT_VERSION"
+  else
+    echo "error: CFBundleShortVersionString '$CURRENT_VERSION' is not X.Y.Z; cannot bump." >&2
+    exit 1
+  fi
 
-echo "==> Building the release (install.sh: build, sign, notarize, staple, install)"
-if ! Scripts/install.sh --no-launch; then
-  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $CURRENT_VERSION" "$INFO_PLIST"
-  echo "error: release build failed; reverted the version to $CURRENT_VERSION. Fix the" >&2
-  echo "       issue (often notarization: run deploy.sh from Terminal.app), then retry." >&2
-  exit 1
+  echo "==> Building the release (install.sh: build, sign, notarize, staple, install)"
+  if ! Scripts/install.sh --no-launch; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $CURRENT_VERSION" "$INFO_PLIST"
+    echo "error: release build failed; reverted the version to $CURRENT_VERSION. Fix the" >&2
+    echo "       issue (often notarization: run deploy.sh from Terminal.app), then retry." >&2
+    exit 1
+  fi
 fi
 
 # ---- validate the built app ------------------------------------------------
@@ -205,6 +234,28 @@ if [[ "$SKIP_UPLOAD" -eq 1 ]]; then
   echo "    Installer:   $PKG"
   echo "    Appcast:     $DIST_DIR/appcast.xml"
   exit 0
+fi
+
+# A resumed release must publish source bytes that already exist on the remote.
+# Otherwise GitHub creates the tag from the old default-branch HEAD while the
+# assets were built from local, uncommitted code.
+if [[ "$RESUME" -eq 1 ]]; then
+  if [[ -n "$(git status --porcelain)" ]]; then
+    echo "error: --resume publication requires a clean worktree." >&2
+    echo "       Commit and push the release source, then rerun deploy.sh --resume." >&2
+    exit 1
+  fi
+  UPSTREAM="$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
+  if [[ -z "$UPSTREAM" ]]; then
+    echo "error: the current branch has no upstream; push it before publishing." >&2
+    exit 1
+  fi
+  git fetch --quiet
+  if [[ "$(git rev-parse HEAD)" != "$(git rev-parse "$UPSTREAM")" ]]; then
+    echo "error: HEAD does not match $UPSTREAM." >&2
+    echo "       Push the release commit, then rerun deploy.sh --resume." >&2
+    exit 1
+  fi
 fi
 
 echo "==> Creating GitHub Release $TAG on $REPO"

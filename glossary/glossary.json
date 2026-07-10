@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "entries": [
     {
       "match": {
@@ -323,6 +323,15 @@
     },
     {
       "match": {
+        "bundleID": "com.google.GoogleUpdater"
+      },
+      "title": "Google software updater",
+      "category": "background",
+      "vendor": "Google",
+      "description": "Checks for and installs updates to Google apps such as Chrome. Several short-lived helper instances can run during an update check."
+    },
+    {
+      "match": {
         "bundleID": "com.apple.Safari"
       },
       "title": "Safari",
@@ -375,6 +384,33 @@
       "category": "developer",
       "vendor": "Apple",
       "description": "Provides code completion and diagnostics for Swift in editors. Spikes while indexing a project."
+    },
+    {
+      "match": {
+        "pathSuffix": "/XcodeDefault.xctoolchain/usr/bin/swift-driver"
+      },
+      "title": "Swift compiler driver",
+      "category": "developer",
+      "vendor": "Apple",
+      "description": "Coordinates Swift compiler work for Xcode and Swift Package Manager builds. CPU and memory use rise while compiling."
+    },
+    {
+      "match": {
+        "pathSuffix": "/XcodeDefault.xctoolchain/usr/bin/swift-package"
+      },
+      "title": "Swift Package Manager",
+      "category": "developer",
+      "vendor": "Apple",
+      "description": "Resolves, builds, and tests Swift packages. Network, CPU, disk, and memory activity follow package and build work."
+    },
+    {
+      "match": {
+        "pathSuffix": "/MacOSX.platform/Developer/Library/Xcode/Agents/xctest"
+      },
+      "title": "XCTest runner",
+      "category": "developer",
+      "vendor": "Apple",
+      "description": "Runs automated tests built with XCTest. Resource use depends on the test suite and ends when testing finishes."
     },
     {
       "match": {
@@ -909,6 +945,15 @@
       "category": "background",
       "vendor": "Apple",
       "description": "Finds nearby content caching servers on your network so downloads can use them; it runs briefly and uses very few resources."
+    },
+    {
+      "match": {
+        "pathSuffix": "/AssetCacheServicesExtensions.framework/Versions/A/XPCServices/AssetCacheTetheratorService.xpc/Contents/MacOS/AssetCacheTetheratorService"
+      },
+      "title": "Content Cache tethering service",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Supports Content Caching connections for tethered Apple devices. Network activity is normal while a connected device uses the cache."
     },
     {
       "match": {
@@ -2835,6 +2880,24 @@
       "category": "system",
       "vendor": "Apple",
       "description": "Assists with audio device drivers for the Core Audio system, and normally uses few resources."
+    },
+    {
+      "match": {
+        "name": "Core Audio Driver (MSTeamsAudioDevice.driver)"
+      },
+      "title": "Microsoft Teams audio driver",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Provides a virtual Core Audio device for Microsoft Teams calling and meeting features. It normally stays idle outside audio sessions."
+    },
+    {
+      "match": {
+        "name": "Core Audio Driver (ParrotAudioPlugin.driver)"
+      },
+      "title": "Parrot audio driver",
+      "category": "helper",
+      "vendor": "Parrot",
+      "description": "Provides a virtual Core Audio device installed by Parrot software. Activity normally follows audio capture or playback."
     },
     {
       "match": {
@@ -5265,6 +5328,1183 @@
       "category": "background",
       "vendor": "Apple",
       "description": "Syncs Biome data — Apple's on-device log of app and usage events that powers Siri Suggestions, Focus, and predictions. Quiet background service."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.Word"
+      },
+      "title": "Microsoft Word",
+      "category": "app",
+      "vendor": "Microsoft",
+      "description": "Microsoft's word-processing app. CPU and memory can rise while opening large documents, checking spelling, laying out complex pages, or exporting files."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.Word"
+      },
+      "title": "Microsoft Word helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "A helper for Microsoft Word, such as a widget, document service, or background editing component. It normally runs only while Word features need it."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.Excel"
+      },
+      "title": "Microsoft Excel",
+      "category": "app",
+      "vendor": "Microsoft",
+      "description": "Microsoft's spreadsheet app. Large workbooks, formulas, data imports, charts, and recalculation can use substantial CPU and memory."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.Excel"
+      },
+      "title": "Microsoft Excel helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "A helper for Microsoft Excel, such as a widget or data-processing component. Activity is normal while Excel recalculates, imports data, or updates content."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.Powerpoint"
+      },
+      "title": "Microsoft PowerPoint",
+      "category": "app",
+      "vendor": "Microsoft",
+      "description": "Microsoft's presentation app. Rendering slides, playing media, applying effects, and exporting presentations can temporarily use more CPU and memory."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.Powerpoint"
+      },
+      "title": "Microsoft PowerPoint helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "A helper for Microsoft PowerPoint, such as a widget or presentation service. It normally runs while PowerPoint content is being displayed or prepared."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.Outlook"
+      },
+      "title": "Microsoft Outlook",
+      "category": "app",
+      "vendor": "Microsoft",
+      "description": "Microsoft's email and calendar app. Background network, CPU, and disk activity is normal while it syncs mail, calendars, contacts, and search data."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.Outlook"
+      },
+      "title": "Microsoft Outlook helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "A helper for Microsoft Outlook, such as a calendar widget, profile tool, or search importer. Activity usually follows mail, calendar, or search updates."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.onenote.mac"
+      },
+      "title": "Microsoft OneNote",
+      "category": "app",
+      "vendor": "Microsoft",
+      "description": "Microsoft's note-taking app. It can use network, disk, and CPU while syncing notebooks, indexing notes, or processing images and attachments."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.onenote.mac"
+      },
+      "title": "Microsoft OneNote helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "A helper for Microsoft OneNote, such as its share extension. It normally runs briefly when content is sent to or synchronized with OneNote."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.speller."
+      },
+      "title": "Microsoft Office spelling helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Checks spelling for Microsoft Office documents in a specific language. Brief activity while typing or reviewing a document is normal."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.grammar."
+      },
+      "title": "Microsoft Office grammar helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Checks grammar for Microsoft Office documents in a specific language. It can become active while text is typed, opened, or reviewed."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.thesaurus."
+      },
+      "title": "Microsoft Office thesaurus helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Provides synonyms and related words for Microsoft Office documents. It normally runs only when writing tools request it."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.hyphenator."
+      },
+      "title": "Microsoft Office hyphenation helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Applies language-specific word hyphenation while Microsoft Office lays out text. Short bursts during page layout are normal."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.contextualspeller."
+      },
+      "title": "Microsoft Office contextual spelling helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Checks whether words fit their sentence context in Microsoft Office documents. It normally runs while text is edited or reviewed."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.GENERICPTBUNDLEIDENTIFIER"
+      },
+      "title": "Microsoft Office proofing helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "A language proofing component used by Microsoft Office for spelling, grammar, or thesaurus features. Brief activity while editing is normal."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.languageidentification"
+      },
+      "title": "Microsoft Office language detection",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Detects the language of document text so Microsoft Office can choose the correct proofing and formatting tools."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.converters."
+      },
+      "title": "Microsoft Office file converter",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Converts older or specialized document formats for Microsoft Office. Higher activity is normal while opening or saving converted files."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.openxml."
+      },
+      "title": "Microsoft Office Open XML converter",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Reads or writes Office Open XML document content for Microsoft Office. It normally runs only during file import or export."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.Microsoft-Mashup-Container"
+      },
+      "title": "Microsoft Power Query helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Runs Microsoft Power Query data import and transformation work for Excel. Large data refreshes can use significant CPU and memory."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.errorreporting"
+      },
+      "title": "Microsoft Error Reporting",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Collects diagnostic details after a Microsoft app encounters an error or crash. It should normally run only briefly."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.teams2"
+      },
+      "title": "Microsoft Teams",
+      "category": "app",
+      "vendor": "Microsoft",
+      "url": "https://learn.microsoft.com/microsoftteams/teams-client-mac-install-prerequisites",
+      "description": "Microsoft's chat, calling, meeting, and collaboration app. Calls, screen sharing, video effects, and busy chats can increase CPU, memory, and network use."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.teams2.helper"
+      },
+      "title": "Microsoft Teams WebView helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "url": "https://learn.microsoft.com/microsoft-edge/webview2/concepts/end-user-faq",
+      "description": "Renders Teams web content using Microsoft Edge WebView technology. Teams normally runs separate renderer, GPU, audio, network, and utility helpers for reliability and security."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.teams2.modulehost"
+      },
+      "title": "Microsoft Teams media module",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Hosts a native Teams module used for calling and meeting media. CPU use can rise during calls, screen sharing, or audio and video processing."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.teams2."
+      },
+      "title": "Microsoft Teams background helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Supports Microsoft Teams features such as notifications, widgets, account switching, and background startup. These helpers normally use few resources."
+    },
+    {
+      "match": {
+        "namePattern": "com.microsoft.teams2."
+      },
+      "title": "Microsoft Teams background helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "A Microsoft Teams launcher, notification, or account-switching helper. It normally runs quietly and may restart Teams components when needed."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.m365copilot"
+      },
+      "title": "Microsoft 365 Copilot",
+      "category": "app",
+      "vendor": "Microsoft",
+      "description": "The Microsoft 365 Copilot app, which provides AI-assisted chat and access to Microsoft 365 work content. Network and helper activity is normal while loading or generating content."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.m365copilot.helper"
+      },
+      "title": "Microsoft 365 Copilot WebView helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "url": "https://learn.microsoft.com/microsoft-edge/webview2/concepts/end-user-faq",
+      "description": "Renders Microsoft 365 Copilot web content. Separate renderer, GPU, network, and utility processes are normal for the Edge WebView process model."
+    },
+    {
+      "match": {
+        "name": "msedgewebview2_crashpad_handler"
+      },
+      "title": "Microsoft Edge WebView crash reporter",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Collects crash information for an app using Microsoft Edge WebView, such as Teams or Microsoft 365 Copilot. It normally stays idle."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.OneDrive"
+      },
+      "title": "Microsoft OneDrive",
+      "category": "app",
+      "vendor": "Microsoft",
+      "url": "https://learn.microsoft.com/sharepoint/deploy-and-configure-on-macos",
+      "description": "Syncs OneDrive and SharePoint files between this Mac and Microsoft cloud storage. CPU, disk, and network use can rise during large uploads, downloads, or file scans."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.OneDrive."
+      },
+      "title": "Microsoft OneDrive helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Supports OneDrive file access, Finder integration, sync work, reporting, or updates. Activity is normal while files change or OneDrive updates itself."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.SharePoint-mac"
+      },
+      "title": "OneDrive and SharePoint sync service",
+      "category": "background",
+      "vendor": "Microsoft",
+      "description": "Performs background synchronization for OneDrive, SharePoint, and Microsoft Lists content. Network and disk activity follows file and list changes."
+    },
+    {
+      "match": {
+        "name": "OneDrive File Provider"
+      },
+      "title": "OneDrive File Provider",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Connects OneDrive to Finder through macOS File Provider, downloading cloud files on demand and reporting their sync state."
+    },
+    {
+      "match": {
+        "pathSuffix": "/OneDrive.app/Contents/StandaloneUpdaterDaemon.xpc/Contents/MacOS/StandaloneUpdaterDaemon"
+      },
+      "title": "OneDrive updater",
+      "category": "background",
+      "vendor": "Microsoft",
+      "url": "https://learn.microsoft.com/sharepoint/sync-client-update-process",
+      "description": "Checks for, verifies, and installs updates to the standalone OneDrive sync app. OneDrive updates independently from Microsoft Office."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.edgemac"
+      },
+      "title": "Microsoft Edge",
+      "category": "app",
+      "vendor": "Microsoft",
+      "description": "Microsoft's web browser. It uses separate renderer, GPU, network, and utility processes, so several Edge helpers and significant memory use with many tabs are normal."
+    },
+    {
+      "match": {
+        "pathPattern": "/com.microsoft.edgemac.code_sign_clone/"
+      },
+      "title": "Microsoft Edge code-signing copy",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "A temporary copy of Microsoft Edge used while macOS checks or updates its code signature. It is normally short-lived."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.edgemac.helper"
+      },
+      "title": "Microsoft Edge helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "A renderer, GPU, network, audio, or utility process for Microsoft Edge. Multiple helpers isolate tabs and browser services for reliability and security."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.edgemac"
+      },
+      "title": "Microsoft Edge component",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "A background component of Microsoft Edge, such as alerts, widgets, or search indexing. It normally follows browser activity."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.EdgeUpdater"
+      },
+      "title": "Microsoft Edge updater",
+      "category": "background",
+      "vendor": "Microsoft",
+      "description": "Checks for and installs Microsoft Edge updates. Brief network, disk, and CPU activity during an update is normal."
+    },
+    {
+      "match": {
+        "name": "msedge_crashpad_handler"
+      },
+      "title": "Microsoft Edge crash reporter",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Collects crash information for Microsoft Edge. It normally stays idle and becomes active only after a browser process fails."
+    },
+    {
+      "match": {
+        "pathSuffix": "/Microsoft Defender.app/Contents/MacOS/wdavdaemon"
+      },
+      "title": "Microsoft Defender core service",
+      "category": "security",
+      "vendor": "Microsoft",
+      "url": "https://learn.microsoft.com/defender-endpoint/microsoft-defender-endpoint-mac-prerequisites",
+      "description": "Coordinates Microsoft Defender for Endpoint protection on this Mac. Ongoing background activity is normal, with higher use while files or processes are scanned."
+    },
+    {
+      "match": {
+        "pathSuffix": "/Microsoft Defender.app/Contents/MacOS/wdavdaemon_enterprise.app/Contents/MacOS/wdavdaemon_enterprise"
+      },
+      "title": "Microsoft Defender EDR engine",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "The endpoint detection and response engine for Microsoft Defender. It enriches security events and communicates with the Defender service."
+    },
+    {
+      "match": {
+        "pathSuffix": "/Microsoft Defender.app/Contents/MacOS/wdavdaemon_unprivileged.app/Contents/MacOS/wdavdaemon_unprivileged"
+      },
+      "title": "Microsoft Defender antivirus engine",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "The antivirus scanning engine for Microsoft Defender on macOS. CPU use can rise when many files are created, opened, downloaded, or changed."
+    },
+    {
+      "match": {
+        "pathSuffix": "/com.microsoft.wdav.epsext.systemextension/Contents/MacOS/epsext"
+      },
+      "title": "Microsoft Defender Endpoint Security extension",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "Monitors file, process, and system events for Microsoft Defender real-time protection. It is an expected system extension on a protected Mac."
+    },
+    {
+      "match": {
+        "pathSuffix": "/com.microsoft.wdav.netext.systemextension/Contents/MacOS/netext"
+      },
+      "title": "Microsoft Defender Network extension",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "Inspects network content for Microsoft Defender Network Protection, web filtering, and custom security indicators."
+    },
+    {
+      "match": {
+        "pathSuffix": "/Microsoft Defender.app/Contents/MacOS/wdavdaemon_enterprise.app/Contents/Frameworks/telemetryd_v2"
+      },
+      "title": "Microsoft Defender security telemetry",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "Processes endpoint security telemetry for Microsoft Defender. Background CPU, disk, and network activity can follow security events."
+    },
+    {
+      "match": {
+        "name": "Microsoft Defender Helper"
+      },
+      "title": "Microsoft Defender user interface helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Supports Microsoft Defender notifications, status, and user-facing controls. It normally uses few resources."
+    },
+    {
+      "match": {
+        "pathSuffix": "/Microsoft Defender.app/Contents/MacOS/tracer.app/Contents/MacOS/tracer"
+      },
+      "title": "Microsoft Defender diagnostics",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "Collects diagnostic traces for Microsoft Defender. It is usually quiet unless troubleshooting or support data collection is active."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.wdav"
+      },
+      "title": "Microsoft Defender component",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "A Microsoft Defender for Endpoint protection, detection, telemetry, or user-interface component. Background activity is expected on a managed Mac."
+    },
+    {
+      "match": {
+        "pathSuffix": "/Microsoft/DLP/com.microsoft.dlp.daemon.app/Contents/MacOS/dlpdaemon"
+      },
+      "title": "Microsoft data loss prevention service",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "Applies Microsoft Purview data loss prevention policy on this Mac. It can become active while protected files are accessed or transferred."
+    },
+    {
+      "match": {
+        "pathSuffix": "/Microsoft Defender.app/Contents/MacOS/dlp_agent.app/Contents/MacOS/dlp_agent"
+      },
+      "title": "Microsoft data loss prevention agent",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "Runs user-side Microsoft data loss prevention checks and policy actions. Activity follows access to files covered by organizational policy."
+    },
+    {
+      "match": {
+        "pathSuffix": "/Microsoft/DLP/com.microsoft.dlp.agent.app/Contents/MacOS/dlpuser_helper"
+      },
+      "title": "Microsoft data loss prevention helper",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "Supports user-session monitoring and prompts for Microsoft data loss prevention. More than one helper can run for different monitoring tasks."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.dlp."
+      },
+      "title": "Microsoft data loss prevention component",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "A component that enforces Microsoft data loss prevention policy for organizational files and user activity."
+    },
+    {
+      "match": {
+        "pathSuffix": "/Microsoft Intune Agent.app/Contents/MacOS/IntuneMdmAgent"
+      },
+      "title": "Microsoft Intune management agent",
+      "category": "background",
+      "vendor": "Microsoft",
+      "description": "Checks in with Microsoft Intune and applies management tasks for this Mac, such as app, script, inventory, and compliance work."
+    },
+    {
+      "match": {
+        "pathSuffix": "/Microsoft Intune Agent.app/Contents/MacOS/IntuneMdmDaemon"
+      },
+      "title": "Microsoft Intune management daemon",
+      "category": "background",
+      "vendor": "Microsoft",
+      "description": "The system-level service for Microsoft Intune management. It supports policy, inventory, app, and script operations on an enrolled Mac."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.intune"
+      },
+      "title": "Microsoft Intune component",
+      "category": "background",
+      "vendor": "Microsoft",
+      "description": "A component of the Microsoft Intune agent that helps manage this Mac for an organization. Periodic check-in activity is normal."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.CompanyPortalMac"
+      },
+      "title": "Microsoft Company Portal",
+      "category": "app",
+      "vendor": "Microsoft",
+      "description": "Lets you register this Mac, view compliance status, and access apps provided through Microsoft Intune. It also installs Microsoft's Enterprise SSO plug-in."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.CompanyPortalMac."
+      },
+      "title": "Microsoft Company Portal helper",
+      "category": "helper",
+      "vendor": "Microsoft",
+      "description": "Supports Company Portal sign-in, password autofill, or device registration on a managed Mac."
+    },
+    {
+      "match": {
+        "name": "Microsoft Single Sign on for Mac"
+      },
+      "title": "Microsoft Enterprise SSO plug-in",
+      "category": "security",
+      "vendor": "Microsoft",
+      "url": "https://learn.microsoft.com/intune/device-configuration/templates/configure-enterprise-sso-plugin-macos",
+      "description": "Provides single sign-on to apps and websites that use Microsoft Entra ID, reducing repeated work or school account prompts on managed Macs."
+    },
+    {
+      "match": {
+        "name": "Mac SSO Extension"
+      },
+      "title": "Microsoft Enterprise SSO extension",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "The Company Portal extension that provides Microsoft Entra single sign-on for supported apps and websites on this Mac."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.entrabroker."
+      },
+      "title": "Microsoft Entra identity broker",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "Handles Microsoft Entra work or school account authentication and token sharing for single sign-on."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.EntraIdentityBroker."
+      },
+      "title": "Microsoft Entra identity broker",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "A Microsoft Entra broker service that supports work or school account authentication and single sign-on."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.autoupdate"
+      },
+      "title": "Microsoft AutoUpdate",
+      "category": "background",
+      "vendor": "Microsoft",
+      "description": "Checks for, downloads, and installs updates for Microsoft apps. Brief network, CPU, and disk activity during update checks is normal."
+    },
+    {
+      "match": {
+        "path": "/Library/PrivilegedHelperTools/com.microsoft.autoupdate.helper"
+      },
+      "title": "Microsoft AutoUpdate privileged helper",
+      "category": "background",
+      "vendor": "Microsoft",
+      "description": "Installs approved Microsoft app updates with system privileges. It normally runs briefly while an update is applied."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.globalsecureaccess"
+      },
+      "title": "Microsoft Global Secure Access client",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "Connects this Mac to an organization's Microsoft Global Secure Access service so managed traffic can follow identity and security policies."
+    },
+    {
+      "match": {
+        "name": "com.microsoft.globalsecureaccess.tunnel"
+      },
+      "title": "Microsoft Global Secure Access tunnel",
+      "category": "security",
+      "vendor": "Microsoft",
+      "description": "The network system extension that carries managed traffic through Microsoft Global Secure Access. Network activity is expected while the service is connected."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.clawpilot"
+      },
+      "title": "Microsoft Scout",
+      "category": "developer",
+      "vendor": "Microsoft",
+      "description": "Microsoft Scout, a local developer and AI-agent application. Its resource use depends on the active workspace, tools, and agent tasks."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft.clawpilot."
+      },
+      "title": "Microsoft Scout helper",
+      "category": "developer",
+      "vendor": "Microsoft",
+      "description": "A renderer, Node.js, Copilot, or background helper used by Microsoft Scout. Several helpers are normal while agent tasks are running."
+    },
+    {
+      "match": {
+        "pathPattern": "/.config/agency/"
+      },
+      "title": "Microsoft Agency service",
+      "category": "developer",
+      "vendor": "Microsoft",
+      "description": "A background service for Microsoft's local agent tooling. It coordinates agent work and normally remains available between tasks."
+    },
+    {
+      "match": {
+        "bundleID": "com.microsoft.clawpilot.node"
+      },
+      "title": "Microsoft Scout Node.js helper",
+      "category": "developer",
+      "vendor": "Microsoft",
+      "description": "Runs Node.js-based tools and background tasks for Microsoft Scout. CPU and memory use follow the active workspace and agent work."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.microsoft."
+      },
+      "title": "Microsoft background component",
+      "category": "background",
+      "vendor": "Microsoft",
+      "description": "A component installed by a Microsoft app or management service. Its activity normally follows the Microsoft product that launched it."
+    },
+    {
+      "match": {
+        "name": "OfficeThumbnailExtension"
+      },
+      "title": "Office document thumbnail generator",
+      "category": "helper",
+      "vendor": "Apple",
+      "description": "Creates Finder and Quick Look thumbnails for Microsoft Office documents. Brief activity while browsing document folders is normal."
+    },
+    {
+      "match": {
+        "bundleID": "com.google.Chrome.framework.AlertNotificationService"
+      },
+      "title": "Google Chrome alerts helper",
+      "category": "helper",
+      "vendor": "Google",
+      "description": "Delivers browser and website notifications for Google Chrome. It normally uses few resources and wakes when an alert arrives."
+    },
+    {
+      "match": {
+        "pathPrefix": "/Applications/Nextcloud.app/Contents/PlugIns/FileProviderExt.appex/"
+      },
+      "title": "Nextcloud File Provider",
+      "category": "helper",
+      "vendor": "Nextcloud",
+      "description": "Connects Nextcloud files to Finder through macOS File Provider. Network and disk activity follows file browsing and synchronization."
+    },
+    {
+      "match": {
+        "bundleID": "com.TechSmith.Snagit"
+      },
+      "title": "Snagit",
+      "category": "app",
+      "vendor": "TechSmith",
+      "description": "TechSmith's screen capture and recording app. CPU, memory, and disk use can rise while recording, editing, or exporting captures."
+    },
+    {
+      "match": {
+        "bundleIDPrefix": "com.techsmith.snagit."
+      },
+      "title": "Snagit helper",
+      "category": "helper",
+      "vendor": "TechSmith",
+      "description": "Supports Snagit capture shortcuts, menu controls, or background recording features. It normally stays available while Snagit capture is enabled."
+    },
+    {
+      "match": {
+        "name": "com.techsmith.snagit.capturehelper"
+      },
+      "title": "Snagit capture helper",
+      "category": "helper",
+      "vendor": "TechSmith",
+      "description": "Supports TechSmith Snagit screen capture and recording. It normally stays available while background capture features are enabled."
+    },
+    {
+      "match": {
+        "name": "appstored"
+      },
+      "title": "App Store service",
+      "category": "system",
+      "vendor": "Apple",
+      "description": "Handles App Store downloads, purchases, licenses, and updates in the background. Network and disk activity is normal during installs or updates."
+    },
+    {
+      "match": {
+        "name": "diagnosticd"
+      },
+      "title": "System diagnostics service",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Collects diagnostic and performance information for macOS. It normally runs quietly and may become active while the system records a diagnostic event."
+    },
+    {
+      "match": {
+        "path": "/usr/bin/log"
+      },
+      "title": "Unified logging command",
+      "category": "system",
+      "vendor": "Apple",
+      "description": "Apple's command-line tool for reading or streaming the unified system log. It is usually short-lived unless a log stream is running."
+    },
+    {
+      "match": {
+        "name": "mscamerad-xpc"
+      },
+      "title": "Camera import helper",
+      "category": "system",
+      "vendor": "Apple",
+      "description": "Supports Image Capture communication with cameras and media devices. It becomes active when a camera or similar device is connected."
+    },
+    {
+      "match": {
+        "name": "package_script_service"
+      },
+      "title": "Installer script service",
+      "category": "system",
+      "vendor": "Apple",
+      "description": "Runs scripts from macOS installer packages in a restricted service. It should appear only while software is being installed or updated."
+    },
+    {
+      "match": {
+        "name": "parentalcontrolsd"
+      },
+      "title": "Parental controls service",
+      "category": "system",
+      "vendor": "Apple",
+      "description": "Applies parental controls and family restrictions for user accounts. Ongoing low-level background activity is normal."
+    },
+    {
+      "match": {
+        "name": "ptpcamerad"
+      },
+      "title": "Camera transfer service",
+      "category": "system",
+      "vendor": "Apple",
+      "description": "Communicates with cameras using the Picture Transfer Protocol for Photos and Image Capture. It runs when a supported device is connected."
+    },
+    {
+      "match": {
+        "name": "recoveryos_lockout_service"
+      },
+      "title": "Recovery security service",
+      "category": "security",
+      "vendor": "Apple",
+      "description": "Supports security and lockout state used by macOS Recovery. It normally runs only during system administration or recovery-related work."
+    },
+    {
+      "match": {
+        "name": "webprivacyd"
+      },
+      "title": "Web privacy service",
+      "category": "security",
+      "vendor": "Apple",
+      "description": "Supports Safari and WebKit privacy protections, including website tracking controls. Background activity follows web browsing."
+    },
+    {
+      "match": {
+        "name": "WebThumbnailExtension"
+      },
+      "title": "Web page thumbnail generator",
+      "category": "helper",
+      "vendor": "Apple",
+      "description": "Creates preview thumbnails for web documents in Finder and Quick Look. Brief activity while browsing files is normal."
+    },
+    {
+      "match": {
+        "name": "writeconfig"
+      },
+      "title": "System configuration writer",
+      "category": "system",
+      "vendor": "Apple",
+      "description": "Applies privileged macOS configuration changes requested by system administration tools. It is normally short-lived."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Library/CoreServices/Batteries.app/Contents/PlugIns/"
+      },
+      "title": "Batteries widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Updates the Batteries widget with charge information from this Mac and connected devices. It normally uses few resources."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/Calendar.app/Contents/PlugIns/"
+      },
+      "title": "Calendar widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Updates Calendar widgets and related extension content with upcoming events. Brief refresh activity is normal."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/Notes.app/Contents/PlugIns/"
+      },
+      "title": "Notes widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Updates Notes widgets and provides note content to the system widget interface. It normally runs briefly during refreshes."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/FindMy.app/Contents/PlugIns/"
+      },
+      "title": "Find My widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Updates Find My widgets for people, devices, or items. Network and location activity is normal while the widget refreshes."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/Home.app/Contents/PlugIns/"
+      },
+      "title": "Home widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Updates Home widgets with accessory status and energy information. It normally wakes briefly when Home data changes."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/Journal.app/Contents/PlugIns/"
+      },
+      "title": "Journal widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Provides Journal widget content and secure widget data. Brief activity during widget refreshes is normal."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/News.app/Contents/PlugIns/"
+      },
+      "title": "News widget and intents",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Updates Apple News widgets and handles News shortcuts or intents. Network activity is normal while headlines refresh."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/Photos.app/Contents/PlugIns/"
+      },
+      "title": "Photos widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Selects and prepares photo memories for the Photos widget. CPU and disk activity can rise briefly while images are processed."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/Podcasts.app/Contents/PlugIns/"
+      },
+      "title": "Podcasts widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Updates the Podcasts widget with shows and playback information. Brief network and database activity is normal."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/VoiceMemos.app/Contents/PlugIns/"
+      },
+      "title": "Voice Memos widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Supports Voice Memos widgets and recording shortcuts. It normally runs briefly when the widget refreshes or starts a recording."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/Reminders.app/Contents/PlugIns/"
+      },
+      "title": "Reminders widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Updates Reminders widgets with lists and due items. Brief activity follows reminder or widget changes."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/Shortcuts.app/Contents/PlugIns/"
+      },
+      "title": "Shortcuts widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Displays and launches shortcuts from a widget. It normally uses few resources unless a shortcut is running."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/Stocks.app/Contents/PlugIns/"
+      },
+      "title": "Stocks widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Updates Stocks widgets with market data. Brief network activity is normal while prices and news refresh."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/Tips.app/Contents/PlugIns/"
+      },
+      "title": "Tips widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Updates the Tips widget with suggestions about macOS features. It normally uses very few resources."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/Weather.app/Contents/PlugIns/"
+      },
+      "title": "Weather widget and intents",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Updates Weather widgets and handles Weather shortcuts or intents. Brief location and network activity is normal."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Applications/Clock.app/Contents/PlugIns/"
+      },
+      "title": "Clock widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Updates Clock widgets such as World Clock. It normally uses very few resources."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Library/CoreServices/PeopleViewService.app/Contents/PlugIns/"
+      },
+      "title": "People widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Updates the system People widget with contact information. Brief refresh activity is normal."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Library/CoreServices/Screen Time.app/Contents/PlugIns/"
+      },
+      "title": "Screen Time widget",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Updates Screen Time widgets and related intents with app-usage information. It normally runs briefly during refreshes."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app/Contents/Extensions/"
+      },
+      "title": "Safari widget extension",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Provides Safari widget content from the secured system copy of Safari. Brief background activity is normal."
+    },
+    {
+      "match": {
+        "pathPrefix": "/System/Library/PrivateFrameworks/MobileTimer.framework/PlugIns/"
+      },
+      "title": "Clock intents extension",
+      "category": "helper",
+      "vendor": "Apple",
+      "description": "Handles Clock app shortcuts and intents for timers and alarms. It is normally short-lived."
+    },
+    {
+      "match": {
+        "path": "/usr/sbin/cupsd"
+      },
+      "title": "Printing service",
+      "category": "system",
+      "vendor": "Apple",
+      "description": "Manages printers and print queues through the built-in CUPS printing system. It normally wakes when printers are discovered or jobs are printed."
+    },
+    {
+      "match": {
+        "path": "/usr/bin/nettop"
+      },
+      "title": "Network usage reader",
+      "category": "system",
+      "vendor": "Apple",
+      "description": "Apple's command-line network monitor. Mac Performance Monitor runs it when per-app network tracking is enabled, so brief periodic activity is expected."
+    },
+    {
+      "match": {
+        "name": "ReportMemoryException"
+      },
+      "title": "Memory exception reporter",
+      "category": "system",
+      "vendor": "Apple",
+      "description": "Records diagnostic information when macOS detects unusual memory use or a memory-related process failure. It is normally short-lived."
+    },
+    {
+      "match": {
+        "name": "XPCKeychainSandboxCheck"
+      },
+      "title": "Keychain sandbox check",
+      "category": "security",
+      "vendor": "Apple",
+      "description": "Checks whether a sandboxed process may access a requested Keychain item. It is normally short-lived and appears during secure credential access."
+    },
+    {
+      "match": {
+        "path": "/usr/bin/profiles"
+      },
+      "title": "Configuration profile tool",
+      "category": "system",
+      "vendor": "Apple",
+      "description": "Apple's command-line tool for inspecting or managing configuration profiles. It normally runs briefly during device management or administration tasks."
+    },
+    {
+      "match": {
+        "path": "/bin/ps"
+      },
+      "title": "Process listing command",
+      "category": "system",
+      "vendor": "Apple",
+      "description": "Apple's command-line tool for listing running processes. It is short-lived and uses few resources."
+    },
+    {
+      "match": {
+        "pathSuffix": "/System/Library/ExtensionKit/Extensions/SearchUploadWorker.appex/Contents/MacOS/SearchUploadWorker"
+      },
+      "title": "Search upload worker",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "A built-in macOS extension that prepares diagnostic data for system search services. It normally runs briefly during reporting work."
+    },
+    {
+      "match": {
+        "pathSuffix": "/System/Library/ExtensionKit/Extensions/SiriUploadWorker.appex/Contents/MacOS/SiriUploadWorker"
+      },
+      "title": "Siri upload worker",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "A built-in macOS extension that prepares Siri diagnostic data for reporting. It normally runs briefly."
+    },
+    {
+      "match": {
+        "pathPrefix": "/Applications/WhatsApp.app/Contents/PlugIns/ServiceExtension.appex/"
+      },
+      "title": "WhatsApp service extension",
+      "category": "helper",
+      "vendor": "WhatsApp",
+      "description": "Supports background WhatsApp service work such as processing incoming events and notifications. It normally runs briefly."
+    },
+    {
+      "match": {
+        "path": "/System/Library/PrivateFrameworks/CoreParsec.framework/parsec-fbf"
+      },
+      "title": "System search helper",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "A helper from Apple's CoreParsec search framework. It supports system search and suggestion services and is normally short-lived."
+    },
+    {
+      "match": {
+        "path": "/usr/libexec/xpcproxy"
+      },
+      "title": "XPC service launcher",
+      "category": "system",
+      "vendor": "Apple",
+      "description": "Launches sandboxed XPC services on behalf of macOS and apps. Several short-lived instances are normal."
+    },
+    {
+      "match": {
+        "path": "/usr/libexec/signpost_reporter"
+      },
+      "title": "Signpost diagnostics reporter",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Processes performance signpost data for macOS diagnostics. It normally runs briefly while a report is prepared."
+    },
+    {
+      "match": {
+        "pathSuffix": "/WorkflowKit.framework/XPCServices/BackgroundShortcutRunner.xpc/Contents/MacOS/BackgroundShortcutRunner"
+      },
+      "title": "Background shortcut runner",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Runs an Apple Shortcuts workflow in the background. CPU, memory, and network use depend on the shortcut's actions."
+    },
+    {
+      "match": {
+        "pathSuffix": "/CloudTelemetry.framework/Versions/A/XPCServices/CloudTelemetryService.xpc/Contents/MacOS/CloudTelemetryService"
+      },
+      "title": "Cloud telemetry service",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Supports diagnostic reporting for Apple's cloud services. It normally runs briefly when telemetry is processed."
+    },
+    {
+      "match": {
+        "name": "systemextension"
+      },
+      "title": "System extension manager",
+      "category": "system",
+      "vendor": "Apple",
+      "description": "The truncated process name for Apple's systemextensionsctl tool, which inspects or manages installed system extensions. It is normally short-lived."
+    },
+    {
+      "match": {
+        "path": "/System/Library/PrivateFrameworks/SiriInference.framework/Versions/A/siriinferenced"
+      },
+      "title": "Siri inference service",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Runs on-device inference for Siri features. Activity follows Siri requests and background intelligence work."
+    },
+    {
+      "match": {
+        "path": "/System/Library/PrivateFrameworks/HelpData.framework/Versions/A/Resources/helpd"
+      },
+      "title": "Help data service",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Indexes and retrieves content for the built-in macOS Help system. It normally runs briefly when Help content is used or updated."
+    },
+    {
+      "match": {
+        "path": "/usr/libexec/assetsubscriptiond"
+      },
+      "title": "Asset subscription service",
+      "category": "background",
+      "vendor": "Apple",
+      "description": "Manages subscriptions to downloadable system assets. Network and disk activity is normal when macOS checks for or installs asset updates."
+    },
+    {
+      "match": {
+        "path": "/usr/libexec/mdmclient"
+      },
+      "title": "Device management client",
+      "category": "security",
+      "vendor": "Apple",
+      "description": "Applies mobile device management commands and configuration profiles for an enrolled Mac. It normally runs during management check-ins."
+    },
+    {
+      "match": {
+        "pathSuffix": "/Security.framework/Versions/A/MachServices/authorizationhost.bundle/Contents/MacOS/authorizationhost"
+      },
+      "title": "Authorization dialog host",
+      "category": "security",
+      "vendor": "Apple",
+      "description": "Hosts a macOS authorization dialog when an app requests administrator approval. It is normally short-lived."
+    },
+    {
+      "match": {
+        "pathSuffix": "/Security.framework/Versions/A/MachServices/SecurityAgent.bundle/Contents/MacOS/SecurityAgent"
+      },
+      "title": "Security Agent",
+      "category": "security",
+      "vendor": "Apple",
+      "description": "Displays secure macOS authentication and authorization prompts. It is normally active only while approval or credentials are needed."
+    },
+    {
+      "match": {
+        "name": "taskgated-helper"
+      },
+      "title": "Code-signing policy helper",
+      "category": "security",
+      "vendor": "Apple",
+      "description": "Helps macOS verify code-signing and execution policy for an app or executable. It is normally short-lived while software is being checked or launched."
     }
   ]
 }

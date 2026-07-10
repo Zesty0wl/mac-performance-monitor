@@ -4,6 +4,21 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>Mac Performance Monitor</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Mac Performance Monitor Trace</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>uk.co.bzwrd.macperfmonitor.trace</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>Mac Performance Monitor</string>
 	<key>CFBundleIconFile</key>
@@ -15,9 +30,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.2.0</string>
+	<string>1.2.1</string>
 	<key>CFBundleVersion</key>
-	<string>127</string>
+	<string>131</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
 	<key>LSMultipleInstancesProhibited</key>
@@ -40,5 +55,25 @@
 	<string>HuKDMlLqkj1/pq6IuuIBLBAo0XVdRVCA8fdABu3Kh2M=</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Mac Performance Monitor Trace</string>
+			<key>UTTypeIdentifier</key>
+			<string>uk.co.bzwrd.macperfmonitor.trace</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>mpmtrace</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -60,7 +60,7 @@ public enum Retention {
             try rollRawToMinute(db, nowTS: nowTS, bucket: policy.standardResBucket)
         }
         try pool.write { db in try rollMinuteToHour(db, nowTS: nowTS) }
-        try pool.write { db in try trim(db, nowTS: nowTS, policy: policy) }
+        try trim(pool, nowTS: nowTS, policy: policy)
         // Return time-trimmed free pages to the OS every pass — auto_vacuum
         // INCREMENTAL never reclaims them on its own, so a file that grew then
         // trimmed would stay large. Bounded per pass so the write stays short.
@@ -90,7 +90,7 @@ public enum Retention {
         }
         guard overCap else { return }
         var converged = false
-        var safety = 64  // maxDeletePerPass / batch, guards a pathological loop
+        var safety = 50  // 500,000 rows / 10,000-row batch
         while !converged, safety > 0 {
             safety -= 1
             converged = try pool.write { db in
@@ -409,6 +409,55 @@ public enum Retention {
 
     // MARK: - Trim
 
+    /// Apply time cutoffs in short transactions. A user can reduce a mature
+    /// database's retention by days, making millions of rows eligible at once;
+    /// one unbounded DELETE would hold SQLite's sole writer throughout. Rotate
+    /// across tiers in 10k-row commits and cap one maintenance pass so sample
+    /// writes can interleave and later passes continue convergence.
+    private static func trim(
+        _ pool: DatabasePool, nowTS: Double, policy: RetentionPolicy
+    ) throws {
+        let tiers: [(table: String, column: String, cutoff: Double)] = [
+            ("process_samples", "timestamp", nowTS - policy.rawWindow),
+            ("system_samples", "timestamp", nowTS - policy.rawWindow),
+            ("process_minute", "bucket", nowTS - policy.minuteWindow),
+            ("system_minute", "bucket", nowTS - policy.minuteWindow),
+            ("process_hour", "bucket", nowTS - policy.hourWindow),
+            ("system_hour", "bucket", nowTS - policy.hourWindow),
+        ]
+        let batchSize = 10_000
+        let maximumDeletesPerPass = 500_000
+        var deleted = 0
+        var active = Array(tiers.indices)
+
+        while !active.isEmpty, deleted < maximumDeletesPerPass {
+            var remaining: [Int] = []
+            for index in active where deleted < maximumDeletesPerPass {
+                let tier = tiers[index]
+                let limit = min(batchSize, maximumDeletesPerPass - deleted)
+                let removed = try pool.write { db -> Int in
+                    try db.execute(
+                        sql: """
+                            DELETE FROM \(tier.table) WHERE rowid IN (
+                                SELECT rowid FROM \(tier.table)
+                                WHERE \(tier.column) < ?
+                                ORDER BY \(tier.column) ASC
+                                LIMIT ?
+                            )
+                            """, arguments: [tier.cutoff, limit])
+                    return db.changesCount
+                }
+                deleted += removed
+                if removed == limit { remaining.append(index) }
+            }
+            active = remaining
+        }
+
+        try pool.write { db in
+            try pruneDimensionsIfDue(db, nowTS: nowTS, hourCutoff: nowTS - policy.hourWindow)
+        }
+    }
+
     static func trim(_ db: Database, nowTS: Double, policy: RetentionPolicy) throws {
         let rawCutoff = nowTS - policy.rawWindow
         let minuteCutoff = nowTS - policy.minuteWindow
@@ -424,12 +473,16 @@ public enum Retention {
         try db.execute(sql: "DELETE FROM process_hour WHERE bucket < ?", arguments: [hourCutoff])
         try db.execute(sql: "DELETE FROM system_hour WHERE bucket < ?", arguments: [hourCutoff])
 
+        try pruneDimensionsIfDue(db, nowTS: nowTS, hourCutoff: hourCutoff)
+    }
+
+    private static func pruneDimensionsIfDue(
+        _ db: Database, nowTS: Double, hourCutoff: Double
+    ) throws {
         // Drop dimension rows for processes that no longer have any samples and
-        // have not been seen within the hour window. The NOT IN guards
-        // materialise a DISTINCT over all three sample tiers — on a mature
-        // database that is millions of minute/hour rows — and rows only become
-        // eligible when they age past the (90-day) hour window, so running it
-        // every minute bought nothing. Watermarked to every 10 minutes.
+        // have not been seen within the hour window. Each NOT EXISTS probe uses
+        // the process-first primary key on its tier, while v10's last_seen index
+        // limits candidates before those probes. Watermarked to every 10 minutes.
         // `lastPrune > nowTS` means the watermark was written under a clock
         // that has since been corrected backward — run (and rewrite it) rather
         // than starving the prune until real time passes the future stamp.
@@ -437,11 +490,17 @@ public enum Retention {
         if nowTS - lastPrune >= 600 || lastPrune > nowTS {
             try db.execute(
                 sql: """
-                    DELETE FROM processes
-                    WHERE last_seen < ?
-                      AND id NOT IN (SELECT DISTINCT process_id FROM process_samples)
-                      AND id NOT IN (SELECT DISTINCT process_id FROM process_minute)
-                      AND id NOT IN (SELECT DISTINCT process_id FROM process_hour)
+                                        DELETE FROM processes AS p
+                                        WHERE p.last_seen < ?
+                                            AND NOT EXISTS (
+                                                SELECT 1 FROM process_samples AS s WHERE s.process_id = p.id
+                                            )
+                                            AND NOT EXISTS (
+                                                SELECT 1 FROM process_minute AS m WHERE m.process_id = p.id
+                                            )
+                                            AND NOT EXISTS (
+                                                SELECT 1 FROM process_hour AS h WHERE h.process_id = p.id
+                                            )
                     """, arguments: [hourCutoff])
             try setMeta(db, "dimension_prune_at", nowTS)
         }

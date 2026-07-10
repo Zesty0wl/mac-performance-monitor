@@ -51,7 +51,7 @@ public final class SampleStore {
 
     /// Persist one tick. The whole snapshot is written in a single transaction.
     public func insert(_ snapshot: Sampler.Snapshot) throws {
-        try pool.write { db in
+        try writeRecoveringCaches { db in
             try self.insertSystem(snapshot.system, db: db)
             for sample in snapshot.processes {
                 let processID = try self.processID(for: sample, db: db)
@@ -64,7 +64,7 @@ public final class SampleStore {
     /// the dashboard path, where per-process history is not yet needed and the
     /// 60 MB / 2% budget rewards writing a single row rather than ~600.
     public func insert(systemSample: SystemSample) throws {
-        try pool.write { db in
+        try writeRecoveringCaches { db in
             try self.insertSystem(systemSample, db: db)
         }
     }
@@ -74,7 +74,7 @@ public final class SampleStore {
     /// history exists for any process the user later charts; retention
     /// (2 h raw / 7 d minute / 90 d hour) keeps the database bounded.
     public func insert(_ system: SystemSample, processes: [ProcessSample]) throws {
-        try pool.write { db in
+        try writeRecoveringCaches { db in
             try self.insertSystem(system, db: db)
             for sample in processes {
                 let processID = try self.processID(for: sample, db: db)
@@ -104,7 +104,7 @@ public final class SampleStore {
     )
         throws -> Int
     {
-        try pool.write { db in
+        try writeRecoveringCaches { db in
             try self.insertSystem(system, db: db)
             var written = 0
             for sample in processes where self.shouldWrite(sample, bucket: bucket) {
@@ -123,6 +123,21 @@ public final class SampleStore {
                 written += 1
             }
             return written
+        }
+    }
+
+    /// Cache entries are created while the SQL transaction is still open. If a
+    /// later row aborts that transaction, those IDs and change-gate snapshots no
+    /// longer describe committed state, so discard them before the next tick.
+    private func writeRecoveringCaches<T>(
+        _ updates: (Database) throws -> T
+    ) throws -> T {
+        do {
+            return try pool.write(updates)
+        } catch {
+            processIDCache.removeAll(keepingCapacity: true)
+            lastWritten.removeAll(keepingCapacity: true)
+            throw error
         }
     }
 

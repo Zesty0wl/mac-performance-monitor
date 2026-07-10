@@ -29,18 +29,24 @@ public struct VMStatistics: Sendable {
 public struct SystemMemoryReader: Sendable {
     public init() {}
 
-    /// Kernel page size in bytes (16384 on Apple Silicon). Never hardcoded.
-    public var pageSize: UInt64 {
-        var ps: vm_size_t = 0
-        if host_page_size(mach_host_self(), &ps) == KERN_SUCCESS, ps > 0 {
-            return UInt64(ps)
+    private static let cachedPageSize: UInt64 = {
+        var size: vm_size_t = 0
+        if host_page_size(mach_host_self(), &size) == KERN_SUCCESS, size > 0 {
+            return UInt64(size)
         }
         return UInt64(getpagesize())
+    }()
+
+    private static let cachedTotalRAM = Sysctl.integer("hw.memsize", as: UInt64.self) ?? 0
+
+    /// Kernel page size in bytes (16384 on Apple Silicon). Never hardcoded.
+    public var pageSize: UInt64 {
+        Self.cachedPageSize
     }
 
     /// Total physical RAM in bytes.
     public var totalRAM: UInt64 {
-        Sysctl.integer("hw.memsize", as: UInt64.self) ?? 0
+        Self.cachedTotalRAM
     }
 
     /// Read `vm_statistics64` and convert page counts to bytes.

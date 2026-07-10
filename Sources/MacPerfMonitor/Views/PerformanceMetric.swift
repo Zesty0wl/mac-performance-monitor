@@ -4,7 +4,7 @@ import MacPerfMonitorCore
 /// A metric the Performance Monitor can plot. Memory, CPU, and file descriptors
 /// read straight off each sample; disk I/O is a throughput rate derived from the
 /// difference between consecutive cumulative counters.
-enum PerfMetric: String, CaseIterable, Identifiable {
+enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
     case memory
     case cpu
     case network
@@ -73,7 +73,7 @@ enum PerfMetric: String, CaseIterable, Identifiable {
         let v = max(value, 0)
         switch self {
         case .memory:
-            return ByteFormat.string(UInt64(v))
+            return ByteFormat.string(Self.clampedByteCount(v))
         case .cpu:
             return String(format: "%.0f%%", v)
         case .network:
@@ -81,8 +81,14 @@ enum PerfMetric: String, CaseIterable, Identifiable {
         case .fileDescriptors:
             return String(format: "%.0f", v)
         case .diskIO:
-            return "\(ByteFormat.string(UInt64(v)))/s"
+            return "\(ByteFormat.string(Self.clampedByteCount(v)))/s"
         }
+    }
+
+    private static func clampedByteCount(_ value: Double) -> UInt64 {
+        guard value.isFinite, value > 0 else { return 0 }
+        if value >= Double(UInt64.max) { return UInt64.max }
+        return UInt64(value)
     }
 
     /// Project a raw per-process series onto this metric. Memory, CPU, and FDs
@@ -110,12 +116,60 @@ enum PerfMetric: String, CaseIterable, Identifiable {
                 let cur = raw[i]
                 let dt = cur.date.timeIntervalSince(prev.date)
                 guard dt > 0 else { continue }
-                let prevTotal = prev.diskRead &+ prev.diskWritten
-                let curTotal = cur.diskRead &+ cur.diskWritten
-                let delta = curTotal >= prevTotal ? curTotal - prevTotal : 0
-                out.append(PerfPoint(date: cur.date, value: Double(delta) / dt))
+                let readDelta =
+                    cur.diskRead >= prev.diskRead ? Double(cur.diskRead - prev.diskRead) : 0
+                let writeDelta =
+                    cur.diskWritten >= prev.diskWritten
+                    ? Double(cur.diskWritten - prev.diskWritten) : 0
+                out.append(PerfPoint(date: cur.date, value: (readDelta + writeDelta) / dt))
             }
             return out
+        }
+    }
+
+    /// Project an imported trace window without first duplicating the complete
+    /// document into `ProcessHistoryPoint` arrays.
+    func points(from raw: ArraySlice<ProcessTracePoint>) -> [PerfPoint] {
+        switch self {
+        case .memory:
+            return raw.map {
+                PerfPoint(date: Date(timeIntervalSince1970: $0.t), value: Double($0.footprint))
+            }
+        case .cpu:
+            return raw.map {
+                PerfPoint(date: Date(timeIntervalSince1970: $0.t), value: $0.cpu)
+            }
+        case .network:
+            return raw.map {
+                PerfPoint(date: Date(timeIntervalSince1970: $0.t), value: $0.net)
+            }
+        case .fileDescriptors:
+            return raw.map {
+                PerfPoint(date: Date(timeIntervalSince1970: $0.t), value: Double($0.fd))
+            }
+        case .diskIO:
+            guard raw.count > 1 else { return [] }
+            var output: [PerfPoint] = []
+            output.reserveCapacity(raw.count - 1)
+            var previous = raw[raw.startIndex]
+            for index in raw.indices.dropFirst() {
+                let point = raw[index]
+                let interval = point.t - previous.t
+                if interval > 0 {
+                    let readDelta =
+                        point.diskRead >= previous.diskRead
+                        ? Double(point.diskRead - previous.diskRead) : 0
+                    let writeDelta =
+                        point.diskWritten >= previous.diskWritten
+                        ? Double(point.diskWritten - previous.diskWritten) : 0
+                    output.append(
+                        PerfPoint(
+                            date: Date(timeIntervalSince1970: point.t),
+                            value: (readDelta + writeDelta) / interval))
+                }
+                previous = point
+            }
+            return output
         }
     }
 

@@ -91,6 +91,39 @@ final class ChangeGatedWritesTests: XCTestCase {
         XCTAssertEqual(diskWrite, 1, "any disk I/O since the last row is material")
     }
 
+    func testFailedTransactionDoesNotPoisonWriteCaches() throws {
+        let system = Make.system(timestamp: base)
+        let first = Make.process(timestamp: base, pid: 1000, footprint: 100 * mb)
+        let second = Make.process(timestamp: base, pid: 2000, footprint: 200 * mb)
+
+        try store.databasePool.write { db in
+            try db.execute(
+                sql: """
+                    CREATE TRIGGER abort_second_process
+                    BEFORE INSERT ON process_samples
+                    WHEN (SELECT pid FROM processes WHERE id = NEW.process_id) = 2000
+                    BEGIN
+                      SELECT RAISE(ABORT, 'forced rollback');
+                    END
+                    """)
+        }
+
+        XCTAssertThrowsError(
+            try store.insertChanged(system, processes: [first, second], bucket: 60))
+        XCTAssertEqual(try count("system_samples"), 0)
+        XCTAssertEqual(try count("processes"), 0)
+        XCTAssertEqual(try count("process_samples"), 0)
+
+        try store.databasePool.write { db in
+            try db.execute(sql: "DROP TRIGGER abort_second_process")
+        }
+        XCTAssertEqual(
+            try store.insertChanged(system, processes: [first, second], bucket: 60), 2,
+            "the exact retry must not be skipped or reuse rolled-back process IDs")
+        XCTAssertEqual(try count("processes"), 2)
+        XCTAssertEqual(try count("process_samples"), 2)
+    }
+
     // MARK: - Time-weighted roll-up
 
     /// The heart of the correctness argument: sparse rows must roll up to a

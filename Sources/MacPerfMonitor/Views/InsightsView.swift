@@ -294,10 +294,20 @@ private struct PressureTimelineSection: View {
     /// the full window on every body evaluation (it is read several times per
     /// render).
     private let points: [SystemHistoryPoint]
+    private let windowColor: Color
 
     init(history: [SystemHistoryPoint], events: [PressureEvent]) {
         self.events = events
-        self.points = history.chartDownsampled(span: 2 * 3600, to: 360)
+        let points = history.chartDownsampled(span: 2 * 3600, to: 360)
+        self.points = points
+        let peak = points.lazy.map(\.pressurePercent).max() ?? 0
+        if peak >= 67 {
+            self.windowColor = .red
+        } else if peak >= 34 {
+            self.windowColor = .orange
+        } else {
+            self.windowColor = .green
+        }
     }
 
     var body: some View {
@@ -322,15 +332,6 @@ private struct PressureTimelineSection: View {
                 }
             }
         }
-    }
-
-    /// The tone of the window: tinted by the highest pressure reached, so a calm
-    /// two hours reads green even if pressure is wobbling around low values.
-    private var windowColor: Color {
-        let peak = points.map(\.pressurePercent).max() ?? 0
-        if peak >= 67 { return .red }
-        if peak >= 34 { return .orange }
-        return .green
     }
 
     private var chart: some View {

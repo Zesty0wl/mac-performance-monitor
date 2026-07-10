@@ -59,8 +59,21 @@ public enum MemoryToolRunner {
             process.standardError = pipe
             process.standardInput = FileHandle.nullDevice
 
-            // Drain the pipe on a background queue, capping the buffer. Draining
-            // continuously also stops the child blocking on a full pipe.
+            let exited = DispatchSemaphore(value: 0)
+            process.terminationHandler = { _ in exited.signal() }
+
+            do {
+                try process.run()
+            } catch {
+                log.error(
+                    "launch \(tool.label, privacy: .public) failed: \(error.localizedDescription, privacy: .public)"
+                )
+                return .failure(.launchFailed(error.localizedDescription))
+            }
+
+            // Drain only after launch succeeds. Starting this reader first makes
+            // a launch failure retain the Process through the closure while the
+            // pipe waits forever for EOF from its still-open writer handle.
             let bufferLock = NSLock()
             var buffer = Data()
             var hitCap = false
@@ -74,23 +87,17 @@ public enum MemoryToolRunner {
                     let room = maxBytes - buffer.count
                     if room > 0 { buffer.append(chunk.prefix(room)) }
                     let full = buffer.count >= maxBytes
+                    let firstCapHit = full && !hitCap
                     if full { hitCap = true }
                     bufferLock.unlock()
-                    if full { break }
+                    if firstCapHit {
+                        // Keep draining after asking the child to stop. Breaking
+                        // here leaves the pipe full, which can block the child
+                        // and turn a bounded run into the full timeout.
+                        terminateHard(process)
+                    }
                 }
                 readDone.signal()
-            }
-
-            let exited = DispatchSemaphore(value: 0)
-            process.terminationHandler = { _ in exited.signal() }
-
-            do {
-                try process.run()
-            } catch {
-                log.error(
-                    "launch \(tool.label, privacy: .public) failed: \(error.localizedDescription, privacy: .public)"
-                )
-                return .failure(.launchFailed(error.localizedDescription))
             }
 
             var timedOut = false
@@ -102,9 +109,9 @@ public enum MemoryToolRunner {
                 terminateHard(process)
             }
 
-            // Let the reader finish draining (it ends on EOF after the child exits,
-            // or because the cap was hit). If the cap stopped the reader while the
-            // child is still alive, make sure the child is gone.
+            // Let the reader finish draining to EOF after the child exits. If a
+            // resistant child survived either the cap or timeout termination,
+            // make sure it is gone.
             _ = readDone.wait(timeout: .now() + 5)
             if process.isRunning { terminateHard(process) }
 
