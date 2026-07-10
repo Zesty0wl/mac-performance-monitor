@@ -35,6 +35,8 @@ struct NetworkView: View {
     /// per-adapter chart. Accrued from the same single reader so the figures
     /// stay consistent with the rest of the page.
     @State private var trails: [String: [SystemHistoryPoint]] = [:]
+    /// The dedicated network discovery workspace replaces the summary page while open.
+    @State private var showsNetworkScanner = false
 
     /// The interface/config poll, driven at the global refresh interval and
     /// recreated when it changes.
@@ -59,25 +61,35 @@ struct NetworkView: View {
     private struct AdapterSelection: Identifiable { let id: String }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                header
-                throughputPanel
-                adaptersPanel
-                configPanel
-                perAppPanel
+        Group {
+            if showsNetworkScanner {
+                NetworkScanView(networkInfo: info, dismiss: { showsNetworkScanner = false })
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        header
+                        throughputPanel
+                        adaptersPanel
+                        configPanel
+                        perAppPanel
+                    }
+                    .padding(20)
+                }
             }
-            .padding(20)
         }
         .onAppear {
             poll()
             startPolling()
+            if appState.showNetworkScanner { openNetworkScanner() }
         }
         .onDisappear { pollCancellable?.cancel() }
         // Re-arm the poll whenever the global interval changes.
         .onChange(of: refreshInterval) { _, _ in startPolling() }
         // Poll once immediately when the window comes back into view.
         .onChange(of: appState.mainWindowVisible) { _, visible in if visible { poll() } }
+        .onChange(of: appState.showNetworkScanner) { _, requested in
+            if requested { openNetworkScanner() }
+        }
         .sheet(item: $selected) { sel in
             NetworkAdapterDetailView(
                 bsdName: sel.id, info: info, trail: trails[sel.id] ?? [],
@@ -151,7 +163,21 @@ struct NetworkView: View {
                 rateStat(
                     "Upload", rates?.outBytesPerSec, NetworkStyle.upload, NetworkStyle.upSymbol)
             }
+            Button {
+                openNetworkScanner()
+            } label: {
+                Label("Network Scan", systemImage: "magnifyingglass")
+            }
+            .buttonStyle(.borderedProminent)
+            .help("Discover devices on your local network")
         }
+    }
+
+    private func openNetworkScanner() {
+        appState.showNetworkScanner = false
+        guard !showsNetworkScanner else { return }
+        showsNetworkScanner = true
+        AppLog.ui.notice("Network Scan workspace opened")
     }
 
     private var subtitle: String {

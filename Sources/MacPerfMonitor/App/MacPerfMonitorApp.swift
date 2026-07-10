@@ -122,6 +122,21 @@ struct MacPerfMonitorApp: App {
         }
         .defaultSize(width: 980, height: 640)
         .defaultLaunchBehavior(.suppressed)
+        .commands {
+            CommandMenu("Network") {
+                Button("Network Scan") {
+                    AppLog.ui.notice("Network Scan command invoked")
+                    appDelegate.appState.mainWindowOpen = true
+                    appDelegate.appState.mainWindowVisible = true
+                    appDelegate.appState.showNetworkScanner = true
+                    appDelegate.appState.requestedMainTab = .network
+                    NotificationCenter.default.post(
+                        name: .macperfmonitorShowMainWindow, object: nil)
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+                .keyboardShortcut("l", modifiers: [.command, .shift])
+            }
+        }
 
         Settings {
             SettingsView()
@@ -255,6 +270,10 @@ final class AppState: ObservableObject {
     /// Set by the network menubar panel to ask the main window to open on the
     /// Network tab. Same observe-then-clear pattern as `showBatteryTab`.
     @Published var showNetworkTab = false
+
+    /// Set by the app command to open the Network tab's Network Scan workspace.
+    /// `NetworkView` consumes and clears it when that tab mounts.
+    @Published var showNetworkScanner = false
 
     /// A `.mpmtrace` file opened from Finder, awaiting display. `ContentView`
     /// switches to the Analytics tab and `AnalyticsView` decodes and shows it,

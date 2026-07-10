@@ -6,6 +6,19 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-07-10
+
+### Added
+
+- **Network Scan:** discover devices on a selected local interface and IPv4 subnet
+  in a sortable, horizontally scrollable table. Results include reachability,
+  MAC address, host and service names, vendor, SMB identity, optional IPv6
+  columns, editable device labels and comments, plus on-demand TCP port scans.
+  Vendor cells show queued and lookup states before reporting a result, and
+  resolved or unknown MAC prefixes are cached for faster repeat scans. Private
+  or randomized MAC addresses are identified separately because they contain no
+  IEEE vendor ID, rather than being reported as vendor not found.
+
 ## [1.3.1] - 2026-07-10
 
 ### Added

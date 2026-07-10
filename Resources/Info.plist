@@ -30,9 +30,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.3.1</string>
+	<string>1.3.2</string>
 	<key>CFBundleVersion</key>
-	<string>158</string>
+	<string>174</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
 	<key>LSMultipleInstancesProhibited</key>
@@ -41,10 +41,31 @@
 	<true/>
 	<key>NSAppSleepDisabled</key>
 	<true/>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_airplay._tcp</string>
+		<string>_raop._tcp</string>
+		<string>_googlecast._tcp</string>
+		<string>_sonos._tcp</string>
+		<string>_spotify-connect._tcp</string>
+		<string>_device-info._tcp</string>
+		<string>_workstation._tcp</string>
+		<string>_smb._tcp</string>
+		<string>_afpovertcp._tcp</string>
+		<string>_ssh._tcp</string>
+		<string>_ipp._tcp</string>
+		<string>_printer._tcp</string>
+		<string>_http._tcp</string>
+		<string>_https._tcp</string>
+		<string>_homekit._tcp</string>
+		<string>_hap._tcp</string>
+	</array>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Mac Performance Monitor. No telemetry. All data stays on your Mac.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Scan your selected local subnet to identify devices and available services.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>SUEnableAutomaticChecks</key>
