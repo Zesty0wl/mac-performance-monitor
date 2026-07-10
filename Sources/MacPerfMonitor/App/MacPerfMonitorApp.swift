@@ -94,10 +94,8 @@ struct MacPerfMonitorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        // All four menubar items — the primary memory/pressure item included — are
-        // AppKit `NSStatusItem`s managed by the app delegate (see
-        // `MemoryStatusItemController` and the CPU/Battery/Network controllers), not
-        // SwiftUI `MenuBarExtra`s. A `MenuBarExtra` cannot be removed at quit on
+        // The combined menu bar item is an AppKit `NSStatusItem` managed by the app
+        // delegate, not a SwiftUI `MenuBarExtra`. A `MenuBarExtra` cannot be removed at quit on
         // macOS 26/27 (retracting it spins SwiftUI into an infinite loop), which is
         // what let the system demand-relaunch the app after the user quit it; an
         // AppKit item removes cleanly. So this scene tree is only the app's windows.
@@ -132,6 +130,7 @@ struct MacPerfMonitorApp: App {
                 .environmentObject(appDelegate.helperManager)
                 .environmentObject(appDelegate.loginItemManager)
                 .environmentObject(appDelegate.appModeManager)
+                .environmentObject(appDelegate.menuBarConfiguration)
         }
 
         Window(AppInfo.onboardingWindowTitle, id: WindowID.onboarding) {
@@ -140,6 +139,7 @@ struct MacPerfMonitorApp: App {
                 .environmentObject(appDelegate.appModeManager)
                 .environmentObject(appDelegate.loginItemManager)
                 .environmentObject(appDelegate.helperManager)
+                .environmentObject(appDelegate.menuBarConfiguration)
         }
         .windowResizability(.contentSize)
         .defaultPosition(.center)
@@ -226,6 +226,10 @@ final class AppState: ObservableObject {
     /// defeats App Nap). Driven from the window's occlusion-state notifications.
     @Published var mainWindowVisible = true
 
+    /// A tab requested by a menu-bar action. Unlike the older one-off Energy and
+    /// Network flags, this also lets a visible window return to Dashboard.
+    @Published var requestedMainTab: MainWindowTab?
+
     /// A process the app should reveal in the Processes tab's detail inspector,
     /// set when the user clicks a per-process notification (a leak or ceiling
     /// alert). The main window observes this to switch to the Processes tab and
@@ -302,20 +306,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     let updateController = UpdateController()
     let monitorSelection = MonitorSelection()
     let groupStore = ProcessGroupStore.shared
-    /// The primary memory-pressure menubar item, always present (AppKit-managed;
-    /// see `MemoryStatusItemController` on why it is no longer a SwiftUI
-    /// `MenuBarExtra`). It owns the dropdown's 1 Hz menu clock and the
-    /// window-opening router.
-    private var memoryStatusItem: MemoryStatusItemController?
-    /// The second, CPU-focused menubar item (AppKit-managed; see the type's note
-    /// on why it is not a SwiftUI `MenuBarExtra`). Created lazily on launch.
-    private var cpuStatusItem: CPUStatusItemController?
-    /// The battery menubar item (AppKit-managed, same reasoning). Auto-hides on
-    /// Macs with no battery.
-    private var batteryStatusItem: BatteryStatusItemController?
-    /// The network menubar item (AppKit-managed, same reasoning).
-    private var networkStatusItem: NetworkStatusItemController?
-    private var gpuStatusItem: GPUStatusItemController?
+    let menuBarConfiguration = CombinedMenuBarConfiguration()
+    /// The app's single AppKit-managed menu bar item and combined metric panel.
+    private var combinedStatusItem: CombinedStatusItemController?
     /// Shows/hides the optional Dock icon, in sync with the Settings toggle.
     private var dockIconController: DockIconController?
     private var cancellables = Set<AnyCancellable>()
@@ -328,50 +321,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         // toggles) see ON unless the user has explicitly turned it off.
         UserDefaults.standard.register(defaults: [SamplerModel.perAppNetworkDefaultsKey: true])
 
-        // Bring up the primary memory-pressure menubar item (AppKit-managed) first,
-        // so it sits leftmost. It is always present — the app's main menubar item —
-        // and hosts the window-opening router. AppKit rather than a SwiftUI
-        // MenuBarExtra so it can be removed on quit (see MemoryStatusItemController).
-        let memoryStatusItem = MemoryStatusItemController(
+        // Install one combined AppKit status item. It owns the shared popover,
+        // compact read-out strip, sampling gates, and window-opening router.
+        let combinedStatusItem = CombinedStatusItemController(
             model: model, appState: appState, helperManager: helperManager,
             updateController: updateController,
-            appModeManager: appModeManager)
-        memoryStatusItem.start()
-        self.memoryStatusItem = memoryStatusItem
-
-        // Bring up the CPU menubar item (AppKit-managed). It reads its own
-        // enabled/disabled state from UserDefaults and stays in sync with the
-        // Settings toggle.
-        let cpuStatusItem = CPUStatusItemController(
-            model: model, appState: appState,
-            updateController: updateController)
-        cpuStatusItem.start()
-        self.cpuStatusItem = cpuStatusItem
-
-        // The battery menubar item (AppKit-managed). Reads its own enabled state
-        // from UserDefaults and hides itself on Macs with no battery.
-        let batteryStatusItem = BatteryStatusItemController(
-            model: model, appState: appState,
-            updateController: updateController)
-        batteryStatusItem.start()
-        self.batteryStatusItem = batteryStatusItem
-
-        // The network menubar item (AppKit-managed). Shows the live download/
-        // upload throughput; reads its own enabled state from UserDefaults.
-        let networkStatusItem = NetworkStatusItemController(
-            model: model, appState: appState,
-            updateController: updateController)
-        networkStatusItem.start()
-        self.networkStatusItem = networkStatusItem
-
-        // The GPU menubar item (AppKit-managed). Reads its own enabled state from
-        // UserDefaults; while it is shown it turns on the cheap IOAccelerator GPU
-        // read, and turns it back off when hidden — so GPU off costs nothing.
-        let gpuStatusItem = GPUStatusItemController(
-            model: model, appState: appState,
-            updateController: updateController)
-        gpuStatusItem.start()
-        self.gpuStatusItem = gpuStatusItem
+            appModeManager: appModeManager, configuration: menuBarConfiguration)
+        combinedStatusItem.start()
+        self.combinedStatusItem = combinedStatusItem
 
         // Per-app network attribution is opt-in (it runs a `nettop`): apply the
         // saved setting now and keep the sampler in sync with the Settings toggle,
@@ -513,7 +470,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /// (which re-enters this method) doesn't loop.
     private var didTearDownForQuit = false
 
-    /// Remove every menubar item before the process exits, so macOS 26/27's
+    /// Remove the menu bar item before the process exits, so macOS 26/27's
     /// `MenuBarAgent` records a deliberate removal and does not demand-relaunch the
     /// app to restore a persisted status item.
     ///
@@ -521,7 +478,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /// app just lets its item vanish it logs "No server elements for status item"
     /// and bootstraps the owner again ("launch job demand") — the app comes
     /// straight back and can't be quit (confirmed on 27.0 26A5353q; macOS 25 and
-    /// earlier just drop the item). All four items are AppKit `NSStatusItem`s now,
+    /// earlier just drop the item). The combined item is an AppKit `NSStatusItem`,
     /// so `removeStatusItem` is a clean synchronous deregistration. We defer the
     /// actual termination one brief beat so the removals flush to MenuBarAgent
     /// first; this is safe because — unlike the old `MenuBarExtra` — there is no
@@ -529,12 +486,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if didTearDownForQuit { return .terminateNow }
         didTearDownForQuit = true
-        memoryStatusItem?.tearDownForQuit()
-        cpuStatusItem?.tearDownForQuit()
-        batteryStatusItem?.tearDownForQuit()
-        networkStatusItem?.tearDownForQuit()
-        gpuStatusItem?.tearDownForQuit()
-        AppLog.ui.notice("quit: menubar items removed; terminating")
+        combinedStatusItem?.tearDownForQuit()
+        AppLog.ui.notice("quit: menu bar item removed; terminating")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             MainActor.assumeIsolated { NSApp.reply(toApplicationShouldTerminate: true) }
         }

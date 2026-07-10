@@ -270,6 +270,34 @@ final class AlertEngineTests: XCTestCase {
         }
     }
 
+    func testActiveKindsRemainUntilConditionsRecover() {
+        let engine = AlertEngine()
+        let config = AlertConfig(
+            criticalPressureEnabled: true,
+            swapEnabled: true,
+            swapThresholdBytes: 3 * gb,
+            highCPUEnabled: true,
+            highCPUThresholdPercent: 85)
+
+        _ = engine.evaluate(
+            system: system(pressure: .critical, swapUsed: 4 * gb), processes: [],
+            config: config, cpu: cpu(0.95), now: now)
+        _ = engine.evaluate(
+            system: system(pressure: .critical, swapUsed: 4 * gb), processes: [],
+            config: config, cpu: cpu(0.95), now: now.addingTimeInterval(8))
+        XCTAssertEqual(engine.activeKinds, [.criticalPressure, .swap, .highCPU])
+
+        _ = engine.evaluate(
+            system: system(pressure: .warning, swapUsed: 2_600_000_000), processes: [],
+            config: config, cpu: cpu(0.8), now: now.addingTimeInterval(9))
+        XCTAssertEqual(engine.activeKinds, [.criticalPressure, .swap, .highCPU])
+
+        _ = engine.evaluate(
+            system: system(pressure: .normal, swapUsed: 1 * gb), processes: [],
+            config: config, cpu: cpu(0.1), now: now.addingTimeInterval(10))
+        XCTAssertTrue(engine.activeKinds.isEmpty)
+    }
+
     func testAlertConfigSurvivesLegacyDecode() throws {
         // A config persisted before the high-CPU keys existed must still decode,
         // keeping its old choices and defaulting the new fields.

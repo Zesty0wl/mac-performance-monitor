@@ -15,13 +15,14 @@ struct GPUMenuBarContentView: View {
 
     /// Called after an action so the host (the AppKit popover) can dismiss.
     var dismiss: () -> Void = {}
+    var embedded = false
 
     var body: some View {
         _ = menuClock.tick
         return
             panel
-            .onAppear { menuClock.open() }
-            .onDisappear { menuClock.close() }
+            .onAppear { if !embedded { menuClock.open() } }
+            .onDisappear { if !embedded { menuClock.close() } }
     }
 
     private var panel: some View {
@@ -38,10 +39,10 @@ struct GPUMenuBarContentView: View {
                     .font(.callout).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center).padding(.vertical, 8)
             }
-            MenuVersionFooter()
+            if !embedded { MenuVersionFooter() }
         }
-        .padding(12)
-        .frame(width: 300)
+        .padding(embedded ? 0 : 12)
+        .frame(width: embedded ? nil : 300)
     }
 
     // MARK: - Header + sparkline

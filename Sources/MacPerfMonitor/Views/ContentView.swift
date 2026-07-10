@@ -1,6 +1,10 @@
 import MacPerfMonitorCore
 import SwiftUI
 
+enum MainWindowTab: Hashable {
+    case dashboard, processes, battery, network, analytics, insights, groups
+}
+
 /// The main window's four tabs: Dashboard (pressure timeline, taxonomy, swap,
 /// verdict), Processes (the live, sortable process list with a system header),
 /// Analytics (the Performance-Monitor overlay chart), and Insights (cross-window
@@ -17,10 +21,7 @@ struct ContentView: View {
     @EnvironmentObject private var helper: HelperManager
     @EnvironmentObject private var loginItem: LoginItemManager
 
-    private enum Tab: Hashable {
-        case dashboard, processes, battery, network, analytics, insights, groups
-    }
-    @State private var tab: Tab = .dashboard
+    @State private var tab: MainWindowTab = .dashboard
 
     /// The Processes tab's selection, hoisted here so it survives tab switches:
     /// `TabGate` unmounts an inactive tab's content entirely, which would reset
@@ -35,35 +36,35 @@ struct ContentView: View {
         TabView(selection: $tab) {
             TabGate(isActive: tab == .dashboard) { DashboardView() }
                 .tabItem { Label("Dashboard", systemImage: "gauge.with.dots.needle.50percent") }
-                .tag(Tab.dashboard)
+                .tag(MainWindowTab.dashboard)
 
             TabGate(isActive: tab == .processes) {
                 ProcessesTab(selection: $processSelection, didAutoSelect: $didAutoSelectProcess)
             }
             .tabItem { Label("Processes", systemImage: "list.bullet.rectangle") }
-            .tag(Tab.processes)
+            .tag(MainWindowTab.processes)
 
             TabGate(isActive: tab == .battery) { BatteryView() }
                 .tabItem { Label("Energy", systemImage: "bolt.fill") }
-                .tag(Tab.battery)
+                .tag(MainWindowTab.battery)
 
             TabGate(isActive: tab == .network) { NetworkView() }
                 .tabItem { Label("Network", systemImage: "network") }
-                .tag(Tab.network)
+                .tag(MainWindowTab.network)
 
             TabGate(isActive: tab == .analytics) {
                 AnalyticsView(imported: $importedTrace)
             }
             .tabItem { Label("Analytics", systemImage: "chart.xyaxis.line") }
-            .tag(Tab.analytics)
+            .tag(MainWindowTab.analytics)
 
             TabGate(isActive: tab == .insights) { InsightsView() }
                 .tabItem { Label("Insights", systemImage: "lightbulb") }
-                .tag(Tab.insights)
+                .tag(MainWindowTab.insights)
 
             TabGate(isActive: tab == .groups) { GroupsView() }
                 .tabItem { Label("Groups", systemImage: "square.stack.3d.up") }
-                .tag(Tab.groups)
+                .tag(MainWindowTab.groups)
         }
         .frame(minWidth: 860, minHeight: 520)
         // A global refresh-rate control in the toolbar, so it is reachable from
@@ -103,6 +104,10 @@ struct ContentView: View {
         }
         .onAppear {
             AppLog.ui.notice("ContentView appeared")
+            if let requested = appState.requestedMainTab {
+                tab = requested
+                appState.requestedMainTab = nil
+            }
             // A notification click may have set a target before this mounted.
             if appState.navigationTarget != nil { tab = .processes }
             // A Finder-opened trace routes to the Analytics tab.
@@ -118,6 +123,12 @@ struct ContentView: View {
         }
         .onChange(of: appState.navigationTarget) { _, newValue in
             if newValue != nil { tab = .processes }
+        }
+        .onChange(of: appState.requestedMainTab) { _, requested in
+            if let requested {
+                tab = requested
+                appState.requestedMainTab = nil
+            }
         }
         .onChange(of: appState.showBatteryTab) { _, requested in
             if requested {

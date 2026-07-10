@@ -23,6 +23,7 @@ struct NetworkMenuBarContentView: View {
 
     /// Called after an action so the host (the AppKit popover) can dismiss.
     var dismiss: () -> Void = {}
+    var embedded = false
 
     var body: some View {
         // Re-render once a second while the popover is open (independently of the
@@ -34,11 +35,11 @@ struct NetworkMenuBarContentView: View {
         return
             panel
             .onAppear {
-                menuClock.open()
+                if !embedded { menuClock.open() }
                 latency.start()
             }
             .onDisappear {
-                menuClock.close()
+                if !embedded { menuClock.close() }
                 latency.stop()
             }
     }
@@ -48,12 +49,14 @@ struct NetworkMenuBarContentView: View {
             header
             Divider()
             topApps
-            Divider()
-            actions
-            MenuVersionFooter()
+            if !embedded {
+                Divider()
+                actions
+                MenuVersionFooter()
+            }
         }
-        .padding(12)
-        .frame(width: 360)
+        .padding(embedded ? 0 : 12)
+        .frame(width: embedded ? nil : 360)
     }
 
     // MARK: - Header

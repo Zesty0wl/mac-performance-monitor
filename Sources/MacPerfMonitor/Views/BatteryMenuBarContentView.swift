@@ -18,6 +18,7 @@ struct BatteryMenuBarContentView: View {
 
     /// Called after an action so the host (the AppKit popover) can dismiss.
     var dismiss: () -> Void = {}
+    var embedded = false
 
     var body: some View {
         // Re-render once a second while the popover is open (independently of the
@@ -28,8 +29,8 @@ struct BatteryMenuBarContentView: View {
         _ = menuClock.tick
         return
             panel
-            .onAppear { menuClock.open() }
-            .onDisappear { menuClock.close() }
+            .onAppear { if !embedded { menuClock.open() } }
+            .onDisappear { if !embedded { menuClock.close() } }
     }
 
     private var panel: some View {
@@ -43,8 +44,10 @@ struct BatteryMenuBarContentView: View {
                 topEnergy
                 Divider()
                 healthRow(battery)
-                Divider()
-                actions
+                if !embedded {
+                    Divider()
+                    actions
+                }
             } else if model.liveSystem == nil {
                 Text("Reading energy\u{2026}")
                     .font(.callout)
@@ -57,13 +60,15 @@ struct BatteryMenuBarContentView: View {
                 powerChart
                 Divider()
                 topEnergy
-                Divider()
-                actions
+                if !embedded {
+                    Divider()
+                    actions
+                }
             }
-            MenuVersionFooter()
+            if !embedded { MenuVersionFooter() }
         }
-        .padding(12)
-        .frame(width: 360)
+        .padding(embedded ? 0 : 12)
+        .frame(width: embedded ? nil : 360)
     }
 
     /// The header for a Mac with no battery: the measured system power (or just a

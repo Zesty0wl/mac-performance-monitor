@@ -13,8 +13,8 @@ Free and open source. No telemetry. Every sample stays on your Mac.
 
 ## Features
 
-- **Menu bar at a glance:** live memory-pressure, CPU, GPU, network, and battery
-  readouts, each with a quick popover.
+- **Menu bar at a glance:** one compact, configurable item for live memory pressure,
+  CPU, GPU, network, and battery readouts, with a shared detail panel.
 - **Dashboard:** a plain-language verdict, headline tiles, the pressure timeline
   with selectable ranges, a memory breakdown, and a swap trend.
 - **Process explorer:** a live, sortable, filterable table of every process, with a

@@ -38,6 +38,9 @@ final class SamplerModel: ObservableObject {
     /// the dashboard — can mark a suspected leak with one consistent icon
     /// (PRD section 8.5).
     @Published private(set) var leakingProcessIDs: Set<ProcessIdentity> = []
+    /// Alert conditions that remain active after their notification edge fires.
+    /// The combined menu bar uses this for its red alarm state.
+    @Published private(set) var activeAlertKinds: Set<Alert.Kind> = []
 
     /// Identities the user force-quit through MacPerfMonitor within the retention
     /// window, so the process list can keep showing them greyed out as clear
@@ -1111,9 +1114,14 @@ final class SamplerModel: ObservableObject {
             leakingProcesses: leakingIDs,
             config: alertConfig,
             cpu: snapshot.cpu)
-        guard !alerts.isEmpty else { return }
+        let activeKinds = alertEngine.activeKinds
         let sink = onAlertsFired
-        DispatchQueue.main.async { sink(alerts) }
+        DispatchQueue.main.async { [weak self] in
+            if self?.activeAlertKinds != activeKinds {
+                self?.activeAlertKinds = activeKinds
+            }
+            if !alerts.isEmpty { sink(alerts) }
+        }
     }
 
     /// Persist the system row plus the heavy-hitter (and tracked) process rows,

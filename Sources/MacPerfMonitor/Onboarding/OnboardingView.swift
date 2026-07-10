@@ -392,13 +392,10 @@ private struct OnboardingPermissionsStep: View {
     }
 }
 
-/// Step 3: which menu-bar read-outs to show, the optional Dock icon, and the
+/// Step 3: which combined menu-bar read-outs to show, the optional Dock icon, and the
 /// refresh interval.
 private struct OnboardingMenuBarStep: View {
-    @AppStorage("showCPUMenuBar") private var showCPUMenuBar = true
-    @AppStorage("showBatteryMenuBar") private var showBatteryMenuBar = true
-    @AppStorage(NetworkStatusItemController.visibilityDefaultsKey) private var showNetworkMenuBar =
-        true
+    @EnvironmentObject private var menuBar: CombinedMenuBarConfiguration
     @AppStorage(DockIconController.defaultsKey) private var showDockIcon = false
     @AppStorage(SamplerModel.tableIntervalKey) private var tableInterval =
         SamplerModel.defaultTableInterval
@@ -407,19 +404,24 @@ private struct OnboardingMenuBarStep: View {
         OnboardingStepScaffold(
             symbol: "menubar.rectangle", tint: .orange,
             title: "Menu bar & refresh",
-            subtitle: "Pick which read-outs to show. The memory item is always on."
+            subtitle: "Choose what the single compact menu bar item shows."
         ) {
             VStack(spacing: 12) {
-                OnboardingToggleRow(
-                    symbol: "cpu", title: "CPU",
-                    subtitle: "Total CPU with a per-core panel.", isOn: $showCPUMenuBar)
-                OnboardingToggleRow(
-                    symbol: "bolt", title: "Energy",
-                    subtitle: "Charge, power flow, and top energy users.", isOn: $showBatteryMenuBar
-                )
-                OnboardingToggleRow(
-                    symbol: "network", title: "Network",
-                    subtitle: "Live download and upload throughput.", isOn: $showNetworkMenuBar)
+                Picker("Presentation", selection: presentationBinding) {
+                    ForEach(MenuBarPresentation.allCases) { presentation in
+                        Text(presentation.title).tag(presentation)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                ForEach(MenuBarMetric.allCases) { metric in
+                    OnboardingToggleRow(
+                        symbol: metric.symbolName, title: metric.title,
+                        subtitle: metricSubtitle(metric), isOn: selectionBinding(metric)
+                    )
+                    .disabled(menuBar.isSelected(metric) && menuBar.selectedMetrics.count == 1)
+                }
+
                 OnboardingToggleRow(
                     symbol: "dock.rectangle", title: "Dock icon",
                     subtitle: "Also show \(AppInfo.displayName) in the Dock.", isOn: $showDockIcon)
@@ -440,6 +442,26 @@ private struct OnboardingMenuBarStep: View {
                 }
             }
             .padding(.top, 4)
+        }
+    }
+
+    private var presentationBinding: Binding<MenuBarPresentation> {
+        Binding(get: { menuBar.presentation }, set: { menuBar.presentation = $0 })
+    }
+
+    private func selectionBinding(_ metric: MenuBarMetric) -> Binding<Bool> {
+        Binding(
+            get: { menuBar.isSelected(metric) },
+            set: { menuBar.setSelected(metric, isSelected: $0) })
+    }
+
+    private func metricSubtitle(_ metric: MenuBarMetric) -> String {
+        switch metric {
+        case .pressure: return "Memory pressure and the largest processes."
+        case .cpu: return "Total CPU, every core, and top CPU processes."
+        case .gpu: return "GPU activity, power, memory, and temperature."
+        case .energy: return "Charge, power flow, and top energy users."
+        case .network: return "Download, upload, latency, and top network apps."
         }
     }
 }

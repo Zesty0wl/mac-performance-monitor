@@ -12,6 +12,7 @@ struct MenuBarContentView: View {
     @EnvironmentObject private var appMode: AppModeManager
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
+    var embedded = false
 
     var body: some View {
         // Re-render once a second while the menu is open (and not at all while
@@ -22,8 +23,8 @@ struct MenuBarContentView: View {
         return
             panel
             .background(MenuBarDismissOnResignKey())
-            .onAppear { menuClock.open() }
-            .onDisappear { menuClock.close() }
+            .onAppear { if !embedded { menuClock.open() } }
+            .onDisappear { if !embedded { menuClock.close() } }
     }
 
     private var panel: some View {
@@ -31,12 +32,14 @@ struct MenuBarContentView: View {
             header
             Divider()
             topProcesses
-            Divider()
-            actions
-            MenuVersionFooter()
+            if !embedded {
+                Divider()
+                actions
+                MenuVersionFooter()
+            }
         }
-        .padding(12)
-        .frame(width: 380)
+        .padding(embedded ? 0 : 12)
+        .frame(width: embedded ? nil : 380)
     }
 
     // MARK: - Header

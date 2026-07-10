@@ -130,6 +130,9 @@ public final class AlertEngine {
     /// does. Nil while CPU is below the threshold. Time-based rather than a tick
     /// count, so it is unaffected by the sampling cadence.
     private var highCPUSince: Date?
+    /// Conditions that are active after the most recent evaluation. Unlike the
+    /// returned alerts, this remains populated until each condition recovers.
+    public private(set) var activeKinds: Set<Alert.Kind> = []
     /// How long total CPU must stay at/above the threshold before alerting.
     private let sustainedCPUDuration: TimeInterval = 8
 
@@ -153,6 +156,7 @@ public final class AlertEngine {
         evaluateLeaks(
             processes, leakingProcesses: leakingProcesses, config: config, now: now, into: &alerts)
         evaluateCPU(cpu, config: config, now: now, into: &alerts)
+        refreshActiveKinds()
         return alerts
     }
 
@@ -165,6 +169,17 @@ public final class AlertEngine {
         leakFired.removeAll()
         cpuArmed = true
         highCPUSince = nil
+        activeKinds.removeAll()
+    }
+
+    private func refreshActiveKinds() {
+        var kinds: Set<Alert.Kind> = []
+        if !pressureArmed { kinds.insert(.criticalPressure) }
+        if !swapArmed { kinds.insert(.swap) }
+        if !ceilingFired.isEmpty { kinds.insert(.processCeiling) }
+        if !leakFired.isEmpty { kinds.insert(.leak) }
+        if !cpuArmed { kinds.insert(.highCPU) }
+        activeKinds = kinds
     }
 
     // MARK: - Critical pressure

@@ -117,27 +117,11 @@ private struct GeneralSettingsView: View {
 
 // MARK: - Menu Bar & Dock
 
-/// Where the app shows itself: the optional menu bar read-outs and the optional
-/// Dock icon. All three are live toggles backed by `@AppStorage` keys their
-/// controllers also read.
+/// Configures the single combined menu bar item and the optional Dock icon.
 private struct MenuBarDockSettingsView: View {
-    /// Shared with `CPUStatusItemController`, so toggling shows or hides the CPU
-    /// menubar item live.
-    @AppStorage("showCPUMenuBar") private var showCPUMenuBar = true
-    /// Shared with `BatteryStatusItemController`, so toggling shows or hides the
-    /// energy menubar item live. (It also hides itself on Macs with no battery.)
-    @AppStorage("showBatteryMenuBar") private var showBatteryMenuBar = true
-    /// Shared with `NetworkStatusItemController`, so toggling shows or hides the
-    /// network menubar item live.
-    @AppStorage(NetworkStatusItemController.visibilityDefaultsKey) private var showNetworkMenuBar =
-        true
-    /// Shared with `GPUStatusItemController`, so toggling shows or hides the GPU
-    /// menubar item live (and gates the cheap IOAccelerator read on/off with it).
-    @AppStorage(GPUStatusItemController.visibilityDefaultsKey) private var showGPUMenuBar = true
-    /// Shared with `NetworkStatusItemController`: blink activity LEDs instead of the
-    /// ↓/↑ arrows. Off by default — the flicker costs extra CPU while traffic flows.
-    @AppStorage(NetworkStatusItemController.activityLEDsDefaultsKey)
-    private var networkActivityLEDs = false
+    @EnvironmentObject private var model: SamplerModel
+    @EnvironmentObject private var menuBar: CombinedMenuBarConfiguration
+    @Environment(\.colorScheme) private var colorScheme
     /// Shared with `DockIconController`, so toggling shows or hides the Dock icon
     /// live. Off by default — the app is menubar-first.
     @AppStorage(DockIconController.defaultsKey) private var showDockIcon = false
@@ -145,29 +129,54 @@ private struct MenuBarDockSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Show CPU in the menu bar", isOn: $showCPUMenuBar)
+                Picker("Presentation", selection: presentationBinding) {
+                    ForEach(MenuBarPresentation.allCases) { presentation in
+                        Text(presentation.title).tag(presentation)
+                    }
+                }
+                .pickerStyle(.segmented)
                 caption(
-                    "A second menu bar item showing total CPU, with a panel of every core (performance and efficiency) and the top CPU processes. The memory read-out is always shown."
+                    menuBar.presentation == .focus
+                        ? "Focus shows one chosen read-out in the smallest practical space."
+                        : "Strip shows every selected read-out together in one compact item."
                 )
-                Toggle("Show energy in the menu bar", isOn: $showBatteryMenuBar)
-                caption(
-                    "A menu bar item for energy: charge %, power flow, time remaining, the top energy-using apps, and battery health. On a Mac with no battery it shows a bolt and the top energy users instead."
-                )
-                Toggle("Show network in the menu bar", isOn: $showNetworkMenuBar)
-                caption(
-                    "A menu bar item showing live download and upload throughput, with a panel of the trend, the session totals, and (when enabled below) the top network apps."
-                )
-                Toggle("Blink activity LEDs instead of arrows", isOn: $networkActivityLEDs)
-                    .disabled(!showNetworkMenuBar)
-                caption(
-                    "Old-school HDD-style blinking lights (green download, red upload) in place of the ↓/↑ arrows. They flicker at 12 Hz only while data is actively moving, redrawing the menu bar each frame — which adds about 7–8% CPU during a transfer (measured). A quiet connection stops the flicker and costs nothing."
-                )
-                Toggle("Show GPU in the menu bar", isOn: $showGPUMenuBar)
-                caption(
-                    "A menu bar item showing GPU utilization, with a panel of device, renderer, and tiler activity and the GPU memory in use. Read straight from the graphics driver — it adds no scanning, and turns off entirely when this is off."
-                )
+
+                if menuBar.presentation == .focus {
+                    Picker("Focused read-out", selection: focusBinding) {
+                        ForEach(menuBar.selectedMetrics) { metric in
+                            Label(metric.title, systemImage: metric.symbolName).tag(metric)
+                        }
+                    }
+                }
+
+                HStack {
+                    Text("Preview")
+                    Spacer()
+                    Image(nsImage: previewImage)
+                        .accessibilityLabel("Menu bar preview")
+                        .padding(.horizontal, 9)
+                        .frame(height: 26)
+                        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 5))
+                }
             } header: {
-                Text("Menu Bar")
+                Text("Combined Item")
+            } footer: {
+                Text(
+                    "Read-outs follow the menu bar appearance. Active alarms add a red warning marker."
+                )
+            }
+
+            Section {
+                ForEach(menuBar.selectedMetrics) { metric in
+                    metricRow(metric, isSelected: true)
+                }
+                ForEach(unselectedMetrics) { metric in
+                    metricRow(metric, isSelected: false)
+                }
+            } header: {
+                Text("Read-outs")
+            } footer: {
+                Text("Choose any combination and order. At least one read-out must remain selected.")
             }
 
             Section {
@@ -180,6 +189,59 @@ private struct MenuBarDockSettingsView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private var unselectedMetrics: [MenuBarMetric] {
+        MenuBarMetric.allCases.filter { !menuBar.isSelected($0) }
+    }
+
+    private var presentationBinding: Binding<MenuBarPresentation> {
+        Binding(get: { menuBar.presentation }, set: { menuBar.presentation = $0 })
+    }
+
+    private var focusBinding: Binding<MenuBarMetric> {
+        Binding(get: { menuBar.focusedMetric }, set: { menuBar.focusedMetric = $0 })
+    }
+
+    private func selectionBinding(_ metric: MenuBarMetric) -> Binding<Bool> {
+        Binding(
+            get: { menuBar.isSelected(metric) },
+            set: { menuBar.setSelected(metric, isSelected: $0) })
+    }
+
+    private func metricRow(_ metric: MenuBarMetric, isSelected: Bool) -> some View {
+        HStack(spacing: 8) {
+            Toggle(isOn: selectionBinding(metric)) {
+                Label(metric.title, systemImage: metric.symbolName)
+            }
+            .disabled(isSelected && menuBar.selectedMetrics.count == 1)
+
+            if isSelected, let index = menuBar.selectedMetrics.firstIndex(of: metric) {
+                Button { menuBar.move(metric, by: -1) } label: {
+                    Image(systemName: "chevron.up")
+                }
+                .buttonStyle(.borderless)
+                .disabled(index == 0)
+                .help("Move \(metric.title) earlier")
+
+                Button { menuBar.move(metric, by: 1) } label: {
+                    Image(systemName: "chevron.down")
+                }
+                .buttonStyle(.borderless)
+                .disabled(index == menuBar.selectedMetrics.count - 1)
+                .help("Move \(metric.title) later")
+            }
+        }
+    }
+
+    private var previewImage: NSImage {
+        let metrics =
+            menuBar.presentation == .focus
+            ? [menuBar.focusedMetric] : menuBar.selectedMetrics
+        let readouts = CombinedMenuBarReadouts.current(for: metrics, model: model)
+        return CombinedMenuBarImage.image(
+            readouts: readouts, presentation: menuBar.presentation,
+            alarmCount: model.activeAlertKinds.count, isDark: colorScheme == .dark)
     }
 }
 

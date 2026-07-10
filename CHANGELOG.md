@@ -6,6 +6,41 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-10
+
+### Added
+
+- **One combined menu bar item:** memory pressure, CPU, GPU, energy, and network
+  now share one compact status item instead of occupying five separate spaces.
+- **Configurable readouts:** choose any combination of metrics, put them in the
+  order you prefer, and switch between Focus mode for one value and Strip mode
+  for every selected value. At least one readout always remains available.
+- **Context-aware panels:** clicking a metric in the status strip opens its panel.
+  Clicking another metric while the panel is open switches the content in place.
+- **Persistent alarm state:** active alert conditions stay visible until they
+  recover using the same hysteresis as notifications.
+
+### Changed
+
+- **Clearer compact typography:** short RAM, CPU, GPU, and BAT labels identify the
+  percentage readouts. Network shows fixed-width download and upload rates, with
+  stable trailing arrows that do not move as the values change length.
+- **Calmer status colors:** normal readouts follow the menu bar's light or dark
+  appearance. Active alarms add a red warning marker while values remain in the
+  highest-contrast system color.
+- **Unified panel navigation:** the combined panel uses text labels for each metric,
+  shows both network directions, and provides full-cell click targets.
+- **Relevant Open actions:** RAM and GPU open Dashboard, CPU opens Processes,
+  energy opens Energy, and network opens Network. The action label names its
+  destination.
+
+### Fixed
+
+- **Reliable menu bar targeting:** changing digit counts no longer shifts the
+  network arrows, and clicking a different metric no longer closes the open panel.
+- **Accessible alarm presentation:** alarm state no longer turns whole readouts red,
+  which was difficult to read against some menu bar backgrounds.
+
 ## [1.2.1] - 2026-07-10
 
 ### Added
@@ -112,7 +147,8 @@ processes behind them.
 - A clean split between a headless, unit-tested data layer and the SwiftUI app. CI
   builds, tests, and lints on every push and pull request.
 
-[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.2.1.131...HEAD
+[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.0.148...HEAD
+[1.3.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.2.1.131...v1.3.0.148
 [1.2.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.2.0.127...v1.2.1.131
 [1.2.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.1.5.118...v1.2.0.127
 [1.1.5]: https://github.com/Zesty0wl/mac-performance-monitor/releases/tag/v1.1.5.118

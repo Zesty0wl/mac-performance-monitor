@@ -14,6 +14,7 @@ struct CPUMenuBarContentView: View {
 
     /// Called after an action so the host (the AppKit popover) can dismiss.
     var dismiss: () -> Void = {}
+    var embedded = false
 
     private let topology = CPUTopology.current
 
@@ -27,8 +28,8 @@ struct CPUMenuBarContentView: View {
         _ = menuClock.tick
         return
             panel
-            .onAppear { menuClock.open() }
-            .onDisappear { menuClock.close() }
+            .onAppear { if !embedded { menuClock.open() } }
+            .onDisappear { if !embedded { menuClock.close() } }
     }
 
     private var panel: some View {
@@ -38,12 +39,14 @@ struct CPUMenuBarContentView: View {
             coreSection
             Divider()
             topProcesses
-            Divider()
-            actions
-            MenuVersionFooter()
+            if !embedded {
+                Divider()
+                actions
+                MenuVersionFooter()
+            }
         }
-        .padding(12)
-        .frame(width: 380)
+        .padding(embedded ? 0 : 12)
+        .frame(width: embedded ? nil : 380)
     }
 
     // MARK: - Header
