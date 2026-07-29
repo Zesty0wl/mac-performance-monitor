@@ -6,6 +6,8 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-07-29
+
 ### Fixed
 
 - **Combined menu bar dual-rate layout:** Disk and Network Focus/Strip readouts no
