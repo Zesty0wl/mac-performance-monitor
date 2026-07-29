@@ -230,9 +230,9 @@ enum CombinedMenuBarImage {
         let label = attributed(
             readout.metric.shortTitle,
             font: MenuBarReadoutImage.valueFont(size: 7, weight: .semibold), color: color)
-        // Larger value than the ↓/↑ figures; label pins to the top so the
-        // caption sits higher while the cell still shares `itemHeight`.
-        let font = MenuBarReadoutImage.valueFont(size: 12.5, weight: .bold)
+        // Larger value than the ↓/↑ figures, medium weight (not bold) so the
+        // strip matches Disk/Network visually; label pins to the top.
+        let font = MenuBarReadoutImage.valueFont(size: 12.5, weight: .medium)
         let compactValue =
             readout.value.hasSuffix("%") ? String(readout.value.dropLast()) : readout.value
         let value = attributed(compactValue, font: font, color: color)
