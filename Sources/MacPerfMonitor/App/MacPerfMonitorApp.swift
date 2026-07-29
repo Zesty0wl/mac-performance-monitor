@@ -313,7 +313,11 @@ extension Notification.Name {
 
 /// Owns the single `SamplerModel` and starts sampling at launch, so the menubar
 /// is live even before any window is opened.
-final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+///
+/// Main-actor isolated: NSApplicationDelegate callbacks already run on the main
+/// thread, and several owned stores (e.g. `ProcessGroupStore`) are `@MainActor`.
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate, @preconcurrency UNUserNotificationCenterDelegate {
     let model = SamplerModel()
     let appModeManager = AppModeManager()
     let alertSettings = AlertSettings()

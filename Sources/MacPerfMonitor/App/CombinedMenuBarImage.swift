@@ -75,6 +75,10 @@ enum CombinedMenuBarReadouts {
 @MainActor
 enum CombinedMenuBarImage {
     private static let stripSeparatorWidth: CGFloat = 1.5
+    /// Shared menu-bar item height so Focus and Strip cells align.
+    private static let itemHeight: CGFloat = 22
+    /// Matched figure size for every two-line cell (caption+value and ↓/↑).
+    private static let stackedFigureSize: CGFloat = 9.5
 
     static func image(
         readouts: [CombinedMenuBarReadout], presentation: MenuBarPresentation
@@ -125,58 +129,47 @@ enum CombinedMenuBarImage {
             font: MenuBarReadoutImage.valueFont(size: 8, weight: .semibold), color: color)
         let hasDirectionalValues = readout.secondaryValue != nil
         let labelWidth: CGFloat = hasDirectionalValues ? 14 : ceil(label.size().width)
-        let valueFont = MenuBarReadoutImage.valueFont(
-            size: readout.secondaryValue == nil ? 13 * 1.05 : 13 * 0.95, weight: .bold)
-        let primary =
-            readout.secondaryValue == nil
-            ? attributed(readout.value, font: valueFont, color: color)
-            : directionalAttributed(
-                readout.value, figureFont: valueFont,
-                arrowFont: MenuBarReadoutImage.valueFont(size: 13, weight: .medium),
-                color: color)
-        let secondary = readout.secondaryValue.map {
-            directionalAttributed(
-                $0, figureFont: MenuBarReadoutImage.valueFont(size: 10.5 * 0.95, weight: .bold),
-                arrowFont: MenuBarReadoutImage.valueFont(size: 10.5, weight: .medium),
-                color: color)
-        }
-        let networkSample = readout.secondaryValue.map { _ in
-            directionalAttributed(
-                "999M↓", figureFont: valueFont,
-                arrowFont: MenuBarReadoutImage.valueFont(size: 13, weight: .medium),
-                color: color)
-        }
-        let gap: CGFloat = 4
-        let valuesWidth = ceil(
-            max(
-                primary.size().width, secondary?.size().width ?? 0, networkSample?.size().width ?? 0
-            ))
-        let width = labelWidth + gap + valuesWidth + 1
-        let height: CGFloat = secondary == nil ? 20 : 22
+        let gap: CGFloat = hasDirectionalValues ? 5 : 4
 
-        return MenuBarReadoutImage.render(width: width, height: height) { size in
-            if hasDirectionalValues {
+        if let secondaryValue = readout.secondaryValue {
+            let figureFont = MenuBarReadoutImage.valueFont(
+                size: stackedFigureSize, weight: .bold)
+            let arrowFont = MenuBarReadoutImage.valueFont(
+                size: stackedFigureSize, weight: .medium)
+            let primary = directionalAttributed(
+                readout.value, figureFont: figureFont, arrowFont: arrowFont, color: color)
+            let secondary = directionalAttributed(
+                secondaryValue, figureFont: figureFont, arrowFont: arrowFont, color: color)
+            let sample = directionalAttributed(
+                "999M↓", figureFont: figureFont, arrowFont: arrowFont, color: color)
+            let valuesWidth = ceil(
+                max(primary.size().width, secondary.size().width, sample.size().width))
+            let width = labelWidth + gap + valuesWidth + 1
+
+            return MenuBarReadoutImage.render(width: width, height: itemHeight) { size in
                 drawSymbol(
                     readout.metric.symbolName,
                     in: NSRect(x: 0, y: (size.height - 13) / 2, width: 13, height: 13),
                     color: color, pointSize: 11)
-            } else {
-                label.draw(at: NSPoint(x: 0, y: (size.height - label.size().height) / 2))
+                drawStackedLines(
+                    top: primary, bottom: secondary,
+                    topX: labelWidth + gap + valuesWidth - primary.size().width,
+                    bottomX: labelWidth + gap + valuesWidth - secondary.size().width,
+                    height: size.height)
             }
-            let valueX = labelWidth + gap
-            if let secondary {
-                primary.draw(
-                    at: NSPoint(
-                        x: valueX + valuesWidth - primary.size().width,
-                        y: size.height - primary.size().height))
-                secondary.draw(
-                    at: NSPoint(x: valueX + valuesWidth - secondary.size().width, y: 0))
-            } else {
-                primary.draw(
-                    at: NSPoint(
-                        x: valueX,
-                        y: (size.height - primary.size().height) / 2))
-            }
+        }
+
+        let valueFont = MenuBarReadoutImage.valueFont(size: 13 * 1.05, weight: .bold)
+        let primary = attributed(readout.value, font: valueFont, color: color)
+        let valuesWidth = ceil(primary.size().width)
+        let width = labelWidth + gap + valuesWidth + 1
+
+        return MenuBarReadoutImage.render(width: width, height: itemHeight) { size in
+            label.draw(at: NSPoint(x: 0, y: (size.height - label.size().height) / 2))
+            primary.draw(
+                at: NSPoint(
+                    x: labelWidth + gap,
+                    y: (size.height - primary.size().height) / 2))
         }
     }
 
@@ -186,9 +179,8 @@ enum CombinedMenuBarImage {
             layouts.reduce(0) { $0 + $1.width }
             + stripSeparatorWidth * CGFloat(max(0, layouts.count - 1))
         let width = contentWidth
-        let height: CGFloat = 22
 
-        return MenuBarReadoutImage.render(width: width, height: height) { size in
+        return MenuBarReadoutImage.render(width: width, height: itemHeight) { size in
             var x: CGFloat = 0
             for (index, layout) in layouts.enumerated() {
                 layout.draw(at: x, height: size.height)
@@ -209,8 +201,10 @@ enum CombinedMenuBarImage {
         let color = NSColor.black
         if let secondary = readout.secondaryValue {
             let labelWidth: CGFloat = 14
-            let figureFont = MenuBarReadoutImage.valueFont(size: 10 * 0.95, weight: .bold)
-            let arrowFont = MenuBarReadoutImage.valueFont(size: 10, weight: .medium)
+            let figureFont = MenuBarReadoutImage.valueFont(
+                size: stackedFigureSize, weight: .bold)
+            let arrowFont = MenuBarReadoutImage.valueFont(
+                size: stackedFigureSize, weight: .medium)
             let top = directionalAttributed(
                 readout.value, figureFont: figureFont, arrowFont: arrowFont, color: color)
             let bottom = directionalAttributed(
@@ -218,23 +212,27 @@ enum CombinedMenuBarImage {
             let sample = directionalAttributed(
                 "999M↓", figureFont: figureFont, arrowFont: arrowFont, color: color)
             let figuresWidth = ceil(max(top.size().width, bottom.size().width, sample.size().width))
-            let gap: CGFloat = 2
+            let gap: CGFloat = 5
             let width = labelWidth + gap + figuresWidth + 1
             return CellLayout(width: width) { x, height in
                 drawSymbol(
                     readout.metric.symbolName,
                     in: NSRect(x: x, y: (height - 13) / 2, width: 13, height: 13),
                     color: color, pointSize: 11)
-                top.draw(
-                    at: NSPoint(x: x + width - top.size().width, y: height - top.size().height))
-                bottom.draw(at: NSPoint(x: x + width - bottom.size().width, y: 0))
+                drawStackedLines(
+                    top: top, bottom: bottom,
+                    topX: x + labelWidth + gap + figuresWidth - top.size().width,
+                    bottomX: x + labelWidth + gap + figuresWidth - bottom.size().width,
+                    height: height)
             }
         }
 
         let label = attributed(
             readout.metric.shortTitle,
             font: MenuBarReadoutImage.valueFont(size: 7, weight: .semibold), color: color)
-        let font = MenuBarReadoutImage.valueFont(size: 11.5 * 1.05, weight: .bold)
+        // Larger value than the ↓/↑ figures; label pins to the top so the
+        // caption sits higher while the cell still shares `itemHeight`.
+        let font = MenuBarReadoutImage.valueFont(size: 12.5, weight: .bold)
         let compactValue =
             readout.value.hasSuffix("%") ? String(readout.value.dropLast()) : readout.value
         let value = attributed(compactValue, font: font, color: color)
@@ -245,9 +243,30 @@ enum CombinedMenuBarImage {
             label.draw(
                 at: NSPoint(
                     x: x + (width - label.size().width) / 2,
-                    y: height - label.size().height))
-            value.draw(at: NSPoint(x: x + (width - value.size().width) / 2, y: 0))
+                    y: height - label.size().height + 1))
+            value.draw(
+                at: NSPoint(
+                    x: x + (width - value.size().width) / 2,
+                    y: 0))
         }
+    }
+
+    /// Two-line column with a shared midline: top row sits in the upper half,
+    /// bottom row in the lower half. Used by both caption+value and ↓/↑ cells
+    /// so Strip (and Focus dual) heights read as one band.
+    private static func drawStackedLines(
+        top: NSAttributedString, bottom: NSAttributedString,
+        topX: CGFloat, bottomX: CGFloat, height: CGFloat
+    ) {
+        let rowH = height / 2
+        top.draw(
+            at: NSPoint(
+                x: topX,
+                y: rowH + max(0, (rowH - top.size().height) / 2)))
+        bottom.draw(
+            at: NSPoint(
+                x: bottomX,
+                y: max(0, (rowH - bottom.size().height) / 2)))
     }
 
     private static func attributed(

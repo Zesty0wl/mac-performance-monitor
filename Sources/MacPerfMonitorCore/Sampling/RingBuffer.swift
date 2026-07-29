@@ -40,18 +40,44 @@ public struct RingBuffer<Element> {
         }
     }
 
-    /// Elements in chronological order (oldest first, newest last).
-    public func elements() -> [Element] {
-        guard storage.count == capacity else {
-            // Not yet wrapped: storage is already in order.
-            return storage
-        }
-        // Wrapped: head points at the oldest element.
-        return Array(storage[head...] + storage[..<head])
+    /// Chronological view (oldest first, newest last) over the buffer.
+    ///
+    /// Shares the underlying storage via Array CoW; does not allocate a
+    /// reordered `[Element]` copy. Callers that only need a mapped series
+    /// (e.g. chart trails) can `.map` this view directly.
+    public func elements() -> Elements {
+        Elements(storage: storage, head: head, wrapped: storage.count == capacity)
     }
 
     public mutating func removeAll() {
         storage.removeAll(keepingCapacity: true)
         head = 0
+    }
+}
+
+extension RingBuffer {
+    /// Random-access chronological projection of a `RingBuffer`.
+    public struct Elements: RandomAccessCollection {
+        public typealias Index = Int
+
+        private let storage: [Element]
+        private let head: Int
+        private let wrapped: Bool
+
+        fileprivate init(storage: [Element], head: Int, wrapped: Bool) {
+            self.storage = storage
+            self.head = head
+            self.wrapped = wrapped
+        }
+
+        public var startIndex: Int { 0 }
+        public var endIndex: Int { storage.count }
+
+        public subscript(position: Int) -> Element {
+            if wrapped {
+                return storage[(head + position) % storage.count]
+            }
+            return storage[position]
+        }
     }
 }

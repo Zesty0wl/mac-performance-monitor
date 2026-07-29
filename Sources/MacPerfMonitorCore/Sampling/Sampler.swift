@@ -159,6 +159,10 @@ public final class Sampler {
     }
     private var staticCache: [ProcessIdentity: StaticInfo] = [:]
 
+    /// Path-keyed `Info.plist` cache so helpers that share one `.app` do not
+    /// each pay a disk read on first sighting (see `BundleIDCache`).
+    private var bundleIDCache = BundleIDCache()
+
     /// Cap on how many *new* processes have their Team ID resolved per scan. The
     /// Team-ID lookup is a `SecStaticCode` inspection (~1–2 ms per distinct
     /// binary); resolving every process the first time it is seen made the first
@@ -166,8 +170,9 @@ public final class Sampler {
     /// churn burst (a build spawning dozens of compilers) a smaller one. Spreading
     /// the resolution over successive ticks bounds the per-tick cost; unresolved
     /// processes carry a nil Team ID (used only for optional grouping) until their
-    /// turn comes, at most a few seconds later. The other static facts — path,
-    /// bundle id, Rosetta flag — are cheap and still resolved on first sight.
+    /// turn comes, at most a few seconds later. Path and Rosetta flag stay
+    /// resolved on first sight; bundle id is also resolved then, but keyed by
+    /// `.app` path so shared helpers reuse one plist read.
     private let teamIDResolvePerTick = 30
 
     /// Resolves a binary's code-signing Team ID once per distinct executable
@@ -573,7 +578,7 @@ public final class Sampler {
             if resolveTeam { teamIDBudget -= 1 }
             staticInfo = StaticInfo(
                 executablePath: path,
-                bundleID: Self.bundleID(fromPath: path),
+                bundleID: bundleIDCache.bundleID(fromExecutablePath: path),
                 teamID: resolveTeam ? codeSigningResolver.teamID(forExecutablePath: path) : nil,
                 isTranslated: translated,
                 architecture: processReader.architecture(translated: translated),
@@ -628,6 +633,7 @@ public final class Sampler {
         lastEnergy.removeAll()
         lastDisk.removeAll()
         staticCache.removeAll()
+        bundleIDCache.removeAll()
         lastSystemTime = nil
         lastProcessTime = nil
         lastCounters = nil
@@ -743,19 +749,4 @@ public final class Sampler {
         )
     }
 
-    /// Derive a best-effort bundle identifier from an executable path inside a
-    /// `.app` bundle. Nil for plain executables.
-    static func bundleID(fromPath path: String?) -> String? {
-        guard let path else { return nil }
-        // .../Foo.app/Contents/MacOS/Foo -> read Info.plist if present.
-        guard let appRange = path.range(of: ".app/Contents/MacOS/") else { return nil }
-        let appBundlePath = String(path[..<appRange.lowerBound]) + ".app"
-        let infoPlist = appBundlePath + "/Contents/Info.plist"
-        guard let data = FileManager.default.contents(atPath: infoPlist),
-            let plist = try? PropertyListSerialization.propertyList(from: data, format: nil),
-            let dict = plist as? [String: Any],
-            let bundleID = dict["CFBundleIdentifier"] as? String
-        else { return nil }
-        return bundleID
-    }
 }
