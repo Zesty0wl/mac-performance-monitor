@@ -64,7 +64,8 @@ final class BundleIDCacheTests: XCTestCase {
         let macos = contents.appendingPathComponent("MacOS", isDirectory: true)
         try FileManager.default.createDirectory(at: macos, withIntermediateDirectories: true)
         let plist: [String: Any] = ["CFBundleIdentifier": "com.test.bundleidcache"]
-        let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+        let data = try PropertyListSerialization.data(
+            fromPropertyList: plist, format: .xml, options: 0)
         try data.write(to: contents.appendingPathComponent("Info.plist"))
         defer { try? FileManager.default.removeItem(at: root) }
 

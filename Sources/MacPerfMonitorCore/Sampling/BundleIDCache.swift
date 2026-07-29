@@ -9,7 +9,9 @@ public struct BundleIDCache {
     private var cache: [String: String?] = [:]
     private let readPlist: (String) -> String?
 
-    public init(readPlist: @escaping (String) -> String? = BundleIDCache.readBundleID(fromAppBundle:)) {
+    public init(
+        readPlist: @escaping (String) -> String? = BundleIDCache.readBundleID(fromAppBundle:)
+    ) {
         self.readPlist = readPlist
     }
 

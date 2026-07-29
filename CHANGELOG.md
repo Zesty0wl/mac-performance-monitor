@@ -6,6 +6,21 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Combined menu bar dual-rate layout:** Disk and Network Focus/Strip readouts no
+  longer overlap their down/up figures. Stacked rates use matched compact fonts and
+  a shared half-height layout, and sit on the same 22pt band as other strip cells.
+- **Strip caption cells:** RAM, CPU, and GPU titles sit higher with larger medium-weight
+  values, so the strip stays even without the over-bold look that clashed with
+  Disk/Network rates.
+
+### Changed
+
+- **Sampling hot path:** `RingBuffer.elements()` returns a chronological collection
+  view instead of copying a full array each read. Bundle IDs are cached by `.app`
+  path so helpers sharing one bundle do not each re-read `Info.plist` on first sight.
+
 ## [1.3.2] - 2026-07-10
 
 ### Added

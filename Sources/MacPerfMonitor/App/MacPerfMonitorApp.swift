@@ -317,7 +317,9 @@ extension Notification.Name {
 /// Main-actor isolated: NSApplicationDelegate callbacks already run on the main
 /// thread, and several owned stores (e.g. `ProcessGroupStore`) are `@MainActor`.
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, @preconcurrency UNUserNotificationCenterDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate,
+    @preconcurrency UNUserNotificationCenterDelegate
+{
     let model = SamplerModel()
     let appModeManager = AppModeManager()
     let alertSettings = AlertSettings()
