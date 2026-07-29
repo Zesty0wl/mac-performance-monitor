@@ -22,15 +22,18 @@ final class BatteryTests: XCTestCase {
 
     // MARK: - BatteryReader
 
-    /// The reader must never crash and must return either nil (a Mac with no
-    /// battery) or a self-consistent sample (charge in range, power non-negative).
+    /// The reader must never crash. Outcomes:
+    /// - `nil`: no AppleSmartBattery entry at all
+    /// - `isPresent == false`: desktop telemetry-only sample (system watts)
+    /// - `isPresent == true`: a self-consistent laptop battery sample
     func testBatteryReaderIsSafeAndConsistent() {
         let sample = BatteryReader().read()
-        guard let sample else { return }  // no internal battery: a valid outcome
-        XCTAssertTrue(sample.isPresent)
+        guard let sample else { return }
+        XCTAssertGreaterThanOrEqual(sample.powerWatts, 0)
+        XCTAssertGreaterThanOrEqual(sample.systemPowerWatts, 0)
+        guard sample.isPresent else { return }
         XCTAssertGreaterThanOrEqual(sample.chargePercent, 0)
         XCTAssertLessThanOrEqual(sample.chargePercent, 100)
-        XCTAssertGreaterThanOrEqual(sample.powerWatts, 0)
         if let health = sample.healthPercent {
             XCTAssertGreaterThanOrEqual(health, 0)
             XCTAssertLessThanOrEqual(health, 100)
