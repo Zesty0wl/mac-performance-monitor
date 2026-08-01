@@ -6,6 +6,14 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [1.3.4] - 2026-08-01
+
+### Changed
+
+- **New app icon:** the Dock, Finder, and Launchpad icon is now a blue activity
+  chart with an alert marker, replacing the previous line-and-nodes mark. It reads
+  more clearly at small sizes and matches the app's charting and alerting focus.
+
 ## [1.3.3] - 2026-07-29
 
 ### Fixed
