@@ -6,6 +6,40 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [1.3.5] - 2026-08-02
+
+### Added
+
+- **Hide Notch:** a toggle in the menu bar panel's overflow menu switches the
+  built-in display to its notch-free mode, so the menu bar drops below the camera
+  housing and runs edge to edge. On a 14-inch that returns 185pt the notch was
+  taking, which is what makes room for status items on a crowded bar. The choice
+  is remembered and re-applied at launch and whenever the display configuration
+  changes, so a reboot does not undo it; changing scaled size in System Settings
+  keeps the notch hidden at the size you picked. Only appears on Macs with a notch.
+- **Chart processes that have exited:** the Analytics picker now lists processes
+  the history recorded but that are no longer running, alongside the running ones,
+  with the time each was last seen. Their data was always in the database and the
+  charts always drew them; only the live-process list stood in the way. Searching
+  runs against the whole window rather than the visible page, so a process that
+  exited hours ago is still reachable.
+
+### Changed
+
+- **Group members are merged per program:** a process that was quit and relaunched,
+  and an app's many identical helper instances, now share one row instead of
+  appearing once per PID. A row shows what its instances weighed together while
+  running, carries an instance count, and notes how much of the window the program
+  was actually up for. Group cards count programs and name the biggest contributors.
+
+### Fixed
+
+- **Group totals no longer inflated by exited members:** on the raw tier a member's
+  last footprint was carried forward for the rest of the window, so every instance
+  that had died kept contributing to the group's timeline. Members are now dropped
+  one heartbeat after their last sample, which is what tells a live process from a
+  dead one. Groups whose members restart often read far heavier than they were.
+
 ## [1.3.4] - 2026-08-01
 
 ### Changed

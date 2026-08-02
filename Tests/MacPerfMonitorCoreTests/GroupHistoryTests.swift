@@ -174,6 +174,182 @@ final class GroupHistoryTests: XCTestCase {
         XCTAssertEqual(members.last?.averageFootprint, 50 * mb)
     }
 
+    // MARK: - Merged program members
+
+    /// A process instance with its own name and start time, so a test can model
+    /// the same program being quit and relaunched (a new PID and a new start
+    /// time, hence a new `processes` row) or running several instances at once.
+    private struct Instance {
+        var pid: Int32
+        var startTime: Date
+        var name: String
+        var footprint: UInt64
+        var cpu: Double = 0
+        var teamID: String? = "AAA"
+    }
+
+    private func insertInstances(_ timestamp: Date, _ instances: [Instance]) throws {
+        let samples = instances.map {
+            Make.process(
+                timestamp: timestamp, pid: $0.pid, startTime: $0.startTime, name: $0.name,
+                teamID: $0.teamID, footprint: $0.footprint, cpu: $0.cpu)
+        }
+        try store.insert(
+            Sampler.Snapshot(
+                system: Make.system(timestamp: timestamp), processes: samples,
+                unreadableProcessCount: 0))
+    }
+
+    private func teamMemberIDs(_ now: Date, team: String = "AAA") throws -> [Int64] {
+        try store.groupMemberIDs(
+            rule: .condition(GroupCondition(field: .teamID, value: team)), window: .oneHour,
+            glossary: nil, now: now)
+    }
+
+    /// Quitting and relaunching a program gives it a fresh PID and therefore a
+    /// fresh `processes` row. Those used to list as separate members; they now
+    /// merge into one, and its footprint is the time-weighted mean of what the
+    /// program held *while it was running*: the idle stretch between the runs is
+    /// not averaged in.
+    func testRestartsMergeIntoOneProgram() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_400)
+        let mb = self.mb
+        // Run one: pid 100 at 200 MB, ticks at +0 and +1, then it exits.
+        for offset in [0.0, 1.0] {
+            try insertInstances(
+                base.addingTimeInterval(offset),
+                [Instance(pid: 100, startTime: base, name: "App", footprint: 200 * mb)])
+        }
+        // Run two: a new PID for the same executable at 400 MB, ticks at +10, +11.
+        for offset in [10.0, 11.0] {
+            try insertInstances(
+                base.addingTimeInterval(offset),
+                [
+                    Instance(
+                        pid: 200, startTime: base.addingTimeInterval(9), name: "App",
+                        footprint: 400 * mb)
+                ])
+        }
+
+        let now = base.addingTimeInterval(11)
+        let breakdown = try store.groupBreakdown(
+            processIDs: try teamMemberIDs(now), window: .oneHour, bucketSeconds: 2, now: now)
+
+        XCTAssertEqual(breakdown.programs.count, 1, "restarts of one executable are one member")
+        let program = try XCTUnwrap(breakdown.programs.first)
+        XCTAssertEqual(program.instanceCount, 2)
+        // The newest instance represents the program, so a row's actions target it.
+        XCTAssertEqual(program.representative.pid, 200)
+        // Run one held 200 MB for 3 s (2 s of ticks plus the one-heartbeat grace
+        // before it is declared gone), run two 400 MB for 2 s: 1400/5 = 280 MB.
+        XCTAssertEqual(program.averageFootprint, 280 * mb)
+        XCTAssertEqual(program.peakFootprint, 400 * mb)
+        // Resident for those 5 s only, not the 11 s the window spans.
+        XCTAssertEqual(program.residentSeconds, 5, accuracy: 0.001)
+    }
+
+    /// Instances of one program running side by side are summed, not averaged: a
+    /// browser with twenty renderers really does cost twenty renderers.
+    func testConcurrentInstancesOfOneProgramSum() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_400)
+        let mb = self.mb
+        for offset in [0.0, 1.0] {
+            try insertInstances(
+                base.addingTimeInterval(offset),
+                [
+                    Instance(pid: 100, startTime: base, name: "Helper", footprint: 100 * mb, cpu: 3),
+                    Instance(pid: 101, startTime: base, name: "Helper", footprint: 150 * mb, cpu: 4),
+                    Instance(pid: 102, startTime: base, name: "Helper", footprint: 50 * mb, cpu: 1),
+                ])
+        }
+        let now = base.addingTimeInterval(1)
+        let breakdown = try store.groupBreakdown(
+            processIDs: try teamMemberIDs(now), window: .oneHour, bucketSeconds: 2, now: now)
+
+        XCTAssertEqual(breakdown.programs.count, 1)
+        let program = try XCTUnwrap(breakdown.programs.first)
+        XCTAssertEqual(program.instanceCount, 3)
+        XCTAssertEqual(program.averageFootprint, 300 * mb)
+        XCTAssertEqual(program.averageCPU, 8, accuracy: 0.001)
+        // A program that never left is resident for the whole observed span.
+        XCTAssertEqual(program.residentSeconds, 2, accuracy: 0.001)
+    }
+
+    /// Different executables stay separate members even when they run together.
+    func testDistinctProgramsStaySeparate() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_400)
+        let mb = self.mb
+        try insertInstances(
+            base,
+            [
+                Instance(pid: 100, startTime: base, name: "Alpha", footprint: 300 * mb),
+                Instance(pid: 200, startTime: base, name: "Beta", footprint: 100 * mb),
+            ])
+        let breakdown = try store.groupBreakdown(
+            processIDs: try teamMemberIDs(base), window: .oneHour, bucketSeconds: 2, now: base)
+        XCTAssertEqual(breakdown.programs.map(\.displayName), ["Alpha", "Beta"])
+    }
+
+    /// A member that exits must stop contributing to the group's combined
+    /// timeline once it is a heartbeat overdue. Carrying its last footprint
+    /// forward for the rest of the window made every group with restart-happy
+    /// members read far heavier than it ever was.
+    func testExitedMemberIsNotCarriedForward() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_400)
+        let mb = self.mb
+        // Both members present at +0; only the survivor reports afterwards.
+        try insertInstances(
+            base,
+            [
+                Instance(pid: 100, startTime: base, name: "Gone", footprint: 500 * mb),
+                Instance(pid: 200, startTime: base, name: "Survivor", footprint: 100 * mb),
+            ])
+        for offset in [1.0, 6.0] {
+            try insertInstances(
+                base.addingTimeInterval(offset),
+                [Instance(pid: 200, startTime: base, name: "Survivor", footprint: 100 * mb)])
+        }
+
+        let now = base.addingTimeInterval(6)
+        let series = try store.groupSeries(
+            processIDs: try teamMemberIDs(now), window: .oneHour, bucketSeconds: 2, now: now)
+
+        XCTAssertEqual(series.map(\.footprint), [600 * mb, 600 * mb, 100 * mb])
+        XCTAssertEqual(series.last?.date, now)
+    }
+
+    /// The merged rows and the group's own timeline come out of one walk, so the
+    /// dense minute tier must agree with the sparse raw tier on what a program's
+    /// instances weighed together.
+    func testProgramsMergeOnTheMinuteTier() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_400)  // minute-aligned
+        let mb = self.mb
+        for offset in [0.0, 20.0, 40.0] {
+            try insertInstances(
+                base.addingTimeInterval(offset),
+                [
+                    Instance(pid: 100, startTime: base, name: "Helper", footprint: 100 * mb),
+                    Instance(pid: 101, startTime: base, name: "Helper", footprint: 200 * mb),
+                    Instance(pid: 300, startTime: base, name: "Other", footprint: 60 * mb),
+                ])
+        }
+        let now = base.addingTimeInterval(120)  // the first minute bucket is complete
+        try Retention.run(store.databasePool, now: now)
+
+        let ids = try store.groupMemberIDs(
+            rule: .condition(GroupCondition(field: .teamID, value: "AAA")),
+            window: .oneDay, glossary: nil, now: now)
+        let breakdown = try store.groupBreakdown(processIDs: ids, window: .oneDay, now: now)
+
+        XCTAssertEqual(breakdown.programs.count, 2)
+        let helper = try XCTUnwrap(breakdown.programs.first { $0.displayName == "Helper" })
+        XCTAssertEqual(helper.instanceCount, 2)
+        XCTAssertEqual(helper.averageFootprint, 300 * mb)
+        // The group's own timeline still sums every member in the bucket.
+        XCTAssertEqual(breakdown.series.count, 1)
+        XCTAssertEqual(breakdown.series.first?.footprint, 360 * mb)
+    }
+
     func testGroupSeriesEmptyWithoutMembers() throws {
         let base = Date(timeIntervalSince1970: 1_700_000_400)
         XCTAssertTrue(try store.groupSeries(processIDs: [], window: .oneHour, now: base).isEmpty)

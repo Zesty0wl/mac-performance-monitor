@@ -18,6 +18,7 @@ struct CombinedMenuBarContentView: View {
     @EnvironmentObject private var updateController: UpdateController
     @EnvironmentObject private var menuClock: MenuClock
     @EnvironmentObject private var appMode: AppModeManager
+    @EnvironmentObject private var notchDisplay: NotchDisplayController
 
     @ObservedObject var selection: CombinedMenuBarPanelSelection
 
@@ -190,6 +191,23 @@ struct CombinedMenuBarContentView: View {
                     systemImage: appMode.mode == .full ? "pause.circle" : "record.circle"
                 ) {
                     appMode.mode = appMode.mode == .full ? .menuBarOnly : .full
+                }
+                // Only on Macs that have a notch to hide. Status items are confined
+                // to the menu bar right of it, so on a crowded bar this is what
+                // makes room for them; see `NotchDisplayController`.
+                if notchDisplay.isSupported {
+                    Button(
+                        notchDisplay.isNotchHidden ? "Show Notch" : "Hide Notch",
+                        systemImage: "menubar.rectangle"
+                    ) {
+                        dismiss()
+                        notchDisplay.setNotchHidden(!notchDisplay.isNotchHidden)
+                    }
+                    .help(
+                        notchDisplay.isNotchHidden
+                            ? "Use the full height of the display again, with the menu bar either side of the camera housing."
+                            : "Drop the menu bar below the camera housing so it runs edge to edge and fits more items. Costs a little screen height, and applies to every app."
+                    )
                 }
                 Divider()
                 Button("About \(AppInfo.displayName)", systemImage: "info.circle") {

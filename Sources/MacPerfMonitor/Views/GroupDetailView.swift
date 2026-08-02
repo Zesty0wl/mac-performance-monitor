@@ -235,14 +235,15 @@ struct GroupDetailView: View {
             Label("Member contributions", systemImage: "person.3").font(.headline)
             if let report, !report.members.isEmpty {
                 let lookup = Dictionary(
-                    report.members.map { ($0.identity, $0) }, uniquingKeysWith: { a, _ in a })
+                    report.members.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
                 VStack(spacing: 0) {
                     ForEach(Array(report.decomposition.contributions.enumerated()), id: \.offset) {
                         index, contribution in
                         if index > 0 { Divider() }
                         if let member = lookup[contribution.id] {
                             MemberRow(
-                                member: member, contribution: contribution, tint: .accentColor)
+                                member: member, contribution: contribution,
+                                windowSeconds: window.seconds, tint: .accentColor)
                         }
                     }
                 }
@@ -407,9 +408,19 @@ struct GroupScoreInfoView: View {
 
 /// One member's contribution row: icon, name, its footprint score, and a bar of
 /// its share of the group total.
+///
+/// A member is a program, not a PID: restarts and an app's concurrent helper
+/// instances are already merged upstream (see `GroupMemberProgram`), so the row
+/// carries an instance count and, when the program was not up for the whole
+/// window, how much of it the program was actually around for. Its memory and CPU
+/// are what the program's instances weighed **together while running**, so a
+/// short-lived process reads at its true size rather than being diluted by the
+/// time it was absent.
 private struct MemberRow: View {
-    let member: ProcessConsumer
-    let contribution: GroupFootprint.Contribution<ProcessIdentity>
+    let member: GroupMemberProgram
+    let contribution: GroupFootprint.Contribution<String>
+    /// The selected window, for the "ran x of y" read-out.
+    let windowSeconds: TimeInterval
     var tint: Color = .accentColor
 
     var body: some View {
@@ -423,6 +434,14 @@ private struct MemberRow: View {
                         .font(.body.weight(.medium))
                         .lineLimit(1)
                         .truncationMode(.middle)
+                    if member.instanceCount > 1 {
+                        Text("\u{00D7}\(member.instanceCount)")
+                            .font(.caption2.monospacedDigit().weight(.semibold))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(.quaternary, in: Capsule())
+                            .help(instanceHelp)
+                    }
                     Spacer(minLength: 8)
                     Text(String(format: "%.0f%%", contribution.share * 100))
                         .font(.body.monospacedDigit().weight(.semibold))
@@ -434,12 +453,42 @@ private struct MemberRow: View {
             }
         }
         .padding(.vertical, 7)
-        .processRowActions(identity: member.identity)
+        .processRowActions(identity: member.representative)
     }
 
     private var secondaryLine: String {
-        "\(ByteFormat.string(member.averageFootprint)) · "
+        var line =
+            "\(ByteFormat.string(member.averageFootprint)) · "
             + String(format: "%.1f%% CPU", member.averageCPU)
             + String(format: " · footprint %.1f%%", contribution.score)
+        if let residency { line += " · \(residency)" }
+        return line
+    }
+
+    /// "ran 12 of 60 min" when the program was up for less than the window,
+    /// which is what explains a merged row whose average looks high against a
+    /// modest share. Omitted for programs that ran throughout (the common case),
+    /// with a little slack for sampling edges.
+    private var residency: String? {
+        guard windowSeconds > 0, member.residentSeconds < windowSeconds * 0.95 else { return nil }
+        return "ran \(DurationFormat.compact(member.residentSeconds))"
+            + " of \(DurationFormat.compact(windowSeconds))"
+    }
+
+    private var instanceHelp: String {
+        let count = member.instanceCount
+        return
+            "\(count) recorded runs of this program in the window (restarts and simultaneous instances), merged into one row."
+    }
+}
+
+/// Short human durations for the group member rows ("45 s", "12 min", "3 hr").
+enum DurationFormat {
+    static func compact(_ seconds: TimeInterval) -> String {
+        let s = Int(seconds.rounded())
+        if s < 90 { return "\(s) s" }
+        if s < 90 * 60 { return "\(Int((Double(s) / 60).rounded())) min" }
+        if s < 48 * 3600 { return "\(Int((Double(s) / 3600).rounded())) hr" }
+        return "\(Int((Double(s) / 86_400).rounded())) days"
     }
 }

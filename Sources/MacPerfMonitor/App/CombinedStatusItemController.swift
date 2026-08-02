@@ -30,6 +30,7 @@ final class CombinedStatusItemController: NSObject {
     private let updateController: UpdateController
     private let appModeManager: AppModeManager
     private let configuration: CombinedMenuBarConfiguration
+    private let notchDisplay: NotchDisplayController
 
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
@@ -49,7 +50,7 @@ final class CombinedStatusItemController: NSObject {
     init(
         model: SamplerModel, appState: AppState, helperManager: HelperManager,
         updateController: UpdateController, appModeManager: AppModeManager,
-        configuration: CombinedMenuBarConfiguration
+        configuration: CombinedMenuBarConfiguration, notchDisplay: NotchDisplayController
     ) {
         self.model = model
         self.appState = appState
@@ -57,6 +58,7 @@ final class CombinedStatusItemController: NSObject {
         self.updateController = updateController
         self.appModeManager = appModeManager
         self.configuration = configuration
+        self.notchDisplay = notchDisplay
         currentPanel =
             UserDefaults.standard.string(forKey: Self.panelDefaultsKey)
             .flatMap(MenuBarMetric.init(rawValue:)) ?? configuration.focusedMetric
@@ -211,6 +213,7 @@ final class CombinedStatusItemController: NSObject {
         .environmentObject(menuClock)
         .environmentObject(appModeManager)
         .environmentObject(configuration)
+        .environmentObject(notchDisplay)
         let hosting = NSHostingController(rootView: content)
         hosting.sizingOptions = [.preferredContentSize]
         popover.contentViewController = hosting

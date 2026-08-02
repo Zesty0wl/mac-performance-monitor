@@ -148,4 +148,119 @@ final class HistoryQueryTests: XCTestCase {
         XCTAssertEqual(ranked[0].averageDisk, 10_000, accuracy: 0.001)
         XCTAssertEqual(ranked[1].averageDisk, 1_000, accuracy: 0.001)
     }
+
+    // MARK: - Exited processes
+
+    /// Insert a tick and advance `last_seen` for the processes in it, the way the
+    /// retention pass does in the running app (`touchLastSeen`). The dimension
+    /// upsert is short-circuited by the process-id cache, so without this a
+    /// process's `last_seen` would never move off its first sighting.
+    private func insertLiveTick(
+        _ timestamp: Date, _ processes: [(pid: Int32, footprint: UInt64, cpu: Double)]
+    ) throws {
+        try insertTick(timestamp, processes)
+        store.touchLastSeen(
+            keeping: Set(processes.map { ProcessIdentity(pid: $0.pid, startTime: startTime) }),
+            now: timestamp)
+    }
+
+    /// The picker roster lists processes that have since exited, most recently
+    /// seen first. That is the whole point of it: their series is recorded and
+    /// chartable but a live-process list can never name them.
+    func testExitedProcessesListsThemNewestFirst() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_400)
+        // P1000 and P3000 stop after the first tick; P2000 keeps reporting.
+        try insertLiveTick(base, [(1000, 100 * mb, 0), (2000, 50 * mb, 0), (3000, 20 * mb, 0)])
+        try insertLiveTick(base.addingTimeInterval(10), [(2000, 55 * mb, 0), (3000, 25 * mb, 0)])
+        try insertLiveTick(base.addingTimeInterval(300), [(2000, 60 * mb, 0)])
+
+        let exited = try store.exitedProcesses(
+            since: base.addingTimeInterval(-60), liveWithin: 60)
+        XCTAssertEqual(exited.map(\.identity.pid), [3000, 1000], "newest first, running excluded")
+
+        let gone = try XCTUnwrap(exited.first { $0.identity.pid == 1000 })
+        XCTAssertEqual(gone.name, "P1000")
+        XCTAssertEqual(gone.lastSeen, base)
+        XCTAssertEqual(gone.identity.startTime, startTime)
+        // The identity is the one the history queries take, so it charts directly.
+        XCTAssertFalse(
+            try store.processHistory(
+                for: gone.identity, window: .oneHour, now: base.addingTimeInterval(300)
+            ).isEmpty)
+    }
+
+    /// A cap applied before the still-running processes are dropped would be spent
+    /// entirely on them: a Mac runs hundreds at once, all sharing the newest
+    /// `last_seen`. Excluding them in the query is what makes the cap buy real
+    /// coverage of what has exited.
+    func testExitedProcessesCapIsNotSpentOnRunningProcesses() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_400)
+        let running: [(pid: Int32, footprint: UInt64, cpu: Double)] =
+            (1...20).map { (Int32(5000 + $0), 10 * mb, 0) }
+        try insertLiveTick(base, running + [(1000, 100 * mb, 0)])
+        try insertLiveTick(base.addingTimeInterval(300), running)
+
+        let exited = try store.exitedProcesses(
+            since: base.addingTimeInterval(-60), liveWithin: 60, limit: 5)
+        XCTAssertEqual(exited.map(\.identity.pid), [1000])
+    }
+
+    /// Search runs in SQL, so a process that exited long ago is reachable even
+    /// though the most recent page never reaches back that far.
+    func testExitedProcessesSearchesBeyondTheCap() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_400)
+        let needle = Make.process(
+            timestamp: base, pid: 42, startTime: startTime, name: "Needle", footprint: 90 * mb)
+        try store.insert(Make.system(timestamp: base), processes: [needle])
+        store.touchLastSeen(
+            keeping: [ProcessIdentity(pid: 42, startTime: startTime)], now: base)
+        // Plenty of later churn, then a survivor that keeps the clock moving.
+        for i in 0..<10 {
+            let ts = base.addingTimeInterval(100 + Double(i))
+            try insertLiveTick(ts, [(Int32(7000 + i), 10 * mb, 0), (9999, 5 * mb, 0)])
+        }
+        try insertLiveTick(base.addingTimeInterval(400), [(9999, 5 * mb, 0)])
+
+        let since = base.addingTimeInterval(-60)
+        let page = try store.exitedProcesses(since: since, liveWithin: 60, limit: 3)
+        XCTAssertFalse(
+            page.contains { $0.name == "Needle" }, "too far back to be on the first page")
+
+        let found = try store.exitedProcesses(
+            since: since, matching: "needl", liveWithin: 60, limit: 3)
+        XCTAssertEqual(found.map(\.name), ["Needle"])
+    }
+
+    /// LIKE wildcards in what the user typed must match literally, not act as
+    /// patterns.
+    func testExitedProcessesSearchEscapesWildcards() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_400)
+        let odd = Make.process(
+            timestamp: base, pid: 42, startTime: startTime, name: "we%rd", footprint: 90 * mb)
+        try store.insert(Make.system(timestamp: base), processes: [odd])
+        store.touchLastSeen(
+            keeping: [ProcessIdentity(pid: 42, startTime: startTime)], now: base)
+        try insertLiveTick(base.addingTimeInterval(300), [(9999, 5 * mb, 0)])
+
+        let since = base.addingTimeInterval(-60)
+        XCTAssertEqual(
+            try store.exitedProcesses(since: since, matching: "we%rd", liveWithin: 60)
+                .map(\.name), ["we%rd"])
+        XCTAssertTrue(
+            try store.exitedProcesses(since: since, matching: "w%d", liveWithin: 60).isEmpty,
+            "the % the user typed is a literal, not a wildcard")
+    }
+
+    /// Processes last seen before the window are out of scope: the picker offers
+    /// what the span being charted can actually draw.
+    func testExitedProcessesHonoursWindow() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_400)
+        try insertLiveTick(base, [(1000, 100 * mb, 0)])
+        try insertLiveTick(base.addingTimeInterval(600), [(2000, 50 * mb, 0)])
+        try insertLiveTick(base.addingTimeInterval(1200), [(3000, 50 * mb, 0)])
+
+        let recent = try store.exitedProcesses(
+            since: base.addingTimeInterval(300), liveWithin: 60)
+        XCTAssertEqual(recent.map(\.identity.pid), [2000], "P1000 is older than the window")
+    }
 }

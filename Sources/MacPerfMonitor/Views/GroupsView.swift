@@ -245,13 +245,16 @@ private struct GroupCard: View {
         return String(format: "%.1f%%", report.score)
     }
 
+    /// Members are merged one row per program (restarts and an app's concurrent
+    /// helper instances count once), so the card counts programs and names the
+    /// biggest contributors rather than whichever PIDs happened to sort first.
     private var subtitle: String {
         guard let report, !report.members.isEmpty else {
             return loading ? "Loading…" : "No processes recorded in this window."
         }
-        let names = report.members.prefix(3).map(\.displayName).joined(separator: ", ")
+        let names = report.topMembers(3).map(\.displayName).joined(separator: ", ")
         let count = report.memberCount
-        return "\(count) \(count == 1 ? "process" : "processes") · \(names)"
+        return "\(count) \(count == 1 ? "program" : "programs") · \(names)"
     }
 
     private var sparkValues: [Double]? {

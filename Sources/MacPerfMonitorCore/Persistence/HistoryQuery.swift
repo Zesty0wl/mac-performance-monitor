@@ -154,7 +154,128 @@ public struct ProcessConsumer: Sendable, Identifiable, Equatable {
     }
 }
 
+/// A process the history database holds rows for. Read straight from the small
+/// `processes` dimension table, so listing them costs nothing like aggregating
+/// their samples.
+///
+/// This is what lets a chart picker offer processes that have since exited: the
+/// data is there, keyed by a stable identity the history queries already accept,
+/// and only a live-process list stood between the user and it.
+public struct RecordedProcess: Sendable, Hashable, Identifiable {
+    public var identity: ProcessIdentity
+    public var name: String
+    public var executablePath: String?
+    public var bundleID: String?
+    /// When this process was first and last sampled. `lastSeen` is what orders
+    /// the picker and dates an exited process for the user.
+    public var firstSeen: Date
+    public var lastSeen: Date
+
+    public var id: ProcessIdentity { identity }
+
+    /// The full name to show, recovering a kernel-truncated `p_comm` from the
+    /// executable path just as the live process list does.
+    public var displayName: String {
+        ProcessSample.resolvedDisplayName(name: name, executablePath: executablePath)
+    }
+
+    public init(
+        identity: ProcessIdentity,
+        name: String,
+        executablePath: String?,
+        bundleID: String?,
+        firstSeen: Date,
+        lastSeen: Date
+    ) {
+        self.identity = identity
+        self.name = name
+        self.executablePath = executablePath
+        self.bundleID = bundleID
+        self.firstSeen = firstSeen
+        self.lastSeen = lastSeen
+    }
+}
+
 extension SampleStore {
+    /// Processes the history recorded at or after `since` that are **no longer
+    /// running**, most recently seen first, capped at `limit`. Reads only the
+    /// `processes` dimension table (one row per process instance, the same scan
+    /// `groupMemberIDs` makes), never the sample tiers, so it stays cheap enough
+    /// to back a picker.
+    ///
+    /// Exited is decided against the newest `last_seen` in the table rather than
+    /// the wall clock, so it survives the app having been asleep: a running
+    /// process's `last_seen` keeps advancing (`touchLastSeen`), so anything quiet
+    /// for longer than `liveWithin` has gone. Filtering here rather than in the
+    /// caller is what makes `limit` mean anything: a Mac runs some 800 processes
+    /// at once, all with a fresh `last_seen`, so a cap applied before the running
+    /// ones are dropped is spent entirely on them and yields nothing at all.
+    ///
+    /// - Parameters:
+    ///   - matching: optional substring, matched against the process name and its
+    ///     executable path. Searching in SQL rather than filtering the returned
+    ///     page is what lets the user reach something that exited long ago: a busy
+    ///     Mac churns tens of thousands of short-lived processes a day, so the
+    ///     most-recent `limit` covers only minutes.
+    ///   - liveWithin: how stale `last_seen` may be and still mean "running".
+    ///     `last_seen` is refreshed once per retention pass, not per sample, so
+    ///     this must comfortably exceed that cadence; erring high only delays when
+    ///     a just-exited process shows up.
+    public func exitedProcesses(
+        since: Date,
+        matching: String? = nil,
+        liveWithin: TimeInterval = 150,
+        limit: Int = 500
+    ) throws -> [RecordedProcess] {
+        var arguments: [any DatabaseValueConvertible] = [
+            since.timeIntervalSince1970, max(liveWithin, 1),
+        ]
+        var searchClause = ""
+        if let matching, !matching.isEmpty {
+            // LIKE's wildcards would otherwise be live in user input.
+            let escaped =
+                matching
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "%", with: "\\%")
+                .replacingOccurrences(of: "_", with: "\\_")
+            searchClause = """
+                 AND (p.name LIKE ? ESCAPE '\\'
+                      OR p.executable_path LIKE ? ESCAPE '\\')
+                """
+            arguments.append("%\(escaped)%")
+            arguments.append("%\(escaped)%")
+        }
+        arguments.append(limit)
+
+        return try databasePool.read { db in
+            try Row.fetchAll(
+                db,
+                sql: """
+                    SELECT p.pid, p.start_time, p.name, p.bundle_id, p.executable_path,
+                           p.first_seen, p.last_seen
+                    FROM processes p
+                    WHERE p.last_seen >= ?
+                      AND p.last_seen < (SELECT MAX(last_seen) FROM processes) - ?\(searchClause)
+                    ORDER BY p.last_seen DESC
+                    LIMIT ?
+                    """, arguments: StatementArguments(arguments)
+            ).map { row in
+                let pid: Int32 = row[0]
+                let start: Double = row[1]
+                let firstSeen: Double = row[5]
+                let lastSeen: Double = row[6]
+                return RecordedProcess(
+                    identity: ProcessIdentity(
+                        pid: pid, startTime: Date(timeIntervalSince1970: start)),
+                    name: row[2],
+                    executablePath: row[4],
+                    bundleID: row[3],
+                    firstSeen: Date(timeIntervalSince1970: firstSeen),
+                    lastSeen: Date(timeIntervalSince1970: lastSeen))
+            }
+        }
+    }
+
     /// The top memory consumers over a window, ranked by `metric`. Aggregates
     /// each process across the window from the tier that backs the window, then
     /// joins the process dimension for names. Oldest data is summarised; the

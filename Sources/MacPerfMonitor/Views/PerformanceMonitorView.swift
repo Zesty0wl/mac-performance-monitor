@@ -67,6 +67,12 @@ struct PerformanceMonitorView: View {
     @State private var highlighted: ProcessIdentity?
     @State private var pickerPresented = false
     @State private var pickerPresentedEmpty = false
+    /// Processes the history has data for over the current span that are no longer
+    /// running, loaded when the picker opens (and on every search) so ones that
+    /// have since exited can still be charted.
+    @State private var recorded: [RecordedProcess] = []
+    /// Invalidation token for the above, so only the newest search result lands.
+    @State private var recordedRequest = 0
     /// Right edge of the chart's X window: the latest sample time.
     @State private var now = Date()
 
@@ -753,20 +759,54 @@ struct PerformanceMonitorView: View {
 
     private var processPicker: some View {
         ProcessPickerList(
-            candidates: pickerCandidates,
+            live: livePickerCandidates,
+            recorded: recordedPickerCandidates,
+            recordedWindowLabel: recordedWindow.label,
             metric: .memory,
             isSelected: { selected.contains($0) },
             canAddMore: !monitor.isFull,
-            onToggle: toggle
+            onToggle: toggle,
+            onSearch: loadExitedProcesses
         )
+        .onAppear { loadExitedProcesses("") }
     }
 
     /// Live processes available to add, readable only, sorted by memory
     /// footprint so the heaviest are easiest to reach. (Memory is the app's
     /// headline metric and the picker's trailing read-out.)
-    private var pickerCandidates: [ProcessSample] {
+    private var livePickerCandidates: [ProcessSample] {
         let processes = (model.latest?.processes ?? []).filter { $0.footprintReadable }
         return processes.sorted { PerfMetric.memory.weight($0) > PerfMetric.memory.weight($1) }
+    }
+
+    /// Processes the history recorded that are no longer running. Their series is
+    /// already in the database and the charts already handle an exited process
+    /// (the legend labels one "Exited"), so the only thing that used to make them
+    /// unreachable was a picker built solely from the live process list. The query
+    /// already excludes anything still reporting; the live-identity check here
+    /// catches the boundary case of a process sampled less recently than the
+    /// heartbeat allows for.
+    private var recordedPickerCandidates: [RecordedProcess] {
+        let live = Set((model.latest?.processes ?? []).map(\.id))
+        return recorded.filter { !live.contains($0.identity) }
+    }
+
+    /// Which window the recorded list covers: the span being charted, so the
+    /// picker only offers processes with data in view. The live span's own two
+    /// minutes would be far too narrow to be useful, so it borrows the hour.
+    private var recordedWindow: HistoryWindow { span.window ?? .oneHour }
+
+    /// Fetch the exited-process page for the picker's current search. Only the
+    /// newest request lands, so fast typing cannot leave an earlier term's rows on
+    /// screen.
+    private func loadExitedProcesses(_ search: String) {
+        let requested = recordedWindow
+        recordedRequest &+= 1
+        let token = recordedRequest
+        model.loadExitedProcesses(window: requested, search: search) { rows in
+            guard token == recordedRequest, requested == recordedWindow else { return }
+            recorded = rows
+        }
     }
 
     // MARK: - Derived chart data
@@ -1201,7 +1241,12 @@ struct PerformanceMonitorView: View {
 
     // MARK: - Selection management
 
-    private func toggle(_ id: ProcessIdentity) {
+    /// Pin or unpin a process. The display name comes from the picker rather than
+    /// the live process list, because a process added from the recorded list has
+    /// already exited: `syncDerivedState` could only label it "PID 1234". Set
+    /// before the toggle so the reconcile it triggers leaves it alone.
+    private func toggle(_ id: ProcessIdentity, name: String) {
+        if names[id] == nil { names[id] = name }
         monitor.toggle(id)
     }
 
@@ -1284,19 +1329,32 @@ struct PerformanceMonitorView: View {
 /// The searchable add-process popover. Rows toggle membership in place so several
 /// processes can be added without reopening, mirroring the classic "add counters"
 /// dialog.
+///
+/// Two sections: what is running now, and what the history recorded over the span
+/// but is no longer running. The second exists because having logged a process's
+/// data and then being unable to select it is the one case where the chart knows
+/// more than the picker will admit: the series is in the database and the charts
+/// already draw exited processes.
 private struct ProcessPickerList: View {
-    let candidates: [ProcessSample]
+    let live: [ProcessSample]
+    let recorded: [RecordedProcess]
+    /// The span the recorded section covers, named in its header.
+    let recordedWindowLabel: String
     let metric: PerfMetric
     let isSelected: (ProcessIdentity) -> Bool
     let canAddMore: Bool
-    let onToggle: (ProcessIdentity) -> Void
+    let onToggle: (ProcessIdentity, String) -> Void
+    /// Re-runs the recorded query for a search term. The recorded set is far too
+    /// large to filter in the view (see `SamplerModel.loadExitedProcesses`), so it
+    /// arrives already matched; only the live list is filtered here.
+    let onSearch: (String) -> Void
 
     @EnvironmentObject private var appState: AppState
     @State private var search = ""
 
-    private var filtered: [ProcessSample] {
-        guard !search.isEmpty else { return candidates }
-        return candidates.filter {
+    private var filteredLive: [ProcessSample] {
+        guard !search.isEmpty else { return live }
+        return live.filter {
             $0.displayName.localizedCaseInsensitiveContains(search)
                 || $0.name.localizedCaseInsensitiveContains(search)
         }
@@ -1309,6 +1367,7 @@ private struct ProcessPickerList: View {
                     .foregroundStyle(.secondary)
                 TextField("Filter processes", text: $search)
                     .textFieldStyle(.plain)
+                    .onChange(of: search) { onSearch(search) }
                 if !search.isEmpty {
                     Button {
                         search = ""
@@ -1325,10 +1384,33 @@ private struct ProcessPickerList: View {
             Divider()
 
             ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(filtered) { process in
-                        row(for: process)
-                        Divider()
+                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    if !filteredLive.isEmpty {
+                        Section {
+                            ForEach(filteredLive) { process in
+                                liveRow(for: process)
+                                Divider()
+                            }
+                        } header: {
+                            header("Running")
+                        }
+                    }
+                    if !recorded.isEmpty {
+                        Section {
+                            ForEach(recorded) { process in
+                                recordedRow(for: process)
+                                Divider()
+                            }
+                        } header: {
+                            header("Recorded · not running", detail: recordedWindowLabel)
+                        }
+                    }
+                    if filteredLive.isEmpty && recorded.isEmpty {
+                        Text("No matching processes.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 24)
                     }
                 }
             }
@@ -1336,28 +1418,79 @@ private struct ProcessPickerList: View {
         .frame(width: 320, height: 400)
     }
 
-    private func row(for process: ProcessSample) -> some View {
-        let selected = isSelected(process.id)
+    private func header(_ title: String, detail: String? = nil) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            if let detail {
+                Text(detail)
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 5)
+        .background(.bar)
+    }
+
+    private func liveRow(for process: ProcessSample) -> some View {
+        row(
+            identity: process.id, name: process.displayName,
+            executablePath: process.executablePath,
+            subtitle: "PID \(process.pid)",
+            trailing: metric.weightString(process), dimmed: false
+        )
+        .contextMenu {
+            ProcessActionMenu(
+                live: process,
+                showCodesign: {
+                    ProcessRowIntent.showCodesign(
+                        sample: process, appState: appState, bringWindowForward: false)
+                },
+                requestKill: { appState.pendingForceQuit = process.id }
+            )
+        }
+    }
+
+    private func recordedRow(for process: RecordedProcess) -> some View {
+        row(
+            identity: process.identity, name: process.displayName,
+            executablePath: process.executablePath,
+            subtitle: "PID \(process.identity.pid) · exited",
+            trailing: Self.lastSeenLabel(process.lastSeen), dimmed: true)
+    }
+
+    /// The shared row body. Recorded processes are dimmed so the running ones
+    /// still read as the primary list.
+    private func row(
+        identity: ProcessIdentity, name: String, executablePath: String?, subtitle: String,
+        trailing: String, dimmed: Bool
+    ) -> some View {
+        let selected = isSelected(identity)
         let disabled = !selected && !canAddMore
         return Button {
-            onToggle(process.id)
+            onToggle(identity, name)
         } label: {
             HStack(spacing: 9) {
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(selected ? Color.accentColor : Color.secondary.opacity(0.5))
-                Image(nsImage: ProcessIconProvider.shared.icon(forPath: process.executablePath))
+                Image(nsImage: ProcessIconProvider.shared.icon(forPath: executablePath))
                     .resizable()
                     .frame(width: 18, height: 18)
+                    .opacity(dimmed ? 0.6 : 1)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(process.displayName)
+                    Text(name)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    Text("PID \(process.pid)")
+                        .foregroundStyle(dimmed ? .secondary : .primary)
+                    Text(subtitle)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
-                Text(metric.weightString(process))
+                Text(trailing)
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
@@ -1369,15 +1502,24 @@ private struct ProcessPickerList: View {
         .disabled(disabled)
         .opacity(disabled ? 0.4 : 1)
         .help(disabled ? "Remove a process first (eight maximum)." : "")
-        .contextMenu {
-            ProcessActionMenu(
-                live: process,
-                showCodesign: {
-                    ProcessRowIntent.showCodesign(
-                        sample: process, appState: appState, bringWindowForward: false)
-                },
-                requestKill: { appState.pendingForceQuit = process.id }
-            )
-        }
+    }
+
+    /// Time of day for something seen today, otherwise the date: enough to tell
+    /// apart several runs of the same program without widening the row. The
+    /// formatters are shared, since building one is costly and this runs per row.
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f
+    }()
+    private static let dateTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "d MMM HH:mm"
+        return f
+    }()
+
+    private static func lastSeenLabel(_ date: Date) -> String {
+        Calendar.current.isDateInToday(date)
+            ? timeFormatter.string(from: date) : dateTimeFormatter.string(from: date)
     }
 }

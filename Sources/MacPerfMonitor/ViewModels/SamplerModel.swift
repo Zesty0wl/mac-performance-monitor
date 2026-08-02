@@ -331,6 +331,23 @@ final class SamplerModel: ObservableObject {
     }
     private var cachedGroupReports: [GroupKey: (at: Date, report: GroupReport)] = [:]
 
+    /// The Analytics picker's roster of exited-but-recorded processes. A
+    /// dimension-table scan, cheap but not free, and the set only changes as
+    /// processes stop, so cache it for the same span as the leaderboards, keyed
+    /// by window and search term (the search runs in SQL, so each term is its own
+    /// result). Confined to `readQueue`.
+    private struct ExitedKey: Hashable {
+        let window: HistoryWindow
+        let search: String
+    }
+    private var cachedExitedProcesses: [ExitedKey: (at: Date, rows: [RecordedProcess])] = [:]
+    /// How stale a process's `last_seen` may be before the picker calls it exited.
+    /// `last_seen` is refreshed by `touchLastSeen` on the retention pass (every
+    /// 60 s), not per sample, so this is a comfortable multiple of that: a running
+    /// process must never be offered as a recorded one, and the cost of erring
+    /// high is only that a just-exited process takes a couple of minutes to appear.
+    private static let exitedGraceSeconds: TimeInterval = 150
+
     /// System-history reads gain a new raw point only every `persistMinInterval`
     /// (~1.9 s), so a just-under-that TTL returns byte-identical data while
     /// collapsing the per-tick re-reads that the Processes header, Dashboard,
@@ -1871,6 +1888,50 @@ final class SamplerModel: ObservableObject {
         }
     }
 
+    // MARK: - Recorded processes
+
+    /// Processes the history holds rows for over `window` that are no longer
+    /// running, most recently seen first, delivered on the main thread.
+    ///
+    /// This is what the Analytics picker adds to the live process list: a process
+    /// that has exited still has a full recorded series, and its stable identity
+    /// is exactly what the chart queries take; only the picker's live-only
+    /// candidate list stood between the user and charting it.
+    ///
+    /// `search` is pushed down into the query rather than applied to the result,
+    /// because a busy Mac records tens of thousands of short-lived processes a
+    /// day: the most recent page covers only minutes, so filtering it could never
+    /// reach the process the user is actually looking for.
+    func loadExitedProcesses(
+        window: HistoryWindow, search: String = "",
+        completion: @escaping ([RecordedProcess]) -> Void
+    ) {
+        guard let store else {
+            completion([])
+            return
+        }
+        let key = ExitedKey(window: window, search: search)
+        readQueue.async {
+            if let hit = self.cachedExitedProcesses[key],
+                Date().timeIntervalSince(hit.at) < self.consumerMaxAge
+            {
+                DispatchQueue.main.async { completion(hit.rows) }
+                return
+            }
+            let since = Date().addingTimeInterval(-window.seconds)
+            let rows =
+                (try? store.exitedProcesses(
+                    since: since, matching: search, liveWithin: Self.exitedGraceSeconds)) ?? []
+            // Keyed by search term, so an unbounded typing session would otherwise
+            // keep every prefix's page alive.
+            if self.cachedExitedProcesses.count > 24 {
+                self.cachedExitedProcesses.removeAll(keepingCapacity: true)
+            }
+            self.cachedExitedProcesses[key] = (Date(), rows)
+            DispatchQueue.main.async { completion(rows) }
+        }
+    }
+
     /// Load the Team IDs recorded on this machine for the rule editor's picker,
     /// each labelled by its signing organization (read from the certificate, the
     /// same source as the Codesign inspector) with a bundle-id / name fallback.
@@ -1952,6 +2013,7 @@ final class SamplerModel: ObservableObject {
         cachedConsumers.removeAll(keepingCapacity: false)
         cachedEnergyConsumers.removeAll(keepingCapacity: false)
         cachedGroupReports.removeAll(keepingCapacity: false)
+        cachedExitedProcesses.removeAll(keepingCapacity: false)
         cachedSystemHistory.removeAll(keepingCapacity: false)
         cachedRecentSystemHistory.removeAll(keepingCapacity: false)
         cachedPressureEvents = nil
@@ -1965,14 +2027,20 @@ final class SamplerModel: ObservableObject {
     ) -> GroupReport {
         let ids =
             (try? store.groupMemberIDs(rule: rule, window: window, glossary: glossary)) ?? []
-        let members = (try? store.groupMemberConsumers(processIDs: ids, window: window)) ?? []
-        let series = (try? store.groupSeries(processIDs: ids, window: window)) ?? []
+        // The timeline and the member rows come out of one read: they are the same
+        // sum viewed two ways, and the heartbeat bucket is what bounds how far a
+        // member's last value may be carried forward on the sparse raw tier.
+        let breakdown =
+            (try? store.groupBreakdown(
+                processIDs: ids, window: window,
+                bucketSeconds: Self.configuredStandardResInterval())) ?? GroupBreakdown()
+        let members = breakdown.programs
         let decomposition = GroupFootprint.decompose(
-            consumers: members, device: device, weights: weights)
+            programs: members, device: device, weights: weights)
         let totalEnergy = members.reduce(0.0) { $0 + $1.averageEnergy }
         return GroupReport(
-            device: device, decomposition: decomposition, members: members, series: series,
-            totalEnergy: totalEnergy)
+            device: device, decomposition: decomposition, members: members,
+            series: breakdown.series, totalEnergy: totalEnergy)
     }
 
     /// The cached leak board, recomputed only when stale. Must run on `readQueue`.

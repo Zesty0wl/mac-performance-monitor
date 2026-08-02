@@ -7,8 +7,11 @@ import MacPerfMonitorCore
 /// main thread by `SamplerModel.loadGroupReport`.
 struct GroupReport: Sendable {
     var device: GroupFootprint.Device
-    var decomposition: GroupFootprint.Decomposition<ProcessIdentity>
-    var members: [ProcessConsumer]
+    var decomposition: GroupFootprint.Decomposition<String>
+    /// The group's members, one row per program: a process that was quit and
+    /// relaunched, and an app's many identical helper instances, are merged into
+    /// a single member rather than listed once per PID. See `GroupMemberProgram`.
+    var members: [GroupMemberProgram]
     var series: [GroupHistoryPoint]
     /// Summed windowed energy impact across members (reported beside the score,
     /// never folded into it).
@@ -16,9 +19,9 @@ struct GroupReport: Sendable {
 
     init(
         device: GroupFootprint.Device,
-        decomposition: GroupFootprint.Decomposition<ProcessIdentity> = .init(
+        decomposition: GroupFootprint.Decomposition<String> = .init(
             groupScore: 0, contributions: []),
-        members: [ProcessConsumer] = [],
+        members: [GroupMemberProgram] = [],
         series: [GroupHistoryPoint] = [],
         totalEnergy: Double = 0
     ) {
@@ -32,11 +35,10 @@ struct GroupReport: Sendable {
     /// The honest group memory over the window: the time-average of the
     /// **concurrent** member footprint (the per-tick / per-bucket summed
     /// `series`), not the sum of each member's own average. A process that
-    /// stopped and restarted several times in the window is recorded as several
-    /// members, yet only one instance was ever resident at a time; summing their
-    /// averages would multiply that single residency. Averaging the concurrent
-    /// series counts only what was actually co-resident, so a long window no
-    /// longer double-counts restarted processes.
+    /// stopped and restarted several times in the window was resident only once
+    /// at a time; summing per-member averages would multiply that single
+    /// residency. Averaging the concurrent series counts only what was actually
+    /// co-resident, so a long window does not double-count restarted processes.
     var averageFootprint: UInt64 {
         guard !series.isEmpty else { return 0 }
         let total = series.reduce(0.0) { $0 + Double($1.footprint) }
@@ -105,8 +107,16 @@ struct GroupReport: Sendable {
         }
     }
 
-    /// The contribution for a member identity, if present.
-    func contribution(for id: ProcessIdentity) -> GroupFootprint.Contribution<ProcessIdentity>? {
-        decomposition.contributions.first { $0.id == id }
+    /// The contribution for a member program, if present.
+    func contribution(for key: String) -> GroupFootprint.Contribution<String>? {
+        decomposition.contributions.first { $0.id == key }
+    }
+
+    /// The heaviest contributing members, in the order the contribution bars show
+    /// them. Backs the card subtitle, so a card names the programs that actually
+    /// dominate the group rather than whichever happened to sort first.
+    func topMembers(_ count: Int) -> [GroupMemberProgram] {
+        let byKey = Dictionary(members.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
+        return decomposition.contributions.prefix(count).compactMap { byKey[$0.id] }
     }
 }

@@ -123,4 +123,19 @@ public enum GroupFootprint {
             },
             device: device, weights: weights)
     }
+
+    /// Decompose a group whose members have been merged one row per program
+    /// (restarts and concurrent instances of the same executable folded together;
+    /// see `GroupMemberProgram`), returning contributions keyed by merge key.
+    public static func decompose(
+        programs: [GroupMemberProgram],
+        device: Device,
+        weights: Weights = .default
+    ) -> Decomposition<String> {
+        decompose(
+            members: programs.map {
+                (id: $0.key, cpuPercent: $0.averageCPU, physFootprint: $0.averageFootprint)
+            },
+            device: device, weights: weights)
+    }
 }

@@ -332,6 +332,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     let monitorSelection = MonitorSelection()
     let groupStore = ProcessGroupStore.shared
     let menuBarConfiguration = CombinedMenuBarConfiguration()
+    /// Owns the menu's "Hide Notch" toggle: whether the built-in display runs in
+    /// its notch-free mode, so status items get the whole menu bar width.
+    let notchDisplayController = NotchDisplayController()
     /// The app's single AppKit-managed menu bar item and combined metric panel.
     private var combinedStatusItem: CombinedStatusItemController?
     /// Shows/hides the optional Dock icon, in sync with the Settings toggle.
@@ -351,9 +354,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         let combinedStatusItem = CombinedStatusItemController(
             model: model, appState: appState, helperManager: helperManager,
             updateController: updateController,
-            appModeManager: appModeManager, configuration: menuBarConfiguration)
+            appModeManager: appModeManager, configuration: menuBarConfiguration,
+            notchDisplay: notchDisplayController)
         combinedStatusItem.start()
         self.combinedStatusItem = combinedStatusItem
+
+        // Re-assert the remembered notch choice. Runs before anything reads the
+        // menu bar's width, and covers the reboot case where macOS has restored
+        // the notched mode behind us.
+        notchDisplayController.start()
 
         // Per-app network attribution is opt-in (it runs a `nettop`): apply the
         // saved setting now and keep the sampler in sync with the Settings toggle,
