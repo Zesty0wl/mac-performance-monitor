@@ -297,6 +297,12 @@ extension SampleStore {
         }
     }
 
+    /// One program's combined value inside a single dense-tier bucket, summed
+    /// across whichever of its instances reported in that bucket.
+    private typealias BucketTotals = (
+        fp: UInt64, fpPeak: UInt64, cpu: Double, cpuPeak: Double, energy: Double
+    )
+
     /// Running totals for one program while a window is walked: the combined
     /// value its live instances hold right now, and the time-weighted
     /// accumulators that become its averages.
@@ -583,8 +589,7 @@ extension SampleStore {
 
         while i < n {
             let ts: Double = rows[i]["ts"]
-            var bucket: [String: (fp: UInt64, fpPeak: UInt64, cpu: Double, cpuPeak: Double, energy: Double)] =
-                [:]
+            var bucket: [String: BucketTotals] = [:]
             while i < n, (rows[i]["ts"] as Double) == ts {
                 let key = Self.programKey(
                     executablePath: rows[i]["path"], bundleID: rows[i]["bundle"],

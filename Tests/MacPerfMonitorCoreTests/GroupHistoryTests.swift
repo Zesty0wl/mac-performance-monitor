@@ -257,8 +257,10 @@ final class GroupHistoryTests: XCTestCase {
             try insertInstances(
                 base.addingTimeInterval(offset),
                 [
-                    Instance(pid: 100, startTime: base, name: "Helper", footprint: 100 * mb, cpu: 3),
-                    Instance(pid: 101, startTime: base, name: "Helper", footprint: 150 * mb, cpu: 4),
+                    Instance(
+                        pid: 100, startTime: base, name: "Helper", footprint: 100 * mb, cpu: 3),
+                    Instance(
+                        pid: 101, startTime: base, name: "Helper", footprint: 150 * mb, cpu: 4),
                     Instance(pid: 102, startTime: base, name: "Helper", footprint: 50 * mb, cpu: 1),
                 ])
         }
