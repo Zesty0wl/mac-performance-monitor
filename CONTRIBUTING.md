@@ -36,6 +36,17 @@ swift format lint --strict --recursive Sources Tests Package.swift
 swift format --in-place --recursive Sources Tests Package.swift
 ```
 
+Formatting is the one thing CI has ever failed on here, so there is a hook that
+checks staged Swift files before a commit is made. Turn it on once per clone:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+`Scripts/install.sh` runs the same check before it builds, so a release can
+never be cut from code CI will reject. Set `SKIP_LINT=1` to bypass it for a
+local-only build.
+
 CI must stay green with no secrets and no code signing, so any fork gets a
 working build on the first try.
 
