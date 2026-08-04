@@ -6,6 +6,27 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [1.3.6] - 2026-08-04
+
+### Fixed
+
+- **Exited processes keep their real name:** an app could be recorded in the
+  history under the name "xpcproxy" instead of its own, so killing (say)
+  Microsoft Word left the Analytics picker offering an "xpcproxy" entry with
+  Word's data. macOS launches apps through an xpcproxy trampoline that becomes
+  the app in place, and a sample straddling that moment captured the trampoline's
+  name with the app's path; the recording cache then froze that first glimpse for
+  the whole session. The store now refreshes a process's recorded name, path, and
+  bundle when they change, and rows already recorded with the trampoline's name
+  resolve their display name from the executable path, so existing history heals
+  without a migration.
+- **Real icons for exited processes:** the Analytics legend and picker showed
+  this app's own icon for any process that was no longer running. The executable
+  path is now captured when a process is added to the chart, so an exited process
+  keeps its actual app icon. Processes with no usable path, or whose binary has
+  since been deleted, show the system's generic executable icon rather than
+  masquerading as this app.
+
 ## [1.3.5] - 2026-08-02
 
 ### Added

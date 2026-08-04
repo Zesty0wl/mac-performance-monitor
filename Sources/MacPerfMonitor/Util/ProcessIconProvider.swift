@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Resolves and caches process icons from executable paths. `NSWorkspace`
 /// already caches icon images internally, but this avoids repeated lookups on
@@ -14,7 +15,10 @@ final class ProcessIconProvider {
     static let shared = ProcessIconProvider()
 
     private let cache = NSCache<NSString, NSImage>()
-    private let fallback = NSImage(named: NSImage.applicationIconName) ?? NSImage()
+    /// Generic executable icon for processes with no usable path. Deliberately
+    /// NOT this app's own icon (`NSImage.applicationIconName`), which made every
+    /// path-less or exited-and-deleted process masquerade as this app.
+    private let fallback = NSWorkspace.shared.icon(for: .unixExecutable)
 
     init() {
         cache.countLimit = 256
@@ -41,6 +45,10 @@ final class ProcessIconProvider {
         {
             return NSWorkspace.shared.icon(forFile: bundlePath)
         }
+        // An exited process's binary can be gone entirely (uninstalled app,
+        // temporary tool); asking the workspace for a missing file yields a
+        // blank-document icon, so prefer the honest generic-executable one.
+        guard FileManager.default.fileExists(atPath: path) else { return fallback }
         return NSWorkspace.shared.icon(forFile: path)
     }
 

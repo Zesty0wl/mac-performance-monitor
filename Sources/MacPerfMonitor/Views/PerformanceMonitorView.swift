@@ -38,6 +38,9 @@ struct PerformanceMonitorView: View {
     private var selected: [ProcessIdentity] { monitor.identities }
     /// Captured display names, so an exited process keeps its label on the chart.
     @State private var names: [ProcessIdentity: String] = [:]
+    /// Captured executable paths, so an exited process keeps its real icon in
+    /// the legend instead of decaying to the generic fallback.
+    @State private var paths: [ProcessIdentity: String] = [:]
     /// Palette slot per process, held stable across additions and removals.
     @State private var colorSlots: [ProcessIdentity: Int] = [:]
     /// Raw per-process points backing every metric; the chart derives the
@@ -715,10 +718,13 @@ struct PerformanceMonitorView: View {
                 .fill(color(for: id))
                 .frame(width: 11, height: 11)
 
-            Image(nsImage: ProcessIconProvider.shared.icon(forPath: sample?.executablePath))
-                .resizable()
-                .frame(width: 18, height: 18)
-                .opacity(isLive ? 1 : 0.5)
+            Image(
+                nsImage: ProcessIconProvider.shared.icon(
+                    forPath: sample?.executablePath ?? paths[id])
+            )
+            .resizable()
+            .frame(width: 18, height: 18)
+            .opacity(isLive ? 1 : 0.5)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(name(for: id))
@@ -1241,12 +1247,14 @@ struct PerformanceMonitorView: View {
 
     // MARK: - Selection management
 
-    /// Pin or unpin a process. The display name comes from the picker rather than
-    /// the live process list, because a process added from the recorded list has
-    /// already exited: `syncDerivedState` could only label it "PID 1234". Set
-    /// before the toggle so the reconcile it triggers leaves it alone.
-    private func toggle(_ id: ProcessIdentity, name: String) {
+    /// Pin or unpin a process. The display name and executable path come from
+    /// the picker rather than the live process list, because a process added
+    /// from the recorded list has already exited: `syncDerivedState` could only
+    /// label it "PID 1234" with a generic icon. Set before the toggle so the
+    /// reconcile it triggers leaves them alone.
+    private func toggle(_ id: ProcessIdentity, name: String, executablePath: String?) {
         if names[id] == nil { names[id] = name }
+        if paths[id] == nil, let executablePath { paths[id] = executablePath }
         monitor.toggle(id)
     }
 
@@ -1266,6 +1274,7 @@ struct PerformanceMonitorView: View {
         for gone in Set(colorSlots.keys).subtracting(pinned) {
             colorSlots[gone] = nil
             names[gone] = nil
+            paths[gone] = nil
             rawSeries[gone] = nil
             if highlighted == gone { highlighted = nil }
         }
@@ -1276,6 +1285,7 @@ struct PerformanceMonitorView: View {
             assignColor(id)
             if let sample = model.currentSample(for: id) {
                 names[id] = sample.displayName
+                if let path = sample.executablePath { paths[id] = path }
             }
             rawSeries[id] = trimmed(model.trailSamples(for: id))
             addedAny = true
@@ -1343,7 +1353,7 @@ private struct ProcessPickerList: View {
     let metric: PerfMetric
     let isSelected: (ProcessIdentity) -> Bool
     let canAddMore: Bool
-    let onToggle: (ProcessIdentity, String) -> Void
+    let onToggle: (ProcessIdentity, String, String?) -> Void
     /// Re-runs the recorded query for a search term. The recorded set is far too
     /// large to filter in the view (see `SamplerModel.loadExitedProcesses`), so it
     /// arrives already matched; only the live list is filtered here.
@@ -1471,7 +1481,7 @@ private struct ProcessPickerList: View {
         let selected = isSelected(identity)
         let disabled = !selected && !canAddMore
         return Button {
-            onToggle(identity, name)
+            onToggle(identity, name, executablePath)
         } label: {
             HStack(spacing: 9) {
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")

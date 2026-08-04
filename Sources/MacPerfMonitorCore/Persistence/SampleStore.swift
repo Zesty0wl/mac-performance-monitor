@@ -3,10 +3,26 @@ import GRDB
 
 /// Writes sampler snapshots into the database (batched, one transaction per
 /// tick) and reads them back for the UI. Holds an in-memory identity -> row-id
-/// cache so each process needs at most one upsert per session.
+/// cache so each process needs at most one upsert per session, unless its
+/// identity fields change underneath the cache (see `CachedProcessRow`).
 public final class SampleStore {
     private let pool: DatabasePool
-    private var processIDCache: [ProcessIdentity: Int64] = [:]
+
+    /// A cached dimension-row id together with the identity fields it was
+    /// written with. The fields are compared on every insert so a process whose
+    /// name, path, or bundle changes after first sight gets its row re-upserted
+    /// rather than freezing the first glimpse for the whole session. That
+    /// matters for app launches: launchd spawns an `xpcproxy` trampoline that
+    /// execs the real binary under the same pid and start time, and a sample
+    /// tick can straddle the exec, recording the trampoline's name against the
+    /// app's path forever (a Word session whose history row said "xpcproxy").
+    private struct CachedProcessRow {
+        var id: Int64
+        var name: String
+        var executablePath: String?
+        var bundleID: String?
+    }
+    private var processIDCache: [ProcessIdentity: CachedProcessRow] = [:]
 
     /// The gate-relevant fields of the last raw row actually WRITTEN for a
     /// process, for change-gated inserts (`insertChanged`). A process whose
@@ -200,7 +216,7 @@ public final class SampleStore {
     /// replaces the ~600 re-upserts the old wholesale cache clear forced every
     /// minute. Like the cache itself, must be called on the writer's queue.
     public func touchLastSeen(keeping live: Set<ProcessIdentity>, now: Date = Date()) {
-        let ids = live.compactMap { processIDCache[$0] }
+        let ids = live.compactMap { processIDCache[$0]?.id }
         guard !ids.isEmpty else { return }
         let ts = now.timeIntervalSince1970
         try? pool.write { db in
@@ -270,7 +286,16 @@ public final class SampleStore {
     }
 
     private func processID(for s: ProcessSample, db: Database) throws -> Int64 {
-        if let cached = processIDCache[s.id] { return cached }
+        // Short-circuit only while the identity fields still match what was
+        // written; a mismatch (the post-exec tick after an xpcproxy launch)
+        // falls through so the upsert refreshes the row.
+        if let cached = processIDCache[s.id],
+            cached.name == s.name,
+            cached.executablePath == s.executablePath,
+            cached.bundleID == s.bundleID
+        {
+            return cached.id
+        }
         let statement = try db.cachedStatement(
             sql: """
                 INSERT INTO processes
@@ -294,7 +319,8 @@ public final class SampleStore {
                 s.timestamp.timeIntervalSince1970, s.timestamp.timeIntervalSince1970,
             ])
         guard let id else { throw DatabaseError(message: "failed to upsert process row") }
-        processIDCache[s.id] = id
+        processIDCache[s.id] = CachedProcessRow(
+            id: id, name: s.name, executablePath: s.executablePath, bundleID: s.bundleID)
         return id
     }
 

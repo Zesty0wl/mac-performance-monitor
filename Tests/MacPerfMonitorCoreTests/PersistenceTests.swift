@@ -23,13 +23,15 @@ final class PersistenceTests: XCTestCase {
 
     private func insertTick(
         _ timestamp: Date, footprint: UInt64, pid: Int32 = 1000,
-        startTime: Date = Date(timeIntervalSince1970: 1_000_000)
+        startTime: Date = Date(timeIntervalSince1970: 1_000_000),
+        name: String = "TestProc"
     ) throws {
         let snapshot = Sampler.Snapshot(
             system: Make.system(timestamp: timestamp, pressurePercent: 10),
             processes: [
                 Make.process(
-                    timestamp: timestamp, pid: pid, startTime: startTime, footprint: footprint)
+                    timestamp: timestamp, pid: pid, startTime: startTime, name: name,
+                    footprint: footprint)
             ],
             unreadableProcessCount: 3
         )
@@ -148,6 +150,38 @@ final class PersistenceTests: XCTestCase {
         let stranger = ProcessIdentity(pid: 4242, startTime: t0)
         store.touchLastSeen(keeping: [stranger], now: t2.addingTimeInterval(600))
         XCTAssertEqual(try lastSeen(), t2.timeIntervalSince1970, accuracy: 0.001)
+    }
+
+    func testProcessRowHealsWhenNameChangesAfterExec() throws {
+        // An app launch goes launchd -> xpcproxy -> exec(app binary), keeping
+        // pid and start time, so the first sample of the pid can carry the
+        // trampoline's name. The id cache must not freeze that first glimpse:
+        // a later tick with different identity fields re-upserts the row.
+        let t0 = Date(timeIntervalSince1970: 1_700_000_000)
+        try insertTick(t0, footprint: 100 * 1024 * 1024, name: "xpcproxy")
+        try insertTick(
+            t0.addingTimeInterval(2), footprint: 100 * 1024 * 1024, name: "Microsoft Word")
+
+        let rows = try store.databasePool.read { db in
+            try Row.fetchAll(db, sql: "SELECT name, bundle_id, last_seen FROM processes")
+        }
+        // Same identity: healed in place, not duplicated.
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows[0]["name"] as String, "Microsoft Word")
+        XCTAssertEqual(rows[0]["bundle_id"] as String?, "com.test.Microsoft Word")
+        // The healing upsert also advances last_seen to the second tick.
+        XCTAssertEqual(
+            rows[0]["last_seen"] as Double, t0.addingTimeInterval(2).timeIntervalSince1970,
+            accuracy: 0.001)
+
+        // A third tick with unchanged fields takes the cache short-circuit
+        // again: last_seen stays put until touchLastSeen.
+        try insertTick(
+            t0.addingTimeInterval(600), footprint: 200 * 1024 * 1024, name: "Microsoft Word")
+        let lastSeen = try store.databasePool.read { db in
+            try Double.fetchOne(db, sql: "SELECT last_seen FROM processes")!
+        }
+        XCTAssertEqual(lastSeen, t0.addingTimeInterval(2).timeIntervalSince1970, accuracy: 0.001)
     }
 
     func testRetentionRollsRawIntoMinuteAndTrims() throws {

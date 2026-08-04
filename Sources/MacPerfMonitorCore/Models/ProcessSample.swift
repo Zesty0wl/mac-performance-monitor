@@ -108,6 +108,15 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
         if !base.isEmpty, base.count > name.count, base.hasPrefix(name) {
             return base
         }
+        // A recorded row can pair the launchd trampoline's name with the real
+        // binary's path: app launches go launchd -> xpcproxy -> exec, keeping
+        // pid and start time, and a sample straddling the exec captures the
+        // old name with the new path. History rows written before the store
+        // healed such rows still say "xpcproxy", so when the path disagrees,
+        // trust the path.
+        if name == "xpcproxy", !base.isEmpty, base != name {
+            return base
+        }
         return name
     }
 

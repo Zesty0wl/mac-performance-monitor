@@ -22,6 +22,49 @@ final class ByteFormatTests: XCTestCase {
     }
 }
 
+final class ResolvedDisplayNameTests: XCTestCase {
+    func testRecoversKernelTruncatedName() {
+        XCTAssertEqual(
+            ProcessSample.resolvedDisplayName(
+                name: "com.apple.WebK",
+                executablePath: "/System/Frameworks/WebKit/com.apple.WebKit.WebContent"),
+            "com.apple.WebKit.WebContent")
+    }
+
+    func testKeepsNameWhenPathAgrees() {
+        XCTAssertEqual(
+            ProcessSample.resolvedDisplayName(
+                name: "Finder",
+                executablePath: "/System/Library/CoreServices/Finder.app/Contents/MacOS/Finder"),
+            "Finder")
+    }
+
+    func testKeepsNameWithoutPath() {
+        XCTAssertEqual(
+            ProcessSample.resolvedDisplayName(name: "kernel_task", executablePath: nil),
+            "kernel_task")
+        XCTAssertEqual(
+            ProcessSample.resolvedDisplayName(name: "launchd", executablePath: ""), "launchd")
+    }
+
+    func testTrustsPathOverTrampolineName() {
+        // A history row can pair xpcproxy's name with the exec'd binary's path
+        // (the sample straddled the exec); the path names the real program.
+        XCTAssertEqual(
+            ProcessSample.resolvedDisplayName(
+                name: "xpcproxy",
+                executablePath: "/Applications/Microsoft Word.app/Contents/MacOS/Microsoft Word"),
+            "Microsoft Word")
+    }
+
+    func testGenuineTrampolineKeepsItsName() {
+        XCTAssertEqual(
+            ProcessSample.resolvedDisplayName(
+                name: "xpcproxy", executablePath: "/usr/libexec/xpcproxy"),
+            "xpcproxy")
+    }
+}
+
 final class PressureLevelTests: XCTestCase {
     func testRawMapping() {
         XCTAssertEqual(PressureLevel(rawLevel: 1), .normal)
