@@ -119,6 +119,14 @@ public final class AlertEngine {
     /// Fraction of a threshold a value must fall back below before its alert
     /// re-arms, damping oscillation around the threshold.
     private let rearmFraction = 0.8
+    /// Minimum time between two deliveries of the same alert id. A sustained
+    /// condition that flaps (for example memory pressure bouncing critical to
+    /// normal to critical while the kernel compresses and swaps) re-arms the
+    /// edge trigger on each recovery tick, so without this guard it would
+    /// re-fire a notification on every flap. The throttle drops the repeat
+    /// deliveries while leaving the per-kind armed flags untouched, so a
+    /// suppressed condition still reports as active until it truly recovers.
+    private let refireCooldown: TimeInterval
 
     private var pressureArmed = true
     private var swapArmed = true
@@ -130,13 +138,24 @@ public final class AlertEngine {
     /// does. Nil while CPU is below the threshold. Time-based rather than a tick
     /// count, so it is unaffected by the sampling cadence.
     private var highCPUSince: Date?
+    /// Last delivery time per alert id, used to suppress re-fires inside the
+    /// cooldown window. Recorded only for alerts that survive the throttle, so
+    /// a sustained flap cannot slide the window forward and starve the later
+    /// notifications it should still deliver.
+    private var lastFiredAt: [String: Date] = [:]
     /// Conditions that are active after the most recent evaluation. Unlike the
     /// returned alerts, this remains populated until each condition recovers.
     public private(set) var activeKinds: Set<Alert.Kind> = []
     /// How long total CPU must stay at/above the threshold before alerting.
     private let sustainedCPUDuration: TimeInterval = 8
 
-    public init() {}
+    /// - Parameter refireCooldown: minimum seconds between two deliveries of
+    ///   the same alert id. Defaults to 5 minutes, which keeps a flapping
+    ///   sustained condition from re-firing on every flap. Pass 0 to disable
+    ///   the throttle entirely.
+    public init(refireCooldown: TimeInterval = 300) {
+        self.refireCooldown = refireCooldown
+    }
 
     /// Evaluate one tick. `leakingProcesses` is supplied by the caller from the
     /// leak board (leak detection needs a series, not a single sample). Returns
@@ -157,6 +176,20 @@ public final class AlertEngine {
             processes, leakingProcesses: leakingProcesses, config: config, now: now, into: &alerts)
         evaluateCPU(cpu, config: config, now: now, into: &alerts)
         refreshActiveKinds()
+        // Throttle notification delivery per alert id: drop any alert whose id
+        // was already delivered inside the cooldown window. The armed flags
+        // above are final, so a suppressed alert still marks its kind active
+        // (refreshActiveKinds already ran). Record the delivery time only for
+        // survivors; recording it for a suppressed alert would slide the window
+        // forward on every flap and starve the re-fire that should land once
+        // the cooldown genuinely elapses.
+        alerts = alerts.filter { alert in
+            if let last = lastFiredAt[alert.id], now.timeIntervalSince(last) < refireCooldown {
+                return false
+            }
+            lastFiredAt[alert.id] = now
+            return true
+        }
         return alerts
     }
 
@@ -169,6 +202,7 @@ public final class AlertEngine {
         leakFired.removeAll()
         cpuArmed = true
         highCPUSince = nil
+        lastFiredAt.removeAll()
         activeKinds.removeAll()
     }
 

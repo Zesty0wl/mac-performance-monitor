@@ -6,6 +6,17 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Quiet the notification spam during a sustained memory crisis:** real memory
+  pressure can bounce between critical and normal while the kernel compresses,
+  swaps, and throttles, and every bounce re-armed the alert so the next critical
+  tick fired a fresh notification. The engine now delivers at most one
+  notification for each alert during a cooldown window (five minutes by default),
+  so a condition that keeps flapping notifies once instead of re-firing on every
+  flap. The condition is still tracked and shown as active until it genuinely
+  recovers; only the repeat notifications are held back.
+
 ## [1.3.6] - 2026-08-04
 
 ### Fixed
