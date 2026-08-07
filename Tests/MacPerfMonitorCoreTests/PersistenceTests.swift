@@ -24,14 +24,15 @@ final class PersistenceTests: XCTestCase {
     private func insertTick(
         _ timestamp: Date, footprint: UInt64, pid: Int32 = 1000,
         startTime: Date = Date(timeIntervalSince1970: 1_000_000),
-        name: String = "TestProc"
+        name: String = "TestProc",
+        teamID: String? = nil
     ) throws {
         let snapshot = Sampler.Snapshot(
             system: Make.system(timestamp: timestamp, pressurePercent: 10),
             processes: [
                 Make.process(
                     timestamp: timestamp, pid: pid, startTime: startTime, name: name,
-                    footprint: footprint)
+                    teamID: teamID, footprint: footprint)
             ],
             unreadableProcessCount: 3
         )
@@ -182,6 +183,31 @@ final class PersistenceTests: XCTestCase {
             try Double.fetchOne(db, sql: "SELECT last_seen FROM processes")!
         }
         XCTAssertEqual(lastSeen, t0.addingTimeInterval(2).timeIntervalSince1970, accuracy: 0.001)
+    }
+
+    func testTeamIDPersistsWhenResolvedAfterFirstSight() throws {
+        // The sampler resolves a team id via codesign for only ~30 processes
+        // per tick while ~800 run, so a process is usually first seen with
+        // teamID nil and only gains a real id on a later tick. The id cache
+        // must not short-circuit that later upsert (the identity fields name,
+        // path, and bundle are unchanged), or the processes row keeps team_id
+        // NULL forever and vendor grouping, which keys on team_id, silently
+        // breaks for the bulk of processes after every app launch.
+        let t0 = Date(timeIntervalSince1970: 1_700_000_000)
+        try insertTick(t0, footprint: 100 * 1024 * 1024)  // first sight: teamID nil
+        try insertTick(
+            t0.addingTimeInterval(2), footprint: 100 * 1024 * 1024, teamID: "ABCDE12345")
+
+        let rows = try store.databasePool.read { db in
+            try Row.fetchAll(db, sql: "SELECT team_id, name, bundle_id FROM processes")
+        }
+        // Same identity healed in place, not duplicated.
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows[0]["team_id"] as String?, "ABCDE12345")
+        // The COALESCE upsert refreshed only team_id; the other dimensions are
+        // carried over from the first sight unchanged.
+        XCTAssertEqual(rows[0]["name"] as String, "TestProc")
+        XCTAssertEqual(rows[0]["bundle_id"] as String?, "com.test.TestProc")
     }
 
     func testRetentionRollsRawIntoMinuteAndTrims() throws {
