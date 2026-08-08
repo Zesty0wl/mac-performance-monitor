@@ -126,12 +126,27 @@ public enum MemoryToolRunner {
                 )
             }
 
-            let text = String(decoding: data, as: UTF8.self)
-            if text.isEmpty {
-                return timedOut ? .failure(.timedOut) : .failure(.noOutput)
-            }
-            return .success(text)
+            return Self.resolveResult(timedOut: timedOut, data: data)
         }
+    }
+
+    /// Turn the captured bytes into the final result. A timeout wins regardless
+    /// of any partial output: when the child is killed for exceeding the hard
+    /// limit it was stopped mid-run, so whatever it printed is neither complete
+    /// nor trustworthy and must never be reported as success. Only a run that
+    /// finished in time and produced output is a success; an in-time run that
+    /// printed nothing is a distinct no-output failure.
+    ///
+    /// Pulled out of `run` so the precedence (timeout over partial output) is
+    /// unit-testable without spawning a real Apple tool, which could not
+    /// reproduce a timeout-with-output case deterministically.
+    static func resolveResult(
+        timedOut: Bool, data: Data
+    ) -> Result<String, RunError> {
+        if timedOut { return .failure(.timedOut) }
+        let text = String(decoding: data, as: UTF8.self)
+        if text.isEmpty { return .failure(.noOutput) }
+        return .success(text)
     }
 
     /// Stop a runaway child: ask politely, then force-kill if it lingers.
