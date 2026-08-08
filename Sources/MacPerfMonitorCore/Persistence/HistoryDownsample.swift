@@ -1,14 +1,13 @@
 import Foundation
-import MacPerfMonitorCore
 
 extension Array where Element == SystemHistoryPoint {
     /// Break the series into contiguous runs wherever two consecutive samples
     /// are further apart than the median spacing × 15 (with a 30-second floor).
     /// This is the same heuristic MetricChart uses for per-process data: ordinary
     /// jitter and the occasional missed tick are bridged, but a genuine absence
-    /// — the Mac asleep, the app not running — leaves a blank gap instead of a
+    /// (the Mac asleep, the app not running) leaves a blank gap instead of a
     /// straight diagonal across the hole.
-    func splitIntoSegments() -> [[SystemHistoryPoint]] {
+    public func splitIntoSegments() -> [[SystemHistoryPoint]] {
         guard !isEmpty else { return [] }
         let threshold = gapThreshold()
         var result: [[SystemHistoryPoint]] = []
@@ -46,19 +45,19 @@ extension Array where Element == SystemHistoryPoint {
     /// only on its timestamp, not on how many samples are in the array, so
     /// appending the newest sample (or trimming the oldest) only ever changes the
     /// rightmost bucket. The historical shape holds still and the series simply
-    /// slides left as time advances — instead of every bucket's contents (and the
+    /// slides left as time advances, instead of every bucket's contents (and the
     /// whole shape) shifting on each tick, which is what an index-based
     /// `count / maxCount` split does the moment `count` changes.
     ///
     /// `span` is the selected window's length (e.g. `range.seconds`). Deriving
-    /// the width from this FIXED span — not the data's own min…max extent, which
-    /// grows every tick — is essential to that stability; each bucket's point is
-    /// dated to its grid start so the x-positions never wander.
+    /// the width from this FIXED span (not the data's own min-to-max extent,
+    /// which grows every tick) is essential to that stability; each bucket's
+    /// point is dated to its grid start so the x-positions never wander.
     ///
     /// Byte fields are averaged per bucket; `pressurePercent` keeps the bucket
     /// peak so the spikes the pressure charts exist to show (and the Insights
     /// event markers point at) are preserved rather than averaged away.
-    func chartDownsampled(span: TimeInterval, to maxCount: Int) -> [SystemHistoryPoint] {
+    public func chartDownsampled(span: TimeInterval, to maxCount: Int) -> [SystemHistoryPoint] {
         guard count > maxCount, maxCount > 0, span > 0 else { return self }
         let width = span / Double(maxCount)
         func bucketIndex(_ p: SystemHistoryPoint) -> Double {
@@ -93,7 +92,7 @@ extension Array where Element == SystemHistoryPoint {
                     // CPU is inherently spiky, so average rather than peak per
                     // bucket; a max-collapsed line would read as permanently high.
                     cpuLoad: dmean { $0.cpuLoad },
-                    // Carry the battery scalars through too — omitting them
+                    // Carry the battery scalars through too: omitting them
                     // defaulted them to 0, which collapsed the Battery tab's
                     // charge/power lines to a flat zero on any downsampled range.
                     batteryCharge: dmean { $0.batteryCharge },
@@ -103,7 +102,16 @@ extension Array where Element == SystemHistoryPoint {
                     // Network is bursty, so average per bucket (a max-collapsed
                     // line would read as permanently saturated), like CPU.
                     networkInBytesPerSec: dmean { $0.networkInBytesPerSec },
-                    networkOutBytesPerSec: dmean { $0.networkOutBytesPerSec }
+                    networkOutBytesPerSec: dmean { $0.networkOutBytesPerSec },
+                    // Disk throughput is bursty too, so average per bucket like
+                    // network. Carrying these through is the same fix the battery
+                    // and network scalars already got: leaving them out defaulted
+                    // them to 0 and flattened the Disk tab's read/write trend on
+                    // any range whose point count exceeded the chart cap.
+                    diskReadBytesPerSec: dmean { $0.diskReadBytesPerSec },
+                    diskWriteBytesPerSec: dmean { $0.diskWriteBytesPerSec },
+                    diskReadOperationsPerSec: dmean { $0.diskReadOperationsPerSec },
+                    diskWriteOperationsPerSec: dmean { $0.diskWriteOperationsPerSec }
                 ))
             i = j
         }
