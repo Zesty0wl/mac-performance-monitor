@@ -16,6 +16,16 @@ Notable changes to Mac Performance Monitor. This project follows
   so a condition that keeps flapping notifies once instead of re-firing on every
   flap. The condition is still tracked and shown as active until it genuinely
   recovers; only the repeat notifications are held back.
+- **Vendor grouping works for processes whose team id resolves late:** the
+  recording cache short-circuited the per-process upsert on (name, path,
+  bundle id) without checking the team id, so a process first seen with
+  team_id nil (the common case, since codesign lookups are expensive and the
+  sampler resolves a team id for only ~30 of ~800 processes per tick) and
+  later resolved to a real team id never had that id written, leaving the row
+  NULL forever. Grouping by vendor, which keys on team_id, therefore broke
+  for the bulk of processes after every app launch. The cache now carries the
+  team id and compares it, so a late-resolved id defeats the short-circuit and
+  the row's existing COALESCE upsert heals it in place.
 
 ## [1.3.6] - 2026-08-04
 

@@ -10,17 +10,24 @@ public final class SampleStore {
 
     /// A cached dimension-row id together with the identity fields it was
     /// written with. The fields are compared on every insert so a process whose
-    /// name, path, or bundle changes after first sight gets its row re-upserted
-    /// rather than freezing the first glimpse for the whole session. That
-    /// matters for app launches: launchd spawns an `xpcproxy` trampoline that
-    /// execs the real binary under the same pid and start time, and a sample
-    /// tick can straddle the exec, recording the trampoline's name against the
-    /// app's path forever (a Word session whose history row said "xpcproxy").
+    /// name, path, bundle, or team id changes after first sight gets its row
+    /// re-upserted rather than freezing the first glimpse for the whole session.
+    /// That matters for app launches: launchd spawns an `xpcproxy` trampoline
+    /// that execs the real binary under the same pid and start time, and a
+    /// sample tick can straddle the exec, recording the trampoline's name
+    /// against the app's path forever (a Word session whose history row said
+    /// "xpcproxy"). It matters for team id too: the sampler resolves a team id
+    /// via codesign for only a few dozen processes per tick while hundreds run,
+    /// so a process is usually first seen with team_id nil and only gains a
+    /// real id on a later tick. Without comparing team_id the cache would
+    /// short-circuit that later upsert and leave the row NULL forever, breaking
+    /// vendor grouping.
     private struct CachedProcessRow {
         var id: Int64
         var name: String
         var executablePath: String?
         var bundleID: String?
+        var teamID: String?
     }
     private var processIDCache: [ProcessIdentity: CachedProcessRow] = [:]
 
@@ -292,7 +299,8 @@ public final class SampleStore {
         if let cached = processIDCache[s.id],
             cached.name == s.name,
             cached.executablePath == s.executablePath,
-            cached.bundleID == s.bundleID
+            cached.bundleID == s.bundleID,
+            cached.teamID == s.teamID
         {
             return cached.id
         }
@@ -320,7 +328,8 @@ public final class SampleStore {
             ])
         guard let id else { throw DatabaseError(message: "failed to upsert process row") }
         processIDCache[s.id] = CachedProcessRow(
-            id: id, name: s.name, executablePath: s.executablePath, bundleID: s.bundleID)
+            id: id, name: s.name, executablePath: s.executablePath, bundleID: s.bundleID,
+            teamID: s.teamID)
         return id
     }
 
