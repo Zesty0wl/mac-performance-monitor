@@ -26,6 +26,19 @@ Notable changes to Mac Performance Monitor. This project follows
   for the bulk of processes after every app launch. The cache now carries the
   team id and compares it, so a late-resolved id defeats the short-circuit and
   the row's existing COALESCE upsert heals it in place.
+- **Disk tab trend no longer flattens to zero on long ranges:** the Disk tab's
+  read/write trend lines collapsed to a flat zero on any dashboard range whose
+  point count exceeded the chart cap (the six-hour, day, and longer windows),
+  even though the underlying raw and minute-tier rows carried the values. The
+  chart downsampler builds one averaged point per time bucket, and it carried
+  the pressure, memory, CPU, battery, and network scalars through but omitted
+  the four disk-throughput fields, so they defaulted to 0. The four disk
+  scalars (read and write bytes per second, and read and write operations per
+  second) are now averaged per bucket like the network scalars, the same fix
+  the battery and network fields already got. The downsampler also moved from
+  the app target into `MacPerfMonitorCore/Persistence` (alongside the history
+  type it operates on), bringing this chart-path function under the headless
+  test suite for the first time.
 
 ## [1.3.6] - 2026-08-04
 
