@@ -8,6 +8,14 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Fixed
 
+- **Quiet the notification spam during a sustained memory crisis:** real memory
+  pressure can bounce between critical and normal while the kernel compresses,
+  swaps, and throttles, and every bounce re-armed the alert so the next critical
+  tick fired a fresh notification. The engine now delivers at most one
+  notification for each alert during a cooldown window (five minutes by default),
+  so a condition that keeps flapping notifies once instead of re-firing on every
+  flap. The condition is still tracked and shown as active until it genuinely
+  recovers; only the repeat notifications are held back.
 - **Vendor grouping works for processes whose team id resolves late:** the
   recording cache short-circuited the per-process upsert on (name, path,
   bundle id) without checking the team id, so a process first seen with

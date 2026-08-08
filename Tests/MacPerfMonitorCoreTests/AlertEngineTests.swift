@@ -13,7 +13,9 @@ final class AlertEngineTests: XCTestCase {
     // MARK: - Critical pressure
 
     func testCriticalPressureFiresOnceThenRearmsAfterRecovery() {
-        let engine = AlertEngine()
+        // A cooldown of 0 disables the per-id throttle so the re-arm path can
+        // re-fire on the next crossing, which is what this test exercises.
+        let engine = AlertEngine(refireCooldown: 0)
         let config = AlertConfig(criticalPressureEnabled: true)
 
         XCTAssertTrue(
@@ -59,10 +61,55 @@ final class AlertEngineTests: XCTestCase {
                 .isEmpty)
     }
 
+    // MARK: - Refire cooldown
+
+    func testSustainedFlapRefiresAtMostOncePerCooldown() {
+        let engine = AlertEngine(refireCooldown: 300)
+        let config = AlertConfig(criticalPressureEnabled: true)
+        let t0 = Date(timeIntervalSince1970: 1_700_000_000)
+
+        // Step 1: the first critical tick of a sustained crisis fires exactly
+        // once and is delivered.
+        let first = engine.evaluate(
+            system: Make.system(timestamp: t0, pressure: .critical),
+            processes: [], config: config, now: t0)
+        XCTAssertEqual(first.map(\.kind), [.criticalPressure])
+
+        // Step 2: the crisis keeps flapping (normal to critical) several times
+        // WITHIN the cooldown window. Each recovery re-arms the edge trigger,
+        // so without the throttle every critical tick here would deliver a
+        // fresh alert. All of them are suppressed, and none may advance the
+        // cooldown window: recording a delivery time for a suppressed tick
+        // would slide the window forward and starve the re-fire step 3 expects.
+        for offset in [10.0, 60.0, 180.0, 290.0] {
+            _ = engine.evaluate(
+                system: Make.system(
+                    timestamp: t0.addingTimeInterval(offset - 2), pressure: .normal),
+                processes: [], config: config, now: t0.addingTimeInterval(offset - 2))
+            let suppressed = engine.evaluate(
+                system: Make.system(timestamp: t0.addingTimeInterval(offset), pressure: .critical),
+                processes: [], config: config, now: t0.addingTimeInterval(offset))
+            XCTAssertEqual(suppressed, [])
+        }
+
+        // Step 3: once the cooldown measured from the FIRST delivery (t0) has
+        // elapsed, the next flap re-fires exactly once. The last suppressed
+        // tick was at t0 + 290, only 13 s before this retry, so a slide-forward
+        // bug (recording suppressed ticks) would still suppress it and starve
+        // the crisis. The survivor-only implementation fires here.
+        _ = engine.evaluate(
+            system: Make.system(timestamp: t0.addingTimeInterval(301), pressure: .normal),
+            processes: [], config: config, now: t0.addingTimeInterval(301))
+        let afterCooldown = engine.evaluate(
+            system: Make.system(timestamp: t0.addingTimeInterval(303), pressure: .critical),
+            processes: [], config: config, now: t0.addingTimeInterval(303))
+        XCTAssertEqual(afterCooldown.map(\.kind), [.criticalPressure])
+    }
+
     // MARK: - Swap
 
     func testSwapThresholdFiresWithHysteresis() {
-        let engine = AlertEngine()
+        let engine = AlertEngine(refireCooldown: 0)
         let config = AlertConfig(swapEnabled: true, swapThresholdBytes: 3 * gb)
 
         XCTAssertTrue(
@@ -90,7 +137,7 @@ final class AlertEngineTests: XCTestCase {
     // MARK: - Process ceiling
 
     func testProcessCeilingFiresPerProcessAndRearms() {
-        let engine = AlertEngine()
+        let engine = AlertEngine(refireCooldown: 0)
         let config = AlertConfig(processCeilingEnabled: true, processCeilingBytes: 1 * gb)
 
         let a = Make.process(timestamp: now, pid: 100, name: "Alpha", footprint: 2 * gb)
@@ -126,7 +173,7 @@ final class AlertEngineTests: XCTestCase {
     // MARK: - Leaks
 
     func testLeakAlertFiresOncePerLeakAndRearms() {
-        let engine = AlertEngine()
+        let engine = AlertEngine(refireCooldown: 0)
         let config = AlertConfig(leakEnabled: true)
         let a = Make.process(timestamp: now, pid: 100, name: "Leaky", footprint: 1 * gb)
         let b = Make.process(timestamp: now, pid: 200, name: "AlsoLeaky", footprint: 1 * gb)
@@ -202,7 +249,7 @@ final class AlertEngineTests: XCTestCase {
     }
 
     func testHighCPUFiresOnlyAfterSustainedDurationThenRearms() {
-        let engine = AlertEngine()
+        let engine = AlertEngine(refireCooldown: 0)
         let config = AlertConfig(highCPUEnabled: true, highCPUThresholdPercent: 85)
         let t0 = now
 
