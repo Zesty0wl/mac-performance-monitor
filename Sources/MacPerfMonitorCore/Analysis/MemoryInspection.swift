@@ -125,7 +125,12 @@ extension MemoryInspection {
         case "T": multiplier = 1024 * 1024 * 1024 * 1024
         default: multiplier = 1  // "B" or bare number
         }
-        return UInt64((value * multiplier).rounded())
+        // The value comes straight from a parsed tool token, so it can be
+        // negative (a stray "-" token), infinite, NaN, or simply larger than
+        // UInt64 can hold. `UInt64(_:)` traps on any of those, taking down the
+        // inspector; `UInt64(exactly:)` returns nil instead, which is what this
+        // function's "returns nil if it cannot be parsed" contract promises.
+        return UInt64(exactly: (value * multiplier).rounded())
     }
 }
 

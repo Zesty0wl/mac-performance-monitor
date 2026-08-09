@@ -6,6 +6,18 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **The deep memory inspector no longer traps on a malformed size token:**
+  `MemoryInspection.parseBytes` built its result with `UInt64((value *
+  multiplier).rounded())`, and `value` is parsed straight from a `footprint` /
+  `heap` / `vmmap` token. Any non-representable result (a negative number, an
+  `inf` / `NaN` token, or a value past `UInt64.max`) made that initializer trap
+  with a fatal error, aborting the inspector mid-parse even though the function
+  advertises "returns nil if it cannot be parsed". The conversion now uses
+  `UInt64(exactly:)`, which returns nil for those inputs, so a stray token is
+  treated as unparseable instead of crashing the report.
+
 ## [1.3.7] - 2026-08-09
 
 ### Fixed
