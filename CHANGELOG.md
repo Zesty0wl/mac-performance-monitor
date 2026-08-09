@@ -8,6 +8,16 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Fixed
 
+- **A timed-out memory inspection no longer masquerades as success:** the deep
+  memory inspector shells out to Apple's tools (`footprint`, `heap`, `leaks`,
+  `sample`) under a hard timeout, and a wedged target that printed a few lines
+  before hanging was killed on time, but its partial text was then returned as a
+  complete `.success` instead of `.failure(.timedOut)`. The decision checked the
+  captured text before the timeout flag, so any output at all, however truncated,
+  hid that the run had been cut short. The timeout now wins regardless of output:
+  a run killed for exceeding the limit reports `.timedOut` even when it managed
+  to write partial stdout first, so an incomplete report is shown as a failure
+  rather than presented as the tool's full answer.
 - **Quiet the notification spam during a sustained memory crisis:** real memory
   pressure can bounce between critical and normal while the kernel compresses,
   swaps, and throttles, and every bounce re-armed the alert so the next critical

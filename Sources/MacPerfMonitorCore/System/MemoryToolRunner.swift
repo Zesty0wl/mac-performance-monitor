@@ -40,16 +40,39 @@ public enum MemoryToolRunner {
         maxBytes: Int = 8 * 1024 * 1024
     ) -> Result<String, RunError> {
         guard pid > 1 else { return .failure(.invalidPID) }
+        return capture(
+            executablePath: tool.executablePath,
+            arguments: tool.arguments(pid: pid),
+            label: tool.label,
+            pid: pid,
+            timeout: timeout,
+            maxBytes: maxBytes)
+    }
 
+    /// Spawn `executablePath` with `arguments`, drain its combined stdout/stderr
+    /// up to `maxBytes`, and kill it on `timeout`. Split out from `run` so tests
+    /// can drive it with a stub executable (a real Apple tool cannot be made to
+    /// hang on cue); the behaviour is identical to the public `run`.
+    ///
+    /// `label` is only the tag stamped into log lines so a stub run logs with the
+    /// same context a real tool run would.
+    internal static func capture(
+        executablePath: String,
+        arguments: [String],
+        label: String,
+        pid: Int32,
+        timeout: TimeInterval,
+        maxBytes: Int
+    ) -> Result<String, RunError> {
         // Spawn inside an autoreleasepool so the Process/Pipe/FileHandle file
         // descriptors are reclaimed when this returns rather than at the calling
-        // context's next pool drain — the same descriptor-leak guard the per-tick
+        // context's next pool drain, the same descriptor-leak guard the per-tick
         // spawners use (see NetworkProcessReader.runOneShot). Belt-and-braces here
         // (this is user-action only, not a hot loop), but keeps the pattern uniform.
         return autoreleasepool {
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: tool.executablePath)
-            process.arguments = tool.arguments(pid: pid)
+            process.executableURL = URL(fileURLWithPath: executablePath)
+            process.arguments = arguments
 
             // Combine stdout and stderr: the tools print their data to stdout and
             // their privilege/usage errors to stderr, and the caller wants to see
@@ -66,7 +89,7 @@ public enum MemoryToolRunner {
                 try process.run()
             } catch {
                 log.error(
-                    "launch \(tool.label, privacy: .public) failed: \(error.localizedDescription, privacy: .public)"
+                    "launch \(label, privacy: .public) failed: \(error.localizedDescription, privacy: .public)"
                 )
                 return .failure(.launchFailed(error.localizedDescription))
             }
@@ -104,7 +127,7 @@ public enum MemoryToolRunner {
             if exited.wait(timeout: .now() + timeout) == .timedOut {
                 timedOut = true
                 log.error(
-                    "\(tool.label, privacy: .public) on pid \(pid, privacy: .public) timed out after \(timeout, privacy: .public)s"
+                    "\(label, privacy: .public) on pid \(pid, privacy: .public) timed out after \(timeout, privacy: .public)s"
                 )
                 terminateHard(process)
             }
@@ -122,13 +145,20 @@ public enum MemoryToolRunner {
 
             if capped {
                 log.notice(
-                    "\(tool.label, privacy: .public) on pid \(pid, privacy: .public) output capped at \(maxBytes, privacy: .public) bytes"
+                    "\(label, privacy: .public) on pid \(pid, privacy: .public) output capped at \(maxBytes, privacy: .public) bytes"
                 )
             }
 
             let text = String(decoding: data, as: UTF8.self)
+            // A timeout must win regardless of any partial output the child wrote
+            // before it was killed. Checking this before the success return keeps a
+            // wedged run that managed to print a few lines from being misreported
+            // as a complete, successful result.
+            if timedOut {
+                return .failure(.timedOut)
+            }
             if text.isEmpty {
-                return timedOut ? .failure(.timedOut) : .failure(.noOutput)
+                return .failure(.noOutput)
             }
             return .success(text)
         }
