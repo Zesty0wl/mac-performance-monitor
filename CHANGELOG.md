@@ -6,6 +6,8 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [1.3.7] - 2026-08-09
+
 ### Fixed
 
 - **A timed-out memory inspection no longer masquerades as success:** the deep
