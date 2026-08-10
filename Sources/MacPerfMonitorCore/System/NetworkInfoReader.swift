@@ -165,7 +165,7 @@ public final class NetworkInfoReader {
                 }
             case AF_INET6:
                 if let s = Self.addressString(addr, family: AF_INET6) {
-                    let linkLocal = s.hasPrefix("fe80")
+                    let linkLocal = NetworkScanner.isIPv6LinkLocal(s)
                     if !linkLocal { entry.ipv6.append(s) }
                     let prefix = ifa.ifa_netmask.flatMap { Self.prefixLength($0, family: AF_INET6) }
                     entry.addresses.append(

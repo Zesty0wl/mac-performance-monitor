@@ -96,6 +96,40 @@ final class NetworkTests: XCTestCase {
         XCTAssertEqual(entries["00:11:32:98:C7:B2"]?.global, ["fd12::42"])
     }
 
+    func testNetworkScannerClassifiesFullLinkLocalRange() {
+        // RFC 4291 section 2.5.6: link-local is fe80::/10, so fe80 through febf
+        // all qualify, not just the fe80::/64 addresses macOS auto-generates.
+        // fec0::/10 is the deprecated site-local range, and not link-local.
+        let output = """
+            Neighbor Linklayer Address Netif Expire St Flgs Prbs
+            fe80::1%en0 0:11:32:98:c7:b2 en0 23h S
+            fe90::2%en0 0:11:32:98:c7:b2 en0 23h S
+            febf::3%en0 0:11:32:98:c7:b2 en0 23h S
+            fec0::4%en0 0:11:32:98:c7:b2 en0 23h S
+            2001:db8::5%en0 0:11:32:98:c7:b2 en0 23h S
+            """
+        let entries = NetworkScanner.parseNDPTable(output, interfaceName: "en0")
+        XCTAssertEqual(
+            entries["00:11:32:98:C7:B2"]?.local, ["fe80::1", "fe90::2", "febf::3"])
+        XCTAssertEqual(
+            entries["00:11:32:98:C7:B2"]?.global, ["fec0::4", "2001:db8::5"])
+    }
+
+    func testNetworkScannerLinkLocalPredicateMatchesRFCRange() {
+        // fe80::/10 covers fe80 through febf (second byte 0x80-0xBF).
+        XCTAssertTrue(NetworkScanner.isIPv6LinkLocal("fe80::1"))
+        XCTAssertTrue(NetworkScanner.isIPv6LinkLocal("fe90::1"))
+        XCTAssertTrue(NetworkScanner.isIPv6LinkLocal("fea0::1"))
+        XCTAssertTrue(NetworkScanner.isIPv6LinkLocal("febf::1"))
+        XCTAssertTrue(NetworkScanner.isIPv6LinkLocal("FE90::1"))
+        // Outside the range: deprecated site-local, ULA, multicast, global, loopback.
+        XCTAssertFalse(NetworkScanner.isIPv6LinkLocal("fec0::1"))
+        XCTAssertFalse(NetworkScanner.isIPv6LinkLocal("fd00::1"))
+        XCTAssertFalse(NetworkScanner.isIPv6LinkLocal("ff00::1"))
+        XCTAssertFalse(NetworkScanner.isIPv6LinkLocal("2001:db8::1"))
+        XCTAssertFalse(NetworkScanner.isIPv6LinkLocal("::1"))
+    }
+
     func testNetworkScannerParsesSMBIdentity() {
         let output = """
             NetBIOS Name Number Type Description

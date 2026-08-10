@@ -553,6 +553,17 @@ public final class NetworkScanner: @unchecked Sendable {
         var global: Set<String> = []
     }
 
+    /// Whether an IPv6 address string is link-local (RFC 4291 section 2.5.6,
+    /// fe80::/10). The first byte is 0xFE and the second byte's top two bits are
+    /// 10, so its high nibble is 8-B; the full fe80:: through febf:: range is
+    /// link-local, not just the fe80::/64 addresses hosts usually generate.
+    static func isIPv6LinkLocal(_ address: String) -> Bool {
+        let a = address.lowercased()
+        guard a.count >= 3, a.hasPrefix("fe") else { return false }
+        let third = a[a.index(a.startIndex, offsetBy: 2)]
+        return third == "8" || third == "9" || third == "a" || third == "b"
+    }
+
     static func parseNDPTable(
         _ output: String, interfaceName: String
     ) -> [String: IPv6Addresses] {
@@ -565,7 +576,7 @@ public final class NetworkScanner: @unchecked Sendable {
             let address =
                 fields[0].split(separator: "%", maxSplits: 1).first.map(String.init) ?? fields[0]
             var addresses = result[mac] ?? IPv6Addresses()
-            if address.lowercased().hasPrefix("fe80:") {
+            if Self.isIPv6LinkLocal(address) {
                 addresses.local.insert(address)
             } else {
                 addresses.global.insert(address)
