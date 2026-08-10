@@ -42,6 +42,31 @@ final class SampleDigestTests: XCTestCase {
             +   1719 kevent64  (in libsystem_kernel.dylib) + 8  [0x18bdbdba8]
         """
 
+    /// Real `/usr/bin/sample` output on current macOS (captured byte-exact from
+    /// /usr/bin/sample on macOS 26): call-graph frames are indented
+    /// "<count> <symbol> (in <binary>) + <offset> [addr]" with NO leading "+"
+    /// marker. The only "+" on a frame line is the address offset. A parser that
+    /// keys on a leading marker rejects every frame and the digest comes back nil.
+    private let realFormat = """
+        Analysis of sampling MyBuggyApp (pid 4242) every 10 milliseconds
+        Process:         MyBuggyApp [4242]
+        Path:            /Applications/MyBuggyApp.app/Contents/MacOS/MyBuggyApp
+        Physical footprint:         512.0M
+        ----
+
+        Call graph:
+            500 Thread_111   DispatchQueue_1: com.apple.main-thread  (serial)
+              500 start  (in dyld) + 6992  [0x1]
+                500 main  (in MyBuggyApp) + 228  [0x2]
+                  500 -[AppDelegate run]  (in MyBuggyApp) + 100  [0x3]
+                    480 -[Parser parseLoop]  (in MyBuggyApp) + 50  [0x4]
+                      480 -[Parser parseObject]  (in MyBuggyApp) + 20  [0x5]
+                    20 mach_msg2_trap  (in libsystem_kernel.dylib) + 8  [0x6]
+            500 Thread_222: com.myapp.network
+              500 thread_start  (in libsystem_pthread.dylib) + 8  [0x7]
+                500 __select  (in libsystem_kernel.dylib) + 8  [0x8]
+        """
+
     func testParsesOnCPUThreadAndHotLeaf() throws {
         let report = try XCTUnwrap(SampleDigest.parse(busy))
         XCTAssertEqual(report.process, "MyBuggyApp [4242]")
@@ -56,6 +81,28 @@ final class SampleDigestTests: XCTestCase {
         XCTAssertEqual(main.leafSymbol, "-[Parser parseObject]")
         XCTAssertEqual(main.leafBinary, "MyBuggyApp")
         XCTAssertTrue(main.hotPath.contains("-[Parser parseLoop]"))
+    }
+
+    func testParsesRealSampleOutput() throws {
+        // Real /usr/bin/sample emits no leading "+" on call-graph frames; before
+        // the fix this returned nil for every real report, silently disabling the
+        // CPU call-graph digest.
+        let report = try XCTUnwrap(SampleDigest.parse(realFormat))
+        XCTAssertEqual(report.process, "MyBuggyApp [4242]")
+        XCTAssertEqual(report.footprint, "512.0M")
+        XCTAssertEqual(report.threads.count, 2)
+        XCTAssertEqual(report.onCPU.count, 1)
+
+        let main = try XCTUnwrap(report.onCPU.first)
+        XCTAssertEqual(main.name, "main thread")
+        XCTAssertFalse(main.isWaiting)
+        XCTAssertEqual(main.leafSymbol, "-[Parser parseObject]")
+        XCTAssertEqual(main.leafBinary, "MyBuggyApp")
+        XCTAssertTrue(main.hotPath.contains("-[Parser parseLoop]"))
+
+        let net = try XCTUnwrap(report.threads.first { $0.name == "com.myapp.network" })
+        XCTAssertTrue(net.isWaiting)
+        XCTAssertEqual(net.leafSymbol, "__select")
     }
 
     func testClassifiesWaitingThreads() throws {

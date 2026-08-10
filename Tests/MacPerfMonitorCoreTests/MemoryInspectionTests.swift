@@ -248,6 +248,22 @@ final class MemoryInspectionTests: XCTestCase {
         XCTAssertNil(MemoryInspection.parseBytes("n/a"))
     }
 
+    func testParseBytesReturnsNilInsteadOfTrappingOnBadValues() {
+        // The value is parsed straight from a tool token, so it can be
+        // negative, infinite, NaN, or larger than UInt64 can hold. Each of
+        // these used to reach `UInt64((value * multiplier).rounded())`, which
+        // traps (fatal error) on a non-representable Double; the contract is to
+        // return nil. A trap here would abort the whole memory inspector.
+        XCTAssertNil(MemoryInspection.parseBytes("-1 B"))
+        XCTAssertNil(MemoryInspection.parseBytes("-5 MB"))
+        XCTAssertNil(MemoryInspection.parseBytes("inf"))
+        XCTAssertNil(MemoryInspection.parseBytes("1e30 B"))
+        XCTAssertNil(MemoryInspection.parseBytes("nan"))
+        // Normal parsing is unaffected by the safe conversion.
+        XCTAssertEqual(MemoryInspection.parseBytes("90 MB"), 90 * 1024 * 1024)
+        XCTAssertEqual(MemoryInspection.parseBytes("0 B"), 0)
+    }
+
     // MARK: heap diff (leak-suspect ranking)
 
     func testDiffHeapRanksGrowthDescending() {

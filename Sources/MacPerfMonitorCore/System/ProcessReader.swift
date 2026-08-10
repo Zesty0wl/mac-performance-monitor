@@ -159,6 +159,18 @@ public struct ProcessReader: Sendable {
         return (mach / denom) &* numer &+ (mach % denom) &* numer / denom
     }
 
+    /// Build the launch `Date` from the kernel's split seconds + microseconds.
+    ///
+    /// `proc_bsdinfo` records the start time as `pbi_start_tvsec` +
+    /// `pbi_start_tvusec` (populated from `microuptime`), so the microsecond
+    /// half must be carried into the `Date`. `ProcessIdentity` keys a reused
+    /// PID apart by its start time, and the trace export encodes
+    /// `startTime.timeIntervalSince1970.bitPattern`; both can only keep two
+    /// same-second PID reuses distinct when the fractional part survives.
+    static func startDate(seconds: UInt64, microseconds: UInt64) -> Date {
+        Date(timeIntervalSince1970: TimeInterval(seconds) + TimeInterval(microseconds) / 1_000_000)
+    }
+
     /// Enumerate all process IDs visible to the caller.
     public func listPIDs() -> [pid_t] {
         let needed = proc_listallpids(nil, 0)
@@ -191,7 +203,9 @@ public struct ProcessReader: Sendable {
             name: name,
             ppid: Int32(info.pbsd.pbi_ppid),
             uid: info.pbsd.pbi_uid,
-            startTime: Date(timeIntervalSince1970: TimeInterval(info.pbsd.pbi_start_tvsec)),
+            startTime: Self.startDate(
+                seconds: info.pbsd.pbi_start_tvsec,
+                microseconds: info.pbsd.pbi_start_tvusec),
             residentSize: info.ptinfo.pti_resident_size,
             virtualSize: info.ptinfo.pti_virtual_size,
             cpuTimeUser: Self.machToNanos(info.ptinfo.pti_total_user),

@@ -172,16 +172,21 @@ public enum SampleDigest {
         return (samples, nm.isEmpty ? "thread" : nm)
     }
 
-    /// "    +     1719 ChromeMain  (in Google Chrome Framework) + 604  [0x...]"
+    /// One call-graph frame. `/usr/bin/sample` prints these as an indented
+    /// "<count> <symbol> (in <binary>) + <offset> [addr]" line; some report
+    /// variants prefix the count with a "+" marker, which is tolerated. The "+"
+    /// inside the address offset is NOT a marker, so the count is found from the
+    /// leading indentation, never by scanning for the first "+". Depth is the
+    /// column of the count digit, so deeper frames compare greater.
     private static func parseFrame(_ line: String) -> Frame? {
-        guard let plus = line.firstIndex(of: "+") else { return nil }
-        // Everything up to the first "+" must be whitespace (it's a frame marker).
-        guard line[line.startIndex..<plus].allSatisfy({ $0 == " " }) else { return nil }
-        let after = line[line.index(after: plus)...]
-        // Depth = column of the count digit, so deeper frames compare greater.
-        let leading = after.prefix { $0 == " " }
-        let depth = line.distance(from: line.startIndex, to: plus) + leading.count
-        let rest = after.drop { $0 == " " }
+        var rest = line[...]
+        while rest.first == " " { rest = rest.dropFirst() }
+        // Tolerate a leading "+" marker (and the spaces after it) before the count.
+        if rest.first == "+" {
+            rest = rest.dropFirst()
+            while rest.first == " " { rest = rest.dropFirst() }
+        }
+        let depth = line.distance(from: line.startIndex, to: rest.startIndex)
         let tokens = rest.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
         guard tokens.count >= 1, Int(tokens[0]) != nil else { return nil }
         let count = Int(tokens[0]) ?? 0
