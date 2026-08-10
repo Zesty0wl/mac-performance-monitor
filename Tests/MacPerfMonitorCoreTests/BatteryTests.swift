@@ -304,6 +304,27 @@ final class BatteryTests: XCTestCase {
         XCTAssertNil(empty.gasGaugeChip)
     }
 
+    // MARK: - Temperature decode
+
+    func testBatteryTemperatureDecodesCentiCelsius() {
+        // Most controllers report centi-Celsius: 3142 -> 31.42 degrees.
+        XCTAssertEqual(BatteryReader.temperatureCelsius(fromCenti: 3142), 31.42, accuracy: 0.001)
+    }
+
+    func testBatteryTemperatureKeepsHotCelsiusBelowKelvinFloor() {
+        // 10500 centi = 105 degrees Celsius, a genuine (if extreme) reading that
+        // the old 100 threshold misread as Kelvin and converted to -168.15. It
+        // stays below the 200 Kelvin floor, so it is kept as Celsius.
+        XCTAssertEqual(BatteryReader.temperatureCelsius(fromCenti: 10500), 105.0, accuracy: 0.001)
+    }
+
+    func testBatteryTemperatureConvertsCentiKelvin() {
+        // A centi-Kelvin controller: 30315 -> 303.15 K -> 30.0 degrees Celsius.
+        XCTAssertEqual(BatteryReader.temperatureCelsius(fromCenti: 30315), 30.0, accuracy: 0.001)
+        // 0 degrees Celsius reported in Kelvin (27315 centi-Kelvin) round-trips.
+        XCTAssertEqual(BatteryReader.temperatureCelsius(fromCenti: 27315), 0.0, accuracy: 0.001)
+    }
+
     // MARK: - EnergyImpact
 
     func testEnergyImpactCombinesCPUAndWakeups() {

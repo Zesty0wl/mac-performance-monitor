@@ -146,11 +146,7 @@ public struct BatteryReader: Sendable {
                 sample.amperageMilliAmps = Int(Int32(truncatingIfNeeded: ampRaw))
             }
             if let tempRaw = smart["Temperature"] as? Int {
-                // AppleSmartBattery reports temperature in 1/100 of a degree.
-                // Centi-Celsius for most controllers; a few report centi-Kelvin,
-                // so convert when the result lands in an implausibly hot range.
-                let scaled = Double(tempRaw) / 100
-                sample.temperatureCelsius = scaled > 100 ? scaled - 273.15 : scaled
+                sample.temperatureCelsius = Self.temperatureCelsius(fromCenti: tempRaw)
             }
         }
 
@@ -433,6 +429,20 @@ public struct BatteryReader: Sendable {
             out.gasGaugeChip = name
         }
         return out
+    }
+
+    /// Decode the AppleSmartBattery `Temperature` key (centi-degrees) to Celsius.
+    /// Most controllers report centi-Celsius; a few report centi-Kelvin, which the
+    /// detector spots from a value too hot to be a real Celsius reading. The
+    /// threshold is 200: a battery cell much past 120 degrees is in thermal
+    /// runaway, while a Kelvin reading below 200 would mean a battery below -73
+    /// degrees, outside any operating spec, so 200 separates the two units with
+    /// margin on each side. The previous 100 threshold sat right at the edge of
+    /// plausible hot-Celsius and converted a genuine, if extreme, reading into a
+    /// sub-absolute-zero value. Pure (no IOKit) so it can be unit-tested.
+    static func temperatureCelsius(fromCenti raw: Int) -> Double {
+        let scaled = Double(raw) / 100
+        return scaled > 200 ? scaled - 273.15 : scaled
     }
 
     /// The Mac's instantaneous total system power draw in watts, from the SMC's
