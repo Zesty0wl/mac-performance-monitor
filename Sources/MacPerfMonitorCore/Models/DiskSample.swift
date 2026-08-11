@@ -10,6 +10,15 @@ public struct DiskSample: Sendable, Equatable {
     public var writeBytesPerSec: Double
     public var readOperationsPerSec: Double
     public var writeOperationsPerSec: Double
+    /// Ops-weighted average service time across all real devices this interval,
+    /// nil when the interval saw zero operations: "no IO" must stay distinct
+    /// from "0 ms" so history charts show a gap rather than a false fast disk.
+    public var readLatencyMs: Double?
+    public var writeLatencyMs: Double?
+    /// Busiest device's share of the interval spent servicing IO, 0 to 100.
+    /// The max (not the mean) so one saturated external drive reads as
+    /// saturation. Nil on the first sample.
+    public var utilizationPercent: Double?
     public var devices: [DiskDeviceSample]
 
     public init(
@@ -18,6 +27,9 @@ public struct DiskSample: Sendable, Equatable {
         writeBytesPerSec: Double,
         readOperationsPerSec: Double,
         writeOperationsPerSec: Double,
+        readLatencyMs: Double? = nil,
+        writeLatencyMs: Double? = nil,
+        utilizationPercent: Double? = nil,
         devices: [DiskDeviceSample]
     ) {
         self.timestamp = timestamp
@@ -25,6 +37,9 @@ public struct DiskSample: Sendable, Equatable {
         self.writeBytesPerSec = writeBytesPerSec
         self.readOperationsPerSec = readOperationsPerSec
         self.writeOperationsPerSec = writeOperationsPerSec
+        self.readLatencyMs = readLatencyMs
+        self.writeLatencyMs = writeLatencyMs
+        self.utilizationPercent = utilizationPercent
         self.devices = devices
     }
 }
@@ -51,4 +66,10 @@ public struct DiskDeviceSample: Sendable, Equatable, Identifiable {
     public var writeErrors: UInt64
     public var readRetries: UInt64
     public var writeRetries: UInt64
+    /// Share of the interval this device spent servicing IO, 0 to 100, from the
+    /// driver's total read plus write time deltas. Nil on the first sample or
+    /// after a counter reset, matching the average-time convention above. The
+    /// statistics dictionary has no queue-depth key, so busy time is the closest
+    /// available saturation signal.
+    public var utilizationPercent: Double? = nil
 }

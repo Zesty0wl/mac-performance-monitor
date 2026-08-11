@@ -78,6 +78,15 @@ extension Array where Element == SystemHistoryPoint {
             func dmean(_ value: (SystemHistoryPoint) -> Double) -> Double {
                 slice.reduce(0.0) { $0 + value($1) } / n
             }
+            // Mean over only the points that carry a value; nil (an interval
+            // with no IO, or no boot capacity recorded yet) must not drag the
+            // average toward zero, and an all-nil bucket must stay nil so the
+            // chart draws a gap.
+            func omean(_ value: (SystemHistoryPoint) -> Double?) -> Double? {
+                let present = slice.compactMap(value)
+                guard !present.isEmpty else { return nil }
+                return present.reduce(0, +) / Double(present.count)
+            }
             result.append(
                 SystemHistoryPoint(
                     // Grid-anchored start of the bucket: a fixed point that does
@@ -111,7 +120,14 @@ extension Array where Element == SystemHistoryPoint {
                     diskReadBytesPerSec: dmean { $0.diskReadBytesPerSec },
                     diskWriteBytesPerSec: dmean { $0.diskWriteBytesPerSec },
                     diskReadOperationsPerSec: dmean { $0.diskReadOperationsPerSec },
-                    diskWriteOperationsPerSec: dmean { $0.diskWriteOperationsPerSec }
+                    diskWriteOperationsPerSec: dmean { $0.diskWriteOperationsPerSec },
+                    diskReadLatencyMs: omean { $0.diskReadLatencyMs },
+                    diskWriteLatencyMs: omean { $0.diskWriteLatencyMs },
+                    diskUtilizationPercent: omean { $0.diskUtilizationPercent },
+                    // Free space wants its low water mark, not its average: the
+                    // moment the disk nearly filled is the moment that matters.
+                    bootFreeBytes: slice.compactMap(\.bootFreeBytes).min(),
+                    bootTotalBytes: slice.compactMap(\.bootTotalBytes).last
                 ))
             i = j
         }

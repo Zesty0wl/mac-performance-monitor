@@ -268,8 +268,10 @@ public final class SampleStore {
                  page_ins_delta, page_outs_delta, compressions_delta, decompressions_delta, cpu_load,
                  battery_present, battery_charge, battery_power, battery_charging, battery_health,
                  battery_cycles, battery_temp, net_in, net_out,
-                 disk_read, disk_write, disk_read_iops, disk_write_iops)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 disk_read, disk_write, disk_read_iops, disk_write_iops,
+                 disk_read_latency, disk_write_latency, disk_util, boot_free, boot_total)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+                        ?,?,?,?,?)
                 """)
         try statement.execute(
             arguments: [
@@ -289,6 +291,8 @@ public final class SampleStore {
                 s.networkInBytesPerSec, s.networkOutBytesPerSec,
                 s.diskReadBytesPerSec, s.diskWriteBytesPerSec,
                 s.diskReadOperationsPerSec, s.diskWriteOperationsPerSec,
+                s.diskReadLatencyMs, s.diskWriteLatencyMs, s.diskUtilizationPercent,
+                s.bootVolumeFreeBytes.map(SQLInt.store), s.bootVolumeTotalBytes.map(SQLInt.store),
             ])
     }
 
@@ -508,7 +512,12 @@ public final class SampleStore {
             diskReadBytesPerSec: row["disk_read"],
             diskWriteBytesPerSec: row["disk_write"],
             diskReadOperationsPerSec: row["disk_read_iops"],
-            diskWriteOperationsPerSec: row["disk_write_iops"]
+            diskWriteOperationsPerSec: row["disk_write_iops"],
+            diskReadLatencyMs: row["disk_read_latency"],
+            diskWriteLatencyMs: row["disk_write_latency"],
+            diskUtilizationPercent: row["disk_util"],
+            bootVolumeTotalBytes: (row["boot_total"] as Int64?).map(SQLInt.read),
+            bootVolumeFreeBytes: (row["boot_free"] as Int64?).map(SQLInt.read)
         )
     }
 

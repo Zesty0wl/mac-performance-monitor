@@ -30,7 +30,8 @@ struct DiskChart: View {
                     color: DiskStyle.write, filled: false, lineWidth: 1.8),
             ],
             yFormat: { ByteFormat.rate(max($0, 0)) },
-            showsTimeAxis: showsTimeAxis
+            showsTimeAxis: showsTimeAxis,
+            leftGutter: 56
         )
         .accessibilityLabel("Physical disk throughput trend")
         .accessibilityValue(accessibilitySummary)

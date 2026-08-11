@@ -44,7 +44,11 @@ struct TrendChart: View {
     /// dashboard charts keep their full height.
     var showsTimeAxis: Bool = false
 
-    private let leftGutter: CGFloat = 38
+    /// Width reserved for the Y axis labels. The default fits short tick
+    /// strings ("85%", "1.2 GB"); charts whose ticks format as byte rates or
+    /// large sizes ("38.4 MB/s", "460.4 GB") pass a wider gutter, because the
+    /// canvas clips the label's left edge when it does not fit.
+    var leftGutter: CGFloat = 38
     private let topPad: CGFloat = 6
     private let bottomPad: CGFloat = 4
 

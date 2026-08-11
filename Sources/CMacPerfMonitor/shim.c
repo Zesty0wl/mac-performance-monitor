@@ -189,3 +189,49 @@ int cmacperfmonitor_list_fds(pid_t pid, cmacperfmonitor_fd_t *out, int capacity)
     free(fds);
     return written;
 }
+
+#include <CoreFoundation/CoreFoundation.h>
+#include <IOKit/IOKitLib.h>
+#include <IOKit/IOCFPlugIn.h>
+#include <IOKit/storage/nvme/NVMeSMARTLibExternal.h>
+
+int cmacperfmonitor_nvme_smart_read(uint64_t registry_entry_id, uint8_t *out) {
+    io_service_t service = IOServiceGetMatchingService(
+        kIOMainPortDefault, IORegistryEntryIDMatching(registry_entry_id));
+    if (service == IO_OBJECT_NULL) {
+        return -1;
+    }
+
+    // COM-style plug-in dance: create the plug-in for the service, then query
+    // the SMART interface off it. Both must be released, in reverse order.
+    IOCFPlugInInterface **plugin = NULL;
+    SInt32 score = 0;
+    kern_return_t kr = IOCreatePlugInInterfaceForService(
+        service, kIONVMeSMARTUserClientTypeID, kIOCFPlugInInterfaceID, &plugin, &score);
+    IOObjectRelease(service);
+    if (kr != KERN_SUCCESS || plugin == NULL) {
+        return -2;
+    }
+
+    IONVMeSMARTInterface **smart = NULL;
+    HRESULT hr = (*plugin)->QueryInterface(
+        plugin, CFUUIDGetUUIDBytes(kIONVMeSMARTInterfaceID), (LPVOID *)&smart);
+    if (hr != S_OK || smart == NULL) {
+        IODestroyPlugInInterface(plugin);
+        return -3;
+    }
+
+    NVMeSMARTData data;
+    memset(&data, 0, sizeof(data));
+    IOReturn ret = (*smart)->SMARTReadData(smart, &data);
+    (*smart)->Release(smart);
+    IODestroyPlugInInterface(plugin);
+    if (ret != kIOReturnSuccess) {
+        return -4;
+    }
+
+    // NVMeSMARTData is pragma pack(1) and exactly the 512-byte log page.
+    _Static_assert(sizeof(NVMeSMARTData) == 512, "NVMe SMART log must be 512 bytes");
+    memcpy(out, &data, sizeof(data));
+    return 0;
+}

@@ -162,6 +162,16 @@ public enum MacPerfMonitorDatabase {
         migrator.registerMigration("v11-system-disk-activity") { db in
             try db.execute(sql: Schema.v11)
         }
+        // Disk service latency, utilization, and boot volume free space for the
+        // Disk page's history charts. Unlike v11 these columns are nullable on
+        // purpose: a tick with zero IO has no latency (charting it as 0 ms
+        // would paint an implausibly fast disk), and the boot volume figures
+        // are absent until the first statfs succeeds. Free space rolls up as
+        // avg plus MIN, not max: the alarming extremum for free space is the
+        // low water mark.
+        migrator.registerMigration("v12-disk-detail") { db in
+            try db.execute(sql: Schema.v12)
+        }
         return migrator
     }
 }
@@ -473,6 +483,34 @@ enum Schema {
             ON process_hour(bucket, process_id, samples, footprint_avg,
                             footprint_max, cpu_avg, energy_avg, net_avg,
                             disk_read_max, disk_written_max);
+        """
+
+    static let v12 = """
+        ALTER TABLE system_samples ADD COLUMN disk_read_latency REAL;
+        ALTER TABLE system_samples ADD COLUMN disk_write_latency REAL;
+        ALTER TABLE system_samples ADD COLUMN disk_util REAL;
+        ALTER TABLE system_samples ADD COLUMN boot_free INTEGER;
+        ALTER TABLE system_samples ADD COLUMN boot_total INTEGER;
+
+        ALTER TABLE system_minute ADD COLUMN disk_read_latency_avg REAL;
+        ALTER TABLE system_minute ADD COLUMN disk_read_latency_max REAL;
+        ALTER TABLE system_minute ADD COLUMN disk_write_latency_avg REAL;
+        ALTER TABLE system_minute ADD COLUMN disk_write_latency_max REAL;
+        ALTER TABLE system_minute ADD COLUMN disk_util_avg REAL;
+        ALTER TABLE system_minute ADD COLUMN disk_util_max REAL;
+        ALTER TABLE system_minute ADD COLUMN boot_free_avg INTEGER;
+        ALTER TABLE system_minute ADD COLUMN boot_free_min INTEGER;
+        ALTER TABLE system_minute ADD COLUMN boot_total INTEGER;
+
+        ALTER TABLE system_hour ADD COLUMN disk_read_latency_avg REAL;
+        ALTER TABLE system_hour ADD COLUMN disk_read_latency_max REAL;
+        ALTER TABLE system_hour ADD COLUMN disk_write_latency_avg REAL;
+        ALTER TABLE system_hour ADD COLUMN disk_write_latency_max REAL;
+        ALTER TABLE system_hour ADD COLUMN disk_util_avg REAL;
+        ALTER TABLE system_hour ADD COLUMN disk_util_max REAL;
+        ALTER TABLE system_hour ADD COLUMN boot_free_avg INTEGER;
+        ALTER TABLE system_hour ADD COLUMN boot_free_min INTEGER;
+        ALTER TABLE system_hour ADD COLUMN boot_total INTEGER;
         """
 }
 

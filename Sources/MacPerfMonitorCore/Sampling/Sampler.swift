@@ -58,6 +58,9 @@ public final class Sampler {
     private let networkReader: NetworkReader
     /// Physical block-device activity (always on; cheap IOKit property reads).
     private let diskReader: DiskReader
+    /// Root filesystem capacity for the free-space history. Self-throttled to
+    /// one statfs a minute, so it costs nothing on the 1 Hz tick.
+    private let bootVolumeReader: BootVolumeReader
     /// GPU utilization reader (IOAccelerator). Only read when `tickSystem` is asked
     /// to (the menubar GPU item gates it), so it costs nothing when GPU is off.
     private let gpuReader = GPUReader()
@@ -198,7 +201,8 @@ public final class Sampler {
         cpuReader: CPUReader = CPUReader(),
         batteryReader: BatteryReader = BatteryReader(),
         networkReader: NetworkReader = NetworkReader(),
-        diskReader: DiskReader = DiskReader()
+        diskReader: DiskReader = DiskReader(),
+        bootVolumeReader: BootVolumeReader = BootVolumeReader()
     ) {
         self.processReader = processReader
         self.memoryReader = memoryReader
@@ -206,6 +210,7 @@ public final class Sampler {
         self.batteryReader = batteryReader
         self.networkReader = networkReader
         self.diskReader = diskReader
+        self.bootVolumeReader = bootVolumeReader
     }
 
     /// Install (or remove) the privileged reader used to fill coverage gaps.
@@ -266,6 +271,7 @@ public final class Sampler {
         let battery = cachedBattery
         let network = networkReader.read(now: now)
         let disk = diskReader.read(now: now)
+        let bootVolume = bootVolumeReader.read(now: now)
         // Gated: only walk the IOAccelerator registry when something shows GPU.
         var gpu = readGPU ? gpuReader.read() : nil
         if readGPU, gpu != nil {
@@ -283,7 +289,7 @@ public final class Sampler {
         }
         let system = sampleSystem(
             now: now, wallDeltaSeconds: wallDeltaSeconds, cpuLoad: cpu.totalUsage, battery: battery,
-            network: network, disk: disk)
+            network: network, disk: disk, bootVolume: bootVolume)
         lastSystemTime = now
         return (system, cpu, battery, network, disk, gpu)
     }
@@ -643,6 +649,7 @@ public final class Sampler {
         lastBatteryReadAt = nil
         networkReader.reset()
         diskReader.reset()
+        bootVolumeReader.reset()
         privilegedFailureStreak = 0
         privilegedQuietUntil = nil
     }
@@ -655,7 +662,7 @@ public final class Sampler {
     /// and feeds the persisted system-history CPU timeline.
     private func sampleSystem(
         now: Date, wallDeltaSeconds: TimeInterval, cpuLoad: Double, battery: BatterySample?,
-        network: NetworkSample?, disk: DiskSample?
+        network: NetworkSample?, disk: DiskSample?, bootVolume: BootVolumeReader.Capacity?
     ) -> SystemSample {
         let totalRAM = memoryReader.totalRAM
         let vm = memoryReader.sampleVM()
@@ -745,7 +752,12 @@ public final class Sampler {
             diskReadBytesPerSec: disk?.readBytesPerSec ?? 0,
             diskWriteBytesPerSec: disk?.writeBytesPerSec ?? 0,
             diskReadOperationsPerSec: disk?.readOperationsPerSec ?? 0,
-            diskWriteOperationsPerSec: disk?.writeOperationsPerSec ?? 0
+            diskWriteOperationsPerSec: disk?.writeOperationsPerSec ?? 0,
+            diskReadLatencyMs: disk?.readLatencyMs,
+            diskWriteLatencyMs: disk?.writeLatencyMs,
+            diskUtilizationPercent: disk?.utilizationPercent,
+            bootVolumeTotalBytes: bootVolume?.totalBytes,
+            bootVolumeFreeBytes: bootVolume?.freeBytes
         )
     }
 

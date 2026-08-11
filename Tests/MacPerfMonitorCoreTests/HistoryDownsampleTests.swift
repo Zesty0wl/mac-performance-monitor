@@ -66,4 +66,57 @@ final class HistoryDownsampleTests: XCTestCase {
             XCTAssertEqual(point.networkOutBytesPerSec, 1024, accuracy: 1e-6)
         }
     }
+
+    /// The v12 optional detail fields have their own carry rules: nil-excluded
+    /// means for latency and utilization (an idle tick must not drag a bucket's
+    /// average toward zero), an all-nil bucket stays nil so charts draw a gap,
+    /// and free space keeps the bucket's minimum, the low water mark.
+    func testDownsampleCarriesOptionalDiskDetailWithNilRules() throws {
+        let anchor = Date(timeIntervalSince1970: 1_700_000_000)
+        var points: [SystemHistoryPoint] = []
+        for index in 0..<400 {
+            var point = SystemHistoryPoint(
+                date: anchor.addingTimeInterval(Double(index) * 2),
+                pressurePercent: 10, appMemory: 1, wired: 1, compressed: 1,
+                cachedFiles: 1, swapUsed: 1)
+            // First half: alternate busy (2 ms, 40 percent) and idle (nil).
+            // Second half: entirely idle, so those buckets must stay nil.
+            if index < 200, index.isMultiple(of: 2) {
+                point.diskReadLatencyMs = 2.0
+                point.diskUtilizationPercent = 40
+            }
+            point.bootFreeBytes = UInt64(1_000_000 - index)
+            point.bootTotalBytes = 2_000_000
+            points.append(point)
+        }
+
+        let downsampled = points.chartDownsampled(span: 3600, to: 60)
+        XCTAssertFalse(downsampled.isEmpty)
+
+        let firstHalf = downsampled.filter {
+            $0.date < anchor.addingTimeInterval(390)
+        }
+        let secondHalf = downsampled.filter {
+            $0.date > anchor.addingTimeInterval(410)
+        }
+        XCTAssertFalse(firstHalf.isEmpty)
+        XCTAssertFalse(secondHalf.isEmpty)
+        for point in firstHalf {
+            XCTAssertEqual(
+                point.diskReadLatencyMs ?? -1, 2.0, accuracy: 1e-9,
+                "idle ticks must not drag the busy mean toward zero")
+            XCTAssertEqual(point.diskUtilizationPercent ?? -1, 40, accuracy: 1e-9)
+        }
+        for point in secondHalf {
+            XCTAssertNil(point.diskReadLatencyMs, "an all-idle bucket must gap, not read 0 ms")
+            XCTAssertNil(point.diskUtilizationPercent)
+        }
+
+        // Free space: each bucket keeps its minimum, and the series stays
+        // monotonically nonincreasing across buckets for this fixture.
+        let frees = downsampled.compactMap(\.bootFreeBytes)
+        XCTAssertEqual(frees.count, downsampled.count)
+        XCTAssertEqual(frees, frees.sorted(by: >))
+        XCTAssertEqual(downsampled.last?.bootTotalBytes, 2_000_000)
+    }
 }

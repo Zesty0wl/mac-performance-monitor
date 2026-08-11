@@ -6,6 +6,25 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Added
+
+- **A dedicated Disk tab:** every disk fact the system exposes, on one page.
+  Live read/write throughput and IOPS with history, per-operation service
+  latency and a busy-time utilization figure derived from the driver's
+  counters, a card per physical device with its full hardware identity (model,
+  vendor, firmware, serial, interconnect, NAND status, NVMe revision, block
+  size), per-volume capacity bars grouped by APFS container with purgeable
+  space and role badges, SMART health for the internal SSD (temperature, life
+  used, spare, power-on hours, unsafe shutdowns, lifetime reads and writes),
+  a boot-volume free-space trend with a low-space rule, and the top processes
+  by attributed disk I/O over the selected range. The menu bar disk panel's
+  Open button now lands on the new tab.
+- **Disk detail history (schema v12):** system samples now record read/write
+  service latency, disk utilization, and boot volume free space (sampled once
+  a minute), with minute and hour rollups. The new columns are nullable on
+  purpose: an interval with no IO charts as a gap, never as a fake 0 ms, and
+  free space keeps its low water mark through every aggregation tier.
+
 ### Fixed
 
 - **The network scanner recognises the whole IPv6 link-local range:** the NDP
