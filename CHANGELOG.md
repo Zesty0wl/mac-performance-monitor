@@ -27,6 +27,18 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Fixed
 
+- **Hot battery temperatures are no longer misread as sub-zero:** the
+  AppleSmartBattery `Temperature` key is centi-degrees, and most controllers
+  report centi-Celsius while a few report centi-Kelvin. The decoder told the
+  two apart with a greater-than-100 threshold, but 100 degrees is plausible
+  for an actively failing cell, so a genuine (if extreme) Celsius reading
+  above that was treated as Kelvin and converted to a value below absolute
+  zero. The detector now uses a 200 threshold: no real Celsius reading
+  reaches it (thermal runaway destroys the cell first), and no real Kelvin
+  reading falls below it (that would be a battery colder than minus 73
+  degrees), so the two units separate cleanly. The decode is also extracted
+  into a pure helper so it is unit-tested alongside the other battery
+  decoders.
 - **The network scanner recognises the whole IPv6 link-local range:** the NDP
   table parser and the per-interface address collector matched only an `fe80`
   prefix, but RFC 4291 defines link-local unicast as `fe80::/10`, which spans
