@@ -8,6 +8,15 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Fixed
 
+- **The network scanner recognises the whole IPv6 link-local range:** the NDP
+  table parser and the per-interface address collector matched only an `fe80`
+  prefix, but RFC 4291 defines link-local unicast as `fe80::/10`, which spans
+  `fe80::` through `febf::`. Addresses in `fe90::` to `febf::` were sorted into
+  the global bucket of the NDP view and, on the Network page, were kept in the
+  global IPv6 list instead of being filtered out as link-local noise. A shared
+  `isIPv6LinkLocal` predicate now matches the full `fe80::/10` range, so every
+  link-local address lands in the right place.
+
 - **The deep memory inspector no longer traps on a malformed size token:**
   `MemoryInspection.parseBytes` built its result with `UInt64((value *
   multiplier).rounded())`, and `value` is parsed straight from a `footprint` /
