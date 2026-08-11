@@ -66,6 +66,89 @@ final class DiskReaderTests: XCTestCase {
         XCTAssertEqual(reader.read(now: t0.addingTimeInterval(1)).devices.map(\.bsdName), ["disk0"])
     }
 
+    func testUtilizationDerivesFromBusyTimeDeltas() {
+        // 40 ms read busy + 10 ms write busy over a 1 s interval = 5 percent.
+        var snapshots = [
+            [counters(read: 0, write: 0, readOps: 0, writeOps: 0)],
+            [
+                counters(
+                    read: 1_000, write: 1_000, readOps: 10, writeOps: 10,
+                    readTime: 40_000_000, writeTime: 10_000_000)
+            ],
+        ]
+        let reader = makeReader { snapshots.removeFirst() }
+
+        let first = reader.read(now: t0)
+        XCTAssertNil(first.devices[0].utilizationPercent)
+        XCTAssertNil(first.utilizationPercent)
+
+        let second = reader.read(now: t0.addingTimeInterval(1))
+        XCTAssertEqual(second.devices[0].utilizationPercent ?? -1, 5, accuracy: 0.001)
+        XCTAssertEqual(second.utilizationPercent ?? -1, 5, accuracy: 0.001)
+    }
+
+    func testUtilizationIsCappedAtOneHundredAndSystemTakesBusiestDevice() {
+        // Device 1 reports more busy time than wall clock (overlapping queued
+        // IO does this); device 2 is 20 percent busy. System = max = 100.
+        var snapshots = [
+            [
+                counters(id: 1, read: 0, write: 0),
+                counters(id: 2, bsdName: "disk2", read: 0, write: 0),
+            ],
+            [
+                counters(
+                    id: 1, read: 1, write: 1, readOps: 1, writeOps: 1,
+                    readTime: 900_000_000, writeTime: 700_000_000),
+                counters(
+                    id: 2, bsdName: "disk2", read: 1, write: 1, readOps: 1, writeOps: 1,
+                    readTime: 100_000_000, writeTime: 100_000_000),
+            ],
+        ]
+        let reader = makeReader { snapshots.removeFirst() }
+        _ = reader.read(now: t0)
+
+        let sample = reader.read(now: t0.addingTimeInterval(1))
+        XCTAssertEqual(sample.devices.map { $0.utilizationPercent ?? -1 }, [100, 20])
+        XCTAssertEqual(sample.utilizationPercent, 100)
+    }
+
+    func testSystemLatencyIsOpsWeightedAcrossDevices() {
+        // Device 1: 90 read ops at 1 ms. Device 2: 10 read ops at 11 ms.
+        // Ops-weighted mean = (90*1 + 10*11) / 100 = 2 ms.
+        var snapshots = [
+            [
+                counters(id: 1, read: 0, write: 0),
+                counters(id: 2, bsdName: "disk2", read: 0, write: 0),
+            ],
+            [
+                counters(id: 1, read: 1, write: 0, readOps: 90, readTime: 90_000_000),
+                counters(
+                    id: 2, bsdName: "disk2", read: 1, write: 0, readOps: 10,
+                    readTime: 110_000_000),
+            ],
+        ]
+        let reader = makeReader { snapshots.removeFirst() }
+        _ = reader.read(now: t0)
+
+        let sample = reader.read(now: t0.addingTimeInterval(1))
+        XCTAssertEqual(sample.readLatencyMs ?? -1, 2, accuracy: 0.001)
+        XCTAssertNil(sample.writeLatencyMs, "zero write ops must yield nil, not 0 ms")
+    }
+
+    func testLatencyAndUtilizationAreNilAfterCounterReset() {
+        // A reset counter (current below prior) must not fabricate a huge delta.
+        var snapshots = [
+            [counters(read: 0, write: 0, readOps: 100, readTime: 500_000_000)],
+            [counters(read: 1, write: 0, readOps: 10, readTime: 40_000_000)],
+        ]
+        let reader = makeReader { snapshots.removeFirst() }
+        _ = reader.read(now: t0)
+
+        let sample = reader.read(now: t0.addingTimeInterval(1))
+        XCTAssertNil(sample.readLatencyMs)
+        XCTAssertNil(sample.devices[0].utilizationPercent)
+    }
+
     func testResetMakesNextSampleZero() {
         var value: UInt64 = 1_000
         let reader = makeReader { [self.counters(read: value, write: value)] }

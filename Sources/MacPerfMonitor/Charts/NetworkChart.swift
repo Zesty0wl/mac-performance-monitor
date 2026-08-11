@@ -36,7 +36,8 @@ struct NetworkChart: View {
                     color: NetworkStyle.upload, filled: false, lineWidth: 1.8),
             ],
             yFormat: { ByteFormat.rate(max($0, 0)) },
-            showsTimeAxis: showsTimeAxis
+            showsTimeAxis: showsTimeAxis,
+            leftGutter: 56
         )
         .accessibilityLabel("Network throughput trend")
         .accessibilityValue(accessibilitySummary)

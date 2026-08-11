@@ -24,8 +24,10 @@ Free and open source. No telemetry. Every sample stays on your Mac.
   footprint as a share of the device.
 - **History and logging:** configurable-resolution logging to a local SQLite store;
   top consumers over any window you pick.
-- **Disk activity:** physical read/write throughput, IOPS, device health, and
-  per-process attribution, with history from one hour to seven days.
+- **Disk tab:** live throughput, IOPS, service latency, and utilization with
+  history; per-device hardware identity; per-volume capacity bars grouped by
+  APFS container with purgeable space; SMART health for the internal SSD; a
+  boot-volume free-space trend; and top processes by attributed disk I/O.
 - **Leak detection:** flags processes whose footprint climbs steadily, plus a log of
   pressure events over time.
 - **Deep-dive diagnostics:** explains what a process is and whether its behavior is

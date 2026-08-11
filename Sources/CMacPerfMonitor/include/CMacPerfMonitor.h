@@ -70,4 +70,20 @@ typedef struct {
 /// error, matching `PROC_PIDLISTFDS`.
 int cmacperfmonitor_list_fds(pid_t pid, cmacperfmonitor_fd_t *out, int capacity);
 
+/// Read the raw 512-byte NVMe SMART / Health log for the NVMe controller or
+/// block storage device with the given IORegistry entry ID, via the
+/// `IONVMeSMARTUserClient` plug-in interface.
+///
+/// C code only fetches the bytes (the COM-style plug-in dance is impossible in
+/// Swift); all parsing stays in Swift so it can be unit-tested against fixture
+/// blobs. `out` must point to at least 512 bytes and is only written on
+/// success.
+///
+/// Returns 0 on success, or a negative step code on failure: -1 no such
+/// registry entry, -2 the service has no SMART plug-in (external and USB
+/// enclosures commonly refuse this), -3 interface query failed, -4 the SMART
+/// read itself failed. Callers should treat every nonzero result as "SMART not
+/// available", not as an error worth surfacing.
+int cmacperfmonitor_nvme_smart_read(uint64_t registry_entry_id, uint8_t *out);
+
 #endif /* CMACPERFMONITOR_H */

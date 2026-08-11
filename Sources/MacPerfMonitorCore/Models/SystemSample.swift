@@ -78,6 +78,20 @@ public struct SystemSample: Sendable, Codable {
     public var diskReadOperationsPerSec: Double
     public var diskWriteOperationsPerSec: Double
 
+    // Disk detail added alongside the throughput scalars. All optional (and
+    // decoded as such) so samples recorded before these fields existed keep
+    // decoding, and "no IO this tick" stays distinct from a measured zero.
+    /// Ops-weighted average device service time this tick, milliseconds.
+    public var diskReadLatencyMs: Double?
+    public var diskWriteLatencyMs: Double?
+    /// Busiest device's busy share of the tick, 0 to 100.
+    public var diskUtilizationPercent: Double?
+    /// Root filesystem capacity, refreshed at most once a minute by
+    /// `BootVolumeReader`. On APFS the free figure is the container's shared
+    /// free pool, the number that matters when the disk fills up.
+    public var bootVolumeTotalBytes: UInt64?
+    public var bootVolumeFreeBytes: UInt64?
+
     public init(
         timestamp: Date,
         totalRAM: UInt64,
@@ -115,7 +129,12 @@ public struct SystemSample: Sendable, Codable {
         diskReadBytesPerSec: Double = 0,
         diskWriteBytesPerSec: Double = 0,
         diskReadOperationsPerSec: Double = 0,
-        diskWriteOperationsPerSec: Double = 0
+        diskWriteOperationsPerSec: Double = 0,
+        diskReadLatencyMs: Double? = nil,
+        diskWriteLatencyMs: Double? = nil,
+        diskUtilizationPercent: Double? = nil,
+        bootVolumeTotalBytes: UInt64? = nil,
+        bootVolumeFreeBytes: UInt64? = nil
     ) {
         self.timestamp = timestamp
         self.totalRAM = totalRAM
@@ -154,5 +173,10 @@ public struct SystemSample: Sendable, Codable {
         self.diskWriteBytesPerSec = diskWriteBytesPerSec
         self.diskReadOperationsPerSec = diskReadOperationsPerSec
         self.diskWriteOperationsPerSec = diskWriteOperationsPerSec
+        self.diskReadLatencyMs = diskReadLatencyMs
+        self.diskWriteLatencyMs = diskWriteLatencyMs
+        self.diskUtilizationPercent = diskUtilizationPercent
+        self.bootVolumeTotalBytes = bootVolumeTotalBytes
+        self.bootVolumeFreeBytes = bootVolumeFreeBytes
     }
 }

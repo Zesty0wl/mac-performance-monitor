@@ -32,6 +32,14 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
     public var diskWriteBytesPerSec: Double
     public var diskReadOperationsPerSec: Double
     public var diskWriteOperationsPerSec: Double
+    // Disk detail (v12). Optional, unlike the scalars above: nil marks "no IO
+    // in this interval" (latency/utilization) or "not recorded yet" (boot
+    // volume capacity), and charts must gap rather than draw zero.
+    public var diskReadLatencyMs: Double?
+    public var diskWriteLatencyMs: Double?
+    public var diskUtilizationPercent: Double?
+    public var bootFreeBytes: UInt64?
+    public var bootTotalBytes: UInt64?
 
     public var id: Date { date }
 
@@ -53,7 +61,12 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
         diskReadBytesPerSec: Double = 0,
         diskWriteBytesPerSec: Double = 0,
         diskReadOperationsPerSec: Double = 0,
-        diskWriteOperationsPerSec: Double = 0
+        diskWriteOperationsPerSec: Double = 0,
+        diskReadLatencyMs: Double? = nil,
+        diskWriteLatencyMs: Double? = nil,
+        diskUtilizationPercent: Double? = nil,
+        bootFreeBytes: UInt64? = nil,
+        bootTotalBytes: UInt64? = nil
     ) {
         self.date = date
         self.pressurePercent = pressurePercent
@@ -73,6 +86,11 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
         self.diskWriteBytesPerSec = diskWriteBytesPerSec
         self.diskReadOperationsPerSec = diskReadOperationsPerSec
         self.diskWriteOperationsPerSec = diskWriteOperationsPerSec
+        self.diskReadLatencyMs = diskReadLatencyMs
+        self.diskWriteLatencyMs = diskWriteLatencyMs
+        self.diskUtilizationPercent = diskUtilizationPercent
+        self.bootFreeBytes = bootFreeBytes
+        self.bootTotalBytes = bootTotalBytes
     }
 }
 
@@ -114,7 +132,8 @@ extension SampleStore {
                 sql: """
                     SELECT timestamp, pressure_percent, app_memory, wired, compressed, cached_files, swap_used, cpu_load,
                            battery_charge, battery_power, battery_health, battery_temp, net_in, net_out,
-                           disk_read, disk_write, disk_read_iops, disk_write_iops
+                           disk_read, disk_write, disk_read_iops, disk_write_iops,
+                           disk_read_latency, disk_write_latency, disk_util, boot_free, boot_total
                     FROM system_samples
                     WHERE timestamp >= ?
                     ORDER BY timestamp ASC
@@ -131,7 +150,9 @@ extension SampleStore {
                     SELECT bucket, pressure_avg, app_avg, wired_avg, compressed_avg, cached_avg, swap_used_avg, cpu_avg,
                            battery_charge_avg, battery_power_avg, battery_health_avg, battery_temp_avg,
                            net_in_avg, net_out_avg,
-                           disk_read_avg, disk_write_avg, disk_read_iops_avg, disk_write_iops_avg
+                           disk_read_avg, disk_write_avg, disk_read_iops_avg, disk_write_iops_avg,
+                           disk_read_latency_avg, disk_write_latency_avg, disk_util_avg,
+                           boot_free_min, boot_total
                     FROM \(table)
                     WHERE bucket >= ?
                     ORDER BY bucket ASC
@@ -141,7 +162,7 @@ extension SampleStore {
     }
 
     /// Positional decode shared by the raw and aggregate queries, which list the
-    /// same 18 columns in the same order. Reading by index (`row[0]`) rather than
+    /// same 23 columns in the same order. Reading by index (`row[0]`) rather than
     /// by name (`row["..."]`) avoids a column-name→index lookup per field per row,
     /// which over a few hundred points × 14 columns was a measurable read cost.
     private static func decodeHistoryPoint(_ row: Row) -> SystemHistoryPoint {
@@ -164,7 +185,12 @@ extension SampleStore {
             diskReadBytesPerSec: row[14],
             diskWriteBytesPerSec: row[15],
             diskReadOperationsPerSec: row[16],
-            diskWriteOperationsPerSec: row[17]
+            diskWriteOperationsPerSec: row[17],
+            diskReadLatencyMs: row[18],
+            diskWriteLatencyMs: row[19],
+            diskUtilizationPercent: row[20],
+            bootFreeBytes: (row[21] as Int64?).map(SQLInt.read),
+            bootTotalBytes: (row[22] as Int64?).map(SQLInt.read)
         )
     }
 }

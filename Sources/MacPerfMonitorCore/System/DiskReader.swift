@@ -61,6 +61,10 @@ public final class DiskReader {
         let current = counterSource()
         var nextPrevious: [UInt64: Previous] = [:]
         var devices: [DiskDeviceSample] = []
+        var readTimeDeltaTotal: UInt64 = 0
+        var readOpsDeltaTotal: UInt64 = 0
+        var writeTimeDeltaTotal: UInt64 = 0
+        var writeOpsDeltaTotal: UInt64 = 0
 
         for counters in current {
             let details =
@@ -81,6 +85,30 @@ public final class DiskReader {
                 counters.readOperations, prior?.counters.readOperations, interval: interval)
             let writeOperations = rate(
                 counters.writeOperations, prior?.counters.writeOperations, interval: interval)
+
+            let readTimeDelta = delta(
+                counters.readTimeNanoseconds, prior?.counters.readTimeNanoseconds)
+            let writeTimeDelta = delta(
+                counters.writeTimeNanoseconds, prior?.counters.writeTimeNanoseconds)
+            if let readTimeDelta,
+                let ops = delta(
+                    counters.readOperations, prior?.counters.readOperations)
+            {
+                readTimeDeltaTotal += readTimeDelta
+                readOpsDeltaTotal += ops
+            }
+            if let writeTimeDelta,
+                let ops = delta(
+                    counters.writeOperations, prior?.counters.writeOperations)
+            {
+                writeTimeDeltaTotal += writeTimeDelta
+                writeOpsDeltaTotal += ops
+            }
+            let utilization: Double? = {
+                guard interval > 0, let readTimeDelta, let writeTimeDelta else { return nil }
+                let busyNanoseconds = Double(readTimeDelta + writeTimeDelta)
+                return min(100, busyNanoseconds / (interval * 1_000_000_000) * 100)
+            }()
 
             devices.append(
                 DiskDeviceSample(
@@ -108,7 +136,8 @@ public final class DiskReader {
                     readErrors: counters.readErrors,
                     writeErrors: counters.writeErrors,
                     readRetries: counters.readRetries,
-                    writeRetries: counters.writeRetries))
+                    writeRetries: counters.writeRetries,
+                    utilizationPercent: utilization))
             nextPrevious[counters.registryEntryID] = Previous(counters: counters, timestamp: now)
         }
 
@@ -126,6 +155,9 @@ public final class DiskReader {
             writeBytesPerSec: devices.reduce(0) { $0 + $1.writeBytesPerSec },
             readOperationsPerSec: devices.reduce(0) { $0 + $1.readOperationsPerSec },
             writeOperationsPerSec: devices.reduce(0) { $0 + $1.writeOperationsPerSec },
+            readLatencyMs: latency(timeDelta: readTimeDeltaTotal, opsDelta: readOpsDeltaTotal),
+            writeLatencyMs: latency(timeDelta: writeTimeDeltaTotal, opsDelta: writeOpsDeltaTotal),
+            utilizationPercent: devices.compactMap(\.utilizationPercent).max(),
             devices: devices)
     }
 
@@ -136,6 +168,21 @@ public final class DiskReader {
     private func rate(_ current: UInt64, _ prior: UInt64?, interval: TimeInterval) -> Double {
         guard let prior, interval > 0, current >= prior else { return 0 }
         return Double(current - prior) / interval
+    }
+
+    /// Counter delta guarded the same way as `rate`: nil (not zero) without a
+    /// prior sample or after a counter reset, so downstream averages skip the
+    /// interval instead of folding in a bogus zero.
+    private func delta(_ current: UInt64, _ prior: UInt64?) -> UInt64? {
+        guard let prior, current >= prior else { return nil }
+        return current - prior
+    }
+
+    /// Ops-weighted service time in milliseconds across every device that had a
+    /// valid interval; nil when the interval saw zero completed operations.
+    private func latency(timeDelta: UInt64, opsDelta: UInt64) -> Double? {
+        guard opsDelta > 0 else { return nil }
+        return Double(timeDelta) / Double(opsDelta) / 1_000_000
     }
 
     private func averageMilliseconds(
@@ -162,8 +209,9 @@ public final class DiskReader {
         while driver != 0 {
             if let media = immediateWholeMedia(of: driver) {
                 defer { IOObjectRelease(media) }
-                if let bsdName = stringProperty(media, "BSD Name"),
-                    let stats = dictionaryProperty(driver, kIOBlockStorageDriverStatisticsKey)
+                if let bsdName = IOKitProperty.string(media, "BSD Name"),
+                    let stats = IOKitProperty.dictionary(
+                        driver, kIOBlockStorageDriverStatisticsKey)
                 {
                     var entryID: UInt64 = 0
                     IORegistryEntryGetRegistryEntryID(driver, &entryID)
@@ -196,8 +244,9 @@ public final class DiskReader {
         return result
     }
 
-    private static func immediateWholeMedia(of driver: io_registry_entry_t) -> io_registry_entry_t?
-    {
+    /// Internal (not private) so `DiskInfoReader` walks the identical chain and
+    /// the two readers can never disagree about which media a driver owns.
+    static func immediateWholeMedia(of driver: io_registry_entry_t) -> io_registry_entry_t? {
         var iterator: io_iterator_t = 0
         guard
             IORegistryEntryGetChildIterator(driver, kIOServicePlane, &iterator) == KERN_SUCCESS
@@ -207,7 +256,7 @@ public final class DiskReader {
         var child = IOIteratorNext(iterator)
         while child != 0 {
             if IOObjectConformsTo(child, kIOMediaClass) != 0,
-                boolProperty(child, "Whole") == true
+                IOKitProperty.bool(child, "Whole") == true
             {
                 return child
             }
@@ -236,23 +285,6 @@ public final class DiskReader {
                 ?? false,
             isVirtual: model == "Disk Image" || protocolName == "Virtual Interface"
                 || path.contains("IOHDIXController"))
-    }
-
-    private static func dictionaryProperty(
-        _ entry: io_registry_entry_t, _ key: String
-    ) -> [String: Any]? {
-        IORegistryEntryCreateCFProperty(entry, key as CFString, kCFAllocatorDefault, 0)?
-            .takeRetainedValue() as? [String: Any]
-    }
-
-    private static func stringProperty(_ entry: io_registry_entry_t, _ key: String) -> String? {
-        IORegistryEntryCreateCFProperty(entry, key as CFString, kCFAllocatorDefault, 0)?
-            .takeRetainedValue() as? String
-    }
-
-    private static func boolProperty(_ entry: io_registry_entry_t, _ key: String) -> Bool? {
-        IORegistryEntryCreateCFProperty(entry, key as CFString, kCFAllocatorDefault, 0)?
-            .takeRetainedValue() as? Bool
     }
 
     private static func number(_ dictionary: [String: Any], _ key: String) -> UInt64 {
