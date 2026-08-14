@@ -49,6 +49,10 @@ Network throughput and every adapter on the machine:
 
 ![Network](docs/images/network.png)
 
+Disk throughput, service latency, SMART health, free space, and top I/O processes:
+
+![Disk](docs/images/disk.png)
+
 Analytics: build your own per-process charts over any window:
 
 ![Analytics](docs/images/analytics.png)
