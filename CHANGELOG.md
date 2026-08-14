@@ -6,6 +6,8 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [1.3.8] - 2026-08-14
+
 ### Added
 
 - **A dedicated Disk tab:** every disk fact the system exposes, on one page.
