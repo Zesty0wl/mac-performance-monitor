@@ -62,7 +62,8 @@ struct MenuBarContentView: View {
             }
 
             MenuTrendChart(
-                values: model.systemHistory.elements().map(\.pressurePercent), color: level.color,
+                values: model.systemHistory.elements().map(\.pressurePercent),
+                sampleCapacity: model.systemHistory.capacity, color: level.color,
                 domain: 0...100, ticks: [0, 50, 100], label: { "\(Int($0))" }
             )
             .frame(height: MenuChart.height)
@@ -198,7 +199,7 @@ struct MenuProcessRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Sparkline(values: trail)
+            Sparkline(values: trail, sampleCapacity: SamplerModel.processTrailCapacity)
                 .tint(.secondary)
                 .frame(width: 34, height: 14)
             Text(ByteFormat.string(process.physFootprint))

@@ -80,7 +80,8 @@ struct CPUMenuBarContentView: View {
             }
 
             MenuTrendChart(
-                values: model.cpuLoadTrail(), color: level.color,
+                values: model.cpuLoadTrail(), sampleCapacity: model.systemHistory.capacity,
+                color: level.color,
                 domain: 0...100, ticks: [0, 50, 100], label: { "\(Int($0))" }
             )
             .frame(height: MenuChart.height)
@@ -211,7 +212,7 @@ struct CPUMenuProcessRow: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Sparkline(values: trail)
+            Sparkline(values: trail, sampleCapacity: SamplerModel.processTrailCapacity)
                 .tint(.secondary)
                 .frame(width: 34, height: 14)
             Text(CPUFormat.percent(process.cpuPercent))

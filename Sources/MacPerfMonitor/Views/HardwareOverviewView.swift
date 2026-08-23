@@ -1,0 +1,612 @@
+import MacPerfMonitorCore
+import SwiftUI
+
+/// The Hardware tab's first page: this Mac at a glance, drawn rather than
+/// listed. A block diagram of the system on a chip (CPU clusters, GPU cores,
+/// the Neural Engine, the unified memory they share), capacity bars for
+/// memory and volumes, the displays to scale, the battery's health ring, the
+/// radios and buses, and the running software. Every card opens its section.
+struct HardwareOverviewView: View {
+    @ObservedObject var model: HardwareExplorerModel
+
+    private var facts: HardwareFacts { model.facts }
+
+    var body: some View {
+        ScrollView {
+            // Two columns whose rows share a height (every card stretches to
+            // its row) and sit top-aligned, so the page reads as a neat grid.
+            // One column when the pane is too narrow for two.
+            ViewThatFits(in: .horizontal) {
+                Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 16) {
+                    GridRow {
+                        cell(macCard)
+                        cell(socCard)
+                    }
+                    GridRow {
+                        cell(memoryCard)
+                        cell(storageCard)
+                    }
+                    GridRow {
+                        cell(displaysCard)
+                        cell(powerCard)
+                    }
+                    GridRow {
+                        cell(connectivityCard)
+                        cell(softwareCard)
+                    }
+                }
+                .frame(maxWidth: 1240, alignment: .leading)
+                VStack(alignment: .leading, spacing: 16) {
+                    macCard
+                    socCard
+                    memoryCard
+                    storageCard
+                    displaysCard
+                    powerCard
+                    connectivityCard
+                    softwareCard
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// A grid cell: at least a card's width, and as tall as its row.
+    private func cell<Content: View>(_ content: Content) -> some View {
+        content
+            .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    // MARK: - This Mac
+
+    private var macCard: some View {
+        HardwarePanel("This Mac", systemImage: "macbook", action: { model.selectedID = "mac" }) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(facts.productName ?? facts.modelIdentifier ?? "Mac")
+                    .font(.title3.weight(.semibold))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                HardwareFactRows(rows: [
+                    ("Model identifier", facts.modelIdentifier),
+                    ("Chip", facts.chipName),
+                    ("Memory", facts.memoryBytes.map { ByteFormat.string($0, fractionDigits: 0) }),
+                    ("Serial number", facts.serialNumber),
+                    ("Metal", facts.metalSupport),
+                    ("macOS", facts.osVersion),
+                ])
+            }
+        }
+    }
+
+    // MARK: - System on a chip
+
+    private var socCard: some View {
+        HardwarePanel(
+            "System on a chip", systemImage: "cpu", action: { model.selectedID = "processor" }
+        ) {
+            SoCDiagram(facts: facts)
+        }
+    }
+
+    // MARK: - Memory
+
+    private var memoryCard: some View {
+        HardwarePanel("Memory", systemImage: "memorychip", action: { model.selectedID = "memory" })
+        {
+            VStack(alignment: .leading, spacing: 10) {
+                if let bytes = facts.memoryBytes {
+                    Text(ByteFormat.string(bytes, fractionDigits: 0))
+                        .font(.title2.weight(.semibold))
+                    HardwareCapacityBar(fraction: 1, tint: .purple)
+                        .frame(height: 10)
+                    Text("Unified memory, shared by the CPU, GPU and Neural Engine")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    pending
+                }
+                if let type = facts.memoryType {
+                    HardwareFactRows(rows: [("Type", type)])
+                }
+            }
+        }
+    }
+
+    // MARK: - Storage
+
+    private var storageCard: some View {
+        HardwarePanel(
+            "Storage", systemImage: "internaldrive", action: { model.selectedID = "storage" }
+        ) {
+            VStack(alignment: .leading, spacing: 12) {
+                let volumes = overviewVolumes
+                if volumes.isEmpty {
+                    pending
+                } else {
+                    ForEach(Array(volumes.enumerated()), id: \.offset) { _, volume in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(volume.name)
+                                    .font(.callout.weight(.medium))
+                                    .lineLimit(1)
+                                Spacer()
+                                Text(ByteFormat.string(volume.capacityBytes, fractionDigits: 0))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            let used = volume.freeBytes.map {
+                                volume.capacityBytes - min($0, volume.capacityBytes)
+                            }
+                            HardwareCapacityBar(
+                                fraction: used.map {
+                                    Double($0) / Double(max(volume.capacityBytes, 1))
+                                } ?? 0,
+                                tint: .blue
+                            )
+                            .frame(height: 8)
+                            if let free = volume.freeBytes {
+                                Text("\(ByteFormat.string(free, fractionDigits: 1)) free")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Mounted user-facing volumes: the boot volume, the data volume that
+    /// backs it, and anything under /Volumes. Duplicated APFS volumes in the
+    /// same container report the same free space, so only the first of each
+    /// free-space figure is shown.
+    private var overviewVolumes: [HardwareFacts.Volume] {
+        guard let all = facts.volumes else { return [] }
+        func rank(_ mount: String) -> Int {
+            if mount == "/" { return 0 }
+            if mount.hasPrefix("/Volumes/") { return 1 }
+            if mount == "/System/Volumes/Data" { return 2 }
+            return 3
+        }
+        let visible = all.filter { rank($0.mountPoint ?? "") < 3 }
+            .sorted { rank($0.mountPoint ?? "") < rank($1.mountPoint ?? "") }
+        // Volumes in one APFS container report the same capacity and (to
+        // within a few MB) the same free space; show each container once.
+        var seen: [(UInt64, UInt64)] = []
+        var picked: [HardwareFacts.Volume] = []
+        for volume in visible {
+            let key = (volume.capacityBytes, (volume.freeBytes ?? 0) / (256 << 20))
+            if seen.contains(where: { $0 == key }) { continue }
+            seen.append(key)
+            picked.append(volume)
+        }
+        return Array(picked.prefix(6))
+    }
+
+    // MARK: - Displays
+
+    private var displaysCard: some View {
+        HardwarePanel("Displays", systemImage: "display", action: { model.selectedID = "displays" })
+        {
+            if let displays = facts.displays, !displays.isEmpty {
+                HardwareFlowLayout(spacing: 14) {
+                    ForEach(Array(displays.enumerated()), id: \.offset) { _, display in
+                        DisplayGlyph(display: display)
+                    }
+                }
+            } else {
+                pending
+            }
+        }
+    }
+
+    // MARK: - Power
+
+    private var powerCard: some View {
+        HardwarePanel(
+            "Battery", systemImage: "battery.100percent", action: { model.selectedID = "power" }
+        ) {
+            if let battery = facts.battery {
+                HStack(alignment: .center, spacing: 16) {
+                    HealthRing(fraction: (battery.healthPercent ?? 0) / 100)
+                        .frame(width: 72, height: 72)
+                    VStack(alignment: .leading, spacing: 4) {
+                        if let health = battery.healthPercent {
+                            Text("\(Int(health.rounded()))% maximum capacity")
+                                .font(.callout.weight(.medium))
+                        }
+                        HardwareFactRows(rows: [
+                            ("Condition", battery.condition),
+                            ("Cycle count", battery.cycleCount.map { "\($0)" }),
+                            ("Charge", battery.chargePercent.map { "\(Int($0.rounded()))%" }),
+                            (
+                                "Capacity",
+                                battery.maxCapacitymAh.flatMap { full in
+                                    battery.designCapacitymAh.map { "\(full) of \($0) mAh" }
+                                }
+                            ),
+                        ])
+                    }
+                }
+            } else if model.section("power") != nil {
+                Text("No battery: this Mac runs on mains power.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                pending
+            }
+        }
+    }
+
+    // MARK: - Connectivity
+
+    private var connectivityCard: some View {
+        HardwarePanel(
+            "Connectivity", systemImage: "antenna.radiowaves.left.and.right",
+            action: { model.selectedID = "network" }
+        ) {
+            HardwareFactRows(rows: [
+                (
+                    "Wi-Fi",
+                    facts.wifiSummary ?? (model.section("wifi") != nil ? "No Wi-Fi interface" : nil)
+                ),
+                ("Bluetooth", facts.bluetoothSummary),
+                ("USB devices", facts.usbDeviceCount.map { "\($0)" }),
+                ("Thunderbolt ports", facts.thunderboltPortCount.map { "\($0)" }),
+            ])
+        }
+    }
+
+    // MARK: - Software
+
+    private var softwareCard: some View {
+        HardwarePanel(
+            "Software", systemImage: "macwindow", action: { model.selectedID = "software" }
+        ) {
+            HardwareFactRows(rows: [
+                ("System", facts.osVersion),
+                ("Kernel", facts.kernelVersion),
+                (
+                    "Last boot",
+                    facts.bootTime.map { $0.formatted(date: .abbreviated, time: .shortened) }
+                ),
+                ("Uptime", facts.bootTime.map { HardwareUptime.string(since: $0) }),
+                ("Secure boot", facts.secureBoot),
+            ])
+        }
+    }
+
+    private var pending: some View {
+        HStack(spacing: 6) {
+            if model.isRefreshing {
+                ProgressView()
+                    .controlSize(.small)
+            }
+            Text(model.isRefreshing ? "Reading\u{2026}" : "Not reported")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Label/value rows for a card, skipping facts that are not known yet.
+private struct HardwareFactRows: View {
+    let rows: [(String, String?)]
+
+    var body: some View {
+        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 5) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                if let value = row.1 {
+                    GridRow {
+                        Text(row.0)
+                            .foregroundStyle(.secondary)
+                            .gridColumnAlignment(.leading)
+                        Text(value)
+                            .textSelection(.enabled)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        }
+        .font(.callout)
+    }
+}
+
+enum HardwareUptime {
+    static func string(since boot: Date, now: Date = Date()) -> String {
+        let seconds = Int(now.timeIntervalSince(boot))
+        let days = seconds / 86_400
+        let hours = (seconds % 86_400) / 3_600
+        let minutes = (seconds % 3_600) / 60
+        var parts: [String] = []
+        if days > 0 { parts.append("\(days)d") }
+        if hours > 0 || days > 0 { parts.append("\(hours)h") }
+        parts.append("\(minutes)m")
+        return parts.joined(separator: " ")
+    }
+}
+
+// MARK: - Drawings
+
+/// The system on a chip as blocks: CPU clusters with one square per core,
+/// the GPU's cores, the Neural Engine, and the unified memory underneath.
+private struct SoCDiagram: View {
+    let facts: HardwareFacts
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HardwareFlowLayout(spacing: 8, equalHeights: true) {
+                cpuBlock
+                gpuBlock
+                aneBlock
+            }
+            memoryBlock
+            legend
+        }
+    }
+
+    private var cpuBlock: some View {
+        SoCBlock(title: "CPU", subtitle: cpuSubtitle) {
+            VStack(alignment: .leading, spacing: 8) {
+                if let p = facts.performanceCores {
+                    CoreGrid(count: p, color: .orange, label: "\(p) performance")
+                }
+                if let e = facts.efficiencyCores {
+                    CoreGrid(count: e, color: .teal, label: "\(e) efficiency")
+                }
+                if facts.performanceCores == nil, facts.efficiencyCores == nil {
+                    Text("Reading\u{2026}").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private var cpuSubtitle: String {
+        let total = (facts.performanceCores ?? 0) + (facts.efficiencyCores ?? 0)
+        return total > 0 ? "\(total) cores" : ""
+    }
+
+    private var gpuBlock: some View {
+        SoCBlock(title: "GPU", subtitle: facts.gpuCores.map { "\($0) cores" } ?? "") {
+            if let cores = facts.gpuCores {
+                // Seven across: 14-core and 28-core parts fill their rows.
+                CoreGrid(
+                    count: cores, color: .green, label: facts.metalSupport ?? "Metal", )
+            } else {
+                Text("Reading\u{2026}").font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var aneBlock: some View {
+        SoCBlock(
+            title: "Neural Engine", subtitle: facts.neuralEngineCores.map { "\($0) cores" } ?? ""
+        ) {
+            VStack(spacing: 6) {
+                Image(systemName: "brain")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.pink)
+                if let cores = facts.neuralEngineCores {
+                    CoreGrid(count: cores, color: .pink, label: nil, maxPerRow: 8, size: 7)
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var memoryBlock: some View {
+        HStack {
+            Image(systemName: "memorychip")
+                .foregroundStyle(.purple)
+            Text("Unified memory")
+                .font(.callout.weight(.medium))
+            Spacer()
+            Text(memoryText)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.purple.opacity(0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(Color.purple.opacity(0.35), lineWidth: 1))
+    }
+
+    private var memoryText: String {
+        var parts: [String] = []
+        if let bytes = facts.memoryBytes {
+            parts.append(ByteFormat.string(bytes, fractionDigits: 0))
+        }
+        if let type = facts.memoryType { parts.append(type) }
+        return parts.isEmpty ? "Reading\u{2026}" : parts.joined(separator: ", ")
+    }
+
+    private var legend: some View {
+        HardwareFlowLayout(spacing: 12) {
+            legendItem(.orange, "Performance core")
+            legendItem(.teal, "Efficiency core")
+            legendItem(.green, "GPU core")
+            legendItem(.pink, "Neural Engine core")
+            if let chip = facts.chipName {
+                Text(chip)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+    }
+
+    private func legendItem(_ color: Color, _ text: String) -> some View {
+        HStack(spacing: 4) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(color)
+                .frame(width: 9, height: 9)
+            Text(text)
+        }
+    }
+}
+
+private struct SoCBlock<Content: View>: View {
+    let title: String
+    let subtitle: String
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.callout.weight(.semibold))
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            content()
+        }
+        .padding(8)
+        .frame(minWidth: 100, maxHeight: .infinity, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+        )
+    }
+}
+
+/// One square per core, wrapped into rows.
+private struct CoreGrid: View {
+    let count: Int
+    let color: Color
+    let label: String?
+    /// The widest a row gets; the grid then balances its rows, so 14 cores
+    /// draw as 7 + 7, 24 as 8 + 8 + 8, and an 80-core GPU as 8 rows of 10.
+    var maxPerRow: Int = 10
+    var size: CGFloat = 12
+
+    private var rows: Int { max(1, (count + maxPerRow - 1) / maxPerRow) }
+    private var columns: Int { max(1, (count + rows - 1) / rows) }
+    /// Smaller squares past 40 cores keep the biggest chips compact.
+    private var side: CGFloat { count > 40 ? size * 0.8 : size }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(0..<rows, id: \.self) { row in
+                HStack(spacing: 3) {
+                    ForEach(0..<columns, id: \.self) { column in
+                        let index = row * columns + column
+                        if index < count {
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(color.opacity(0.85))
+                                .frame(width: side, height: side)
+                        }
+                    }
+                }
+            }
+            if let label {
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private struct HardwareCapacityBar: View {
+    let fraction: Double
+    let tint: Color
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.primary.opacity(0.08))
+                Capsule()
+                    .fill(tint.opacity(0.8))
+                    .frame(width: max(0, min(1, fraction)) * proxy.size.width)
+            }
+        }
+    }
+}
+
+private struct HealthRing: View {
+    let fraction: Double
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.primary.opacity(0.08), lineWidth: 9)
+            Circle()
+                .trim(from: 0, to: max(0, min(1, fraction)))
+                .stroke(color, style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            Text("\(Int((fraction * 100).rounded()))%")
+                .font(.callout.weight(.semibold).monospacedDigit())
+        }
+    }
+
+    private var color: Color {
+        if fraction >= 0.8 { return .green }
+        if fraction >= 0.6 { return .orange }
+        return .red
+    }
+}
+
+/// A display drawn to its aspect ratio, labelled with its resolution.
+private struct DisplayGlyph: View {
+    let display: HardwareFacts.Display
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .fill(Color.primary.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.3), lineWidth: 1.5)
+                )
+                .overlay(alignment: .topTrailing) {
+                    if display.isMain {
+                        Text("Main")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Capsule().fill(Color.accentColor.opacity(0.2)))
+                            .padding(4)
+                    }
+                }
+                .frame(width: 130, height: 130 * aspect)
+            Text(display.name)
+                .font(.callout.weight(.medium))
+                .lineLimit(1)
+            if display.pixelWidth > 0 {
+                Text("\(display.pixelWidth) x \(display.pixelHeight) pixels")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if let resolution = display.resolution {
+                Text(resolution)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Text(display.isBuiltIn ? "Built-in" : "External")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(width: 150, alignment: .leading)
+    }
+
+    private var aspect: CGFloat {
+        guard display.pixelWidth > 0, display.pixelHeight > 0 else { return 0.625 }
+        return CGFloat(display.pixelHeight) / CGFloat(display.pixelWidth)
+    }
+}

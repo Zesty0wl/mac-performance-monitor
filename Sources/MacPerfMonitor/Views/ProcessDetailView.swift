@@ -1,5 +1,5 @@
 import AppKit
-import Charts
+import Combine
 import MacPerfMonitorCore
 import SwiftUI
 
@@ -8,50 +8,38 @@ import SwiftUI
 /// leak indicator when the analysis engine flags steady growth.
 ///
 /// Shown in the Processes tab's inspector for the selected row. History is read
-/// from the database for the chosen range and the current live sample is
-/// appended on the right edge so the charts track the latest tick.
+/// from the database for the chosen range and extended in place each tick.
+///
+/// Like the Dashboard, the page itself does not observe `SamplerModel`: the
+/// header, the description, the charts and the details are leaves that observe
+/// the model or the chart store on their own, so a table tick re-renders only
+/// the pieces whose data changed rather than re-laying-out the whole inspector.
 struct ProcessDetailView: View {
-    @EnvironmentObject private var model: SamplerModel
+    @Environment(\.samplerModel) private var model
     let identity: ProcessIdentity
 
-    @ObservedObject private var glossaryStore = ProcessGlossaryStore.shared
-
     @State private var range: HistoryWindow = .oneHour
-    @State private var history: [ProcessHistoryPoint] = []
-
-    /// True while a range-change (or first) history read is in flight, so the
-    /// charts show a spinner over dimmed data instead of silently displaying the
-    /// previous range until the new window arrives. Set only on a range switch and
-    /// the initial load — never on the per-tick append refresh, which would make
-    /// the spinner flicker every sample.
-    @State private var isLoading = false
+    /// The chart series, owned here as a stable reference and observed only by
+    /// the charts leaf.
+    @State private var store = ProcessDetailStore()
 
     /// Charts are built one beat after the inspector mounts, so opening the pane
-    /// for a process slides in smoothly instead of stuttering while four Swift
-    /// Charts lay out on the first frame. A same-height placeholder holds the
-    /// layout so nothing jumps when the real charts take over. Reset per process
-    /// because the parent recreates this view (`.id(selection)`) on each open.
+    /// for a process slides in smoothly instead of stuttering while the charts
+    /// lay out on the first frame. A same-height placeholder holds the layout so
+    /// nothing jumps when the real charts take over. Reset per process because
+    /// the parent recreates this view (`.id(selection)`) on each open.
     @State private var chartsReady = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header
-                descriptionCard
+                ProcessDetailHeader(identity: identity)
+                ProcessDetailDescription(identity: identity)
                 rangePicker
-
-                if chartPoints.count < 2 {
-                    Text(
-                        model.hasHistory
-                            ? "Collecting history for this process…"
-                            : "History store unavailable; showing live data only."
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-
-                charts
-                MetadataSection(identity: identity, live: live)
+                ProcessDetailCharts(
+                    store: store, range: range, chartsReady: chartsReady,
+                    hasHistory: model?.hasHistory ?? false)
+                ProcessDetailMetadata(identity: identity)
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -64,76 +52,44 @@ struct ProcessDetailView: View {
             chartsReady = true
         }
         .onChange(of: range) { fullReload(spinner: true) }
-        // Each sampling tick re-publishes the live snapshot, which advances this
-        // process's latest timestamp; that is the cue to pull just the rows
-        // persisted since our last point and append them. The leak verdict is
-        // refreshed on the same cue (once per tick, not per body evaluation).
-        .onChange(of: live?.timestamp) {
-            appendNewData()
+        // Once a second (the history rows land at the logging cadence, at
+        // most once a second), pull just the rows persisted since our last
+        // point and append them. Independent of the table publish, which
+        // follows the 5 s full-calc cadence. The leak verdict is refreshed on
+        // the same cue.
+        .onReceive(tableTicks) { _ in appendNewData() }
+    }
+
+    private var tableTicks: AnyPublisher<Void, Never> {
+        model?.liveTick
+            .throttle(for: .seconds(1), scheduler: RunLoop.main, latest: true)
+            .eraseToAnyPublisher()
+            ?? Empty().eraseToAnyPublisher()
+    }
+
+    private var rangePicker: some View {
+        Picker("Range", selection: $range) {
+            ForEach(HistoryWindow.allCases) { r in Text(r.label).tag(r) }
         }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .historyRangeGate()
     }
 
-    // MARK: - Live sample and derived series
-
-    private var live: ProcessSample? { model.currentSample(for: identity) }
-
-    private var displayName: String {
-        live?.displayName ?? "PID \(identity.pid)"
-    }
+    // MARK: - Loading
 
     /// When an aggregate (minute/hour) range last did a full window re-read;
     /// see `appendNewData`.
     @State private var lastAggregateReload = Date.distantPast
 
-    /// The series every chart draws: this process's history as written to the
-    /// database. Loaded in full when the inspector opens (and whenever the range
-    /// changes), then extended in place each tick with only the rows persisted
-    /// since the last point — no live synthesis or trail splicing, so the line
-    /// stays continuous and simply grows on the right as new samples land.
-    ///
-    /// A process that has never been a top consumer has no stored rows yet, so
-    /// until tracking starts persisting it the charts seed from the short
-    /// in-memory trail the model keeps for every live process. The moment real
-    /// stored history arrives it takes over.
-    private var chartPoints: [ProcessHistoryPoint] {
-        if history.count >= 2 { return history }
-        let trail = model.trailSamples(for: identity)
-        return trail.count >= 2 ? trail : history
-    }
-
-    /// Memoized leak verdict. `LeakDetector.analyze` sorts the whole series, and
-    /// as a computed property it ran (twice) on every body evaluation — which at
-    /// fast dials, or with a popover pumping 1 Hz publishes, meant re-sorting up
-    /// to ~1,900 points many times a second. Refreshed once per data change
-    /// instead (`refreshLeakFinding`).
-    @State private var leakFinding: LeakDetector.Finding?
-
-    private func refreshLeakFinding() {
-        let series = chartPoints.map { ($0.date, $0.footprint) }
-        leakFinding = LeakDetector.analyze(series: series)
-    }
-
-    /// The leak banner's old sentence, now surfaced as the Memory footprint
-    /// card's caption when the analysis engine flags steady growth.
-    private func leakDetailText(_ finding: LeakDetector.Finding) -> String {
-        let growth = ByteFormat.string(finding.totalGrowth)
-        let minutes = Int((finding.durationSeconds / 60).rounded())
-        let rate = ByteFormat.string(UInt64(max(finding.slopeBytesPerSecond, 0)))
-        let confidence = Int((finding.confidence * 100).rounded())
-        return
-            "\(displayName) grew \(growth) over \(minutes) min (~\(rate)/s, \(confidence)% confidence). "
-            + "If it keeps climbing, consider restarting it."
-    }
-
     /// Load the whole window from the database, replacing what we hold. Used
     /// when the inspector first appears and whenever the range changes.
     private func fullReload(spinner: Bool = false) {
-        if spinner { isLoading = true }
+        guard let model else { return }
+        if spinner { store.isLoading = true }
         lastAggregateReload = Date()
         model.loadProcessHistory(identity, window: range) { points in
-            self.history = points
-            self.isLoading = false
-            self.refreshLeakFinding()
+            store.replace(history: points, trail: model.trailSamples(for: identity))
         }
     }
 
@@ -142,9 +98,10 @@ struct ProcessDetailView: View {
     /// forward. If nothing is loaded yet (a brand-new process with no stored
     /// rows), fall back to a full load and try again on the next tick.
     private func appendNewData() {
-        // Only the 1-hour window is raw and can be extended point-by-point. The
-        // longer windows read minute/hour aggregates, which gain a finalised
-        // bucket once a minute at most — so cap the re-read cadence instead of
+        guard let model else { return }
+        // Only the raw windows can be extended point-by-point. The longer
+        // windows read minute/hour aggregates, which gain a finalised bucket
+        // once a minute at most, so cap the re-read cadence instead of
         // re-reading the whole window on every tick.
         guard range.granularity == .raw else {
             if Date().timeIntervalSince(lastAggregateReload) >= 60 {
@@ -152,27 +109,84 @@ struct ProcessDetailView: View {
             }
             return
         }
-        guard let after = history.last?.date else {
+        guard let after = store.history.last?.date else {
             fullReload()
             return
         }
+        let cutoff = Date().addingTimeInterval(-range.seconds)
         model.loadNewProcessHistory(identity, after: after) { newPoints in
-            let fresh = newPoints.filter { $0.date > after }
-            guard !fresh.isEmpty else { return }
-            var merged = self.history
-            merged.append(contentsOf: fresh)
-            let cutoff = Date().addingTimeInterval(-self.range.seconds)
-            self.history = merged.filter { $0.date >= cutoff }
-            // Recompute AFTER the append lands (this closure runs later than
-            // the onChange that scheduled it), so the leak badge describes the
-            // series the chart is actually drawing, not last tick's.
-            self.refreshLeakFinding()
+            store.append(
+                newPoints.filter { $0.date > after }, cutoff: cutoff,
+                trail: model.trailSamples(for: identity))
         }
     }
+}
 
-    // MARK: - Header
+// MARK: - Chart store
 
-    private var header: some View {
+/// The series every chart draws: this process's history as written to the
+/// database. Loaded in full when the inspector opens (and whenever the range
+/// changes), then extended in place each tick with only the rows persisted
+/// since the last point, so the line stays continuous and simply grows on the
+/// right as new samples land. A process that has never been a top consumer has
+/// no stored rows yet, so until tracking starts persisting it the charts seed
+/// from the short in-memory trail the model keeps for every live process.
+///
+/// Observed only by `ProcessDetailCharts`; the page holds it as a reference.
+private final class ProcessDetailStore: ObservableObject {
+    @Published private(set) var version = 0
+    private(set) var history: [ProcessHistoryPoint] = []
+    private var trail: [ProcessHistoryPoint] = []
+    /// Memoized leak verdict, refreshed once per data change rather than on
+    /// every body evaluation (`LeakDetector.analyze` sorts the whole series).
+    private(set) var leakFinding: LeakDetector.Finding?
+    /// True while a range-change (or first) history read is in flight, so the
+    /// charts show a spinner over dimmed data instead of silently displaying the
+    /// previous range until the new window arrives. Set only on a range switch
+    /// and the initial load, never on the per-tick append.
+    var isLoading = false {
+        didSet { if isLoading != oldValue { version &+= 1 } }
+    }
+
+    var chartPoints: [ProcessHistoryPoint] {
+        if history.count >= 2 { return history }
+        return trail.count >= 2 ? trail : history
+    }
+
+    func replace(history: [ProcessHistoryPoint], trail: [ProcessHistoryPoint]) {
+        self.history = history
+        self.trail = trail
+        isLoading = false
+        refreshLeakFinding()
+        version &+= 1
+    }
+
+    func append(_ fresh: [ProcessHistoryPoint], cutoff: Date, trail: [ProcessHistoryPoint]) {
+        self.trail = trail
+        if !fresh.isEmpty {
+            history.append(contentsOf: fresh)
+            history.removeAll { $0.date < cutoff }
+        }
+        refreshLeakFinding()
+        version &+= 1
+    }
+
+    private func refreshLeakFinding() {
+        let series = chartPoints.map { ($0.date, $0.footprint) }
+        leakFinding = LeakDetector.analyze(series: series)
+    }
+}
+
+// MARK: - Leaves
+
+/// The icon, name, Rosetta badge and PID, live from the model.
+private struct ProcessDetailHeader: View {
+    let identity: ProcessIdentity
+    @EnvironmentObject private var model: SamplerModel
+
+    var body: some View {
+        let live = model.currentSample(for: identity)
+        let displayName = live?.displayName ?? "PID \(identity.pid)"
         HStack(spacing: 10) {
             Image(nsImage: ProcessIconProvider.shared.icon(forPath: live?.executablePath))
                 .resizable()
@@ -199,12 +213,48 @@ struct ProcessDetailView: View {
             Spacer(minLength: 0)
         }
     }
+}
 
-    /// Plain-language "what is this process?" from the (downloadable) glossary, with
-    /// a derived fallback when we don't have a curated entry yet.
-    private var descriptionCard: some View {
-        let d = glossaryStore.describe(
-            name: live?.name ?? displayName, bundleID: live?.bundleID, path: live?.executablePath)
+/// Plain-language "what is this process?" from the (downloadable) glossary,
+/// with a derived fallback when we don't have a curated entry yet. The lookup
+/// (a longest-match scan of the glossary) runs once per process and glossary
+/// version, not on every tick.
+private struct ProcessDetailDescription: View {
+    let identity: ProcessIdentity
+    @EnvironmentObject private var model: SamplerModel
+    @ObservedObject private var glossaryStore = ProcessGlossaryStore.shared
+    @State private var description: ResolvedDescription?
+
+    private struct Key: Equatable {
+        var name: String
+        var bundleID: String?
+        var path: String?
+        var source: ProcessGlossaryStore.Source
+    }
+
+    private var key: Key {
+        let live = model.currentSample(for: identity)
+        return Key(
+            name: live?.name ?? "PID \(identity.pid)", bundleID: live?.bundleID,
+            path: live?.executablePath, source: glossaryStore.source)
+    }
+
+    var body: some View {
+        let key = key
+        Group {
+            if let d = description {
+                card(d)
+            } else {
+                Color.clear.frame(height: 1)
+            }
+        }
+        .task(id: key) {
+            description = glossaryStore.describe(
+                name: key.name, bundleID: key.bundleID, path: key.path)
+        }
+    }
+
+    private func card(_ d: ResolvedDescription) -> some View {
         let tint = Self.categoryTint(d.category)
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
@@ -261,30 +311,38 @@ struct ProcessDetailView: View {
         default: return .secondary
         }
     }
+}
 
-    private var rangePicker: some View {
-        Picker("Range", selection: $range) {
-            ForEach(HistoryWindow.allCases) { r in Text(r.label).tag(r) }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .historyRangeGate()
-    }
+/// The five timelines, re-rendered only when the chart store changes.
+private struct ProcessDetailCharts: View {
+    @ObservedObject var store: ProcessDetailStore
+    let range: HistoryWindow
+    let chartsReady: Bool
+    let hasHistory: Bool
 
-    // MARK: - Charts
-
-    private var charts: some View {
+    var body: some View {
+        let points = store.chartPoints
+        let disk = Self.diskRateSamples(points)
+        let leak = store.leakFinding
         VStack(alignment: .leading, spacing: 16) {
+            if points.count < 2 {
+                Text(
+                    hasHistory
+                        ? "Collecting history for this process…"
+                        : "History store unavailable; showing live data only."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
             chartBlock(
                 title: "Memory footprint",
                 systemImage: "memorychip",
                 caption: "phys_footprint, the headline \"Memory\" figure.",
-                samples: chartPoints.map {
-                    MetricSample(date: $0.date, value: Double($0.footprint))
-                },
+                samples: points.map { MetricSample(date: $0.date, value: Double($0.footprint)) },
                 tint: .blue,
-                isLeaking: leakFinding != nil,
-                leakDetail: leakFinding.map(leakDetailText),
+                isLeaking: leak != nil,
+                leakDetail: leak.map(leakDetailText),
                 yFormat: { ByteFormat.string(UInt64(max($0, 0))) }
             )
 
@@ -292,7 +350,7 @@ struct ProcessDetailView: View {
                 title: "CPU",
                 systemImage: "cpu",
                 caption: "Percent of one core, from the CPU-time delta between ticks.",
-                samples: chartPoints.map { MetricSample(date: $0.date, value: $0.cpuPercent) },
+                samples: points.map { MetricSample(date: $0.date, value: $0.cpuPercent) },
                 tint: .green,
                 minTop: 5,
                 yFormat: { String(format: "%.0f%%", max($0, 0)) }
@@ -302,9 +360,7 @@ struct ProcessDetailView: View {
                 title: "File descriptors",
                 systemImage: "doc.on.doc",
                 caption: "Open files, sockets, and pipes. A steady climb can signal a handle leak.",
-                samples: chartPoints.map {
-                    MetricSample(date: $0.date, value: Double($0.fdTotal))
-                },
+                samples: points.map { MetricSample(date: $0.date, value: Double($0.fdTotal)) },
                 tint: .purple,
                 minTop: 10,
                 yFormat: { String(format: "%.0f", max($0, 0)) }
@@ -317,18 +373,30 @@ struct ProcessDetailView: View {
                     title: "Read",
                     systemImage: "arrow.down",
                     caption: "Kernel-attributed read throughput between samples.",
-                    samples: diskRateSamples.read,
+                    samples: disk.read,
                     tint: DiskStyle.read,
                     yFormat: { ByteFormat.rate(max($0, 0)) })
                 chartBlock(
                     title: "Write",
                     systemImage: "arrow.up",
                     caption: "Kernel-attributed write throughput between samples.",
-                    samples: diskRateSamples.write,
+                    samples: disk.write,
                     tint: DiskStyle.write,
                     yFormat: { ByteFormat.rate(max($0, 0)) })
             }
         }
+    }
+
+    /// The leak banner's old sentence, surfaced as the Memory footprint card's
+    /// caption when the analysis engine flags steady growth.
+    private func leakDetailText(_ finding: LeakDetector.Finding) -> String {
+        let growth = ByteFormat.string(finding.totalGrowth)
+        let minutes = Int((finding.durationSeconds / 60).rounded())
+        let rate = ByteFormat.string(UInt64(max(finding.slopeBytesPerSecond, 0)))
+        let confidence = Int((finding.confidence * 100).rounded())
+        return
+            "This process grew \(growth) over \(minutes) min (~\(rate)/s, \(confidence)% confidence). "
+            + "If it keeps climbing, consider restarting it."
     }
 
     @ViewBuilder
@@ -374,9 +442,9 @@ struct ProcessDetailView: View {
             }
             // Dim the previous range's line and spin while the new window loads,
             // so a range switch reads as "loading" rather than stale data.
-            .opacity(isLoading ? 0.3 : 1)
+            .opacity(store.isLoading ? 0.3 : 1)
             .overlay {
-                if isLoading {
+                if store.isLoading {
                     ProgressView().controlSize(.small)
                 }
             }
@@ -389,8 +457,9 @@ struct ProcessDetailView: View {
 
     /// Disk throughput (bytes/second) from the difference between consecutive
     /// cumulative counters. Counter resets (process replaced) clamp to zero.
-    private var diskRateSamples: (read: [MetricSample], write: [MetricSample]) {
-        let points = chartPoints
+    private static func diskRateSamples(
+        _ points: [ProcessHistoryPoint]
+    ) -> (read: [MetricSample], write: [MetricSample]) {
         guard points.count > 1 else { return ([], []) }
         var read: [MetricSample] = []
         var write: [MetricSample] = []
@@ -413,6 +482,16 @@ struct ProcessDetailView: View {
 }
 
 // MARK: - Metadata
+
+/// The details card, live from the model.
+private struct ProcessDetailMetadata: View {
+    let identity: ProcessIdentity
+    @EnvironmentObject private var model: SamplerModel
+
+    var body: some View {
+        MetadataSection(identity: identity, live: model.currentSample(for: identity))
+    }
+}
 
 private struct MetadataSection: View {
     let identity: ProcessIdentity
@@ -499,12 +578,18 @@ private struct MetadataSection: View {
 
     private func ageString(since start: Date) -> String {
         let seconds = max(Date().timeIntervalSince(start), 0)
+        return Self.ageFormatter.string(from: seconds) ?? "—"
+    }
+
+    /// Built once: a `DateComponentsFormatter` per render was needless churn
+    /// on every table tick.
+    private static let ageFormatter: DateComponentsFormatter = {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.day, .hour, .minute]
         formatter.maximumUnitCount = 2
         formatter.unitsStyle = .abbreviated
-        return formatter.string(from: seconds) ?? "—"
-    }
+        return formatter
+    }()
 
     /// Both the account name and the numeric uid, e.g. "alice (501)".
     /// Falls back to just the number for uids with no passwd entry (some

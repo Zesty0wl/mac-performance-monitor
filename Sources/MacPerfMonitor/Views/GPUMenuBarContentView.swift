@@ -4,13 +4,15 @@ import MacPerfMonitorCore
 import SwiftUI
 
 /// The GPU menubar dropdown. Headline utilization and a usage-history sparkline,
-/// device / renderer / tiler / Neural-Engine activity bars, and a details block
+/// device / renderer / tiler / Neural-Engine activity bars, a details block
 /// with GPU + ANE + CPU power (IOReport), in-use / allocated memory, die
-/// temperature and fan (SMC). Apple-silicon only. Re-renders at 1 Hz while open
-/// via the shared `MenuClock`; there is no per-process GPU attribution, so the
-/// panel adds no scanning cost.
+/// temperature and fan (SMC), and the top GPU processes with the AI runtime
+/// named where there is one. Apple-silicon only. Re-renders at the dial rate
+/// while open via the shared `MenuClock`; the process list rides the popover
+/// scan cadence its status item registers for.
 struct GPUMenuBarContentView: View {
     @EnvironmentObject private var model: SamplerModel
+    @EnvironmentObject private var menuLists: MenuListsModel
     @EnvironmentObject private var menuClock: MenuClock
 
     /// Called after an action so the host (the AppKit popover) can dismiss.
@@ -34,6 +36,8 @@ struct GPUMenuBarContentView: View {
                 bars(gpu)
                 Divider()
                 details(gpu)
+                Divider()
+                topProcesses
             } else {
                 Text("Reading GPU\u{2026}")
                     .font(.callout).foregroundStyle(.secondary)
@@ -66,16 +70,18 @@ struct GPUMenuBarContentView: View {
 
     private var sparkline: some View {
         let points = Array(model.gpuUtilizationHistory.enumerated())
-        let maxX = Double(max(points.count - 1, 1))
+        let capacity = SamplerModel.gpuHistoryCapacity
         return Chart(points, id: \.offset) { point in
-            AreaMark(x: .value("t", point.offset), y: .value("u", point.element))
+            let x = LiveChartGeometry.normalizedSlot(
+                index: point.offset, count: points.count, capacity: capacity)
+            AreaMark(x: .value("t", x), y: .value("u", point.element))
                 .foregroundStyle(Color.accentColor.opacity(0.18))
-            LineMark(x: .value("t", point.offset), y: .value("u", point.element))
+            LineMark(x: .value("t", x), y: .value("u", point.element))
                 .foregroundStyle(Color.accentColor)
-                .interpolationMethod(.monotone)
+                .interpolationMethod(.linear)
         }
         .chartYScale(domain: 0...100)
-        .chartXScale(domain: 0...maxX)
+        .chartXScale(domain: 0...1)
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
         .frame(height: 38)
@@ -139,6 +145,31 @@ struct GPUMenuBarContentView: View {
         }
     }
 
+    // MARK: - Top processes
+
+    private var topProcesses: some View {
+        let top = Array(menuLists.topGPU.prefix(8))
+        return VStack(alignment: .leading, spacing: 0) {
+            Text("Top GPU")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 2)
+
+            if top.isEmpty {
+                Text(menuLists.gpuListScanned ? "Nothing is using the GPU" : "Sampling\u{2026}")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
+            } else {
+                ForEach(top) { process in
+                    GPUMenuProcessRow(
+                        process: process,
+                        workload: model.gpuWorkload(for: process.id))
+                }
+            }
+        }
+    }
+
     private func wattsString(_ watts: Double?) -> String? {
         guard let watts else { return nil }
         return String(format: "%.2f W", watts)
@@ -157,5 +188,64 @@ struct GPUMenuBarContentView: View {
         case (nil, .some(let a)): return a
         default: return "—"
         }
+    }
+}
+
+/// One row of the GPU dropdown's top list: icon, name, the AI runtime when the
+/// process is one (the reason to watch the GPU at all), and its share of the
+/// device over the last scan interval.
+struct GPUMenuProcessRow: View {
+    let process: ProcessSample
+    let workload: GPUWorkloadInfo?
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(nsImage: ProcessIconProvider.shared.icon(forPath: process.executablePath))
+                .resizable()
+                .frame(width: 16, height: 16)
+            HStack(spacing: 5) {
+                Text(process.displayName)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if let runtime = workload?.runtime {
+                    Text(runtime)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.secondary.opacity(0.15)))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(CPUFormat.percent(process.gpuPercentValue))
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 52, alignment: .trailing)
+            ProcessRowMenuButton(identity: process.id, bringWindowForward: true)
+        }
+        .padding(.vertical, 3)
+        .padding(.horizontal, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(hovering ? Color.accentColor.opacity(0.14) : .clear)
+        )
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint("Opens this process in the main window")
+        .processRowActions(identity: process.id, bringWindowForward: true, openOnSingleTap: true)
+    }
+
+    private var accessibilityLabel: String {
+        let base = "\(process.displayName), \(CPUFormat.percent(process.gpuPercentValue)) GPU"
+        guard let runtime = workload?.runtime else { return base }
+        return "\(base), \(runtime)"
     }
 }

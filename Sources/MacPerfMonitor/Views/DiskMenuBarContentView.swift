@@ -17,8 +17,11 @@ struct DiskMenuBarContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
-            DiskReadWriteChart(read: model.diskReadTrail(), write: model.diskWriteTrail())
-                .frame(height: MenuChart.networkHeight)
+            DiskReadWriteChart(
+                read: model.diskReadTrail(), write: model.diskWriteTrail(),
+                sampleCapacity: model.systemHistory.capacity
+            )
+            .frame(height: MenuChart.networkHeight)
             if let disk = model.latestDisk { activitySummary(disk) }
             Divider()
             devices
@@ -162,6 +165,7 @@ struct DiskMenuBarContentView: View {
 private struct DiskReadWriteChart: View {
     let read: [Double]
     let write: [Double]
+    var sampleCapacity: Int? = nil
 
     var body: some View {
         Canvas { context, size in
@@ -181,11 +185,19 @@ private struct DiskReadWriteChart: View {
                 at: CGPoint(x: plot.minX, y: plot.minY + 4), anchor: .topLeading)
 
             func points(_ values: [Double], upward: Bool) -> [CGPoint] {
-                let step = values.count >= 2 ? plot.width / CGFloat(values.count - 1) : 0
                 return values.enumerated().map { index, value in
                     let height = CGFloat(min(1, max(0, value / upper))) * halfHeight
+                    let x: CGFloat
+                    if let sampleCapacity, sampleCapacity > 0 {
+                        let fraction = LiveChartGeometry.normalizedSlot(
+                            index: index, count: values.count, capacity: sampleCapacity)
+                        x = plot.minX + CGFloat(fraction) * plot.width
+                    } else {
+                        let step = values.count >= 2 ? plot.width / CGFloat(values.count - 1) : 0
+                        x = plot.minX + CGFloat(index) * step
+                    }
                     return CGPoint(
-                        x: plot.minX + CGFloat(index) * step,
+                        x: x,
                         y: upward ? mid - height : mid + height)
                 }
             }

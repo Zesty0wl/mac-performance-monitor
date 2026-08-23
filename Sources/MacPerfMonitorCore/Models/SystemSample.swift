@@ -91,6 +91,12 @@ public struct SystemSample: Sendable, Codable {
     /// free pool, the number that matters when the disk fills up.
     public var bootVolumeTotalBytes: UInt64?
     public var bootVolumeFreeBytes: UInt64?
+    // GPU device figures, present only on ticks that read the GPU (while a
+    // GPU surface is showing or history is being recorded). Optional so
+    // older samples decode and "not sampled" stays distinct from 0.
+    public var gpuUtilization: Double?
+    public var gpuPowerWatts: Double?
+    public var anePowerWatts: Double?
 
     public init(
         timestamp: Date,
@@ -134,7 +140,10 @@ public struct SystemSample: Sendable, Codable {
         diskWriteLatencyMs: Double? = nil,
         diskUtilizationPercent: Double? = nil,
         bootVolumeTotalBytes: UInt64? = nil,
-        bootVolumeFreeBytes: UInt64? = nil
+        bootVolumeFreeBytes: UInt64? = nil,
+        gpuUtilization: Double? = nil,
+        gpuPowerWatts: Double? = nil,
+        anePowerWatts: Double? = nil
     ) {
         self.timestamp = timestamp
         self.totalRAM = totalRAM
@@ -178,5 +187,8 @@ public struct SystemSample: Sendable, Codable {
         self.diskUtilizationPercent = diskUtilizationPercent
         self.bootVolumeTotalBytes = bootVolumeTotalBytes
         self.bootVolumeFreeBytes = bootVolumeFreeBytes
+        self.gpuUtilization = gpuUtilization
+        self.gpuPowerWatts = gpuPowerWatts
+        self.anePowerWatts = anePowerWatts
     }
 }

@@ -5,15 +5,45 @@ import SwiftUI
 /// critical bands marked, tinted by the current pressure level. Drawn with the
 /// lightweight Canvas `TrendChart` rather than Swift Charts.
 struct PressureChart: View {
-    let points: [SystemHistoryPoint]
+    let pressure: LiveColumn
     let currentLevel: PressureLevel
+    var xDomain: ClosedRange<Date>? = nil
     var showsTimeAxis: Bool = false
 
+    init(
+        points: [SystemHistoryPoint], currentLevel: PressureLevel,
+        xDomain: ClosedRange<Date>? = nil, showsTimeAxis: Bool = false
+    ) {
+        self.init(
+            pressure: LiveColumn(points) { $0.pressurePercent }, currentLevel: currentLevel,
+            xDomain: xDomain, showsTimeAxis: showsTimeAxis)
+    }
+
+    /// The live Dashboard path: a zero-copy column of the window.
+    init(
+        window: SystemHistoryWindow, currentLevel: PressureLevel,
+        xDomain: ClosedRange<Date>? = nil, showsTimeAxis: Bool = false
+    ) {
+        self.init(
+            pressure: LiveColumn(window, .pressurePercent), currentLevel: currentLevel,
+            xDomain: xDomain, showsTimeAxis: showsTimeAxis)
+    }
+
+    private init(
+        pressure: LiveColumn, currentLevel: PressureLevel, xDomain: ClosedRange<Date>?,
+        showsTimeAxis: Bool
+    ) {
+        self.pressure = pressure
+        self.currentLevel = currentLevel
+        self.xDomain = xDomain
+        self.showsTimeAxis = showsTimeAxis
+    }
+
     private var accessibilitySummary: String {
-        guard let latest = points.last?.pressurePercent else { return "No data yet." }
-        let values = points.map(\.pressurePercent)
-        let lo = Int((values.min() ?? latest).rounded())
-        let hi = Int((values.max() ?? latest).rounded())
+        guard let latest = pressure.lastValue else { return "No data yet." }
+        let range = pressure.range ?? (latest, latest)
+        let lo = Int(range.min.rounded())
+        let hi = Int(range.max.rounded())
         return "Currently \(currentLevel.label.lowercased()) at \(Int(latest.rounded())) percent. "
             + "Window range \(lo) to \(hi) percent."
     }
@@ -22,9 +52,10 @@ struct PressureChart: View {
         TrendChart(
             series: [
                 TrendSeries(
-                    points: points.map { TrendPoint(date: $0.date, value: $0.pressurePercent) },
+                    points: LiveTrend.points(pressure, xDomain: xDomain),
                     color: currentLevel.color, filled: true)
             ],
+            xDomain: xDomain,
             yDomain: 0...100,
             yTicks: [0, 34, 67, 100],
             rules: [

@@ -93,6 +93,7 @@ struct NetworkView: View {
         .sheet(item: $selected) { sel in
             NetworkAdapterDetailView(
                 bsdName: sel.id, info: info, trail: trails[sel.id] ?? [],
+                xDomain: adapterChartDomain(sel.id),
                 dismiss: { selected = nil })
         }
     }
@@ -102,7 +103,10 @@ struct NetworkView: View {
     private func startPolling() {
         pollCancellable?.cancel()
         pollCancellable =
-            Timer.publish(every: max(1, refreshInterval), on: .main, in: .common)
+            Timer.publish(
+                every: max(LiveRefreshCadence.fastestInterval, refreshInterval),
+                on: .main, in: .common
+            )
             .autoconnect()
             .sink { _ in if appState.mainWindowVisible { poll() } }
     }
@@ -212,7 +216,7 @@ struct NetworkView: View {
 
     private var throughputPanel: some View {
         NetworkPanel("Throughput", systemImage: "chart.xyaxis.line") {
-            NetworkChart(points: throughputPoints)
+            NetworkChart(points: throughputPoints, xDomain: throughputDomain)
                 .frame(height: 150)
             if let net = model.latestNetwork {
                 Text(
@@ -234,6 +238,19 @@ struct NetworkView: View {
                 networkInBytesPerSec: s.networkInBytesPerSec,
                 networkOutBytesPerSec: s.networkOutBytesPerSec)
         }
+    }
+
+    private var throughputDomain: ClosedRange<Date>? {
+        LiveChartGeometry.trailingDomain(
+            latest: throughputPoints.last?.date,
+            span: Double(model.systemHistory.capacity) * model.interval)
+    }
+
+    private func adapterChartDomain(_ bsdName: String) -> ClosedRange<Date>? {
+        LiveChartGeometry.trailingDomain(
+            latest: trails[bsdName]?.last?.date,
+            span: Double(Self.maxTrailPoints)
+                * max(LiveRefreshCadence.fastestInterval, refreshInterval))
     }
 
     // MARK: - Adapters

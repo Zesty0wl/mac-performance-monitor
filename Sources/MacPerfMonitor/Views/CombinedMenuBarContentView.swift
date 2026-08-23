@@ -240,7 +240,8 @@ struct CombinedMenuBarContentView: View {
         case .energy: return .battery
         case .network: return .network
         case .disk: return .diskUsage
-        case .pressure, .gpu: return .dashboard
+        case .gpu: return .gpu
+        case .pressure: return .dashboard
         }
     }
 
@@ -250,6 +251,7 @@ struct CombinedMenuBarContentView: View {
         case .battery: return "Open Energy"
         case .network: return "Open Network"
         case .diskUsage: return "Open Disk"
+        case .gpu: return "Open GPU"
         case .dashboard: return "Open Dashboard"
         default: return "Open"
         }

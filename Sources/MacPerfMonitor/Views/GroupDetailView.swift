@@ -183,8 +183,11 @@ struct GroupDetailView: View {
                 chartLoading
                     .frame(height: 200)
             } else if let series = chartSeries, series.points.count >= 2 {
-                TrendChart(series: [series], yFormat: chartYFormat, showsTimeAxis: true)
-                    .frame(height: 200)
+                TrendChart(
+                    series: [series], xDomain: chartDomain,
+                    yFormat: chartYFormat, showsTimeAxis: true
+                )
+                .frame(height: 200)
             } else {
                 placeholder("No history logged for this window yet.")
                     .frame(height: 200)
@@ -218,6 +221,10 @@ struct GroupDetailView: View {
             }
         }
         return TrendSeries(points: points, color: .accentColor, filled: true)
+    }
+
+    private var chartDomain: ClosedRange<Date>? {
+        LiveChartGeometry.trailingDomain(latest: report?.series.last?.date, span: window.seconds)
     }
 
     private var chartYFormat: (Double) -> String {

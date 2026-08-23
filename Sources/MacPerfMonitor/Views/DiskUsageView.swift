@@ -22,6 +22,10 @@ struct DiskUsageView: View {
 
     private var awaitingData: Bool { loadedRange != range }
 
+    private var chartDomain: ClosedRange<Date>? {
+        LiveChartGeometry.trailingDomain(latest: points.last?.date, span: range.seconds)
+    }
+
     var body: some View {
         ScrollView {
             MainRailLayout {
@@ -47,7 +51,7 @@ struct DiskUsageView: View {
         .onChange(of: model.displayProcessesVersion) {
             if appState.mainWindowVisible { reload() }
         }
-        .onChange(of: model.latest?.system.timestamp) { _, _ in
+        .onReceive(model.liveTick) { _ in
             if appState.mainWindowVisible { rebuildPoints() }
         }
         .onChange(of: appState.mainWindowVisible) { _, visible in if visible { reload() } }
@@ -140,6 +144,7 @@ struct DiskUsageView: View {
                     help: "Read plus write operations per second across all disks."),
                 bootFreeCard,
             ],
+            xDomain: chartDomain,
             gridColumns: 4,
             loading: awaitingData)
     }
@@ -168,7 +173,7 @@ struct DiskUsageView: View {
 
     private var throughputPanel: some View {
         DiskPanel("Throughput", systemImage: "internaldrive") {
-            DiskChart(points: points, showsTimeAxis: true)
+            DiskChart(points: points, xDomain: chartDomain, showsTimeAxis: true)
                 .frame(height: 170)
                 .chartReloading(awaitingData)
             footnote(
@@ -193,11 +198,11 @@ struct DiskUsageView: View {
                 Spacer(minLength: 0)
             }
             chartCaption("OPERATIONS PER SECOND")
-            DiskIOPSChart(points: points)
+            DiskIOPSChart(points: points, xDomain: chartDomain)
                 .frame(height: 110)
                 .chartReloading(awaitingData)
             chartCaption("SERVICE TIME PER OPERATION")
-            DiskLatencyChart(points: points, showsTimeAxis: true)
+            DiskLatencyChart(points: points, xDomain: chartDomain, showsTimeAxis: true)
                 .frame(height: 110)
                 .chartReloading(awaitingData)
             footnote(
@@ -401,7 +406,7 @@ struct DiskUsageView: View {
 
     private var freeSpacePanel: some View {
         DiskPanel("Free space", systemImage: "chart.line.downtrend.xyaxis") {
-            FreeSpaceChart(points: points, showsTimeAxis: true)
+            FreeSpaceChart(points: points, xDomain: chartDomain, showsTimeAxis: true)
                 .frame(height: 120)
                 .chartReloading(awaitingData)
             purgeableSummary
@@ -494,7 +499,7 @@ struct DiskUsageView: View {
 
     private func rebuildPoints() {
         var pts = history
-        if let system = model.latest?.system {
+        if let system = model.liveSystem {
             let live = SystemHistoryPoint(
                 date: system.timestamp,
                 pressurePercent: system.pressurePercent,

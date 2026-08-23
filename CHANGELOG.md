@@ -6,6 +6,96 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-08-23
+
+### Added
+
+- **A GPU tab:** what the GPU is doing, at what clock and power, who is using
+  it, and how much of that is AI work. Live utilization (device, renderer,
+  tiler, active share) and power (GPU, Neural Engine, CPU) timelines with
+  history, the chip's clock-state residency, thermal limit and power cap from
+  IOReport, and a "who is using the GPU" table built from the AGX driver's
+  per-context accounting, which needs no helper and no root: GPU share,
+  milliseconds of GPU time per second, and last activity for every process
+  holding a Metal context. Processes are classified into AI and ML, display
+  and UI, media, and other; known runtimes (Ollama, llama.cpp, MLX, LM Studio,
+  Core ML hosts, Apple Intelligence, the media analysis daemons) are named,
+  and a bare Python or Node serving a model is recognised from its command
+  line, with the model file where the arguments say. An AI workloads card
+  shows those processes with their GPU share and whether the Neural Engine is
+  busy. Research and data sources are in `docs/gpu-tab-design.md`.
+- **GPU history (schema v13):** system samples record GPU utilization and GPU
+  and Neural Engine power, process samples record GPU time and share, all with
+  minute and hour rollups, so the GPU timelines have a past to show.
+- **Sustained high GPU alert:** off by default, with a threshold in Settings,
+  alongside the existing pressure, swap and per-process alerts.
+- **Top GPU processes in the menu bar:** the GPU dropdown (and the GPU panel of
+  the combined item) lists the processes drawing on the GPU with their share,
+  naming the AI runtime where there is one. An empty list after a scan reads
+  "Nothing is using the GPU" rather than "Sampling".
+- **A Hardware tab:** this Mac's inventory as a searchable, browsable tree with
+  a visual overview: a block diagram of the system on a chip (CPU clusters with
+  one square per core, the GPU's cores, the Neural Engine, the unified memory
+  they share, scaled to fit anything up to an Ultra), capacity bars for memory
+  and volumes, the displays drawn to their aspect ratio, the battery's health
+  ring, the radios and buses, and the running software. Nineteen sections
+  cover everything `system_profiler` and the kernel report: Mac identity,
+  processor (performance levels with their caches, every instruction-set
+  feature the kernel publishes), Metal device limits, memory, displays,
+  storage, power and battery (the raw gauge: cells, adapter, manufacture
+  date), network, Wi-Fi via CoreWLAN, Bluetooth, USB, Thunderbolt and USB4,
+  audio, cameras, PCI, peripherals, printers, security (secure boot, SIP,
+  signed system volume, the Secure Element) and software. Search matches any
+  title or property; every value copies with a click; any item or the whole
+  inventory exports as text or JSON. The page reads once when opened and again
+  only on Refresh (Command-R), never on the sampling tick.
+- **250 ms and 500 ms refresh intervals:** the live charts, read-outs and the
+  process rows on screen now move at the dial rate, including 4 Hz. The full
+  per-process scan, the table order, rankings and alerts keep a 5 s floor.
+- **A chart benchmark harness** (`--benchmark-charts`): measures the live
+  pipeline per tick offscreen, renders any page to a PNG with `--snapshot`,
+  and checks the Hardware page against an Ultra-sized chip.
+
+### Changed
+
+- **Every live chart is now a scrolling strip:** a fixed trailing window that
+  moves right to left as samples arrive, drawn by AppKit layers that scroll
+  by moving pixels rather than repainting. Completed columns are final (bucket
+  extremes are anchored to absolute time), so a tick costs the same whether
+  the window holds a minute or seven days of samples. With the window open on
+  the Dashboard at 250 ms the app's CPU fell from about 53% to about 11%; the
+  per-tick cost of the Dashboard page dropped from 45 ms to under 8 ms.
+  Details and every measurement are in `docs/efficiency-analysis-2026-08-22.md`.
+- **Everything that moves is an AppKit surface:** sparklines, metric cards,
+  timelines, the core grid, the taxonomy bar and the header read-outs repaint
+  their own layers from feeds; SwiftUI builds the static chrome once. The
+  process table is an AppKit outline view whose rows on screen are re-read at
+  the dial rate (task info, rusage and GPU time for just those pids, about a
+  millisecond for thirty rows) and patched in place; re-sorting happens on
+  the 5 s calc.
+- **Menu bar items follow the dial** and skip unchanged renders, so the
+  status item figures move with the charts instead of lagging them.
+- **The per-process scan runs on its own queue:** the system tick publishes at
+  once and never waits behind a scan; scans never pile up, and a forced scan
+  (a pressure event) is remembered rather than dropped.
+- **Cheaper Network and Disk pages at fast dials:** SystemConfiguration,
+  CoreWLAN and host-name lookups are cached between polls, and the block
+  storage enumeration is reused across reads.
+- **Process detail and system header** re-render only when the model
+  publishes; their live parts ride the feeds.
+
+### Fixed
+
+- **The GPU tab and GPU dropdown updated once a second regardless of the
+  dial:** the device read (IORegistry, IOReport, SMC) was decimated to 1 Hz.
+  It now runs every tick while a GPU surface is open (the driver's utilization
+  figure does change between sub-second reads) and once a second when only
+  the menu bar icon or history logging wants it.
+- **A reopened popover could offer kill or inspect on stale rows:** a top
+  process list older than the dial interval is cleared when its popover
+  opens, until the immediate scan lands.
+
+
 ## [1.3.8] - 2026-08-14
 
 ### Added

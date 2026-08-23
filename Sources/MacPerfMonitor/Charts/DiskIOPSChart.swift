@@ -3,6 +3,7 @@ import SwiftUI
 
 struct DiskIOPSChart: View {
     let points: [SystemHistoryPoint]
+    var xDomain: ClosedRange<Date>? = nil
     var showsTimeAxis = false
 
     private var accessibilitySummary: String {
@@ -31,6 +32,7 @@ struct DiskIOPSChart: View {
                     },
                     color: DiskStyle.write, filled: false, lineWidth: 1.8),
             ],
+            xDomain: xDomain,
             yFormat: { "\(Int(max($0, 0)))" },
             showsTimeAxis: showsTimeAxis
         )

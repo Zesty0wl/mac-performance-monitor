@@ -295,11 +295,17 @@ private struct PressureTimelineSection: View {
     /// render).
     private let points: [SystemHistoryPoint]
     private let windowColor: Color
+    private let xDomain: ClosedRange<Date>?
 
     init(history: [SystemHistoryPoint], events: [PressureEvent]) {
         self.events = events
-        let points = history.chartDownsampled(span: 2 * 3600, to: 360)
+        var points = history.chartDownsampled(span: 2 * 3600, to: 360)
+        if let latest = history.last, let bucket = points.last, latest.date > bucket.date {
+            points.append(latest)
+        }
         self.points = points
+        self.xDomain = LiveChartGeometry.trailingDomain(
+            latest: history.last?.date, span: 2 * 3600)
         let peak = points.lazy.map(\.pressurePercent).max() ?? 0
         if peak >= 67 {
             self.windowColor = .red
@@ -348,7 +354,7 @@ private struct PressureTimelineSection: View {
                     x: .value("Time", point.date),
                     y: .value("Pressure", point.pressurePercent)
                 )
-                .interpolationMethod(.monotone)
+                .interpolationMethod(.linear)
                 .foregroundStyle(
                     .linearGradient(
                         colors: [windowColor.opacity(0.35), windowColor.opacity(0.03)],
@@ -360,7 +366,7 @@ private struct PressureTimelineSection: View {
                     x: .value("Time", point.date),
                     y: .value("Pressure", point.pressurePercent)
                 )
-                .interpolationMethod(.monotone)
+                .interpolationMethod(.linear)
                 .foregroundStyle(windowColor)
                 .lineStyle(StrokeStyle(lineWidth: 1.5))
             }
@@ -374,6 +380,7 @@ private struct PressureTimelineSection: View {
                 .symbolSize(90)
             }
         }
+        .chartXScale(domain: resolvedXDomain)
         .chartYScale(domain: 0...100)
         .chartYAxis {
             AxisMarks(values: [0, 34, 67, 100]) { value in
@@ -386,6 +393,13 @@ private struct PressureTimelineSection: View {
         .chartLegend(.hidden)
         .accessibilityLabel("Memory pressure timeline with pressure events marked")
         .reducedMotionAware()
+    }
+
+    private var resolvedXDomain: ClosedRange<Date> {
+        if let xDomain { return xDomain }
+        let first = points.first?.date ?? .distantPast
+        let last = points.last?.date ?? first.addingTimeInterval(1)
+        return first < last ? first...last : first.addingTimeInterval(-1)...last
     }
 
     /// The plotted pressure nearest an event's moment, so its marker sits on the

@@ -24,7 +24,7 @@ final class SamplerModel: ObservableObject {
     @Published private(set) var latest: Sampler.Snapshot?
     @Published private(set) var isRunning = false
 
-    /// A full-rate (~1 s) heartbeat for the menu-bar status item only. It is a
+    /// A full-rate (250 ms to 1 s) heartbeat for the menu-bar status item only. It is a
     /// plain Combine subject, NOT a `@Published`, so firing it does not trigger
     /// the model's `objectWillChange` and therefore does not re-render every
     /// SwiftUI view that observes the model. The status item reads `smoothedCPU`
@@ -88,7 +88,7 @@ final class SamplerModel: ObservableObject {
     /// instead of flickering at the full tick rate. The dashboard CPU timeline
     /// keeps the raw history, so real spikes are never hidden there.
     private var recentCPUSamples: [CPUSample] = []
-    private let cpuSmoothingTicks: Int
+    private var cpuSmoothingTicks: Int
 
     /// Recent network samples for the ~5 s smoothing window the menubar read-out
     /// uses, so the download/upload figures settle instead of flickering at the
@@ -99,10 +99,10 @@ final class SamplerModel: ObservableObject {
     /// The most recent entry also carries per-device identity and health counters.
     private var recentDiskSamples: [DiskSample] = []
 
-    /// The most recent battery sample, captured every fast tick (~1 Hz). The
+    /// The most recent battery sample, captured every fast tick (1 to 4 Hz). The
     /// published `latest` snapshot carries battery only on the slower heavy
     /// cadence, so the battery menubar icon + dropdown read this fast copy
-    /// (`latestBattery`) to stay live at 1 Hz like the CPU/memory/network surfaces.
+    /// (`latestBattery`) to stay live like the CPU/memory/network surfaces.
     /// Touched only on the main thread. nil on a Mac with no battery hardware.
     private var recentBattery: BatterySample?
 
@@ -114,7 +114,7 @@ final class SamplerModel: ObservableObject {
     /// Longer ring of GPU utilization (0–100) for the panel's usage-history
     /// sparkline (~last minute). Main thread only; emptied when GPU is off.
     private var gpuHistoryRing: [Double] = []
-    private let gpuHistoryLimit = 60
+    static let gpuHistoryCapacity = 60
 
     /// The per-process scan cadence — the FINEST of the UI table interval and (when
     /// logging) the high-res persist interval, since the scan feeds both. O(number
@@ -129,6 +129,10 @@ final class SamplerModel: ObservableObject {
     /// finer scan cadence (and self-throttles to the high-res interval).
     private var tableEveryTicks: Int = 10
     private var tableTickCounter = 0
+    /// Open process popovers stay live at 1 Hz even when system charts run at
+    /// 2–4 Hz. This prevents a popover from bypassing the process-scan floor.
+    private var popoverEveryTicks = 1
+    private var popoverTickCounter = 0
     /// The latest heavy scan's processes, carried between heavy ticks so the
     /// published snapshot always has a process list. Confined to `queue`.
     private var carriedProcesses: [ProcessSample] = []
@@ -154,7 +158,7 @@ final class SamplerModel: ObservableObject {
     /// before its row is dropped.
     private let terminatedRetention: TimeInterval = 5 * 60
 
-    let interval: TimeInterval
+    private(set) var interval: TimeInterval
 
     private let sampler = Sampler()
     // `.userInitiated`, deliberately high. This QoS is one of the four legs that
@@ -165,7 +169,39 @@ final class SamplerModel: ObservableObject {
     // (`.strict` timer, `beginActivity`, `NSAppSleepDisabled`).
     private let queue = DispatchQueue(
         label: "uk.co.bzwrd.macperfmonitor.sampler", qos: .userInitiated)
+    /// The heavy per-process scan runs here, off the timer queue, so a 100 to
+    /// 300 ms libproc + helper-XPC walk never delays the subsecond system tick.
+    /// A `DispatchSourceTimer` coalesces fires its handler missed, so with the
+    /// scan inline at 250 ms one tick in four was lost whenever the window was
+    /// open. `Sampler` keeps disjoint state for its two halves (`tickSystem`
+    /// touches only the system readers, `tickProcesses` only the per-process
+    /// caches), which is what makes running them on two queues safe; every
+    /// `Sampler` call that touches the process side is dispatched here.
+    private let scanQueue = DispatchQueue(
+        label: "uk.co.bzwrd.macperfmonitor.sampler.scan", qos: .userInitiated)
+    /// True while a scan is running on `scanQueue`. A due tick that finds one in
+    /// flight leaves its counters alone, so the scan runs on the next tick
+    /// instead of piling up. Confined to `queue`.
+    private var scanInFlight = false
+    /// A forced heavy tick (kernel pressure event) that arrived mid-scan.
+    private var forceHeavyPending = false
+    /// The newest system sample, so a finishing scan can publish a snapshot
+    /// with current system figures. Confined to `queue`.
+    private var lastSystemTick:
+        (
+            system: SystemSample, cpu: CPUSample, battery: BatterySample?,
+            network: NetworkSample?, disk: DiskSample?, gpu: GPUSample?
+        )?
+    /// Opt-in tick-rate and cost counters; see `TickDiagnostics`.
+    private let diagnostics = TickDiagnostics()
     private var timer: DispatchSourceTimer?
+
+    /// The status items' cue: every tick, at the dial rate. Each controller
+    /// compares the figures it would draw with the ones it last drew and only
+    /// re-renders on a change, so at 250 ms a status item repaints when a digit
+    /// moves, not four times a second. (It was throttled to ~1 Hz while every
+    /// tick re-rendered unconditionally.)
+    private(set) lazy var menuBarTick: AnyPublisher<Void, Never> = liveTick.eraseToAnyPublisher()
     /// Held for the lifetime of sampling. On macOS 26/27 the QoS + `.strict` timer
     /// still aren't enough on their own to keep an occluded menu-bar agent's 1 Hz
     /// timer alive — this `userInitiated` activity is the third leg that, together
@@ -173,7 +209,7 @@ final class SamplerModel: ObservableObject {
     /// without keeping the Mac awake.
     private var samplingActivity: NSObjectProtocol?
     private var didLogFirstTick = false
-    private let trailLength = 30
+    static let processTrailCapacity = 30
 
     /// On-disk history store, behind a lock because the app-mode switch can open
     /// or close it at runtime (menu-bar-only mode releases it) while reader
@@ -207,9 +243,45 @@ final class SamplerModel: ObservableObject {
     /// the app does zero per-process work, since the menu-bar read-outs need only
     /// the cheap system sample. Read and written only on `queue`.
     private var processConsumers = 0
+
+    // MARK: Dial-rate refresh of the rows on screen
+
+    /// The processes whose table rows are on screen, as the table reports
+    /// them. Between table publishes (the full-calc cadence) these are re-read
+    /// at the dial rate so their figures move at the dial while the order,
+    /// trails, history and alerts keep the scan cadence. Confined to `queue`.
+    private var fastPIDs: [pid_t] = []
+    /// True while a dial-rate refresh is on `scanQueue`. Confined to `queue`.
+    private var fastRefreshInFlight = false
+    /// Patched samples for the rows on screen, at the dial rate, keyed by
+    /// identity. A plain subject, like `liveTick`: nothing observing the model
+    /// re-renders for it; the table patches its cells in place.
+    let processValuesTick = PassthroughSubject<[ProcessIdentity: ProcessSample], Never>()
+    private struct FastCPUState {
+        var user: UInt64
+        var system: UInt64
+        var at: TimeInterval
+    }
+    /// Per-identity CPU time at the last dial-rate read, and the trailing
+    /// 5 s of dial-rate CPU percentages behind the figure shown. Main thread.
+    private var fastCPUStates: [ProcessIdentity: FastCPUState] = [:]
+    private var fastCPURings: [ProcessIdentity: RingBuffer<Double>] = [:]
+    private struct FastGPUState {
+        var nanos: UInt64
+        var at: TimeInterval
+    }
+    /// The same for GPU time, from the AGX per-process accounting.
+    private var fastGPUStates: [ProcessIdentity: FastGPUState] = [:]
+    private var fastGPURings: [ProcessIdentity: RingBuffer<Double>] = [:]
+
+    /// Tell the sampler which processes the table is showing. Called by the
+    /// table as rows scroll in and out; an empty list stops the refresh.
+    func setVisibleProcesses(_ pids: [pid_t]) {
+        queue.async { [weak self] in self?.fastPIDs = pids }
+    }
     /// Open menu-bar popovers that show a live top-process list, counted per
-    /// list kind. While any is open the per-process scan runs every tick (1 Hz),
-    /// independent of the table cadence — so an open popover stays live without
+    /// list kind. While any is open the per-process scan runs at 1 Hz,
+    /// independent of a slower table cadence — so an open popover stays live without
     /// speeding up the main window or the history DB (those follow
     /// `heavyEveryTicks`) — and only the open kinds' lists are computed. Read
     /// and written only on `queue`.
@@ -226,6 +298,11 @@ final class SamplerModel: ObservableObject {
     /// is shown, so a Mac with GPU off never walks the IOAccelerator registry.
     /// Read on `queue` in `tick`; set via `setGPUSamplingEnabled`.
     private var gpuSamplingEnabled = false
+    /// Open GPU surfaces (the GPU tab, an open GPU dropdown). Confined to `queue`.
+    private var gpuConsumers = 0
+    /// Per-identity GPU workload classification (category, runtime, model),
+    /// refreshed with each table publish. Main thread.
+    fileprivate var gpuWorkloads: [ProcessIdentity: GPUWorkloadInfo] = [:]
     /// Run retention/downsampling roughly once a minute, off the sampling path.
     private var ticksSinceRetention = 0
     private var retentionEveryTicks: Int
@@ -385,35 +462,43 @@ final class SamplerModel: ObservableObject {
     var onAlertsFired: ([Alert]) -> Void = { _ in }
 
     init(
-        interval: TimeInterval = 1.0, historyCapacity: Int = 900, store: SampleStore? = nil,
+        interval: TimeInterval? = nil, historyCapacity: Int = 900, store: SampleStore? = nil,
         persistenceEnabled: Bool = AppModeManager.loggingEnabledFromDefaults()
     ) {
-        self.interval = interval
+        let tableInterval = Self.configuredTableInterval()
+        let baseInterval = interval ?? LiveRefreshCadence.baseInterval(for: tableInterval)
+        self.interval = baseInterval
         self.systemHistory = RingBuffer(capacity: historyCapacity)
         // The heavy per-process scan cadence (the "table" interval), user-tunable
-        // (default 10 s, choices 1 s–5 min). The heavy tick — the libproc fan-out
+        // (default 10 s, choices 250 ms–5 min). The heavy tick — the libproc fan-out
         // over ~600 processes plus the row insert — is the app's dominant sampling
         // cost, so it runs at this slower cadence while the live menubar/charts
-        // refresh every `interval` (1 s) from the cheap system sample. Inter-tick
+        // refresh every `interval` (250 ms–1 s) from the cheap system sample. Inter-tick
         // deltas (cpuPercent, energyImpact) use a measured wall-clock delta, so
         // they stay correct at any cadence.
-        let tableInterval = Self.configuredTableInterval()
         let highRes = Self.configuredHighResInterval()
         self.tableIntervalSeconds = tableInterval
         self.highResIntervalSeconds = highRes
         self.persistenceEnabled = persistenceEnabled
-        // When logging, the per-process scan runs at least as often as high-res
+        // Process work has a 1 s floor. When logging, the scan still runs at least
+        // as often as high-res logging requires; subsecond ticks remain system-only.
         // logging demands (raw rows can be no denser than the scan); otherwise at
         // the UI table cadence. The retention/checkpoint/smoothing counters count
         // heavy ticks, so they key off this same scan cadence.
-        let scan = persistenceEnabled ? min(tableInterval, highRes) : tableInterval
-        self.heavyEveryTicks = max(1, Int((scan / interval).rounded()))
-        self.tableEveryTicks = max(1, Int((tableInterval / interval).rounded()))
+        let processInterval = LiveRefreshCadence.processInterval(for: tableInterval)
+        let scan = persistenceEnabled ? min(processInterval, highRes) : processInterval
+        self.heavyEveryTicks = LiveRefreshCadence.tickCount(
+            for: scan, baseInterval: baseInterval)
+        self.tableEveryTicks = LiveRefreshCadence.tickCount(
+            for: processInterval, baseInterval: baseInterval)
+        self.popoverEveryTicks = LiveRefreshCadence.tickCount(
+            for: LiveRefreshCadence.minimumProcessInterval, baseInterval: baseInterval)
         self.retentionEveryTicks = max(1, Int((60.0 / scan).rounded()))
         self.checkpointEveryTicks = max(1, Int((15.0 / scan).rounded()))
         self.persistMinInterval = max(1.0, highRes)
         // Smooth the menubar/core-grid total CPU over ~5 s (fast-tick samples).
-        self.cpuSmoothingTicks = max(1, Int((5.0 / interval).rounded()))
+        self.cpuSmoothingTicks = LiveRefreshCadence.tickCount(
+            for: 5, baseInterval: baseInterval)
         self.processSmoothingPoints = max(2, Int((5.0 / scan).rounded()))
         if let store {
             self._store = store
@@ -439,7 +524,7 @@ final class SamplerModel: ObservableObject {
             guard let self, self.timer == nil else { return }
             // macOS 26/27 App Nap is more aggressive than what Stats targets: a plain
             // GCD timer on a `.default`/`.utility` queue gets coalesced out to ~5 s
-            // and freezes the menu bar. Keeping it at 1 Hz here takes three things
+            // and freezes the menu bar. Keeping the fast heartbeat reliable takes
             // together — a `.userInitiated` queue (above), the `.strict` timer flag
             // below, AND the `samplingActivity` assertion; dropping any one still lets
             // App Nap throttle it (measured). Stats needs none of this on its targets,
@@ -450,7 +535,7 @@ final class SamplerModel: ObservableObject {
                     reason: "Live menu-bar performance read-outs")
             }
             let timer = DispatchSource.makeTimerSource(flags: .strict, queue: self.queue)
-            timer.schedule(deadline: .now(), repeating: self.interval, leeway: .milliseconds(80))
+            self.schedule(timer, fireImmediately: true)
             // Drain an autorelease pool every tick. The handler runs on a
             // long-lived serial queue whose worker thread never exits, so without
             // an explicit pool the autoreleased temporaries each tick creates pile
@@ -521,14 +606,14 @@ final class SamplerModel: ObservableObject {
     /// the reader is swapped safely between ticks. Passing nil reverts to
     /// user-level-only coverage.
     func setPrivilegedReader(_ reader: PrivilegedReader?) {
-        queue.async { [weak self] in self?.sampler.setPrivilegedReader(reader) }
+        scanQueue.async { [weak self] in self?.sampler.setPrivilegedReader(reader) }
     }
 
     /// Install a handler the sampler invokes when the privileged (root helper)
     /// reader keeps failing — the app uses it to auto-recover the helper. Delivered
     /// on the main thread, where `HelperManager` lives.
     func setPrivilegedReadFailureHandler(_ handler: @escaping () -> Void) {
-        queue.async { [weak self] in
+        scanQueue.async { [weak self] in
             self?.sampler.onPrivilegedReadFailure = { DispatchQueue.main.async { handler() } }
         }
     }
@@ -549,7 +634,9 @@ final class SamplerModel: ObservableObject {
         queue.async { [weak self] in
             guard let self, enabled != self.perAppNetworkEnabled else { return }
             self.perAppNetworkEnabled = enabled
-            self.sampler.setNetworkProcessReader(enabled ? NetworkProcessReader() : nil)
+            self.scanQueue.async {
+                self.sampler.setNetworkProcessReader(enabled ? NetworkProcessReader() : nil)
+            }
             if !enabled {
                 DispatchQueue.main.async { self.menuLists.update(.network, with: []) }
             }
@@ -559,16 +646,16 @@ final class SamplerModel: ObservableObject {
     // MARK: - Table / sampling interval
 
     /// UserDefaults key for the global refresh interval in seconds, shared by the
-    /// toolbar control and Settings. The menu-bar read-outs always stay at 1 Hz;
-    /// this sets how often the heavy per-process scan runs AND how often the whole
-    /// in-window UI (table, charts, cards) re-renders — it is the app's main CPU
-    /// lever. Default 10 s, deliberately light; the user can speed it up per need.
+    /// toolbar control and Settings. Subsecond choices speed up lightweight system
+    /// charts and read-outs; process scans, rankings, alerts, and broad window
+    /// publication retain a 1 s floor. Default 10 s, deliberately light.
     static let tableIntervalKey = "tableIntervalSeconds"
     static let defaultTableInterval: Double = 10.0
-    static let tableIntervalChoices: [Double] = [1, 2, 5, 10, 30, 60, 300]
+    static let tableIntervalChoices: [Double] = [0.25, 0.5, 1, 2, 5, 10, 30, 60, 300]
 
     /// Compact label for an interval, e.g. "1s" … "30s", "1m", "5m".
     static func tableIntervalLabel(_ seconds: Double) -> String {
+        if seconds < 1 { return "\(Int((seconds * 1_000).rounded()))ms" }
         let s = Int(seconds.rounded())
         return s < 60 ? "\(s)s" : "\(s / 60)m"
     }
@@ -653,7 +740,13 @@ final class SamplerModel: ObservableObject {
         queue.async { [weak self] in
             guard let self else { return }
             self.tableIntervalSeconds = s
+            let baseInterval = LiveRefreshCadence.baseInterval(for: s)
+            let intervalChanged = baseInterval != self.interval
+            self.interval = baseInterval
             self.recomputeScanCadence()
+            if intervalChanged, let timer = self.timer {
+                self.schedule(timer, fireImmediately: false)
+            }
         }
     }
 
@@ -675,21 +768,39 @@ final class SamplerModel: ObservableObject {
     /// the finer of the two while logging (raw rows can be no denser than the
     /// scan), else the UI table interval. Must run on `queue`.
     private func recomputeScanCadence() {
+        let processInterval = LiveRefreshCadence.processInterval(for: tableIntervalSeconds)
         let scan =
             persistenceEnabled
-            ? min(tableIntervalSeconds, highResIntervalSeconds) : tableIntervalSeconds
-        heavyEveryTicks = max(1, Int((scan / interval).rounded()))
-        // The main-window UI publishes at the table dial, independent of the finer
-        // scan/persist cadence.
-        tableEveryTicks = max(1, Int((tableIntervalSeconds / interval).rounded()))
+            ? min(processInterval, highResIntervalSeconds) : processInterval
+        heavyEveryTicks = LiveRefreshCadence.tickCount(for: scan, baseInterval: interval)
+        // Broad process UI publication (the re-sort, `latest`, alerts) follows
+        // the dial with a 5 s floor; the rows on screen are re-read at the dial
+        // rate in between (`refreshProcesses`), and the system-only heartbeat
+        // runs every tick.
+        tableEveryTicks = LiveRefreshCadence.tickCount(
+            for: processInterval, baseInterval: interval)
+        popoverEveryTicks = LiveRefreshCadence.tickCount(
+            for: LiveRefreshCadence.minimumProcessInterval, baseInterval: interval)
         // retention/checkpoint count persist() calls (one per scan-due tick), so
         // they key off the scan cadence.
         retentionEveryTicks = max(1, Int((60.0 / scan).rounded()))
         checkpointEveryTicks = max(1, Int((15.0 / scan).rounded()))
+        cpuSmoothingTicks = LiveRefreshCadence.tickCount(for: 5, baseInterval: interval)
         processSmoothingPoints = max(2, Int((5.0 / scan).rounded()))
         persistMinInterval = max(1.0, highResIntervalSeconds)
         heavyTickCounter = 0
         tableTickCounter = 0
+        popoverTickCounter = 0
+    }
+
+    /// Schedule or reschedule the single sampler timer at the selected base rate.
+    private func schedule(_ timer: DispatchSourceTimer, fireImmediately: Bool) {
+        let delay = fireImmediately ? 0 : interval
+        let leewaySeconds = min(0.08, interval * 0.1)
+        let leewayMilliseconds = max(1, Int((leewaySeconds * 1_000).rounded()))
+        timer.schedule(
+            deadline: .now() + delay, repeating: interval,
+            leeway: .milliseconds(leewayMilliseconds))
     }
 
     /// Turn history logging to the on-disk database on or off at runtime, from
@@ -740,6 +851,22 @@ final class SamplerModel: ObservableObject {
         queue.async { [weak self] in self?.gpuSamplingEnabled = enabled }
     }
 
+    /// Surfaces that show GPU detail (the GPU tab, an open GPU dropdown)
+    /// register here; while any is registered the device GPU figures are read
+    /// on every tick, independently of the menu bar item. With history logging on they are read regardless,
+    /// so the GPU timelines have a past to show. Balance with
+    /// `removeGPUConsumer()`.
+    func addGPUConsumer() {
+        queue.async { [weak self] in self?.gpuConsumers += 1 }
+    }
+
+    func removeGPUConsumer() {
+        queue.async { [weak self] in
+            guard let self else { return }
+            self.gpuConsumers = max(0, self.gpuConsumers - 1)
+        }
+    }
+
     /// Register a live consumer of per-process data (an open menu-bar popover that
     /// shows top processes, or the main window). While any consumer is registered
     /// the heavy per-process scan runs at the table cadence; with none — and no
@@ -774,8 +901,8 @@ final class SamplerModel: ObservableObject {
     }
 
     /// Register an open menu-bar popover that shows a live top-process list. While
-    /// any is registered the per-process scan and the menu lists run every tick
-    /// (1 Hz) so the panel stays live; the main window and the history DB stay on the
+    /// any is registered the per-process scan and menu lists run at 1 Hz so the
+    /// panel stays live; the main window and the history DB stay on the
     /// table cadence regardless. Pair `requestImmediateTick()` for an instant first
     /// refresh, and balance every call with `removePopoverProcessConsumer()`.
     func addPopoverProcessConsumer(_ kind: MenuListKind) {
@@ -783,6 +910,7 @@ final class SamplerModel: ObservableObject {
             guard let self else { return }
             let prior = self.popoverKindConsumers[kind, default: 0]
             self.popoverKindConsumers[kind] = prior + 1
+            if prior == 0 { self.popoverTickCounter = self.popoverEveryTicks }
             // A list that hasn't recomputed within the dial interval holds dead
             // rows from the last time this popover was open — possibly hours
             // ago, PIDs recycled. Clear it so the just-opened panel renders
@@ -793,7 +921,7 @@ final class SamplerModel: ObservableObject {
                 Date().timeIntervalSince(self.menuListRefreshedAt[kind] ?? .distantPast)
                     > staleAfter
             {
-                DispatchQueue.main.async { self.menuLists.update(kind, with: []) }
+                DispatchQueue.main.async { self.menuLists.clear(kind) }
             }
         }
     }
@@ -808,21 +936,39 @@ final class SamplerModel: ObservableObject {
         }
     }
 
-    /// Runs on `queue`. Always takes the cheap system/CPU sample so the menubar
-    /// and dashboard hero stay live; runs the heavy per-process scan (and the
-    /// persistence, trail, menu, and table refreshes that depend on it) only
-    /// every `heavyEveryTicks` — or immediately when `forceHeavy` is set, used by
-    /// the kernel pressure event so an alert is not delayed. Then hops to main to
-    /// publish.
+    /// What a scan, once it finishes, owes the rest of the app: decided on
+    /// `queue` when the scan is dispatched so the cadence counters are settled
+    /// before the next tick.
+    private struct ScanJob {
+        var scanDue: Bool
+        var tableDue: Bool
+        var uiWantsProcesses: Bool
+        var menuKinds: Set<MenuListKind>
+    }
+
+    /// Runs on `queue` at the base cadence. Always takes the cheap system/CPU
+    /// sample and publishes it at once (the menubar, the live charts, and the
+    /// dashboard hero ride this); dispatches the heavy per-process scan to
+    /// `scanQueue` when one is due, or immediately when `forceHeavy` is set
+    /// (the kernel pressure event, so an alert is not delayed). The scan's
+    /// results, persistence, alerts and process UI land via `finishScan`.
     private func tick(forceHeavy: Bool = false) {
+        let tickStart = TickDiagnostics.now()
+        // A GPU panel on screen (the GPU tab, an open GPU dropdown) reads the
+        // device every tick so it moves at the dial; the icon alone and the
+        // history make do with one read a second.
         let (system, cpu, battery, network, disk, gpu) = sampler.tickSystem(
-            readGPU: gpuSamplingEnabled)
+            readGPU: gpuSamplingEnabled || gpuConsumers > 0 || persistenceEnabled,
+            gpuReadInterval: gpuConsumers > 0 ? 0 : 1)
+        lastSystemTick = (system, cpu, battery, network, disk, gpu)
+        diagnostics.recordSystemTick(duration: TickDiagnostics.now() - tickStart)
+        diagnostics.reportIfDue(targetInterval: interval)
 
         heavyTickCounter += 1
         tableTickCounter += 1
         // Three independent cadences over one per-process scan:
         //   • An open menu-bar popover shows a live top-process list, so while one is
-        //     open the scan and the menu lists run EVERY tick (1 Hz).
+        //     open the scan and menu lists run at their separate 1 Hz floor.
         //   • The in-window table and the history DB follow the table cadence — the
         //     app's global refresh dial — so an open popover never changes the main
         //     window's rate (`heavyTickCounter` resets, and the window/DB work runs,
@@ -831,89 +977,33 @@ final class SamplerModel: ObservableObject {
         //     is skipped entirely; the menu bar lives on the cheap system sample.
         // The network dropdown consumes the scan only while per-app attribution
         // is on — off, it renders live rates from the cheap system sample and no
-        // process list, so its open popover must not force the 1 Hz scan.
+        // process list, so its open popover must not force a process scan.
         var openPopoverKinds = Set(popoverKindConsumers.filter { $0.value > 0 }.keys)
         if !perAppNetworkEnabled { openPopoverKinds.remove(.network) }
         let popoverOpen = !openPopoverKinds.isEmpty
+        if popoverOpen {
+            popoverTickCounter += 1
+        } else {
+            popoverTickCounter = 0
+        }
         let needProcesses = persistenceEnabled || processConsumers > 0 || popoverOpen
         // Two cadences: the fine SCAN (feeds persistence + trails + popover) runs at
         // `heavyEveryTicks`; the main-window UI publish/alerts run at the coarser
         // `tableEveryTicks` (the global Refresh dial), so 1 s logging never forces
         // the in-window table/cards to re-render every second.
-        let scanDue = forceHeavy || !hasProcessSnapshot || heavyTickCounter >= heavyEveryTicks
-        let tableDue = forceHeavy || !hasProcessSnapshot || tableTickCounter >= tableEveryTicks
-        let runScan = needProcesses && (popoverOpen || scanDue || tableDue)
-        if runScan {
-            let result = sampler.tickProcesses()
-            carriedProcesses = result.processes
-            carriedUnreadable = result.unreadableProcessCount
-            hasProcessSnapshot = true
-            let snapshot = Sampler.Snapshot(
-                system: system, processes: result.processes,
-                unreadableProcessCount: result.unreadableProcessCount, cpu: cpu, battery: battery,
-                network: network, disk: disk)
-            if !didLogFirstTick {
-                didLogFirstTick = true
-                AppLog.sampler.notice(
-                    "first tick: \(result.processes.count, privacy: .public) processes, \(result.unreadableProcessCount, privacy: .public) unreadable, pressure \(Int(system.pressurePercent.rounded()), privacy: .public)%"
-                )
-            }
-            // Persist follows the fine scan cadence and self-throttles the DB write
-            // to the high-res interval; alert evaluation follows the table cadence.
-            if scanDue {
-                heavyTickCounter = 0
-                persist(snapshot)
-            }
-            if tableDue {
-                tableTickCounter = 0
-                evaluateAlerts(snapshot)
-            }
-        }
+        let force = forceHeavy || forceHeavyPending
+        let scanDue = force || !hasProcessSnapshot || heavyTickCounter >= heavyEveryTicks
+        let tableDue = force || !hasProcessSnapshot || tableTickCounter >= tableEveryTicks
+        let popoverDue =
+            popoverOpen
+            && (force || !hasProcessSnapshot || popoverTickCounter >= popoverEveryTicks)
+        let runScan = needProcesses && (popoverDue || scanDue || tableDue)
 
-        // Publish a snapshot with the fresh system/CPU and the latest process
-        // list (carried unchanged between scans — a cheap array retain, no copy),
-        // so menubar/dashboard system figures stay live at the fast rate.
-        let snapshot = Sampler.Snapshot(
-            system: system, processes: carriedProcesses,
-            unreadableProcessCount: carriedUnreadable, cpu: cpu, battery: battery,
-            network: network, disk: disk)
-        let processes = carriedProcesses
-        // In full mode the scan runs for the database even with every window and
-        // popover closed — but the main-thread trail/menu/table rebuilds it used
-        // to feed exist purely for UI. Skip them when nothing is consuming: an
-        // opening surface registers its consumer and requests an immediate tick,
-        // so its data is at most one tick away.
-        let uiWantsProcesses = processConsumers > 0 || popoverOpen
-        let didScan = runScan && uiWantsProcesses
-        let didTable = runScan && tableDue && uiWantsProcesses
-        // Which top lists to compute this tick: each open popover's kind at
-        // 1 Hz, plus — on table-due ticks, when the scan already ran and four
-        // sorts of ~600 rows are noise — every list. So the Network tab's
-        // top-apps card updates at the table cadence (never the popover's
-        // 1 Hz), and a popover reopened while anything keeps the scan alive is
-        // at most one dial interval stale.
-        var menuKinds = openPopoverKinds
-        if didTable {
-            menuKinds.formUnion(MenuListKind.allCases)
-            if !perAppNetworkEnabled { menuKinds.remove(.network) }
-        }
-        // Trails freeze while nothing consumes the scan (full-mode recording
-        // keeps running regardless); after a real gap the frozen points would
-        // contaminate the smoothed-CPU rankings and sparklines, so drop them
-        // instead of blending hour-old data with the fresh sample.
-        var resetTrails = false
-        if didScan {
-            let scanNow = Date()
-            if let last = lastUIScanAt,
-                scanNow.timeIntervalSince(last) > max(3 * Double(heavyEveryTicks) * interval, 30)
-            {
-                resetTrails = true
-            }
-            lastUIScanAt = scanNow
-            for kind in menuKinds { menuListRefreshedAt[kind] = scanNow }
-        }
-        let dropStaleTrails = resetTrails
+        // Publish the fresh system sample every tick, independent of any scan:
+        // the full-rate heartbeat the menu bar and the live charts read.
+        let diagnostics = self.diagnostics
         DispatchQueue.main.async {
+            let publishStart = TickDiagnostics.now()
             self.systemHistory.append(system)
             self.appendRecentCPU(cpu)
             self.appendRecentNetwork(network)
@@ -928,42 +1018,312 @@ final class SamplerModel: ObservableObject {
                         self.recentGPUSamples.count - self.cpuSmoothingTicks)
                 }
                 self.gpuHistoryRing.append(gpu.utilization)
-                if self.gpuHistoryRing.count > self.gpuHistoryLimit {
+                if self.gpuHistoryRing.count > Self.gpuHistoryCapacity {
                     self.gpuHistoryRing.removeFirst(
-                        self.gpuHistoryRing.count - self.gpuHistoryLimit)
+                        self.gpuHistoryRing.count - Self.gpuHistoryCapacity)
                 }
             } else if !self.recentGPUSamples.isEmpty {
                 self.recentGPUSamples = []
                 self.gpuHistoryRing = []
             }
-            // Full-rate heartbeat: keeps the menu-bar icon live (it reads the
-            // just-updated `smoothedCPU`) without re-rendering any SwiftUI view.
+            // Full-rate heartbeat: keeps the menu-bar icon and the live charts
+            // moving without re-rendering any view that observes the model.
             self.liveTick.send()
-            if didScan {
-                // Trails + menu lists refresh on every scan → 1 Hz while a popover
-                // is open, so its top-process list stays live.
-                if dropStaleTrails { self.processTrails.removeAll() }
-                self.updateTrails(with: processes)
-                let smoothed = self.smoothedCPUMap(for: processes)
-                self.refreshMenuLists(processes, smoothed: smoothed, kinds: menuKinds)
-                // The in-window table re-renders only on the table cadence, so an
-                // open popover never changes the main window's refresh rate.
-                if didTable {
-                    self.latest = snapshot
-                    self.pruneTerminated()
-                    self.rebuildDisplayProcesses(live: processes, smoothed: smoothed)
+            diagnostics.recordPublish(duration: TickDiagnostics.now() - publishStart)
+        }
+
+        // Between table publishes, re-read just the rows on screen so their
+        // figures move at the dial. Skipped on the tick that publishes the
+        // table, whose fresh values are moments away.
+        let fastDue = processConsumers > 0 && !fastPIDs.isEmpty && !(runScan && tableDue)
+        if fastDue, !fastRefreshInFlight {
+            fastRefreshInFlight = true
+            let pids = fastPIDs
+            let ringCapacity = max(2, cpuSmoothingTicks)
+            scanQueue.async { [weak self] in
+                guard let self else { return }
+                let reads = autoreleasepool { self.sampler.refreshProcesses(pids: pids) }
+                let at = TickDiagnostics.now()
+                self.queue.async { self.fastRefreshInFlight = false }
+                DispatchQueue.main.async {
+                    self.applyFastRefresh(reads, at: at, ringCapacity: ringCapacity)
                 }
+            }
+        }
+
+        guard runScan else { return }
+        if scanInFlight {
+            // The running scan covers this tick; the counters stay due so the
+            // scan runs on the first tick after it finishes. A forced request
+            // is remembered rather than dropped.
+            if forceHeavy { forceHeavyPending = true }
+            return
+        }
+        forceHeavyPending = false
+        scanInFlight = true
+        if popoverDue { popoverTickCounter = 0 }
+        if scanDue { heavyTickCounter = 0 }
+        if tableDue { tableTickCounter = 0 }
+        // In full mode the scan runs for the database even with every window and
+        // popover closed — but the main-thread trail/menu/table rebuilds it used
+        // to feed exist purely for UI. Skip them when nothing is consuming: an
+        // opening surface registers its consumer and requests an immediate tick,
+        // so its data is at most one tick away.
+        let uiWantsProcesses = processConsumers > 0 || popoverOpen
+        // Which top lists to compute this scan: each open popover's kind at
+        // 1 Hz, plus — on table-due ticks, when the scan already ran and four
+        // sorts of ~600 rows are noise — every list. So the Network tab's
+        // top-apps card updates at the table cadence (never the popover's
+        // 1 Hz), and a popover reopened while anything keeps the scan alive is
+        // at most one dial interval stale.
+        var menuKinds = openPopoverKinds
+        if tableDue && uiWantsProcesses {
+            menuKinds.formUnion(MenuListKind.allCases)
+            if !perAppNetworkEnabled { menuKinds.remove(.network) }
+        }
+        let job = ScanJob(
+            scanDue: scanDue, tableDue: tableDue, uiWantsProcesses: uiWantsProcesses,
+            menuKinds: menuKinds)
+        // The database row rides the scan queue too, so the timer queue never
+        // waits on the ~15 ms insert. Decided here, where the persist clock
+        // lives: at most every `persistMinInterval`, decoupled from the table
+        // cadence, so a faster dial does not multiply the ~600-row insert + WAL
+        // cost. The live charts read the in-memory ring, not the DB, so only
+        // the long-range history granularity follows this.
+        var persistStore: SampleStore?
+        if scanDue, persistenceEnabled, let store {
+            let now = Date()
+            if lastPersistAt.map({ now.timeIntervalSince($0) >= persistMinInterval }) ?? true {
+                lastPersistAt = now
+                persistStore = store
+            }
+        }
+        let persistBucket = persistStore == nil ? 0 : Self.configuredStandardResInterval()
+        scanQueue.async { [weak self] in
+            guard let self else { return }
+            let scanStart = TickDiagnostics.now()
+            // Drain an autorelease pool per scan: the ~600 per-process
+            // executable-path lookups are NSString-backed (`NSPathStore2`), and
+            // on a long-lived queue thread they would otherwise accumulate.
+            let result = autoreleasepool { self.sampler.tickProcesses() }
+            if let persistStore {
+                do {
+                    // Change-gated write: the system row always lands (it keeps
+                    // every system timeline dense), but a process row is written
+                    // only when it moved or crosses into a new aggregate bucket.
+                    // Idle daemons, the ~94% of processes that are byte-identical
+                    // second to second, stop writing a row per second, which is
+                    // what makes dense 1 s logging affordable. The heartbeat
+                    // bucket must equal retention's standard-res bucket so every
+                    // process still has a raw row in every minute bucket.
+                    try persistStore.insertChanged(
+                        system, processes: result.processes, bucket: persistBucket)
+                } catch {
+                    AppLog.sampler.error(
+                        "sample insert failed: \(String(describing: error), privacy: .public)")
+                }
+            }
+            let duration = TickDiagnostics.now() - scanStart
+            self.queue.async { self.finishScan(result, job: job, duration: duration) }
+        }
+    }
+
+    /// Runs on `queue` when a scan completes: stores the process list for the
+    /// snapshots, persists and evaluates alerts on their cadences, then hops to
+    /// main for the trails, menu lists and table.
+    private func finishScan(
+        _ result: (processes: [ProcessSample], unreadableProcessCount: Int), job: ScanJob,
+        duration: TimeInterval
+    ) {
+        scanInFlight = false
+        diagnostics.recordScan(duration: duration)
+        carriedProcesses = result.processes
+        carriedUnreadable = result.unreadableProcessCount
+        hasProcessSnapshot = true
+        guard let last = lastSystemTick else { return }
+        let snapshot = Sampler.Snapshot(
+            system: last.system, processes: result.processes,
+            unreadableProcessCount: result.unreadableProcessCount, cpu: last.cpu,
+            battery: last.battery, network: last.network, disk: last.disk)
+        if !didLogFirstTick {
+            didLogFirstTick = true
+            AppLog.sampler.notice(
+                "first tick: \(result.processes.count, privacy: .public) processes, \(result.unreadableProcessCount, privacy: .public) unreadable, pressure \(Int(last.system.pressurePercent.rounded()), privacy: .public)%"
+            )
+        }
+        // The row itself was written on the scan queue; the checkpoint and
+        // retention cadences count scan-due ticks here. Alert evaluation
+        // follows the table cadence.
+        if job.scanDue { runPersistenceMaintenance(snapshot) }
+        if job.tableDue { evaluateAlerts(snapshot) }
+        guard job.uiWantsProcesses else { return }
+
+        // Trails freeze while nothing consumes the scan (full-mode recording
+        // keeps running regardless); after a real gap the frozen points would
+        // contaminate the smoothed-CPU rankings and sparklines, so drop them
+        // instead of blending hour-old data with the fresh sample.
+        var resetTrails = false
+        let scanNow = Date()
+        if let lastUI = lastUIScanAt,
+            scanNow.timeIntervalSince(lastUI) > max(3 * Double(heavyEveryTicks) * interval, 30)
+        {
+            resetTrails = true
+        }
+        lastUIScanAt = scanNow
+        for kind in job.menuKinds { menuListRefreshedAt[kind] = scanNow }
+
+        let processes = result.processes
+        let dropStaleTrails = resetTrails
+        let didTable = job.tableDue
+        let menuKinds = job.menuKinds
+        DispatchQueue.main.async {
+            // Trails + menu lists refresh on every scan → 1 Hz while a popover
+            // is open, so its top-process list stays live.
+            if dropStaleTrails { self.processTrails.removeAll() }
+            self.updateTrails(with: processes)
+            let smoothed = self.smoothedCPUMap(for: processes)
+            self.refreshMenuLists(processes, smoothed: smoothed, kinds: menuKinds)
+            // The in-window table re-sorts only on the table cadence; between
+            // those publishes every row's figures are patched in place from
+            // the scan, so a row scrolled into view is as fresh as the scan.
+            if didTable {
+                self.latest = snapshot
+                self.pruneTerminated()
+                self.rebuildDisplayProcesses(live: processes, smoothed: smoothed)
+            } else if !self.displayProcesses.isEmpty {
+                var patches: [ProcessIdentity: ProcessSample] = [:]
+                patches.reserveCapacity(processes.count)
+                for process in processes {
+                    var copy = process
+                    copy.cpuPercent =
+                        self.fastCPUMean(process.id) ?? smoothed[process.id] ?? process.cpuPercent
+                    patches[process.id] = copy
+                }
+                self.processValuesTick.send(patches)
             }
         }
     }
 
-    /// Keep the trailing ~5 s of CPU samples for display smoothing.
+    /// Fold a dial-rate read into the figures the table shows: CPU as the
+    /// trailing 5 s mean of dial-rate deltas (the same window the scan's trail
+    /// smoothing uses, so the figure does not jump when the table re-sorts),
+    /// footprint, thread count and cumulative CPU time straight from the read.
+    /// `displayProcesses` is left alone (it is `@Published`, and this runs at
+    /// the dial rate); the patched samples go out on `processValuesTick`.
+    /// Main thread.
+    private func applyFastRefresh(
+        _ reads: [pid_t: Sampler.ProcessRefresh], at: TimeInterval, ringCapacity: Int
+    ) {
+        guard !reads.isEmpty, !displayProcesses.isEmpty else { return }
+        var patched: [ProcessIdentity: ProcessSample] = [:]
+        patched.reserveCapacity(reads.count)
+        for sample in displayProcesses {
+            guard let read = reads[sample.pid] else { continue }
+            let identity = ProcessIdentity(pid: sample.pid, startTime: read.info.startTime)
+            // A reused pid is a different process; leave it to the scan.
+            guard identity == sample.id else { continue }
+            var copy = sample
+            let state = FastCPUState(
+                user: read.info.cpuTimeUser, system: read.info.cpuTimeSystem, at: at)
+            if let prev = fastCPUStates[identity], at > prev.at {
+                let wallNanos = (at - prev.at) * 1_000_000_000
+                let cpuNanos =
+                    CPUMath.delta(state.user, prev.user)
+                    &+ CPUMath.delta(state.system, prev.system)
+                var ring = fastCPURings[identity] ?? RingBuffer(capacity: ringCapacity)
+                ring.append(CPUMath.percent(cpuDeltaNanos: cpuNanos, wallDeltaNanos: wallNanos))
+                fastCPURings[identity] = ring
+                copy.cpuPercent = Self.mean(ring)
+            }
+            fastCPUStates[identity] = state
+            copy.cpuTimeUser = state.user
+            copy.cpuTimeSystem = state.system
+            copy.threadCount = read.info.threadCount
+            copy.residentSize = read.info.residentSize
+            copy.virtualSize = read.info.virtualSize
+            if let rusage = read.rusage, sample.footprintReadable {
+                copy.physFootprint = rusage.physFootprint
+                copy.lifetimeMaxFootprint = max(
+                    copy.lifetimeMaxFootprint, rusage.lifetimeMaxFootprint)
+            }
+            if let gpu = read.gpu {
+                copy.gpuTimeNanos = gpu.gpuTimeNanos
+                copy.gpuLastActive = GPUProcessReader.date(
+                    fromMachNanos: gpu.lastSubmittedNanos, machNow: read.machNow)
+                let state = FastGPUState(nanos: gpu.gpuTimeNanos, at: at)
+                if let prev = fastGPUStates[identity], at > prev.at {
+                    let wallNanos = (at - prev.at) * 1_000_000_000
+                    let delta = state.nanos >= prev.nanos ? state.nanos - prev.nanos : 0
+                    var ring = fastGPURings[identity] ?? RingBuffer(capacity: ringCapacity)
+                    ring.append(min(100, Double(delta) / wallNanos * 100))
+                    fastGPURings[identity] = ring
+                    copy.gpuPercent = Self.mean(ring)
+                }
+                fastGPUStates[identity] = state
+            }
+            patched[identity] = copy
+        }
+        if !patched.isEmpty { processValuesTick.send(patched) }
+    }
+
+    /// The dial-rate CPU mean for an identity the table is showing, if one has
+    /// accrued; the scan's rebuild uses it over the trail mean so the figure is
+    /// continuous across the re-sort.
+    private func fastCPUMean(_ identity: ProcessIdentity) -> Double? {
+        guard let ring = fastCPURings[identity], !ring.isEmpty else { return nil }
+        return Self.mean(ring)
+    }
+
+    private func fastGPUMean(_ identity: ProcessIdentity) -> Double? {
+        guard let ring = fastGPURings[identity], !ring.isEmpty else { return nil }
+        return Self.mean(ring)
+    }
+
+    private static func mean(_ ring: RingBuffer<Double>) -> Double {
+        var sum = 0.0
+        var n = 0
+        for value in ring.elements() {
+            sum += value
+            n += 1
+        }
+        return n > 0 ? sum / Double(n) : 0
+    }
+
+    /// Benchmark hook (see `ChartBenchmark`): publish a synthetic snapshot on
+    /// the main thread exactly as a table-due scan would, so the Processes tab
+    /// can be driven headless at a known cadence. Never called by the app.
+    func publishForBenchmark(
+        _ snapshot: Sampler.Snapshot, table: Bool = true, gpu: GPUSample? = nil
+    ) {
+        systemHistory.append(snapshot.system)
+        appendRecentCPU(snapshot.cpu)
+        if let gpu {
+            recentGPUSamples.append(gpu)
+            if recentGPUSamples.count > cpuSmoothingTicks {
+                recentGPUSamples.removeFirst(recentGPUSamples.count - cpuSmoothingTicks)
+            }
+        }
+        liveTick.send()
+        guard table else { return }
+        updateTrails(with: snapshot.processes)
+        let smoothed = smoothedCPUMap(for: snapshot.processes)
+        latest = snapshot
+        rebuildDisplayProcesses(live: snapshot.processes, smoothed: smoothed)
+    }
+
+    /// Keep the trailing ~5 s of CPU samples for display smoothing, and the
+    /// averaged sample every reader of `smoothedCPU` shares for this tick.
     private func appendRecentCPU(_ cpu: CPUSample) {
         recentCPUSamples.append(cpu)
         if recentCPUSamples.count > cpuSmoothingTicks {
             recentCPUSamples.removeFirst(recentCPUSamples.count - cpuSmoothingTicks)
         }
+        cachedSmoothedCPU = Self.averaged(recentCPUSamples)
     }
+
+    /// `smoothedCPU`, computed once per tick. As a computed average it was
+    /// rebuilt (cores and all) by every status item and view that read it.
+    private var cachedSmoothedCPU: CPUSample?
 
     /// Keep the trailing ~5 s of network samples for menubar read-out smoothing.
     /// Reuses the CPU smoothing window (same fast-tick cadence). A nil sample
@@ -1117,6 +1477,24 @@ final class SamplerModel: ObservableObject {
                         return $0.pid < $1.pid
                     }.prefix(menuListLimit)))
         }
+        if kinds.contains(.gpu) {
+            // Rank by the share of the GPU each process used over the last scan
+            // interval, and list only the ones that drew at all: the driver
+            // keeps a context for every app that ever touched Metal, so an idle
+            // GPU would otherwise show a column of zeros.
+            let active = processes.filter { $0.isGPUActive }
+            let top = Array(
+                active.sorted {
+                    let lhs = $0.gpuPercent ?? 0
+                    let rhs = $1.gpuPercent ?? 0
+                    if lhs != rhs { return lhs > rhs }
+                    return $0.pid < $1.pid
+                }.prefix(menuListLimit))
+            // The dropdown names the AI runtime next to each row; keep those
+            // rows classified even when no table is publishing.
+            addGPUWorkloads(top)
+            menuLists.update(.gpu, with: top)
+        }
     }
 
     /// Rebuild the main table's process list: every live process with its CPU
@@ -1129,10 +1507,23 @@ final class SamplerModel: ObservableObject {
         var result = live.map { process -> ProcessSample in
             var copy = process
             copy.cpuPercent =
-                smoothed?[process.id]
+                fastCPUMean(process.id)
+                ?? smoothed?[process.id]
                 ?? smoothedProcessCPU(process.id, fallback: process.cpuPercent)
+            if process.gpuPercent != nil, let fast = fastGPUMean(process.id) {
+                copy.gpuPercent = fast
+            }
             return copy
         }
+        if !fastCPUStates.isEmpty || !fastGPUStates.isEmpty {
+            // Forget dial-rate state for processes that have gone.
+            let liveIDs = Set(live.map(\.id))
+            fastCPUStates = fastCPUStates.filter { liveIDs.contains($0.key) }
+            fastCPURings = fastCPURings.filter { liveIDs.contains($0.key) }
+            fastGPUStates = fastGPUStates.filter { liveIDs.contains($0.key) }
+            fastGPURings = fastGPURings.filter { liveIDs.contains($0.key) }
+        }
+        refreshGPUWorkloads(result)
         if !terminatedProcesses.isEmpty {
             let liveIDs = Set(result.map(\.id))
             result += terminatedProcesses.values
@@ -1173,7 +1564,8 @@ final class SamplerModel: ObservableObject {
             processes: snapshot.processes,
             leakingProcesses: leakingIDs,
             config: alertConfig,
-            cpu: snapshot.cpu)
+            cpu: snapshot.cpu,
+            gpu: lastSystemTick?.gpu)
         let activeKinds = alertEngine.activeKinds
         let sink = onAlertsFired
         DispatchQueue.main.async { [weak self] in
@@ -1184,41 +1576,12 @@ final class SamplerModel: ObservableObject {
         }
     }
 
-    /// Persist the system row plus the heavy-hitter (and tracked) process rows,
-    /// and run periodic retention, all on `queue` so the UI thread never touches
-    /// the database. Failures are logged, not fatal.
-    private func persist(_ snapshot: Sampler.Snapshot) {
+    /// The periodic database maintenance that follows each scan-due tick: the
+    /// WAL checkpoint and the retention pass, on their own cadences. The row
+    /// insert itself happens on the scan queue (see `tick`). Runs on `queue`.
+    /// Failures are logged, not fatal.
+    private func runPersistenceMaintenance(_ snapshot: Sampler.Snapshot) {
         guard persistenceEnabled, let store else { return }
-        // Persist at most every `persistMinInterval`, decoupled from the table
-        // cadence: at a 1 s table this writes ~every 2 s instead of every tick, so
-        // a faster table does not multiply the ~600-row insert + WAL cost. The
-        // live charts read the in-memory ring, not the DB, so they stay 1 Hz; only
-        // the long-range history granularity follows this (≈2 s, imperceptible).
-        let now = Date()
-        let shouldPersist =
-            lastPersistAt.map { now.timeIntervalSince($0) >= persistMinInterval } ?? true
-        if shouldPersist {
-            lastPersistAt = now
-            do {
-                // Change-gated write: the system row always lands (it keeps every
-                // system timeline dense), but a process row is written only when
-                // it moved or crosses into a new aggregate bucket. Idle daemons —
-                // the ~94% of processes that are byte-identical second to second —
-                // stop writing a row per second, which is what makes dense 1 s
-                // logging affordable (insert −83%, roll-up + DB ~16× lighter). The
-                // heartbeat bucket must equal retention's standard-res bucket so
-                // every process still has a raw row in every minute bucket; the
-                // time-weighted roll-up reconstructs correct averages from the
-                // sparse rows. Any process the user later charts still resolves —
-                // the chart connects its written points across the held gaps.
-                try store.insertChanged(
-                    snapshot.system, processes: snapshot.processes,
-                    bucket: Self.configuredStandardResInterval())
-            } catch {
-                AppLog.sampler.error(
-                    "sample insert failed: \(String(describing: error), privacy: .public)")
-            }
-        }
         ticksSinceCheckpoint += 1
         if ticksSinceCheckpoint >= checkpointEveryTicks {
             ticksSinceCheckpoint = 0
@@ -1310,8 +1673,8 @@ final class SamplerModel: ObservableObject {
                     diskWritten: process.diskBytesWritten,
                     networkBytesPerSec: process.networkBytesPerSec
                 ))
-            if let count = processTrails[process.id]?.count, count > trailLength {
-                processTrails[process.id]?.removeFirst(count - trailLength)
+            if let count = processTrails[process.id]?.count, count > Self.processTrailCapacity {
+                processTrails[process.id]?.removeFirst(count - Self.processTrailCapacity)
             }
         }
     }
@@ -1343,7 +1706,7 @@ final class SamplerModel: ObservableObject {
     /// and the P/E split. Used by the menubar read-out, the menubar icon, and the
     /// live core grids so they settle rather than flicker. Nil until the first
     /// sample lands. The dashboard CPU timeline deliberately uses raw history.
-    var smoothedCPU: CPUSample? { Self.averaged(recentCPUSamples) }
+    var smoothedCPU: CPUSample? { cachedSmoothedCPU }
 
     /// Per-field mean of a run of CPU samples, preserving the most recent core
     /// layout. Samples whose core count differs from the latest (e.g. the seed
@@ -1586,11 +1949,26 @@ final class SamplerModel: ObservableObject {
     /// `downsampledTo` thins the series to at most that many chart points on the
     /// read queue, so the main thread receives a render-ready array instead of
     /// re-bucketing the full raw window itself on every refresh.
+    /// Synthetic history for `--benchmark-charts`, which runs without a store:
+    /// `loadSystemHistory` answers from this instead, so the real Dashboard
+    /// page can be measured with a full window rather than an empty one.
+    var benchmarkSystemHistory: [SystemHistoryPoint]?
+
     func loadSystemHistory(
         _ window: HistoryWindow,
         downsampledTo maxPoints: Int? = nil,
         completion: @escaping ([SystemHistoryPoint]) -> Void
     ) {
+        if let seed = benchmarkSystemHistory {
+            let newest = seed.last?.date ?? .distantPast
+            let cutoff = newest.addingTimeInterval(-window.seconds)
+            var points = seed.filter { $0.date >= cutoff }
+            if let maxPoints {
+                points = points.chartDownsampled(span: window.seconds, to: maxPoints)
+            }
+            completion(points)
+            return
+        }
         guard let store else {
             completion([])
             return
@@ -2233,4 +2611,76 @@ final class SamplerModel: ObservableObject {
             .sorted { $0.physFootprint > $1.physFootprint }
         return (cost, translated)
     }
+}
+
+// MARK: - GPU workload classification
+
+/// What a GPU consumer is, resolved once per process identity: its category,
+/// the AI runtime it is (if any) and a model hint from its command line.
+struct GPUWorkloadInfo: Equatable {
+    var category: GPUWorkloadCategory
+    var runtime: String?
+    var model: String?
+}
+
+extension SamplerModel {
+    /// Classify the processes that have a Metal context. The command line is
+    /// read (once per identity) only for processes whose name gives nothing
+    /// away, and only while they are actually using the GPU, so a bare
+    /// `python` serving a model is named without a sysctl per process per
+    /// tick. Main thread, on each table publish.
+    fileprivate func refreshGPUWorkloads(_ processes: [ProcessSample]) {
+        var next: [ProcessIdentity: GPUWorkloadInfo] = [:]
+        next.reserveCapacity(gpuWorkloads.count)
+        for process in processes where process.gpuTimeNanos != nil {
+            next[process.id] = gpuWorkload(classifying: process)
+        }
+        if next != gpuWorkloads { gpuWorkloads = next }
+    }
+
+    /// Classify a few rows (the dropdown's top list) in place, keeping what
+    /// the table already knows about everyone else. Main thread.
+    fileprivate func addGPUWorkloads(_ processes: [ProcessSample]) {
+        for process in processes where process.gpuTimeNanos != nil {
+            let info = gpuWorkload(classifying: process)
+            if gpuWorkloads[process.id] != info { gpuWorkloads[process.id] = info }
+        }
+    }
+
+    private func gpuWorkload(classifying process: ProcessSample) -> GPUWorkloadInfo {
+        if let known = gpuWorkloads[process.id],
+            known.category != .other || !process.isGPUActive
+        {
+            return known
+        }
+        var arguments: [String]?
+        if GPUWorkload.aiRuntime(
+            name: process.name, bundleID: process.bundleID,
+            executablePath: process.executablePath)
+            == nil, process.uid == getuid(), process.isGPUActive
+        {
+            arguments = ProcessArguments.read(pid: process.pid)
+        }
+        let runtime = GPUWorkload.aiRuntime(
+            name: process.name, bundleID: process.bundleID,
+            executablePath: process.executablePath,
+            arguments: arguments)
+        let category = GPUWorkload.category(
+            name: process.name, bundleID: process.bundleID,
+            executablePath: process.executablePath,
+            arguments: arguments)
+        return GPUWorkloadInfo(
+            category: category, runtime: runtime,
+            model: GPUWorkload.modelHint(arguments: arguments))
+    }
+
+    /// The classification of a GPU consumer, if it has been seen.
+    func gpuWorkload(for identity: ProcessIdentity) -> GPUWorkloadInfo? {
+        gpuWorkloads[identity]
+    }
+}
+
+extension ProcessSample {
+    /// Using the GPU right now, as opposed to merely holding a context.
+    var isGPUActive: Bool { (gpuPercent ?? 0) >= 0.5 }
 }

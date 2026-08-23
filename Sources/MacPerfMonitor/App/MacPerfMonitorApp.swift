@@ -25,6 +25,11 @@ enum MacPerfMonitorMain {
         if CommandLine.arguments.contains("--uninstall") {
             ServiceUninstaller.runAndExit()
         }
+        // Headless chart-pipeline benchmark (see ChartBenchmark). Runs before the
+        // single-instance guard so it can be used while the real app is running.
+        if MainActor.assumeIsolated({ ChartBenchmark.runIfRequested() }) {
+            exit(0)
+        }
         SingleInstanceGuard.activateExistingAndExitIfRunning()
         MacPerfMonitorApp.main()
     }
@@ -112,6 +117,7 @@ struct MacPerfMonitorApp: App {
         Window(AppInfo.displayName, id: WindowID.main) {
             MainWindowGate()
                 .environmentObject(appDelegate.model)
+                .environment(\.samplerModel, appDelegate.model)
                 .environmentObject(appDelegate.model.menuLists)
                 .environmentObject(appDelegate.appState)
                 .environmentObject(appDelegate.helperManager)
@@ -369,7 +375,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         // the same live-from-UserDefaults pattern the menubar items use.
         model.setPerAppNetworkTracking(
             UserDefaults.standard.bool(forKey: SamplerModel.perAppNetworkDefaultsKey))
-        // Apply the saved process-table interval (default 2 s) and keep it in sync
+        // Apply the saved process-table interval (default 10 s) and keep it in sync
         // with the Settings control live.
         model.setTableInterval(UserDefaults.standard.double(forKey: SamplerModel.tableIntervalKey))
         // The high-resolution logging interval — the raw-tier write frequency,

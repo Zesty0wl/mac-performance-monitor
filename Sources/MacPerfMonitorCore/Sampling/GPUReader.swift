@@ -52,6 +52,7 @@ final class GPUReader {
                     $0 >= 0 ? UInt64($0) : nil
                 }
                 sample.coreCount = cachedCoreCount
+                sample.recoveryCount = stats["recoveryCount"] as? Int
                 // More than one accelerator is rare on the Macs we run on; keep the
                 // busiest so a discrete GPU under load wins over an idle integrated one.
                 if best == nil || sample.utilization > best!.utilization { best = sample }

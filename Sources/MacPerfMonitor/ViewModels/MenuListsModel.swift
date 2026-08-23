@@ -10,6 +10,7 @@ enum MenuListKind: CaseIterable {
     case energy
     case network
     case disk
+    case gpu
 }
 
 /// The top-process lists for the menu-bar popovers (and the Network tab's
@@ -34,6 +35,12 @@ final class MenuListsModel: ObservableObject {
     @Published private(set) var topNetwork: [ProcessSample] = []
     /// Top processes by kernel-attributed read + write throughput.
     @Published private(set) var topDisk: [ProcessSample] = []
+    @Published private(set) var topGPU: [ProcessSample] = []
+    /// Whether a scan has ranked the GPU list since it was last cleared. An
+    /// empty list after a scan means nothing is drawing (every app that ever
+    /// touched Metal keeps a context, so the list holds only active users),
+    /// not that nothing has been sampled yet.
+    @Published private(set) var gpuListScanned = false
 
     func update(_ kind: MenuListKind, with rows: [ProcessSample]) {
         // Skip no-op publishes: an unchanged list (e.g. the always-empty
@@ -45,6 +52,16 @@ final class MenuListsModel: ObservableObject {
         case .energy: if rows != topEnergy { topEnergy = rows }
         case .network: if rows != topNetwork { topNetwork = rows }
         case .disk: if rows != topDisk { topDisk = rows }
+        case .gpu:
+            if rows != topGPU { topGPU = rows }
+            if !gpuListScanned { gpuListScanned = true }
         }
+    }
+
+    /// Drop a list too old to trust (a popover reopened after a long gap) so
+    /// its panel shows "Sampling" until the next scan lands.
+    func clear(_ kind: MenuListKind) {
+        update(kind, with: [])
+        if kind == .gpu, gpuListScanned { gpuListScanned = false }
     }
 }

@@ -76,7 +76,8 @@ struct NetworkMenuBarContentView: View {
                 }
 
                 NetworkUpDownChart(
-                    download: model.networkInTrail(), upload: model.networkOutTrail()
+                    download: model.networkInTrail(), upload: model.networkOutTrail(),
+                    sampleCapacity: model.systemHistory.capacity
                 )
                 .frame(height: MenuChart.networkHeight)
 

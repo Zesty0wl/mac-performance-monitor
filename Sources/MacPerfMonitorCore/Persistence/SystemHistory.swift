@@ -37,6 +37,10 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
     // volume capacity), and charts must gap rather than draw zero.
     public var diskReadLatencyMs: Double?
     public var diskWriteLatencyMs: Double?
+    /// GPU device figures (v13); nil on ticks that did not read the GPU.
+    public var gpuUtilization: Double?
+    public var gpuPowerWatts: Double?
+    public var anePowerWatts: Double?
     public var diskUtilizationPercent: Double?
     public var bootFreeBytes: UInt64?
     public var bootTotalBytes: UInt64?
@@ -66,7 +70,10 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
         diskWriteLatencyMs: Double? = nil,
         diskUtilizationPercent: Double? = nil,
         bootFreeBytes: UInt64? = nil,
-        bootTotalBytes: UInt64? = nil
+        bootTotalBytes: UInt64? = nil,
+        gpuUtilization: Double? = nil,
+        gpuPowerWatts: Double? = nil,
+        anePowerWatts: Double? = nil
     ) {
         self.date = date
         self.pressurePercent = pressurePercent
@@ -91,14 +98,17 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
         self.diskUtilizationPercent = diskUtilizationPercent
         self.bootFreeBytes = bootFreeBytes
         self.bootTotalBytes = bootTotalBytes
+        self.gpuUtilization = gpuUtilization
+        self.gpuPowerWatts = gpuPowerWatts
+        self.anePowerWatts = anePowerWatts
     }
 }
 
 extension SampleStore {
     /// System history for a dashboard window, oldest first. Reads from the raw,
     /// minute, or hour table according to `window.granularity`. The whole app
-    /// shares one `HistoryWindow` (1h / 6h / 24h / 7d) so every page's history
-    /// picker offers the same timeframes.
+    /// shares one `HistoryWindow` (5m / 30m / 1h / 6h / 24h / 7d) so every page's
+    /// history picker offers the same timeframes.
     public func systemHistory(
         _ window: HistoryWindow, now: Date = Date()
     ) throws -> [SystemHistoryPoint] {
@@ -133,7 +143,8 @@ extension SampleStore {
                     SELECT timestamp, pressure_percent, app_memory, wired, compressed, cached_files, swap_used, cpu_load,
                            battery_charge, battery_power, battery_health, battery_temp, net_in, net_out,
                            disk_read, disk_write, disk_read_iops, disk_write_iops,
-                           disk_read_latency, disk_write_latency, disk_util, boot_free, boot_total
+                           disk_read_latency, disk_write_latency, disk_util, boot_free, boot_total,
+                           gpu_util, gpu_power, ane_power
                     FROM system_samples
                     WHERE timestamp >= ?
                     ORDER BY timestamp ASC
@@ -152,7 +163,8 @@ extension SampleStore {
                            net_in_avg, net_out_avg,
                            disk_read_avg, disk_write_avg, disk_read_iops_avg, disk_write_iops_avg,
                            disk_read_latency_avg, disk_write_latency_avg, disk_util_avg,
-                           boot_free_min, boot_total
+                           boot_free_min, boot_total,
+                           gpu_util_avg, gpu_power_avg, ane_power_avg
                     FROM \(table)
                     WHERE bucket >= ?
                     ORDER BY bucket ASC
@@ -190,7 +202,10 @@ extension SampleStore {
             diskWriteLatencyMs: row[19],
             diskUtilizationPercent: row[20],
             bootFreeBytes: (row[21] as Int64?).map(SQLInt.read),
-            bootTotalBytes: (row[22] as Int64?).map(SQLInt.read)
+            bootTotalBytes: (row[22] as Int64?).map(SQLInt.read),
+            gpuUtilization: row[23],
+            gpuPowerWatts: row[24],
+            anePowerWatts: row[25]
         )
     }
 }

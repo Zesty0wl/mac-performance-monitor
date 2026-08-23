@@ -11,6 +11,7 @@ import SwiftUI
 struct NetworkUpDownChart: View {
     let download: [Double]
     let upload: [Double]
+    var sampleCapacity: Int? = nil
 
     var body: some View {
         Canvas { ctx, size in
@@ -36,12 +37,20 @@ struct NetworkUpDownChart: View {
                 at: CGPoint(x: plot.minX, y: plot.minY + 4), anchor: .topLeading)
 
             func points(_ values: [Double], up: Bool) -> [CGPoint] {
-                let stepX = values.count >= 2 ? plot.width / CGFloat(values.count - 1) : 0
                 return values.enumerated().map { index, value in
                     let fraction = min(1, max(0, value / upper))
                     let height = CGFloat(fraction) * halfHeight
+                    let x: CGFloat
+                    if let sampleCapacity, sampleCapacity > 0 {
+                        let fraction = LiveChartGeometry.normalizedSlot(
+                            index: index, count: values.count, capacity: sampleCapacity)
+                        x = plot.minX + CGFloat(fraction) * plot.width
+                    } else {
+                        let step = values.count >= 2 ? plot.width / CGFloat(values.count - 1) : 0
+                        x = plot.minX + CGFloat(index) * step
+                    }
                     return CGPoint(
-                        x: plot.minX + CGFloat(index) * stepX, y: up ? mid - height : mid + height)
+                        x: x, y: up ? mid - height : mid + height)
                 }
             }
 

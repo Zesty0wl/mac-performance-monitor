@@ -205,6 +205,8 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
 /// leaks and trends can be seen over days without growing storage.
 enum PerfSpan: String, CaseIterable, Identifiable {
     case live
+    case fiveMinutes
+    case thirtyMinutes
     case oneHour
     case sixHours
     case oneDay
@@ -217,6 +219,8 @@ enum PerfSpan: String, CaseIterable, Identifiable {
         // A short, self-scrolling 2-minute window served from the in-memory trail
         // so any process plots instantly; the rest match the app-wide history set.
         case .live: return "2m"
+        case .fiveMinutes: return "5 min"
+        case .thirtyMinutes: return "30 min"
         case .oneHour: return "1 hr"
         case .sixHours: return "6 hr"
         case .oneDay: return "24 hr"
@@ -228,6 +232,8 @@ enum PerfSpan: String, CaseIterable, Identifiable {
     var seconds: TimeInterval {
         switch self {
         case .live: return 120
+        case .fiveMinutes: return 5 * 60
+        case .thirtyMinutes: return 30 * 60
         case .oneHour: return 60 * 60
         case .sixHours: return 6 * 60 * 60
         case .oneDay: return 24 * 60 * 60
@@ -237,11 +243,13 @@ enum PerfSpan: String, CaseIterable, Identifiable {
 
     var isLive: Bool { self == .live }
 
-    /// The shared history window backing the non-live spans (1h raw, the rest
-    /// minute/hour aggregates); nil for the live in-memory stream.
+    /// The shared history window backing the non-live spans (through 1h raw, the
+    /// rest minute/hour aggregates); nil for the live in-memory stream.
     var window: HistoryWindow? {
         switch self {
         case .live: return nil
+        case .fiveMinutes: return .fiveMinutes
+        case .thirtyMinutes: return .thirtyMinutes
         case .oneHour: return .oneHour
         case .sixHours: return .sixHours
         case .oneDay: return .oneDay

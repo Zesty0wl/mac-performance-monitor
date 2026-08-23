@@ -121,15 +121,94 @@ struct ProcessListView: View {
     /// the visible process that launched it, with every level sorted by the active
     /// column.
     private func rebuildRows() {
+        let compare = Self.comparison(for: sortOrder)
         if showHierarchy {
-            rows = buildForest(from: filteredSamples)
+            rows = buildForest(from: filteredSamples, compare: compare)
         } else {
-            rows =
-                filteredSamples
-                .map { ProcessNode(process: $0, children: nil) }
-                .sorted(using: sortOrder)
+            rows = Self.sortedNodes(filteredSamples, compare: compare)
         }
         rowsRevision &+= 1
+    }
+
+    /// Sort with direct property access. `sorted(using:)` over the table's
+    /// `KeyPathComparator`s applied each key path dynamically on every one of
+    /// the ~5,000 comparisons a 600-row sort makes, about 5 ms per second at
+    /// the table cadence. Each comparator is matched to its column once, and
+    /// an index permutation is sorted so the 200-byte samples are not shuffled.
+    /// Flat rows sorted by `comparators`, for any table of process samples
+    /// (the GPU tab reuses it).
+    static func sortedNodes(
+        _ samples: [ProcessSample], comparators: [KeyPathComparator<ProcessNode>]
+    ) -> [ProcessNode] {
+        sortedNodes(samples, compare: comparison(for: comparators))
+    }
+
+    private static func sortedNodes(
+        _ samples: [ProcessSample], compare: @escaping (ProcessSample, ProcessSample) -> Bool
+    ) -> [ProcessNode] {
+        let order = samples.indices.sorted { compare(samples[$0], samples[$1]) }
+        return order.map { ProcessNode(process: samples[$0], children: nil) }
+    }
+
+    /// A strict "comes before" for the table's comparators, composed in order.
+    /// Strings use the same localized standard comparison the comparators do.
+    private static func comparison(
+        for comparators: [KeyPathComparator<ProcessNode>]
+    ) -> (ProcessSample, ProcessSample) -> Bool {
+        typealias Step = (ProcessSample, ProcessSample) -> ComparisonResult
+        let steps: [Step] = comparators.map { comparator -> Step in
+            let ascending = comparator.order == .forward
+            func ordered<T: Comparable>(_ a: T, _ b: T) -> ComparisonResult {
+                if a == b { return .orderedSame }
+                return (a < b) == ascending ? .orderedAscending : .orderedDescending
+            }
+            func text(_ a: String, _ b: String) -> ComparisonResult {
+                let result = a.localizedStandardCompare(b)
+                if ascending || result == .orderedSame { return result }
+                return result == .orderedAscending ? .orderedDescending : .orderedAscending
+            }
+            let keyPath = comparator.keyPath
+            if keyPath == \ProcessNode.process.displayName {
+                return { text($0.displayName, $1.displayName) }
+            }
+            if keyPath == \ProcessNode.process.physFootprint {
+                return { ordered($0.physFootprint, $1.physFootprint) }
+            }
+            if keyPath == \ProcessNode.process.cpuPercent {
+                return { ordered($0.cpuPercent, $1.cpuPercent) }
+            }
+            if keyPath == \ProcessNode.process.threadCount {
+                return { ordered($0.threadCount, $1.threadCount) }
+            }
+            if keyPath == \ProcessNode.process.fdTotal {
+                return { ordered($0.fdTotal, $1.fdTotal) }
+            }
+            if keyPath == \ProcessNode.process.architecture.label {
+                return { text($0.architecture.label, $1.architecture.label) }
+            }
+            if keyPath == \ProcessNode.process.pid {
+                return { ordered($0.pid, $1.pid) }
+            }
+            if keyPath == \ProcessNode.process.gpuPercentValue {
+                return { ordered($0.gpuPercentValue, $1.gpuPercentValue) }
+            }
+            if keyPath == \ProcessNode.process.gpuIdleSeconds {
+                return { ordered($0.gpuIdleSeconds, $1.gpuIdleSeconds) }
+            }
+            // A column this list does not know: let the comparator do it.
+            return {
+                comparator.compare(
+                    ProcessNode(process: $0, children: nil), ProcessNode(process: $1, children: nil)
+                )
+            }
+        }
+        return { a, b in
+            for step in steps {
+                let result = step(a, b)
+                if result != .orderedSame { return result == .orderedAscending }
+            }
+            return false
+        }
     }
 
     /// Build a parent/child forest from the visible processes, nesting each one
@@ -142,7 +221,12 @@ struct ProcessListView: View {
     /// `launchd` (PID 1) is dropped from the tree: it is the ancestor of almost
     /// everything, so showing it adds a layer of indentation with no information.
     /// Removing it promotes its direct children to top-level roots.
-    private func buildForest(from samples: [ProcessSample]) -> [ProcessNode] {
+    private func buildForest(
+        from samples: [ProcessSample], compare: @escaping (ProcessSample, ProcessSample) -> Bool
+    ) -> [ProcessNode] {
+        func sortNodes(_ nodes: [ProcessNode]) -> [ProcessNode] {
+            nodes.sorted { compare($0.process, $1.process) }
+        }
         let samples = samples.filter { $0.pid != Self.launchdPID }
         let byPID = Dictionary(
             samples.map { ($0.pid, $0) }, uniquingKeysWith: { first, _ in first })
@@ -156,28 +240,23 @@ struct ProcessListView: View {
         var visited: Set<Int32> = []
         func makeNode(_ sample: ProcessSample) -> ProcessNode {
             visited.insert(sample.pid)
-            let kids =
+            let kids = sortNodes(
                 (childrenByPPID[sample.pid] ?? [])
-                .filter { !visited.contains($0.pid) }
-                .map(makeNode)
-                .sorted(using: sortOrder)
+                    .filter { !visited.contains($0.pid) }
+                    .map(makeNode))
             return ProcessNode(process: sample, children: kids.isEmpty ? nil : kids)
         }
 
-        var forest =
+        var forest = sortNodes(
             samples
-            .filter { !childPIDs.contains($0.pid) }
-            .map(makeNode)
-            .sorted(using: sortOrder)
+                .filter { !childPIDs.contains($0.pid) }
+                .map(makeNode))
 
         // Anything left unvisited (only possible under a PID cycle) is surfaced
         // as a root so a process is never silently dropped.
         let orphans = samples.filter { !visited.contains($0.pid) }
         if !orphans.isEmpty {
-            forest +=
-                orphans
-                .map { ProcessNode(process: $0, children: nil) }
-                .sorted(using: sortOrder)
+            forest += sortNodes(orphans.map { ProcessNode(process: $0, children: nil) })
         }
         return forest
     }
@@ -220,197 +299,128 @@ private struct ProcessTable: View, Equatable {
     }
 
     var body: some View {
-        tableContent
-            .tableStyle(.inset(alternatesRowBackgrounds: true))
-            .contextMenu(forSelectionType: ProcessIdentity.self) { ids in
-                if ids.count > 1 {
-                    multiSelectionMenu(ids)
-                } else if let id = ids.first {
-                    ProcessActionMenu(
-                        live: model.currentSample(for: id),
-                        showCodesign: {
-                            if let live = model.currentSample(for: id) {
-                                ProcessRowIntent.showCodesign(
-                                    sample: live, appState: appState, bringWindowForward: false)
-                            }
-                        },
-                        requestKill: { appState.pendingForceQuit = id },
-                        inspectMemory: inspectAction(for: id),
-                        openFiles: openFilesAction(for: id),
-                        deepDive: deepDiveAction(for: id),
-                        addToMonitor: { monitor.add(id) },
-                        isMonitored: monitor.contains(id),
-                        monitorHasRoom: !monitor.isFull,
-                        addToGroup: { gid in
-                            if let s = model.currentSample(for: id) {
-                                groupStore.addRule(Self.groupRule(for: s), toGroup: gid)
-                            }
-                        },
-                        newGroupFromProcess: {
-                            if let s = model.currentSample(for: id) {
-                                groupStore.add(
-                                    ProcessGroup(
-                                        name: s.displayName, rule: .any([Self.groupRule(for: s)])))
-                            }
-                        },
-                        groupTargets: groupStore.addTargets
-                    )
-                }
-            } primaryAction: { ids in
-                if let id = ids.first { selection = id }
-            }
-            .onChange(of: multiSelection) { _, ids in
-                // Drive the single-row inspector from the table selection. An
-                // EMPTY set is deliberately ignored: in hierarchy mode the Table
-                // cannot materialise a row nested under a collapsed parent, so
-                // when an external selection (a notification or a click from
-                // another view) sets `selection` and we mirror it into
-                // `multiSelection` below, the Table rejects it and writes the set
-                // back to empty. Clearing `selection` on that echo snapped the
-                // inspector straight shut, so a navigation target "didn't
-                // select". Leaving `selection` untouched on empty keeps the
-                // target open; a multi-row selection still clears the single-row
-                // inspector for the batch action.
-                if ids.count == 1 {
-                    selection = ids.first
-                } else if ids.count > 1 {
-                    selection = nil
-                }
-            }
-            .onChange(of: selection) { _, newValue in
-                // Reflect an external selection (the auto-selected top row, or a
-                // notification's navigation target) back into the table highlight.
-                if let id = newValue, multiSelection != [id] {
-                    multiSelection = [id]
-                }
-            }
-            .onAppear {
-                if let id = selection { multiSelection = [id] }
-            }
-    }
-
-    /// The table itself. The flat case uses a plain `Table` (no `children:`),
-    /// which is materially cheaper to diff and lay out than the outline table the
-    /// `children:` initializer produces — the outline form was previously used
-    /// even in flat mode, where every row's children are `nil`. The hierarchy
-    /// case keeps the outline table for its disclosure rows.
-    @ViewBuilder
-    private var tableContent: some View {
-        if showHierarchy {
-            Table(rows, children: \.children, selection: $multiSelection, sortOrder: $sortOrder) {
-                processColumns()
-            }
-        } else {
-            Table(rows, selection: $multiSelection, sortOrder: $sortOrder) {
-                processColumns()
-            }
-        }
-    }
-
-    /// The shared column set, so the flat and hierarchical tables stay identical.
-    @TableColumnBuilder<ProcessNode, KeyPathComparator<ProcessNode>>
-    private func processColumns()
-        -> some TableColumnContent<ProcessNode, KeyPathComparator<ProcessNode>>
-    {
-        TableColumn("Process", value: \.process.displayName) { node in
-            let process = node.process
-            ProcessNameCell(
-                process: process,
-                isLeaking: leakingIDs.contains(process.id),
-                descendantLeaking: hasLeakingDescendant(node),
-                isTerminated: isTerminated(process))
-        }
-        .width(min: 160, ideal: 260)
-
-        TableColumn("Memory", value: \.process.physFootprint) { node in
-            let process = node.process
-            Text(process.footprintReadable ? ByteFormat.string(process.physFootprint) : "—")
-                .monospacedDigit()
-                .foregroundStyle(process.footprintReadable ? .primary : .secondary)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .help(
-                    process.footprintReadable
-                        ? ""
-                        : "Footprint not readable at the user level for this process."
-                )
-                .accessibilityLabel(
-                    process.footprintReadable
-                        ? ByteFormat.string(process.physFootprint)
-                        : "Memory not readable"
-                )
-                .dimmedIfTerminated(isTerminated(process))
-        }
-        .width(min: 84, ideal: 104)
-
-        TableColumn("CPU", value: \.process.cpuPercent) { node in
-            let process = node.process
-            Text(String(format: "%.1f%%", process.cpuPercent))
-                .monospacedDigit()
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .dimmedIfTerminated(isTerminated(process))
-        }
-        .width(min: 58, ideal: 70)
-
-        TableColumn("Threads", value: \.process.threadCount) { node in
-            let process = node.process
-            Text("\(process.threadCount)")
-                .monospacedDigit()
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .dimmedIfTerminated(isTerminated(process))
-        }
-        .width(min: 60, ideal: 72)
-
-        TableColumn("FDs", value: \.process.fdTotal) { node in
-            let process = node.process
-            Text("\(process.fdTotal)")
-                .monospacedDigit()
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .dimmedIfTerminated(isTerminated(process))
-        }
-        .width(min: 50, ideal: 62)
-
-        TableColumn("Arch", value: \.process.architecture.label) { node in
-            let process = node.process
-            Text(process.architecture.label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .dimmedIfTerminated(isTerminated(process))
-        }
-        .width(min: 60, ideal: 72)
-
-        TableColumn("PID", value: \.process.pid) { node in
-            let process = node.process
-            Text("\(process.pid)")
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .dimmedIfTerminated(isTerminated(process))
-        }
-        .width(min: 52, ideal: 72)
-    }
-
-    /// The batch context menu shown when more than one row is selected. Pins the
-    /// selected processes to the Monitor in their on-screen order, stopping at the
-    /// eight-process limit and skipping any already pinned.
-    @ViewBuilder
-    private func multiSelectionMenu(_ ids: Set<ProcessIdentity>) -> some View {
-        let addable = addableCount(ids)
-        Button {
-            addSelectionToMonitor(ids)
-        } label: {
-            Label(
-                addable > 0
-                    ? "Add \(addable) \(addable == 1 ? "Process" : "Processes") to Analytics"
-                    : "Analytics Full",
-                systemImage: "chart.xyaxis.line"
-            )
-        }
-        .disabled(addable == 0)
-        .help(
-            addable == 0
-                ? "Remove a process from Analytics first (eight maximum)."
-                : "Pin the selected processes to the Analytics tab."
+        ProcessOutlineTable(
+            rows: rows,
+            revision: revision,
+            showHierarchy: showHierarchy,
+            leakingIDs: leakingIDs,
+            terminatedIDs: terminatedIDs,
+            selection: $multiSelection,
+            sortOrder: $sortOrder,
+            menu: { ids in contextMenu(for: ids) },
+            values: model.processValuesTick.eraseToAnyPublisher(),
+            onVisibleRowsChange: { pids in model.setVisibleProcesses(pids) }
         )
+        .onChange(of: multiSelection) { _, ids in
+            // Drive the single-row inspector from the table selection. An
+            // EMPTY set is deliberately ignored: in hierarchy mode the Table
+            // cannot materialise a row nested under a collapsed parent, so
+            // when an external selection (a notification or a click from
+            // another view) sets `selection` and we mirror it into
+            // `multiSelection` below, the Table rejects it and writes the set
+            // back to empty. Clearing `selection` on that echo snapped the
+            // inspector straight shut, so a navigation target "didn't
+            // select". Leaving `selection` untouched on empty keeps the
+            // target open; a multi-row selection still clears the single-row
+            // inspector for the batch action.
+            if ids.count == 1 {
+                selection = ids.first
+            } else if ids.count > 1 {
+                selection = nil
+            }
+        }
+        .onChange(of: selection) { _, newValue in
+            // Reflect an external selection (the auto-selected top row, or a
+            // notification's navigation target) back into the table highlight.
+            if let id = newValue, multiSelection != [id] {
+                multiSelection = [id]
+            }
+        }
+        .onAppear {
+            if let id = selection { multiSelection = [id] }
+        }
+    }
+
+    /// The right-click menu for `ids`: the batch menu for several rows, the
+    /// full process action menu for one. Mirrors `ProcessActionMenu` item for
+    /// item, built as an `NSMenu` because the table is AppKit-hosted.
+    private func contextMenu(for ids: Set<ProcessIdentity>) -> NSMenu? {
+        let menu = NSMenu()
+        if ids.count > 1 {
+            let addable = addableCount(ids)
+            menu.addItem(
+                ClosureMenuItem(
+                    addable > 0
+                        ? "Add \(addable) \(addable == 1 ? "Process" : "Processes") to Analytics"
+                        : "Analytics Full",
+                    symbol: "chart.xyaxis.line", enabled: addable > 0
+                ) { addSelectionToMonitor(ids) })
+            return menu
+        }
+        guard let id = ids.first else { return nil }
+        let live = model.currentSample(for: id)
+        let path = live?.executablePath.flatMap { $0.isEmpty ? nil : $0 }
+
+        menu.addItem(
+            ClosureMenuItem("Codesign\u{2026}", symbol: "checkmark.seal", enabled: path != nil) {
+                if let live = model.currentSample(for: id) {
+                    ProcessRowIntent.showCodesign(
+                        sample: live, appState: appState, bringWindowForward: false)
+                }
+            })
+        menu.addItem(
+            ClosureMenuItem("Reveal in Finder", symbol: "folder", enabled: path != nil) {
+                _ = ProcessActions.revealInFinder(path: path)
+            })
+        if let inspect = inspectAction(for: id) {
+            menu.addItem(
+                ClosureMenuItem("Inspect Memory\u{2026}", symbol: "scope", handler: inspect))
+        }
+        if let openFiles = openFilesAction(for: id) {
+            menu.addItem(
+                ClosureMenuItem(
+                    "Open Files & Sockets\u{2026}", symbol: "doc.on.doc", handler: openFiles))
+        }
+        if let deepDive = deepDiveAction(for: id) {
+            menu.addItem(
+                ClosureMenuItem("Deep Dive\u{2026}", symbol: "stethoscope", handler: deepDive))
+        }
+        let isMonitored = monitor.contains(id)
+        menu.addItem(
+            ClosureMenuItem(
+                isMonitored ? "In Analytics" : "Add to Analytics", symbol: "chart.xyaxis.line",
+                enabled: !isMonitored && !monitor.isFull
+            ) { monitor.add(id) })
+
+        let groupItem = NSMenuItem(title: "Add to Group", action: nil, keyEquivalent: "")
+        groupItem.image = NSImage(
+            systemSymbolName: "square.stack.3d.up", accessibilityDescription: nil)
+        let groupMenu = NSMenu()
+        for group in groupStore.addTargets {
+            groupMenu.addItem(
+                ClosureMenuItem(group.name) {
+                    if let s = model.currentSample(for: id) {
+                        groupStore.addRule(Self.groupRule(for: s), toGroup: group.id)
+                    }
+                })
+        }
+        if !groupStore.addTargets.isEmpty { groupMenu.addItem(.separator()) }
+        groupMenu.addItem(
+            ClosureMenuItem("New Group from This\u{2026}") {
+                if let s = model.currentSample(for: id) {
+                    groupStore.add(
+                        ProcessGroup(name: s.displayName, rule: .any([Self.groupRule(for: s)])))
+                }
+            })
+        groupItem.submenu = groupMenu
+        menu.addItem(groupItem)
+
+        menu.addItem(.separator())
+        menu.addItem(
+            ClosureMenuItem("Force Quit (kill -9)", symbol: "xmark.octagon", enabled: live != nil) {
+                appState.pendingForceQuit = id
+            })
+        return menu
     }
 
     /// The most durable membership rule for a process: prefer its code-signing
@@ -547,94 +557,26 @@ private struct ProcessTable: View, Equatable {
     }
 }
 
-extension View {
-    /// Dim a process-row cell when its process was recently force-quit, so the
-    /// greyed-out "stopped" rows read as inactive at a glance.
-    fileprivate func dimmedIfTerminated(_ isTerminated: Bool) -> some View {
-        opacity(isTerminated ? 0.5 : 1)
-    }
-}
-
 /// A process plus the processes it launched, for the optional hierarchy view.
 /// Identity is the wrapped process's stable identity, so table selection, row
 /// expansion, and the detail inspector all key on the same value as flat mode.
-private struct ProcessNode: Identifiable {
-    let process: ProcessSample
+struct ProcessNode: Identifiable, Equatable {
+    var process: ProcessSample
     var children: [ProcessNode]?
+    /// A short label for the GPU table's category column (empty elsewhere).
+    var badge: String = ""
     var id: ProcessIdentity { process.id }
 }
 
-/// The Process-column cell: the process name, a Rosetta badge when translated,
-/// and, for a suspected leak, a leading warning badge plus an orange name so the
-/// problem process stands out in the list at a glance (PRD section 8.5). A
-/// recently force-quit process is shown struck through with a "Stopped" badge so
-/// the kill reads as done even before the row ages out of the list.
-private struct ProcessNameCell: View {
-    let process: ProcessSample
-    let isLeaking: Bool
-    /// True when this row itself is healthy but a process it launched (hidden
-    /// under it while collapsed) is a suspected leak, so the warning still shows
-    /// at the parent level.
-    var descendantLeaking: Bool = false
-    let isTerminated: Bool
-
-    private var nameColor: Color {
-        if isTerminated { return .secondary }
-        return isLeaking ? .orange : .primary
-    }
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(nsImage: ProcessIconProvider.shared.icon(forPath: process.executablePath))
-                .resizable()
-                .frame(width: 16, height: 16)
-                .opacity(isTerminated ? 0.5 : 1)
-                .accessibilityHidden(true)
-            if isLeaking && !isTerminated {
-                LeakIndicator()
-            } else if descendantLeaking && !isTerminated {
-                // A child leaks: use the SAME solid filled triangle as a real
-                // leak so a collapsed parent is impossible to miss in a long
-                // list. The distinction stays in the tooltip and in the name
-                // colour — this process itself is healthy, so its name is not
-                // orange (only the leaking child's is).
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .help("A process started by this one looks like it's leaking memory.")
-                    .accessibilityLabel("A child process is a possible memory leak")
-            }
-            Text(process.displayName)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .strikethrough(isTerminated, color: .secondary)
-                .foregroundStyle(nameColor)
-                .help(process.displayName)
-            if isTerminated {
-                StoppedBadge()
-            } else if process.isTranslated {
-                Text("Rosetta")
-                    .font(.caption2.weight(.medium))
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(Color.orange.opacity(0.2), in: Capsule())
-                    .foregroundStyle(.orange)
-                    .accessibilityLabel("Running under Rosetta translation")
-            }
-        }
-    }
-}
-
-/// A small badge marking a row whose process MacPerfMonitor force-quit, so the greyed,
-/// struck-through row is unmistakably "we stopped this" rather than just idle.
-private struct StoppedBadge: View {
-    var body: some View {
-        Text("Stopped")
-            .font(.caption2.weight(.medium))
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(Color.secondary.opacity(0.18), in: Capsule())
-            .foregroundStyle(.secondary)
-            .accessibilityLabel("Force quit by \(AppInfo.displayName)")
+extension ProcessSample {
+    /// GPU share as a plain number, for sorting and the GPU table (0 when the
+    /// process has no Metal context).
+    var gpuPercentValue: Double { gpuPercent ?? 0 }
+    /// GPU time per second in milliseconds, the Activity Monitor style figure.
+    var gpuMillisecondsPerSecond: Double { (gpuPercent ?? 0) * 10 }
+    /// Seconds since the last GPU submission, for sorting; large when never.
+    var gpuIdleSeconds: Double {
+        guard let last = gpuLastActive else { return .greatestFiniteMagnitude }
+        return max(0, Date().timeIntervalSince(last))
     }
 }

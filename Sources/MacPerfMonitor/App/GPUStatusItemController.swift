@@ -20,11 +20,23 @@ final class GPUStatusItemController: NSObject {
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
     private var cancellables = Set<AnyCancellable>()
-    /// Drives the dropdown's 1 Hz refresh, but only while it is open. No process
-    /// consumer: the GPU panel has no per-process list.
+    /// Drives the dropdown's refresh at the dial rate, but only while it is
+    /// open. The dropdown ranks the top GPU processes, so while it shows it
+    /// registers for the per-process scan (at the popover cadence, whatever the
+    /// table cadence) and as a live GPU surface, which reads the device every
+    /// tick rather than once a second.
     private lazy var menuClock = MenuClock(
         source: model.liveTick.eraseToAnyPublisher(),
-        onOpen: { [model] in model.requestImmediateTick() })
+        onOpen: { [model] in model.requestImmediateTick() },
+        onActiveChange: { [model] active in
+            if active {
+                model.addPopoverProcessConsumer(.gpu)
+                model.addGPUConsumer()
+            } else {
+                model.removePopoverProcessConsumer(.gpu)
+                model.removeGPUConsumer()
+            }
+        })
 
     /// What the button currently shows, so an unchanged tick is a no-op.
     private var shownSignature: String?
@@ -43,8 +55,7 @@ final class GPUStatusItemController: NSObject {
     }
 
     func start() {
-        model.liveTick
-            .receive(on: RunLoop.main)
+        model.menuBarTick
             .sink { [weak self] _ in self?.refreshImage() }
             .store(in: &cancellables)
         NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
@@ -138,6 +149,7 @@ final class GPUStatusItemController: NSObject {
             self?.popover?.performClose(nil)
         })
         .environmentObject(model)
+        .environmentObject(model.menuLists)
         .environmentObject(appState)
         .environmentObject(updateController)
         .environmentObject(menuClock)

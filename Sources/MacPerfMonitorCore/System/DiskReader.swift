@@ -43,7 +43,8 @@ public final class DiskReader {
     private var metadata: [UInt64: Metadata] = [:]
 
     public convenience init() {
-        self.init(counterSource: Self.readCounters, metadataSource: Self.readMetadata)
+        let enumerator = BlockStorageEnumerator()
+        self.init(counterSource: { enumerator.counters() }, metadataSource: Self.readMetadata)
     }
 
     init(
@@ -195,53 +196,29 @@ public final class DiskReader {
         return Double(total - previousTotal) / Double(operations - previousOperations) / 1_000_000
     }
 
-    private static func readCounters() -> [Counters] {
-        var iterator: io_iterator_t = 0
-        guard
-            IOServiceGetMatchingServices(
-                kIOMainPortDefault, IOServiceMatching(kIOBlockStorageDriverClass), &iterator)
-                == KERN_SUCCESS
-        else { return [] }
-        defer { IOObjectRelease(iterator) }
+    /// One-shot enumeration plus read, for callers without a reader instance.
+    static func readCounters() -> [Counters] {
+        let enumerator = BlockStorageEnumerator()
+        return enumerator.counters()
+    }
 
-        var result: [Counters] = []
-        var driver = IOIteratorNext(iterator)
-        while driver != 0 {
-            if let media = immediateWholeMedia(of: driver) {
-                defer { IOObjectRelease(media) }
-                if let bsdName = IOKitProperty.string(media, "BSD Name"),
-                    let stats = IOKitProperty.dictionary(
-                        driver, kIOBlockStorageDriverStatisticsKey)
-                {
-                    var entryID: UInt64 = 0
-                    IORegistryEntryGetRegistryEntryID(driver, &entryID)
-                    result.append(
-                        Counters(
-                            registryEntryID: entryID,
-                            bsdName: bsdName,
-                            readBytes: number(stats, kIOBlockStorageDriverStatisticsBytesReadKey),
-                            writeBytes: number(
-                                stats, kIOBlockStorageDriverStatisticsBytesWrittenKey),
-                            readOperations: number(stats, kIOBlockStorageDriverStatisticsReadsKey),
-                            writeOperations: number(
-                                stats, kIOBlockStorageDriverStatisticsWritesKey),
-                            readTimeNanoseconds: number(
-                                stats, kIOBlockStorageDriverStatisticsTotalReadTimeKey),
-                            writeTimeNanoseconds: number(
-                                stats, kIOBlockStorageDriverStatisticsTotalWriteTimeKey),
-                            readErrors: number(stats, kIOBlockStorageDriverStatisticsReadErrorsKey),
-                            writeErrors: number(
-                                stats, kIOBlockStorageDriverStatisticsWriteErrorsKey),
-                            readRetries: number(
-                                stats, kIOBlockStorageDriverStatisticsReadRetriesKey),
-                            writeRetries: number(
-                                stats, kIOBlockStorageDriverStatisticsWriteRetriesKey)))
-                }
-            }
-            IOObjectRelease(driver)
-            driver = IOIteratorNext(iterator)
-        }
-        return result
+    /// The statistics dictionary of one block storage driver as counters.
+    fileprivate static func counters(
+        registryEntryID: UInt64, bsdName: String, stats: [String: Any]
+    ) -> Counters {
+        Counters(
+            registryEntryID: registryEntryID,
+            bsdName: bsdName,
+            readBytes: number(stats, kIOBlockStorageDriverStatisticsBytesReadKey),
+            writeBytes: number(stats, kIOBlockStorageDriverStatisticsBytesWrittenKey),
+            readOperations: number(stats, kIOBlockStorageDriverStatisticsReadsKey),
+            writeOperations: number(stats, kIOBlockStorageDriverStatisticsWritesKey),
+            readTimeNanoseconds: number(stats, kIOBlockStorageDriverStatisticsTotalReadTimeKey),
+            writeTimeNanoseconds: number(stats, kIOBlockStorageDriverStatisticsTotalWriteTimeKey),
+            readErrors: number(stats, kIOBlockStorageDriverStatisticsReadErrorsKey),
+            writeErrors: number(stats, kIOBlockStorageDriverStatisticsWriteErrorsKey),
+            readRetries: number(stats, kIOBlockStorageDriverStatisticsReadRetriesKey),
+            writeRetries: number(stats, kIOBlockStorageDriverStatisticsWriteRetriesKey))
     }
 
     /// Internal (not private) so `DiskInfoReader` walks the identical chain and
@@ -289,5 +266,93 @@ public final class DiskReader {
 
     private static func number(_ dictionary: [String: Any], _ key: String) -> UInt64 {
         (dictionary[key] as? NSNumber)?.uint64Value ?? 0
+    }
+}
+
+/// Enumerates the `IOBlockStorageDriver` services once every few seconds and
+/// keeps their registry handles, so the per-tick read is one statistics
+/// property fetch per disk rather than a fresh matching-services walk plus a
+/// child iteration per driver. At the 4 Hz system tick the walk was about half
+/// of the tick's cost. A disk that disappears makes its property read fail,
+/// which forces a re-enumeration on the next read, so hot-plug still works
+/// within one tick. Not thread-safe on its own; the sampler owns one and reads
+/// it from a single queue.
+final class BlockStorageEnumerator {
+    private struct Entry {
+        let driver: io_registry_entry_t
+        let bsdName: String
+        let registryEntryID: UInt64
+    }
+
+    private var entries: [Entry] = []
+    private var lastEnumeration: TimeInterval = -.infinity
+    private let refreshInterval: TimeInterval
+
+    init(refreshInterval: TimeInterval = 5) {
+        self.refreshInterval = refreshInterval
+    }
+
+    deinit { releaseEntries() }
+
+    func counters() -> [DiskReader.Counters] {
+        let now = TimeInterval(clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)) / 1e9
+        if now - lastEnumeration >= refreshInterval {
+            enumerate()
+            lastEnumeration = now
+        }
+        var result: [DiskReader.Counters] = []
+        result.reserveCapacity(entries.count)
+        var stale = false
+        for entry in entries {
+            guard
+                let stats = IOKitProperty.dictionary(
+                    entry.driver, kIOBlockStorageDriverStatisticsKey)
+            else {
+                stale = true
+                continue
+            }
+            result.append(
+                DiskReader.counters(
+                    registryEntryID: entry.registryEntryID, bsdName: entry.bsdName, stats: stats))
+        }
+        if stale {
+            // A device went away: drop the handles and re-enumerate next read.
+            releaseEntries()
+            lastEnumeration = -.infinity
+        }
+        return result
+    }
+
+    private func enumerate() {
+        releaseEntries()
+        var iterator: io_iterator_t = 0
+        guard
+            IOServiceGetMatchingServices(
+                kIOMainPortDefault, IOServiceMatching(kIOBlockStorageDriverClass), &iterator)
+                == KERN_SUCCESS
+        else { return }
+        defer { IOObjectRelease(iterator) }
+
+        var driver = IOIteratorNext(iterator)
+        while driver != 0 {
+            var kept = false
+            if let media = DiskReader.immediateWholeMedia(of: driver) {
+                defer { IOObjectRelease(media) }
+                if let bsdName = IOKitProperty.string(media, "BSD Name") {
+                    var entryID: UInt64 = 0
+                    IORegistryEntryGetRegistryEntryID(driver, &entryID)
+                    entries.append(
+                        Entry(driver: driver, bsdName: bsdName, registryEntryID: entryID))
+                    kept = true
+                }
+            }
+            if !kept { IOObjectRelease(driver) }
+            driver = IOIteratorNext(iterator)
+        }
+    }
+
+    private func releaseEntries() {
+        for entry in entries { IOObjectRelease(entry.driver) }
+        entries.removeAll()
     }
 }

@@ -7,11 +7,13 @@ import SwiftUI
 enum MetricUnit {
     case bytes
     case percent
+    case watts
 
     func format(_ value: Double) -> String {
         switch self {
         case .bytes: return ByteFormat.string(UInt64(max(0, value.rounded())))
         case .percent: return "\(Int(value.rounded()))%"
+        case .watts: return String(format: "%.2f W", value)
         }
     }
 }
@@ -30,11 +32,14 @@ struct MetricExplanation {
 /// the same way on both screens.
 struct MetricCardData: Identifiable {
     let label: String
-    let value: String?
+    var value: String?
     var tint: Color = .primary
     /// Timestamped trend, downsampled for a clean line. Drives both the small
     /// sparkline (values only) and the detail modal's axed chart (with dates).
     var samples: [MetricSample] = []
+    /// The raw window column behind a live card's sparkline (zero-copy), for
+    /// `MetricCardFeed`; `samples` is left empty for those cards.
+    var column: LiveColumn? = nil
     /// A point-in-time gauge shown instead of a sparkline, for metrics that are a
     /// *state* rather than a trend (e.g. battery wear, which barely moves over the
     /// window so a line would read as flat/broken). Takes precedence over
@@ -42,6 +47,8 @@ struct MetricCardData: Identifiable {
     var gauge: MetricGauge? = nil
     /// How the values read on the detail chart's axis.
     var unit: MetricUnit = .bytes
+    /// Fixed vertical scale for live card and detail charts.
+    var yDomain: ClosedRange<Double>? = nil
     /// Optional small secondary text shown just after the value (for example a
     /// reference total beside the free figure). Rendered in a quieter style so
     /// it does not compete with the headline value.
@@ -50,8 +57,23 @@ struct MetricCardData: Identifiable {
     var help: String? = nil
     /// Long-form explanation shown in the detail modal opened on click.
     var explanation: MetricExplanation? = nil
+    /// When set, the headline value and the sparkline are AppKit views that
+    /// repaint from this feed on every tick; the rest of the card is static.
+    /// `value`, `samples` and `yDomain` then only seed the detail sheet.
+    var live: MetricCardFeed? = nil
 
     var id: String { label }
+
+    /// The card's data with the feed's current figures, for the detail sheet.
+    var snapshot: MetricCardData {
+        guard let live else { return self }
+        var copy = self
+        copy.value = live.value
+        copy.samples = live.samples
+        copy.yDomain = live.yDomain
+        copy.live = nil
+        return copy
+    }
 }
 
 /// A point-in-time gauge for a state metric: a horizontal bar filled to
@@ -67,7 +89,12 @@ struct MetricGauge: Equatable {
 /// height so a row or grid stays tidy. The whole card is a button that opens a
 /// detail modal explaining the figure and showing its chart in full.
 struct MetricCard: View {
+    /// Narrowest a card is laid out at in a row before the row wraps to a grid.
+    static let minimumWidth: CGFloat = 150
+
     let data: MetricCardData
+    /// Fixed viewport shared by every card in the owning live page.
+    var xDomain: ClosedRange<Date>? = nil
     /// When true, the graph area shows a spinner in place of the sparkline while
     /// the page's range data reloads. Gauges (live state) are left as-is.
     var loading: Bool = false
@@ -92,7 +119,7 @@ struct MetricCard: View {
             data.explanation != nil ? "Opens an explanation of this figure." : ""
         )
         .sheet(isPresented: $showDetail) {
-            MetricDetailSheet(data: data)
+            MetricDetailSheet(data: data.snapshot, xDomain: data.live?.xDomain ?? xDomain)
         }
     }
 
@@ -120,11 +147,15 @@ struct MetricCard: View {
             // The number does the talking: a precise, neutral, monospaced value
             // rather than a loud colour. Any reference detail trails quietly.
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(data.value ?? "—")
-                    .font(.title3.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                if let live = data.live {
+                    LiveValueLabel(feed: live)
+                } else {
+                    Text(data.value ?? "—")
+                        .font(.title3.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
                 if let detail = data.detail {
                     Text(detail)
                         .font(.caption2)
@@ -136,13 +167,21 @@ struct MetricCard: View {
                 if let gauge = data.gauge {
                     MetricGaugeBar(
                         fraction: gauge.fraction, threshold: gauge.threshold, tint: data.tint)
+                } else if let live = data.live {
+                    LiveSparkline(feed: live, lineWidth: 1.5)
                 } else if loading {
                     ProgressView()
                         .controlSize(.small)
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else if data.samples.count >= 2 {
-                    Sparkline(values: data.samples.map(\.value), lineWidth: 1.5)
-                        .tint(data.tint)
+                    Sparkline(
+                        values: data.samples.map(\.value),
+                        dates: data.samples.map(\.date),
+                        xDomain: xDomain,
+                        yDomain: data.yDomain,
+                        lineWidth: 1.5
+                    )
+                    .tint(data.tint)
                 } else {
                     Color.clear
                 }
@@ -206,6 +245,8 @@ private struct MetricGaugeBar: View {
 /// verbatim by the Dashboard and the Processes header so the two screens match.
 struct MetricCardsRow: View {
     let cards: [MetricCardData]
+    /// Fixed live viewport used by every timestamped card in the row.
+    var xDomain: ClosedRange<Date>? = nil
     /// Total installed RAM; when set, shown in the header as "X installed".
     var totalRAM: UInt64? = nil
     var gridColumns: Int = 3
@@ -232,17 +273,61 @@ struct MetricCardsRow: View {
         }
     }
 
+    /// The row's available width, read from the layout pass. It decides between
+    /// one row and a wrapped grid. This replaced `ViewThatFits` over an HStack
+    /// and a `LazyVGrid`: that measured BOTH candidates (and rebuilt the lazy
+    /// grid's items) on every update, which at a 4 Hz live refresh was the
+    /// single largest main-thread cost on the Dashboard.
+    @State private var availableWidth: CGFloat = 0
+
+    private static let spacing: CGFloat = 12
+
+    private var fitsOnOneRow: Bool {
+        guard availableWidth > 0, cards.count > 1 else { return true }
+        let needed =
+            CGFloat(cards.count) * MetricCard.minimumWidth
+            + CGFloat(cards.count - 1) * Self.spacing
+        return availableWidth >= needed
+    }
+
+    /// Cards chunked into grid rows of `gridColumns`, padded so every row has
+    /// the same number of cells and the cells stay equal width.
+    private var gridRows: [[MetricCardData?]] {
+        let columns = max(1, gridColumns)
+        return stride(from: 0, to: cards.count, by: columns).map { start in
+            var row: [MetricCardData?] = Array(cards[start..<min(start + columns, cards.count)])
+            while row.count < columns { row.append(nil) }
+            return row
+        }
+    }
+
     private var cardsLayout: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 12) {
-                ForEach(cards) { MetricCard(data: $0, loading: loading) }
+        Group {
+            if fitsOnOneRow {
+                HStack(alignment: .top, spacing: Self.spacing) {
+                    ForEach(cards) { MetricCard(data: $0, xDomain: xDomain, loading: loading) }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: Self.spacing) {
+                    ForEach(Array(gridRows.enumerated()), id: \.offset) { _, row in
+                        HStack(alignment: .top, spacing: Self.spacing) {
+                            ForEach(Array(row.enumerated()), id: \.offset) { _, card in
+                                if let card {
+                                    MetricCard(data: card, xDomain: xDomain, loading: loading)
+                                } else {
+                                    Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+                                }
+                            }
+                        }
+                    }
+                }
             }
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: gridColumns),
-                alignment: .leading, spacing: 12
-            ) {
-                ForEach(cards) { MetricCard(data: $0, loading: loading) }
-            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onGeometryChange(for: CGFloat.self) {
+            $0.size.width
+        } action: {
+            availableWidth = $0
         }
         // Size the row to the tallest card's NATURAL height, not the space offered.
         // The cards fill height to match each other (so a mixed row like the
@@ -270,13 +355,17 @@ extension View {
 /// figure means and how MacPerfMonitor calculates it.
 struct MetricDetailSheet: View {
     let data: MetricCardData
+    var xDomain: ClosedRange<Date>? = nil
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             header
-            MetricDetailChart(samples: data.samples, tint: data.tint, unit: data.unit)
-                .frame(height: 220)
+            MetricDetailChart(
+                samples: data.samples, tint: data.tint, unit: data.unit, xDomain: xDomain,
+                yDomain: data.yDomain
+            )
+            .frame(height: 220)
             if let explanation = data.explanation {
                 explanationSection("What it means", explanation.meaning)
                 explanationSection("How it's calculated", explanation.calculation)
@@ -336,6 +425,8 @@ struct MetricDetailChart: View {
     let samples: [MetricSample]
     var tint: Color
     var unit: MetricUnit
+    var xDomain: ClosedRange<Date>? = nil
+    var yDomain: ClosedRange<Double>? = nil
 
     var body: some View {
         if samples.count < 2 {
@@ -357,7 +448,8 @@ struct MetricDetailChart: View {
                 .foregroundStyle(tint)
             }
         }
-        .chartYScale(domain: 0...yMax)
+        .chartXScale(domain: resolvedXDomain)
+        .chartYScale(domain: yDomain ?? 0...yMax)
         .chartYAxis {
             AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
@@ -412,42 +504,110 @@ struct MetricDetailChart: View {
         switch unit {
         case .percent: return 100
         case .bytes: return max(peak * 1.12, 1)
+        case .watts: return max(peak * 1.2, 1)
         }
     }
 
     /// Widen the X label format as the window grows, so a long span does not
     /// show ambiguous repeating clock times.
     private var xFormat: Date.FormatStyle {
-        guard let first = samples.first?.date, let last = samples.last?.date else {
-            return .dateTime.hour().minute()
-        }
-        let span = last.timeIntervalSince(first)
+        let span = resolvedXDomain.upperBound.timeIntervalSince(resolvedXDomain.lowerBound)
         if span <= 10 * 60 { return .dateTime.minute().second() }
         if span <= 26 * 3600 { return .dateTime.hour().minute() }
         return .dateTime.month(.abbreviated).day()
+    }
+
+    private var resolvedXDomain: ClosedRange<Date> {
+        if let xDomain { return xDomain }
+        let first = samples.first?.date ?? .distantPast
+        let last = samples.last?.date ?? first.addingTimeInterval(1)
+        return first < last ? first...last : first.addingTimeInterval(-1)...last
     }
 }
 
 /// Builds the standard set of memory metric cards from the current sample and a
 /// history window. Both screens call this so the metrics, colours, ordering,
 /// tooltips and explanations are defined exactly once.
+/// The fixed Y scales the Dashboard's byte cards are drawn against: taken from
+/// the loaded range once, so a new extreme cannot rescale a trace mid-window.
+struct MemoryCardScale: Equatable {
+    var free: ClosedRange<Double>
+    var appMemory: ClosedRange<Double>
+    var compressed: ClosedRange<Double>
+    var cachedFiles: ClosedRange<Double>
+    var swapUsed: ClosedRange<Double>
+}
+
 enum MemoryMetrics {
+    /// The scales for `cards(system:window:scale:)`, from the window's peaks.
+    static func scale(window: SystemHistoryWindow, total: UInt64) -> MemoryCardScale {
+        let byteFloor = max(Double(total) * 0.05, 1)
+        func domain(_ peak: Double?) -> ClosedRange<Double> {
+            0...MenuChart.niceUpperBound(max((peak ?? 0) * 1.25, byteFloor))
+        }
+        return MemoryCardScale(
+            free: domain(freeColumn(window, total: total).max()),
+            appMemory: domain(window.peak(.appMemory)),
+            compressed: domain(window.peak(.compressed)),
+            cachedFiles: domain(window.peak(.cachedFiles)),
+            swapUsed: domain(window.peak(.swapUsed)))
+    }
+
+    /// Free RAM over the window, derived as in `freeBytesNow`, as a column.
+    private static func freeColumn(_ window: SystemHistoryWindow, total: UInt64) -> [Double] {
+        let wired = window.values(.wired)
+        let app = window.values(.appMemory)
+        let compressed = window.values(.compressed)
+        let cached = window.values(.cachedFiles)
+        var out: [Double] = []
+        out.reserveCapacity(wired.count)
+        let totalBytes = Double(total)
+        var i = wired.startIndex
+        while i < wired.endIndex {
+            let measured = wired[i] + app[i] + compressed[i] + cached[i]
+            out.append(max(totalBytes - measured, 0))
+            i += 1
+        }
+        return out
+    }
+
+    /// The Dashboard's headline cards from the live window.
+    ///
+    /// - Parameters:
+    ///   - window: the trailing window the page is showing.
+    ///   - scale: fixed Y scales from the loaded range (see `scale(window:total:)`);
+    ///     derived from the window itself when nil.
+    ///   - points: time buckets the sparklines are reduced to (min and max each),
+    ///     anchored to the window so the shape is stable from tick to tick.
     static func cards(
-        system: SystemSample?, history: [SystemHistoryPoint], span: TimeInterval, points: Int = 80
+        system: SystemSample?, window: SystemHistoryWindow, scale: MemoryCardScale? = nil,
+        points: Int = 160, includeSamples: Bool = true
     ) -> [MetricCardData] {
         let total = system?.totalRAM ?? 0
-        func samples(_ value: @escaping (SystemHistoryPoint) -> Double) -> [MetricSample] {
-            downsample(
-                history.map { MetricSample(date: $0.date, value: value($0)) },
-                span: span, to: points)
+        let scale = scale ?? Self.scale(window: window, total: total)
+        let domain: ClosedRange<Double>? = window.xDomain.map {
+            let lo = $0.lowerBound.timeIntervalSinceReferenceDate
+            let hi = $0.upperBound.timeIntervalSinceReferenceDate
+            return lo...hi
         }
-        return [
+        func samples(_ values: ArraySlice<Double>) -> [MetricSample] {
+            guard includeSamples, let domain else { return [] }
+            return LiveSeriesDecimator.decimate(
+                times: window.timestamps, values: values, buckets: points, domain: domain
+            ).map { MetricSample(date: $0.date, value: $0.value) }
+        }
+        func column(_ values: ArraySlice<Double>) -> LiveColumn {
+            LiveColumn(times: window.timestamps, values: values)
+        }
+        let free = freeColumn(window, total: total)
+        var cards = [
             MetricCardData(
                 label: "Pressure",
                 value: system.map { "\(Int($0.pressurePercent.rounded()))%" },
                 tint: system.map { $0.pressureLevel.color } ?? .secondary,
-                samples: samples { $0.pressurePercent },
+                samples: samples(window.values(.pressurePercent)),
                 unit: .percent,
+                yDomain: 0...100,
                 help:
                     "How hard macOS is working to keep memory available, 0 to 100. Click for details.",
                 explanation: MetricExplanation(
@@ -466,8 +626,9 @@ enum MemoryMetrics {
                 label: "Free",
                 value: system.map { ByteFormat.string(freeBytesNow($0)) },
                 tint: .green,
-                samples: samples { freeBytes($0, total: total) },
+                samples: samples(free[...]),
                 unit: .bytes,
+                yDomain: scale.free,
                 help: "RAM not held by any category below, ready for new work. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
@@ -484,8 +645,9 @@ enum MemoryMetrics {
                 label: "App",
                 value: system.map { ByteFormat.string($0.appMemory) },
                 tint: .blue,
-                samples: samples { Double($0.appMemory) },
+                samples: samples(window.values(.appMemory)),
                 unit: .bytes,
+                yDomain: scale.appMemory,
                 help: "Memory apps are actively using, not reclaimable cache. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
@@ -500,8 +662,9 @@ enum MemoryMetrics {
                 label: "Compressed",
                 value: system.map { ByteFormat.string($0.compressed) },
                 tint: .orange,
-                samples: samples { Double($0.compressed) },
+                samples: samples(window.values(.compressed)),
                 unit: .bytes,
+                yDomain: scale.compressed,
                 help: "RAM the compressor has squeezed to fit more in memory. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
@@ -515,8 +678,9 @@ enum MemoryMetrics {
                 label: "Cached files",
                 value: system.map { ByteFormat.string($0.cachedFiles) },
                 tint: .teal,
-                samples: samples { Double($0.cachedFiles) },
+                samples: samples(window.values(.cachedFiles)),
                 unit: .bytes,
+                yDomain: scale.cachedFiles,
                 help:
                     "Spare RAM used as a benign file cache, released on demand. Click for details.",
                 explanation: MetricExplanation(
@@ -531,8 +695,9 @@ enum MemoryMetrics {
                 label: "Swap",
                 value: system.map { ByteFormat.string($0.swapUsed) },
                 tint: .purple,
-                samples: samples { Double($0.swapUsed) },
+                samples: samples(window.values(.swapUsed)),
                 unit: .bytes,
+                yDomain: scale.swapUsed,
                 help: "Memory moved out to disk because RAM filled up. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
@@ -544,6 +709,12 @@ enum MemoryMetrics {
                 )
             ),
         ]
+        let columns: [ArraySlice<Double>] = [
+            window.values(.pressurePercent), free[...], window.values(.appMemory),
+            window.values(.compressed), window.values(.cachedFiles), window.values(.swapUsed),
+        ]
+        for i in cards.indices { cards[i].column = column(columns[i]) }
+        return cards
     }
 
     /// Live "free and available": total RAM minus the four measured categories,
@@ -551,12 +722,6 @@ enum MemoryMetrics {
     private static func freeBytesNow(_ s: SystemSample) -> UInt64 {
         let measured = s.wired &+ s.appMemory &+ s.compressed &+ s.cachedFiles
         return s.totalRAM > measured ? s.totalRAM - measured : 0
-    }
-
-    /// Free RAM derived the same way over history, as a Double for charting.
-    private static func freeBytes(_ p: SystemHistoryPoint, total: UInt64) -> Double {
-        let measured = p.wired &+ p.appMemory &+ p.compressed &+ p.cachedFiles
-        return Double(total > measured ? total - measured : 0)
     }
 
     /// Average timestamped samples down to roughly `maxCount` points for a clean
@@ -591,6 +756,9 @@ enum MemoryMetrics {
                 MetricSample(
                     date: Date(timeIntervalSince1970: b * width), value: sum / Double(j - i)))
             i = j
+        }
+        if let latest = samples.last, let bucket = result.last, latest.date > bucket.date {
+            result.append(latest)
         }
         return result
     }

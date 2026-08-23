@@ -35,7 +35,7 @@ private struct GeneralSettingsView: View {
     @EnvironmentObject private var loginItem: LoginItemManager
     @EnvironmentObject private var model: SamplerModel
     @EnvironmentObject private var appMode: AppModeManager
-    /// The process-table scan interval. The live charts/menu bar are always 1 Hz.
+    /// The process-table, chart, and live sampler refresh interval.
     @AppStorage(SamplerModel.tableIntervalKey) private var tableInterval =
         SamplerModel.defaultTableInterval
 
@@ -72,7 +72,7 @@ private struct GeneralSettingsView: View {
                     }
                 }
                 caption(
-                    "How often the in-window charts, cards, and process list refresh and re-scan — the same control is in the window toolbar. Slower is lighter on CPU (the default 10 s is deliberately light); the menu-bar read-outs stay live regardless."
+                    "How often live system charts refresh. At 250ms and 500ms, process lists, rankings, and alerts retain a 1-second floor. Slower choices reduce CPU use; the default is 10 seconds."
                 )
             } header: {
                 Text("Performance")
@@ -321,6 +321,21 @@ private struct AlertsSettingsView: View {
             } header: {
                 Text("Sustained High CPU")
             }
+
+            Section {
+                Toggle("Sustained high GPU", isOn: $alertSettings.config.highGPUEnabled)
+                if alertSettings.config.highGPUEnabled {
+                    percentStepper(
+                        "GPU utilisation above",
+                        percent: $alertSettings.config.highGPUThresholdPercent,
+                        range: 50...100)
+                }
+                caption(
+                    "Notify when GPU utilisation stays above the chosen level for a sustained period, for example a model left running. The GPU tab shows who is using it. Off by default."
+                )
+            } header: {
+                Text("Sustained High GPU")
+            }
         }
         .formStyle(.grouped)
     }
@@ -435,7 +450,7 @@ private struct AdvancedSettingsView: View {
                     }
                 }
                 caption(
-                    "Every process is logged at this resolution for the most recent window. Finer and longer means more detail — and a larger database."
+                    "Every process is logged at this resolution for the most recent window. Finer and longer means more detail, and a larger database. At 1 s the per-process scan also runs every second even with the window closed, which is the app's main idle CPU cost; 2 s or slower is noticeably lighter."
                 )
             } header: {
                 Text("High-resolution logging")

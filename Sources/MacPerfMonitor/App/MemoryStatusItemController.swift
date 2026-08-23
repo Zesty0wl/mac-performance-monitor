@@ -64,8 +64,7 @@ final class MemoryStatusItemController: NSObject {
     /// CPU/Battery/Network items this one is not user-toggleable — it is the app's
     /// primary menubar presence — so it installs once and stays.
     func start() {
-        model.liveTick
-            .receive(on: RunLoop.main)
+        model.menuBarTick
             .sink { [weak self] _ in
                 self?.refreshImage()
                 self?.reconcileMenuClock()
@@ -171,7 +170,15 @@ final class MemoryStatusItemController: NSObject {
     /// frozen). Both calls are idempotent.
     private func reconcileMenuClock() {
         guard let popover else { return }
-        if popover.isShown { menuClock.open() } else { menuClock.close() }
+        if popover.isShown {
+            menuClock.open()
+        } else {
+            menuClock.close()
+            // Release the closed popover with its SwiftUI content: a retained
+            // hosting controller kept observing the menu lists and re-rendered
+            // the hidden panel on every table tick. The next open rebuilds it.
+            self.popover = nil
+        }
     }
 }
 
