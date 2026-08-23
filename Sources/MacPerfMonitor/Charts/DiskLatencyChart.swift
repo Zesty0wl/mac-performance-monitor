@@ -7,6 +7,7 @@ import SwiftUI
 /// blank instead of bridging them or drawing a misleading 0 ms floor.
 struct DiskLatencyChart: View {
     let points: [SystemHistoryPoint]
+    var xDomain: ClosedRange<Date>? = nil
     var showsTimeAxis = false
 
     private var readPoints: [TrendPoint] {
@@ -44,6 +45,7 @@ struct DiskLatencyChart: View {
                 TrendSeries(
                     points: writePoints, color: DiskStyle.write, filled: false, lineWidth: 1.8),
             ],
+            xDomain: xDomain,
             yFormat: { String(format: "%.1f ms", max($0, 0)) },
             showsTimeAxis: showsTimeAxis
         )

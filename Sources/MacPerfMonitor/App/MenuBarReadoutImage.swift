@@ -19,6 +19,18 @@ enum MenuBarReadoutImage {
     /// `.system(…, design: .rounded).monospacedDigit()` so digits keep a fixed
     /// width (no horizontal twitch) and the rounded look is preserved.
     static func valueFont(size: CGFloat, weight: NSFont.Weight) -> NSFont {
+        let key = "\(size)|\(weight.rawValue)"
+        if let cached = fontCache[key] { return cached }
+        let font = makeValueFont(size: size, weight: weight)
+        fontCache[key] = font
+        return font
+    }
+
+    /// Fonts by size and weight: building the rounded, monospaced-digit
+    /// descriptor is not free and every strip cell asked for it each redraw.
+    private static var fontCache: [String: NSFont] = [:]
+
+    private static func makeValueFont(size: CGFloat, weight: NSFont.Weight) -> NSFont {
         let fallback = NSFont.systemFont(ofSize: size, weight: weight)
         var desc = fallback.fontDescriptor
         if let rounded = desc.withDesign(.rounded) { desc = rounded }

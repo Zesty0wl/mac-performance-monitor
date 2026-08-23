@@ -1,3 +1,4 @@
+import AppKit
 import MacPerfMonitorCore
 import SwiftUI
 
@@ -11,16 +12,18 @@ struct SystemHeaderView: View {
     @EnvironmentObject private var model: SamplerModel
     @EnvironmentObject private var appState: AppState
 
-    /// Last two hours of raw system history backing the total-CPU trend
-    /// sparkline, reloaded periodically so the left edge keeps pace; the live
-    /// snapshot is appended on the right edge each tick for immediacy.
-    @State private var history: [SystemHistoryPoint] = []
+    /// The two-hour CPU window and the feeds behind the live parts of the
+    /// header (usage value and sparkline, core grid, load figure). Appended on
+    /// every tick; this view's body re-renders only with the model's publish.
+    @StateObject private var live = ProcessHeaderStore()
 
     var body: some View {
         // Prefer the smoothed live CPU (matches the Dashboard's Processor panel),
         // falling back to the snapshot's raw sample before the first smooth lands.
         let cpu = model.smoothedCPU ?? snapshot?.cpu
-        let cards = CPUMetrics.cards(cpu: cpu, history: trendPoints, span: 2 * 3600)
+        var cards = CPUMetrics.cards(cpu: cpu, history: [], span: 2 * 3600)
+        if !cards.isEmpty { cards[0].live = live.usageFeed }
+        if cards.count > 1 { cards[1].live = live.loadFeed }
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Text("PROCESSOR")
@@ -40,7 +43,7 @@ struct SystemHeaderView: View {
                 if let usage = cards.first {
                     MetricCard(data: usage).frame(maxWidth: .infinity)
                 }
-                CPUCoreCard(cores: cpu?.cores ?? []).frame(maxWidth: .infinity)
+                CPUCoreCard(feed: live.coreFeed).frame(maxWidth: .infinity)
                 if cards.count > 1 {
                     MetricCard(data: cards[1]).frame(maxWidth: .infinity)
                 }
@@ -53,51 +56,19 @@ struct SystemHeaderView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .onAppear(perform: reload)
-        .onChange(of: model.displayProcessesVersion) {
-            if appState.mainWindowVisible { reload() }
+        .onChange(of: appState.mainWindowVisible) { _, visible in if visible { reload() } }
+        // The window grows in place at the dial rate; nothing here re-renders
+        // for it (the feeds repaint their AppKit surfaces).
+        .onReceive(model.liveTick) {
+            guard appState.mainWindowVisible else { return }
+            live.append(model.liveSystem, cpu: model.smoothedCPU)
         }
     }
 
     private func reload() {
-        // Downsampled on the model's read queue: the cards re-derive their six
-        // metric series from this array on every table tick (the live point is
-        // appended each time), so holding the raw 3,600-sample window here
-        // would re-map and re-bucket all of it dozens of times a minute — and
-        // thinning it on the main thread per reload was itself a per-tick cost.
-        model.loadRecentSystemHistory(downsampledTo: 240) { self.history = $0 }
-    }
-
-    // MARK: - Trend series
-
-    /// The two-hour history with the current live sample appended on the right
-    /// edge, falling back to the in-memory buffer until the first DB load lands.
-    private var trendPoints: [SystemHistoryPoint] {
-        var pts = history
-        if pts.isEmpty {
-            pts = model.systemHistory.elements().map(Self.point(from:))
+        model.loadRecentSystemHistory(seconds: 2 * 3600) { points in
+            live.replace(points, live: model.liveSystem, cpu: model.smoothedCPU)
         }
-        if let s = snapshot?.system {
-            let live = Self.point(from: s)
-            if let last = pts.last {
-                if live.date > last.date { pts.append(live) }
-            } else {
-                pts.append(live)
-            }
-        }
-        return pts
-    }
-
-    private static func point(from s: SystemSample) -> SystemHistoryPoint {
-        SystemHistoryPoint(
-            date: s.timestamp,
-            pressurePercent: s.pressurePercent,
-            appMemory: s.appMemory,
-            wired: s.wired,
-            compressed: s.compressed,
-            cachedFiles: s.cachedFiles,
-            swapUsed: s.swapUsed,
-            cpuLoad: s.cpuLoad
-        )
     }
 
     // MARK: - Coverage
@@ -153,7 +124,7 @@ struct SystemHeaderView: View {
 /// by `CoreGridView`) are the content. Redraws each tick with the header, so the
 /// bars move in real time.
 private struct CPUCoreCard: View {
-    let cores: [CoreUsage]
+    let feed: CoreGridFeed
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -168,7 +139,7 @@ private struct CPUCoreCard: View {
                     .lineLimit(1)
                 Spacer(minLength: 4)
             }
-            CoreGridView(cores: cores, barHeight: 40)
+            CoreGridSurface(feed: feed, barHeight: 40)
         }
         // Match the metric cards' fill so all three header cards are one height.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -183,5 +154,54 @@ private struct CPUCoreCard: View {
                 .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
         )
         .contentShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+/// The Processes header's live channel: a two-hour window of system samples
+/// (seeded from the database, grown in place on every tick) and the feeds the
+/// header's AppKit surfaces repaint from. The table's full publish runs every
+/// 5 s; this keeps the CPU figure, its sparkline and the core grid at the
+/// dial rate without re-rendering any SwiftUI view. Main thread only.
+@MainActor
+final class ProcessHeaderStore: ObservableObject {
+    private var window = SystemHistoryWindow(span: 2 * 3600)
+    let usageFeed = MetricCardFeed()
+    let loadFeed = MetricCardFeed()
+    let coreFeed = CoreGridFeed()
+
+    func replace(_ points: [SystemHistoryPoint], live: SystemSample?, cpu: CPUSample?) {
+        window.replace(points)
+        if let live { window.append(Self.point(from: live)) }
+        publish(cpu)
+    }
+
+    func append(_ system: SystemSample?, cpu: CPUSample?) {
+        if let system { window.append(Self.point(from: system)) }
+        publish(cpu)
+    }
+
+    private func publish(_ cpu: CPUSample?) {
+        let level = CPULevel(fraction: cpu?.totalUsage ?? 0)
+        usageFeed.publish(
+            value: cpu.map { "\(Int(($0.totalUsage * 100).rounded()))%" },
+            tint: NSColor(level.color), column: LiveColumn(window, .cpuLoad), scale: 100,
+            xDomain: window.xDomain, yDomain: 0...100)
+        loadFeed.publish(
+            value: cpu.map { String(format: "%.2f", $0.loadAverage1) }, tint: .labelColor,
+            column: nil, xDomain: nil, yDomain: nil)
+        coreFeed.publish(cpu?.cores ?? [])
+    }
+
+    private static func point(from s: SystemSample) -> SystemHistoryPoint {
+        SystemHistoryPoint(
+            date: s.timestamp,
+            pressurePercent: s.pressurePercent,
+            appMemory: s.appMemory,
+            wired: s.wired,
+            compressed: s.compressed,
+            cachedFiles: s.cachedFiles,
+            swapUsed: s.swapUsed,
+            cpuLoad: s.cpuLoad
+        )
     }
 }

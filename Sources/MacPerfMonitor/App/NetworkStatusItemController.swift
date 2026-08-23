@@ -77,8 +77,7 @@ final class NetworkStatusItemController: NSObject {
         // The icon refreshes on the full-rate heartbeat (reading the live
         // smoothed network rates), staying live even though the heavy `latest`
         // snapshot publishes only on the slower heavy cadence.
-        model.liveTick
-            .receive(on: RunLoop.main)
+        model.menuBarTick
             .sink { [weak self] _ in self?.refreshImage() }
             .store(in: &cancellables)
         NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)

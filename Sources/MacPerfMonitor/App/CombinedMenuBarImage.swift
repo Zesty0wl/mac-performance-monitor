@@ -293,14 +293,27 @@ enum CombinedMenuBarImage {
         return result
     }
 
+    /// Configured SF Symbols by name and size. Looking a symbol up and
+    /// applying its configuration was the single largest cost of rasterising
+    /// the strip (about 1% of main-thread time on its own at 4 Hz).
+    private static var symbolCache: [String: NSImage] = [:]
+
     private static func drawSymbol(
         _ name: String, in rect: NSRect, color: NSColor, pointSize: CGFloat
     ) {
-        guard
-            let base = NSImage(systemSymbolName: name, accessibilityDescription: nil),
-            let symbol = base.withSymbolConfiguration(
-                .init(pointSize: pointSize, weight: .semibold))
-        else { return }
+        let key = "\(name)@\(pointSize)"
+        let symbol: NSImage
+        if let cached = symbolCache[key] {
+            symbol = cached
+        } else {
+            guard
+                let base = NSImage(systemSymbolName: name, accessibilityDescription: nil),
+                let configured = base.withSymbolConfiguration(
+                    .init(pointSize: pointSize, weight: .semibold))
+            else { return }
+            symbolCache[key] = configured
+            symbol = configured
+        }
         symbol.draw(in: rect)
         color.setFill()
         rect.fill(using: .sourceAtop)

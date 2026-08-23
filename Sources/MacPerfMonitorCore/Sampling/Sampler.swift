@@ -64,6 +64,9 @@ public final class Sampler {
     /// GPU utilization reader (IOAccelerator). Only read when `tickSystem` is asked
     /// to (the menubar GPU item gates it), so it costs nothing when GPU is off.
     private let gpuReader = GPUReader()
+    /// Per-process GPU time (AGX user clients). Read once per scan and once per
+    /// dial-rate refresh of the rows on screen; no privilege needed.
+    private let gpuProcessReader = GPUProcessReader()
     /// GPU + ANE power (IOReport) and die temperature / fan (SMC). Same gating as
     /// the GPU reader — only touched while the GPU item is shown.
     private let powerReader = PowerReader()
@@ -105,6 +108,9 @@ public final class Sampler {
         var system: UInt64
     }
     private var lastCPU: [ProcessIdentity: CPUState] = [:]
+    /// Per-identity accumulated GPU time at the last scan, for the per-scan
+    /// GPU percentage. Keyed by identity so a reused pid starts afresh.
+    private var lastGPUTime: [ProcessIdentity: UInt64] = [:]
 
     /// Scratch buffer reused by the per-tick FD count across all processes in a
     /// scan. Confined to the sampler queue like the rest of this type.
@@ -142,6 +148,12 @@ public final class Sampler {
     private var cachedBattery: BatterySample?
     private var lastBatteryReadAt: Date?
     private let batteryReadInterval: TimeInterval = 5
+
+    /// GPU registry, IOReport, and SMC reads are carried across subsecond system
+    /// ticks. Their values do not benefit from polling above 1 Hz, and each call
+    /// crosses into IOKit or the SMC driver.
+    private var cachedGPU: GPUSample?
+    private var lastGPUReadAt: Date?
 
     /// Per-process facts that never change for a given pid+startTime: the
     /// executable path (proc_pidpath), the Rosetta flag (sysctl), the derived
@@ -248,8 +260,10 @@ public final class Sampler {
     /// figures. It does no per-process enumeration, so it is safe to call at a
     /// fast (sub-second) cadence to keep the menubar live without the cost of
     /// scanning every process. Maintains its own inter-tick clock.
+    /// `gpuReadInterval` is the least time between two device GPU reads (the
+    /// IORegistry, IOReport and SMC walks); pass 0 to read on every call.
     public func tickSystem(
-        now: Date = Date(), readGPU: Bool = false
+        now: Date = Date(), readGPU: Bool = false, gpuReadInterval: TimeInterval = 1
     )
         -> (
             system: SystemSample, cpu: CPUSample, battery: BatterySample?, network: NetworkSample?,
@@ -272,24 +286,38 @@ public final class Sampler {
         let network = networkReader.read(now: now)
         let disk = diskReader.read(now: now)
         let bootVolume = bootVolumeReader.read(now: now)
-        // Gated: only walk the IOAccelerator registry when something shows GPU.
-        var gpu = readGPU ? gpuReader.read() : nil
-        if readGPU, gpu != nil {
-            // Fold in IOReport power and SMC thermal — the same cheap, gated path.
-            if let power = powerReader.read(now: now) {
-                gpu?.gpuPowerWatts = power.gpuWatts
-                gpu?.anePowerWatts = power.aneWatts
-                gpu?.cpuPowerWatts = power.cpuWatts
+        // Gated and decimated: only walk the GPU/IOReport/SMC registries while
+        // something shows GPU, and no more often than `gpuReadInterval` (once a
+        // second for the menu-bar icon and the history; every tick while a GPU
+        // panel is open, since the driver's utilization figure moves between
+        // sub-second reads).
+        if readGPU,
+            lastGPUReadAt.map({ now.timeIntervalSince($0) >= gpuReadInterval }) ?? true
+        {
+            var freshGPU = gpuReader.read()
+            if freshGPU != nil {
+                if let power = powerReader.read(now: now) {
+                    freshGPU?.gpuPowerWatts = power.gpuWatts
+                    freshGPU?.anePowerWatts = power.aneWatts
+                    freshGPU?.cpuPowerWatts = power.cpuWatts
+                    freshGPU?.performanceStates = power.gpuStates
+                    freshGPU?.activeResidency = power.gpuActiveResidency
+                    freshGPU?.throttled = power.gpuThrottled
+                    freshGPU?.powerCapPercent = power.gpuPowerCapPercent
+                }
+                if let thermal = smcReader.read(now: now) {
+                    freshGPU?.dieTemperatureC = thermal.dieTemperatureC
+                    freshGPU?.fanRPM = thermal.fanRPM
+                    freshGPU?.fanMaxRPM = thermal.fanMaxRPM
+                }
             }
-            if let thermal = smcReader.read(now: now) {
-                gpu?.dieTemperatureC = thermal.dieTemperatureC
-                gpu?.fanRPM = thermal.fanRPM
-                gpu?.fanMaxRPM = thermal.fanMaxRPM
-            }
+            cachedGPU = freshGPU
+            lastGPUReadAt = now
         }
+        let gpu = readGPU ? cachedGPU : nil
         let system = sampleSystem(
             now: now, wallDeltaSeconds: wallDeltaSeconds, cpuLoad: cpu.totalUsage, battery: battery,
-            network: network, disk: disk, bootVolume: bootVolume)
+            network: network, disk: disk, bootVolume: bootVolume, gpu: gpu)
         lastSystemTime = now
         return (system, cpu, battery, network, disk, gpu)
     }
@@ -298,6 +326,52 @@ public final class Sampler {
     /// task info, footprint, and file descriptors, and compute its inter-tick
     /// CPU. Expensive enough that the app runs it at a slower cadence than
     /// `tickSystem`; it keeps its own clock so the CPU deltas stay correct.
+    /// One process's fresh task info and rusage from `refreshProcesses`.
+    public struct ProcessRefresh: Sendable {
+        public var pid: pid_t
+        public var info: TaskAllInfo
+        public var rusage: RUsage?
+        public var source: SampleSource
+        /// The process's GPU accounting at the time of the read, when it has a
+        /// Metal context.
+        public var gpu: GPUClientUsage?
+        /// `GPUProcessReader.machNanosNow()` at the read, to date `gpu`.
+        public var machNow: UInt64 = 0
+    }
+
+    /// Re-read a handful of processes (the rows on screen) at the dial rate:
+    /// task info and rusage only, no descriptor listing, no path or code-sign
+    /// work, and no change to the scan's own delta state, so the full scan's
+    /// CPU figures are unaffected. Processes the user cannot read go through
+    /// the privileged helper in one round trip, honouring its quiet window.
+    /// About a millisecond for thirty rows, against 20 to 30 ms for a scan.
+    public func refreshProcesses(pids: [pid_t], now: Date = Date()) -> [pid_t: ProcessRefresh] {
+        var out: [pid_t: ProcessRefresh] = [:]
+        out.reserveCapacity(pids.count)
+        var unreadable: [pid_t] = []
+        let gpuUsage = gpuProcessReader.read(pids: Set(pids))
+        let machNow = GPUProcessReader.machNanosNow()
+        for pid in pids {
+            if let info = processReader.taskAllInfo(pid) {
+                out[pid] = ProcessRefresh(
+                    pid: pid, info: info, rusage: processReader.rusage(pid),
+                    source: .directUserRead, gpu: gpuUsage[pid], machNow: machNow)
+            } else {
+                unreadable.append(pid)
+            }
+        }
+        let withinQuietWindow = privilegedQuietUntil.map { now < $0 } ?? false
+        if let privilegedReader, !unreadable.isEmpty, !withinQuietWindow {
+            for (pid, raw) in privilegedReader.readProcesses(pids: unreadable) {
+                guard let info = raw.task else { continue }
+                out[pid] = ProcessRefresh(
+                    pid: pid, info: info, rusage: raw.rusage, source: .privilegedHelper,
+                    gpu: gpuUsage[pid], machNow: machNow)
+            }
+        }
+        return out
+    }
+
     public func tickProcesses(
         now: Date = Date()
     )
@@ -314,6 +388,11 @@ public final class Sampler {
         let networkRates = networkProcessReader?.latestRates() ?? [:]
 
         let pids = processReader.listPIDs()
+        // Per-process GPU time, one registry pass for the whole scan.
+        let gpuUsage = gpuProcessReader.read()
+        let machNow = GPUProcessReader.machNanosNow()
+        var newGPUTime: [ProcessIdentity: UInt64] = [:]
+        newGPUTime.reserveCapacity(gpuUsage.count)
         var processes: [ProcessSample] = []
         processes.reserveCapacity(pids.count)
         var newCPU: [ProcessIdentity: CPUState] = [:]
@@ -350,9 +429,12 @@ public final class Sampler {
                     fd: fd,
                     source: .directUserRead,
                     networkRates: networkRates,
+                    gpuUsage: gpuUsage,
+                    machNow: machNow,
                     newCPU: &newCPU,
                     newEnergy: &newEnergy,
                     newDisk: &newDisk,
+                    newGPUTime: &newGPUTime,
                     newStaticCache: &newStaticCache,
                     teamIDBudget: &teamIDBudget
                 ))
@@ -395,9 +477,12 @@ public final class Sampler {
                             fd: raw.fd ?? FDBreakdown(),
                             source: .privilegedHelper,
                             networkRates: networkRates,
+                            gpuUsage: gpuUsage,
+                            machNow: machNow,
                             newCPU: &newCPU,
                             newEnergy: &newEnergy,
                             newDisk: &newDisk,
+                            newGPUTime: &newGPUTime,
                             newStaticCache: &newStaticCache,
                             teamIDBudget: &teamIDBudget
                         ))
@@ -409,6 +494,7 @@ public final class Sampler {
         lastCPU = newCPU
         lastEnergy = newEnergy
         lastDisk = newDisk
+        lastGPUTime = newGPUTime
         staticCache = newStaticCache
         lastProcessTime = now
 
@@ -499,13 +585,33 @@ public final class Sampler {
         fd: FDBreakdown,
         source: SampleSource,
         networkRates: [Int32: Double],
+        gpuUsage: [pid_t: GPUClientUsage] = [:],
+        machNow: UInt64 = 0,
         newCPU: inout [ProcessIdentity: CPUState],
         newEnergy: inout [ProcessIdentity: EnergyState],
         newDisk: inout [ProcessIdentity: DiskState],
+        newGPUTime: inout [ProcessIdentity: UInt64],
         newStaticCache: inout [ProcessIdentity: StaticInfo],
         teamIDBudget: inout Int
     ) -> ProcessSample {
         let identity = ProcessIdentity(pid: pid, startTime: info.startTime)
+
+        // GPU: the driver's accumulated time for this process, differenced
+        // against the last scan like CPU time. A process without a Metal
+        // context has no entry and its GPU fields stay nil.
+        var gpuTimeNanos: UInt64?
+        var gpuPercent: Double?
+        var gpuLastActive: Date?
+        if let usage = gpuUsage[pid] {
+            gpuTimeNanos = usage.gpuTimeNanos
+            newGPUTime[identity] = usage.gpuTimeNanos
+            if let prior = lastGPUTime[identity], wallDeltaNanos > 0 {
+                let delta = usage.gpuTimeNanos >= prior ? usage.gpuTimeNanos - prior : 0
+                gpuPercent = min(100, Double(delta) / wallDeltaNanos * 100)
+            }
+            gpuLastActive = GPUProcessReader.date(
+                fromMachNanos: usage.lastSubmittedNanos, now: now, machNow: machNow)
+        }
 
         var diskReadBytesPerSec = 0.0
         var diskWriteBytesPerSec = 0.0
@@ -628,7 +734,10 @@ public final class Sampler {
             startTime: info.startTime,
             uid: info.uid,
             dataSource: source,
-            footprintReadable: rusage != nil
+            footprintReadable: rusage != nil,
+            gpuTimeNanos: gpuTimeNanos,
+            gpuPercent: gpuPercent,
+            gpuLastActive: gpuLastActive
         )
     }
 
@@ -636,6 +745,7 @@ public final class Sampler {
     /// zero deltas rather than a spike.
     public func reset() {
         lastCPU.removeAll()
+        lastGPUTime.removeAll()
         lastEnergy.removeAll()
         lastDisk.removeAll()
         staticCache.removeAll()
@@ -647,6 +757,8 @@ public final class Sampler {
         lastCoreTicks = nil
         cachedBattery = nil
         lastBatteryReadAt = nil
+        cachedGPU = nil
+        lastGPUReadAt = nil
         networkReader.reset()
         diskReader.reset()
         bootVolumeReader.reset()
@@ -662,7 +774,8 @@ public final class Sampler {
     /// and feeds the persisted system-history CPU timeline.
     private func sampleSystem(
         now: Date, wallDeltaSeconds: TimeInterval, cpuLoad: Double, battery: BatterySample?,
-        network: NetworkSample?, disk: DiskSample?, bootVolume: BootVolumeReader.Capacity?
+        network: NetworkSample?, disk: DiskSample?, bootVolume: BootVolumeReader.Capacity?,
+        gpu: GPUSample? = nil
     ) -> SystemSample {
         let totalRAM = memoryReader.totalRAM
         let vm = memoryReader.sampleVM()
@@ -757,7 +870,10 @@ public final class Sampler {
             diskWriteLatencyMs: disk?.writeLatencyMs,
             diskUtilizationPercent: disk?.utilizationPercent,
             bootVolumeTotalBytes: bootVolume?.totalBytes,
-            bootVolumeFreeBytes: bootVolume?.freeBytes
+            bootVolumeFreeBytes: bootVolume?.freeBytes,
+            gpuUtilization: gpu?.utilization,
+            gpuPowerWatts: gpu?.gpuPowerWatts,
+            anePowerWatts: gpu?.anePowerWatts
         )
     }
 

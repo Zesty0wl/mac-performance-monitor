@@ -14,6 +14,11 @@ public struct AlertConfig: Sendable, Equatable, Codable {
     /// Notify when total CPU stays above `highCPUThresholdPercent` for a
     /// sustained period. Off by default — high CPU is normal during real work.
     public var highCPUEnabled: Bool
+    /// Notify when GPU utilisation stays above `highGPUThresholdPercent` for a
+    /// sustained period: an AI workload, a stuck render loop, or a game left
+    /// running. Off by default like high CPU.
+    public var highGPUEnabled: Bool
+    public var highGPUThresholdPercent: Int
     /// Total-CPU threshold (percent of capacity, 0...100) for the high-CPU alert.
     public var highCPUThresholdPercent: Int
 
@@ -25,7 +30,9 @@ public struct AlertConfig: Sendable, Equatable, Codable {
         processCeilingBytes: UInt64 = 8 * 1024 * 1024 * 1024,
         leakEnabled: Bool = true,
         highCPUEnabled: Bool = false,
-        highCPUThresholdPercent: Int = 85
+        highCPUThresholdPercent: Int = 85,
+        highGPUEnabled: Bool = false,
+        highGPUThresholdPercent: Int = 85
     ) {
         self.criticalPressureEnabled = criticalPressureEnabled
         self.swapEnabled = swapEnabled
@@ -35,6 +42,8 @@ public struct AlertConfig: Sendable, Equatable, Codable {
         self.leakEnabled = leakEnabled
         self.highCPUEnabled = highCPUEnabled
         self.highCPUThresholdPercent = highCPUThresholdPercent
+        self.highGPUEnabled = highGPUEnabled
+        self.highGPUThresholdPercent = highGPUThresholdPercent
     }
 
     /// Decode every field with a default so a config saved by an older build
@@ -61,6 +70,11 @@ public struct AlertConfig: Sendable, Equatable, Codable {
         highCPUThresholdPercent =
             try c.decodeIfPresent(Int.self, forKey: .highCPUThresholdPercent)
             ?? d.highCPUThresholdPercent
+        highGPUEnabled =
+            try c.decodeIfPresent(Bool.self, forKey: .highGPUEnabled) ?? d.highGPUEnabled
+        highGPUThresholdPercent =
+            try c.decodeIfPresent(Int.self, forKey: .highGPUThresholdPercent)
+            ?? d.highGPUThresholdPercent
     }
 
     public static let `default` = AlertConfig()
@@ -76,6 +90,7 @@ public struct Alert: Sendable, Equatable, Identifiable {
         case processCeiling
         case leak
         case highCPU
+        case highGPU
     }
 
     public var kind: Kind
@@ -101,6 +116,7 @@ public struct Alert: Sendable, Equatable, Identifiable {
         case .processCeiling: return "ceiling.\(identityKey)"
         case .leak: return "leak.\(identityKey)"
         case .highCPU: return "cpu.high"
+        case .highGPU: return "gpu.high"
         }
     }
 
@@ -138,6 +154,8 @@ public final class AlertEngine {
     /// does. Nil while CPU is below the threshold. Time-based rather than a tick
     /// count, so it is unaffected by the sampling cadence.
     private var highCPUSince: Date?
+    private var gpuArmed = true
+    private var highGPUSince: Date?
     /// Last delivery time per alert id, used to suppress re-fires inside the
     /// cooldown window. Recorded only for alerts that survive the throttle, so
     /// a sustained flap cannot slide the window forward and starve the later
@@ -166,6 +184,7 @@ public final class AlertEngine {
         leakingProcesses: Set<ProcessIdentity> = [],
         config: AlertConfig = .default,
         cpu: CPUSample? = nil,
+        gpu: GPUSample? = nil,
         now: Date = Date()
     ) -> [Alert] {
         var alerts: [Alert] = []
@@ -175,6 +194,7 @@ public final class AlertEngine {
         evaluateLeaks(
             processes, leakingProcesses: leakingProcesses, config: config, now: now, into: &alerts)
         evaluateCPU(cpu, config: config, now: now, into: &alerts)
+        evaluateGPU(gpu, config: config, now: now, into: &alerts)
         refreshActiveKinds()
         // Throttle notification delivery per alert id: drop any alert whose id
         // was already delivered inside the cooldown window. The armed flags
@@ -202,6 +222,8 @@ public final class AlertEngine {
         leakFired.removeAll()
         cpuArmed = true
         highCPUSince = nil
+        gpuArmed = true
+        highGPUSince = nil
         lastFiredAt.removeAll()
         activeKinds.removeAll()
     }
@@ -213,6 +235,7 @@ public final class AlertEngine {
         if !ceilingFired.isEmpty { kinds.insert(.processCeiling) }
         if !leakFired.isEmpty { kinds.insert(.leak) }
         if !cpuArmed { kinds.insert(.highCPU) }
+        if !gpuArmed { kinds.insert(.highGPU) }
         activeKinds = kinds
     }
 
@@ -317,10 +340,18 @@ public final class AlertEngine {
         // Drop processes that have stopped leaking so a recurrence alerts again.
         leakFired.formIntersection(leakingProcesses)
 
+        // Only resolve names when there is something new to announce: building
+        // a display name per process (string prefix and path work) for every
+        // one of ~700 processes on every table tick showed up in profiles for
+        // alerts that almost never fire.
+        let pending = leakingProcesses.filter { !leakFired.contains($0) }
+        guard !pending.isEmpty else { return }
         var names: [ProcessIdentity: String] = [:]
-        for process in processes { names[process.id] = process.displayName }
+        for process in processes where pending.contains(process.id) {
+            names[process.id] = process.displayName
+        }
 
-        for identity in leakingProcesses where !leakFired.contains(identity) {
+        for identity in pending {
             leakFired.insert(identity)
             let name = names[identity] ?? "A process"
             alerts.append(
@@ -365,6 +396,38 @@ public final class AlertEngine {
         } else {
             highCPUSince = nil
             if percent < threshold * rearmFraction { cpuArmed = true }
+        }
+    }
+
+    /// Fire once when GPU utilisation has stayed at/above the threshold for a
+    /// sustained period; re-arms once it falls back below the re-arm fraction.
+    /// Evaluated on the table cadence with the newest device sample.
+    private func evaluateGPU(
+        _ gpu: GPUSample?, config: AlertConfig, now: Date, into alerts: inout [Alert]
+    ) {
+        guard config.highGPUEnabled, let gpu else {
+            gpuArmed = true
+            highGPUSince = nil
+            return
+        }
+        let percent = gpu.utilization
+        let threshold = Double(config.highGPUThresholdPercent)
+        if percent >= threshold {
+            let since = highGPUSince ?? now
+            highGPUSince = since
+            if gpuArmed && now.timeIntervalSince(since) >= sustainedCPUDuration {
+                gpuArmed = false
+                alerts.append(
+                    Alert(
+                        kind: .highGPU,
+                        title: "GPU has been busy",
+                        body:
+                            "GPU utilisation has stayed above \(config.highGPUThresholdPercent)% for a sustained period. The GPU tab shows which process is using it.",
+                        date: now))
+            }
+        } else {
+            highGPUSince = nil
+            if percent < threshold * rearmFraction { gpuArmed = true }
         }
     }
 }

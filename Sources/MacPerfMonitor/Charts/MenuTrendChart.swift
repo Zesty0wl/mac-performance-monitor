@@ -1,3 +1,4 @@
+import MacPerfMonitorCore
 import SwiftUI
 
 /// Shared geometry, styling and drawing for the menu-bar dropdown header charts,
@@ -89,6 +90,9 @@ enum MenuChart {
 /// domain; power passes a rounded auto-peak via `MenuChart.niceUpperBound`.
 struct MenuTrendChart: View {
     var values: [Double]
+    /// Number of equally spaced samples in the live window. While the buffer is
+    /// filling and after it wraps, each new value moves the trace one fixed slot.
+    var sampleCapacity: Int? = nil
     var color: Color
     /// The fixed Y range the line is plotted against (baseline at `lowerBound`).
     var domain: ClosedRange<Double>
@@ -122,9 +126,17 @@ struct MenuTrendChart: View {
             }
 
             guard !values.isEmpty else { return }
-            let stepX = values.count >= 2 ? plot.width / CGFloat(values.count - 1) : 0
             let points = values.enumerated().map { index, value in
-                CGPoint(x: plot.minX + CGFloat(index) * stepX, y: y(value))
+                let x: CGFloat
+                if let sampleCapacity, sampleCapacity > 0 {
+                    let fraction = LiveChartGeometry.normalizedSlot(
+                        index: index, count: values.count, capacity: sampleCapacity)
+                    x = plot.minX + CGFloat(fraction) * plot.width
+                } else {
+                    let step = values.count >= 2 ? plot.width / CGFloat(values.count - 1) : 0
+                    x = plot.minX + CGFloat(index) * step
+                }
+                return CGPoint(x: x, y: y(value))
             }
             MenuChart.drawTrend(
                 ctx, points: points, baselineY: plot.maxY, color: color,

@@ -34,6 +34,10 @@ struct BatteryView: View {
     /// a range change still in flight). Drives the charge chart and card spinners.
     private var awaitingData: Bool { loadedRange != range }
 
+    private var chartDomain: ClosedRange<Date>? {
+        LiveChartGeometry.trailingDomain(latest: points.last?.date, span: range.seconds)
+    }
+
     var body: some View {
         ScrollView {
             content
@@ -47,16 +51,16 @@ struct BatteryView: View {
         }
         // Refresh only the live right-edge point as each new sample lands, so the
         // chart tracks the current tick without re-querying the whole window.
-        .onChange(of: model.latest?.system.timestamp) { _, _ in
+        .onReceive(model.liveTick) { _ in
             if appState.mainWindowVisible { rebuildPoints() }
         }
         .onChange(of: appState.mainWindowVisible) { _, visible in if visible { reload() } }
     }
 
     @ViewBuilder private var content: some View {
-        if let battery = model.latest?.battery, battery.isPresent {
+        if let battery = currentBattery, battery.isPresent {
             batteryContent(battery)
-        } else if model.latest == nil {
+        } else if model.liveSystem == nil && model.latest == nil {
             // First sample has not landed yet.
             loadingState
         } else {
@@ -85,10 +89,15 @@ struct BatteryView: View {
     /// system power. Falls back to a synthetic AC sample before the first tick so
     /// the flow diagram can still render.
     private var desktopSample: BatterySample {
-        model.latest?.battery
+        currentBattery
             ?? BatterySample(
-                timestamp: model.latest?.system.timestamp ?? .distantPast,
+                timestamp: model.liveSystem?.timestamp ?? model.latest?.system.timestamp
+                    ?? .distantPast,
                 isPresent: false, isOnAC: true)
+    }
+
+    private var currentBattery: BatterySample? {
+        model.latestBattery ?? model.latest?.battery
     }
 
     private var desktopEnergyFlowPanel: some View {
@@ -194,7 +203,8 @@ struct BatteryView: View {
     // MARK: - Headline numbers
 
     private func headlineNumbers(_ battery: BatterySample) -> some View {
-        MetricCardsRow(cards: batteryCards(battery), loading: awaitingData)
+        MetricCardsRow(
+            cards: batteryCards(battery), xDomain: chartDomain, loading: awaitingData)
     }
 
     private func batteryCards(_ battery: BatterySample) -> [MetricCardData] {
@@ -318,7 +328,8 @@ struct BatteryView: View {
         BatteryPanel("Charge over time", systemImage: "battery.100.bolt") {
             BatteryChart(
                 points: points,
-                currentLevel: BatteryLevel(percent: battery.chargePercent)
+                currentLevel: BatteryLevel(percent: battery.chargePercent),
+                xDomain: chartDomain
             )
             .frame(height: 160)
             .chartReloading(awaitingData)
@@ -538,7 +549,7 @@ struct BatteryView: View {
     /// when `history` reloads or a new sample lands — never during a layout pass.
     private func rebuildPoints() {
         var pts = history
-        if let system = model.latest?.system, system.batteryPresent {
+        if let system = model.liveSystem, system.batteryPresent {
             let live = SystemHistoryPoint(
                 date: system.timestamp,
                 pressurePercent: system.pressurePercent,

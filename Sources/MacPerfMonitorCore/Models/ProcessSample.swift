@@ -85,6 +85,17 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
     /// When false (and the helper is absent) the UI shows a coverage gap rather
     /// than a misleading zero.
     public var footprintReadable: Bool
+    // GPU, from the AGX driver's per-process accounting (`GPUProcessReader`).
+    // Optional on purpose: nil when the process has never opened a Metal
+    // context or the registry read is unavailable, and so that traces
+    // recorded before these fields existed still decode.
+    /// Accumulated GPU time across the process's Metal contexts, nanoseconds.
+    public var gpuTimeNanos: UInt64?
+    /// GPU time per wall second over the last interval as a percentage of one
+    /// GPU; 100 means the GPU ran this process's work for the whole interval.
+    public var gpuPercent: Double?
+    /// When the process last submitted GPU work.
+    public var gpuLastActive: Date?
 
     public var id: ProcessIdentity { ProcessIdentity(pid: pid, startTime: startTime) }
 
@@ -153,7 +164,10 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
         startTime: Date,
         uid: uid_t,
         dataSource: SampleSource,
-        footprintReadable: Bool
+        footprintReadable: Bool,
+        gpuTimeNanos: UInt64? = nil,
+        gpuPercent: Double? = nil,
+        gpuLastActive: Date? = nil
     ) {
         self.timestamp = timestamp
         self.pid = pid
@@ -188,5 +202,8 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
         self.uid = uid
         self.dataSource = dataSource
         self.footprintReadable = footprintReadable
+        self.gpuTimeNanos = gpuTimeNanos
+        self.gpuPercent = gpuPercent
+        self.gpuLastActive = gpuLastActive
     }
 }

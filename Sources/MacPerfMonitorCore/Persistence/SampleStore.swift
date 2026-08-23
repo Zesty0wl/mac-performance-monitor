@@ -47,6 +47,7 @@ public final class SampleStore {
         var diskWritten: UInt64
         var threadCount: Int32
         var netTotal: Double
+        var gpuPercent: Double
     }
     private var lastWritten: [ProcessIdentity: WrittenRow] = [:]
 
@@ -142,7 +143,8 @@ public final class SampleStore {
                     diskRead: sample.diskBytesRead,
                     diskWritten: sample.diskBytesWritten,
                     threadCount: sample.threadCount,
-                    netTotal: sample.networkBytesPerSec)
+                    netTotal: sample.networkBytesPerSec,
+                    gpuPercent: sample.gpuPercent ?? 0)
                 written += 1
             }
             return written
@@ -186,6 +188,7 @@ public final class SampleStore {
         }
         if s.threadCount != prev.threadCount { return true }
         if s.networkBytesPerSec != prev.netTotal { return true }
+        if abs((s.gpuPercent ?? 0) - prev.gpuPercent) > 0.5 { return true }
         return false
     }
 
@@ -269,9 +272,10 @@ public final class SampleStore {
                  battery_present, battery_charge, battery_power, battery_charging, battery_health,
                  battery_cycles, battery_temp, net_in, net_out,
                  disk_read, disk_write, disk_read_iops, disk_write_iops,
-                 disk_read_latency, disk_write_latency, disk_util, boot_free, boot_total)
+                 disk_read_latency, disk_write_latency, disk_util, boot_free, boot_total,
+                 gpu_util, gpu_power, ane_power)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
-                        ?,?,?,?,?)
+                        ?,?,?,?,?,?,?,?)
                 """)
         try statement.execute(
             arguments: [
@@ -293,6 +297,7 @@ public final class SampleStore {
                 s.diskReadOperationsPerSec, s.diskWriteOperationsPerSec,
                 s.diskReadLatencyMs, s.diskWriteLatencyMs, s.diskUtilizationPercent,
                 s.bootVolumeFreeBytes.map(SQLInt.store), s.bootVolumeTotalBytes.map(SQLInt.store),
+                s.gpuUtilization, s.gpuPowerWatts, s.anePowerWatts,
             ])
     }
 
@@ -345,8 +350,8 @@ public final class SampleStore {
                  cpu_percent, cpu_user, cpu_system, thread_count,
                  fd_total, fd_vnode, fd_socket, fd_pipe, fd_other,
                  disk_read, disk_written, data_source, footprint_readable, energy, energy_impact,
-                 net_total)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 net_total, gpu_time, gpu_percent)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """)
         try statement.execute(
             arguments: [
@@ -361,6 +366,7 @@ public final class SampleStore {
                 s.dataSource.rawValue, s.footprintReadable,
                 SQLInt.store(s.energyNanojoules), s.energyImpact,
                 s.networkBytesPerSec,
+                SQLInt.store(s.gpuTimeNanos ?? 0), s.gpuPercent ?? 0,
             ])
     }
 

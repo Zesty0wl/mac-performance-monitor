@@ -3,9 +3,11 @@ import GRDB
 
 /// A selectable window for the History tab's cross-process queries (PRD section
 /// 8.5). Each window picks the storage tier that keeps the result bounded and
-/// fast: the most recent hour reads raw 2-second samples; longer windows read
-/// the downsampled minute or hour aggregates.
+/// fast: ranges through the most recent hour read raw samples; longer windows
+/// read the downsampled minute or hour aggregates.
 public enum HistoryWindow: String, Sendable, CaseIterable, Identifiable {
+    case fiveMinutes
+    case thirtyMinutes
     case oneHour
     case sixHours
     case oneDay
@@ -16,6 +18,8 @@ public enum HistoryWindow: String, Sendable, CaseIterable, Identifiable {
     /// Span of the window in seconds.
     public var seconds: TimeInterval {
         switch self {
+        case .fiveMinutes: return 5 * 60
+        case .thirtyMinutes: return 30 * 60
         case .oneHour: return 3600
         case .sixHours: return 6 * 3600
         case .oneDay: return 24 * 3600
@@ -26,6 +30,8 @@ public enum HistoryWindow: String, Sendable, CaseIterable, Identifiable {
     /// Short label for the window picker.
     public var label: String {
         switch self {
+        case .fiveMinutes: return "5 min"
+        case .thirtyMinutes: return "30 min"
         case .oneHour: return "1 hr"
         case .sixHours: return "6 hr"
         case .oneDay: return "24 hr"
@@ -39,7 +45,7 @@ public enum HistoryWindow: String, Sendable, CaseIterable, Identifiable {
 
     public var granularity: Granularity {
         switch self {
-        case .oneHour: return .raw
+        case .fiveMinutes, .thirtyMinutes, .oneHour: return .raw
         case .sixHours, .oneDay: return .minute
         case .sevenDays: return .hour
         }

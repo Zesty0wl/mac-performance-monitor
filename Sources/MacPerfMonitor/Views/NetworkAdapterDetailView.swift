@@ -14,6 +14,7 @@ struct NetworkAdapterDetailView: View {
     let info: NetworkInfo
     /// Recent throughput for this adapter, for the per-adapter chart.
     var trail: [SystemHistoryPoint] = []
+    var xDomain: ClosedRange<Date>? = nil
     var dismiss: () -> Void = {}
 
     private var adapter: NetworkInterfaceInfo? {
@@ -90,7 +91,7 @@ struct NetworkAdapterDetailView: View {
                 Spacer(minLength: 0)
             }
             ZStack {
-                NetworkChart(points: trail)
+                NetworkChart(points: trail, xDomain: xDomain)
                 if trail.count < 2 {
                     Text("Collecting…").font(.caption2).foregroundStyle(.secondary)
                 }

@@ -10,6 +10,7 @@ import SwiftUI
 struct BatteryChart: View {
     let points: [SystemHistoryPoint]
     let currentLevel: BatteryLevel
+    var xDomain: ClosedRange<Date>? = nil
 
     private var accessibilitySummary: String {
         guard let latest = points.last?.batteryCharge else { return "No data yet." }
@@ -42,7 +43,7 @@ struct BatteryChart: View {
                         y: .value("Charge", point.batteryCharge),
                         series: .value("Segment", segIdx)
                     )
-                    .interpolationMethod(.monotone)
+                    .interpolationMethod(.linear)
                     .foregroundStyle(
                         .linearGradient(
                             colors: [
@@ -58,12 +59,13 @@ struct BatteryChart: View {
                         y: .value("Charge", point.batteryCharge),
                         series: .value("Segment", segIdx)
                     )
-                    .interpolationMethod(.monotone)
+                    .interpolationMethod(.linear)
                     .foregroundStyle(currentLevel.color)
                     .lineStyle(StrokeStyle(lineWidth: 2))
                 }
             }
         }
+        .chartXScale(domain: resolvedXDomain)
         .chartYScale(domain: 0...100)
         .chartYAxis {
             AxisMarks(values: [0, 20, 50, 80, 100]) { value in
@@ -77,5 +79,12 @@ struct BatteryChart: View {
         .accessibilityLabel("Battery charge timeline")
         .accessibilityValue(accessibilitySummary)
         .reducedMotionAware()
+    }
+
+    private var resolvedXDomain: ClosedRange<Date> {
+        if let xDomain { return xDomain }
+        let first = points.first?.date ?? .distantPast
+        let last = points.last?.date ?? first.addingTimeInterval(1)
+        return first < last ? first...last : first.addingTimeInterval(-1)...last
     }
 }

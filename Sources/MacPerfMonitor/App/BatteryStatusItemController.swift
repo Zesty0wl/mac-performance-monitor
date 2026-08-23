@@ -56,8 +56,7 @@ final class BatteryStatusItemController: NSObject {
     /// Begin managing the item: install it (when enabled and a battery exists),
     /// and keep its image and visibility in sync with the sampler and the setting.
     func start() {
-        model.liveTick
-            .receive(on: RunLoop.main)
+        model.menuBarTick
             .sink { [weak self] _ in
                 self?.update()
                 self?.reconcileMenuClock()
@@ -195,7 +194,15 @@ final class BatteryStatusItemController: NSObject {
     /// frozen). Both calls are idempotent.
     private func reconcileMenuClock() {
         guard let popover else { return }
-        if popover.isShown { menuClock.open() } else { menuClock.close() }
+        if popover.isShown {
+            menuClock.open()
+        } else {
+            menuClock.close()
+            // Release the closed popover with its SwiftUI content: a retained
+            // hosting controller kept observing the menu lists and re-rendered
+            // the hidden panel on every table tick. The next open rebuilds it.
+            self.popover = nil
+        }
     }
 }
 

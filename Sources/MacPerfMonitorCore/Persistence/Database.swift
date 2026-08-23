@@ -172,6 +172,13 @@ public enum MacPerfMonitorDatabase {
         migrator.registerMigration("v12-disk-detail") { db in
             try db.execute(sql: Schema.v12)
         }
+        // GPU: device utilisation and power plus Neural Engine power on the
+        // system rows (nullable: a tick that did not read the GPU stores
+        // nothing, not 0), and per-process GPU time and share on the process
+        // rows, rolled up like CPU.
+        migrator.registerMigration("v13-gpu") { db in
+            try db.execute(sql: Schema.v13)
+        }
         return migrator
     }
 }
@@ -511,6 +518,34 @@ enum Schema {
         ALTER TABLE system_hour ADD COLUMN boot_free_avg INTEGER;
         ALTER TABLE system_hour ADD COLUMN boot_free_min INTEGER;
         ALTER TABLE system_hour ADD COLUMN boot_total INTEGER;
+        """
+
+    static let v13 = """
+        ALTER TABLE system_samples ADD COLUMN gpu_util REAL;
+        ALTER TABLE system_samples ADD COLUMN gpu_power REAL;
+        ALTER TABLE system_samples ADD COLUMN ane_power REAL;
+
+        ALTER TABLE system_minute ADD COLUMN gpu_util_avg REAL;
+        ALTER TABLE system_minute ADD COLUMN gpu_util_max REAL;
+        ALTER TABLE system_minute ADD COLUMN gpu_power_avg REAL;
+        ALTER TABLE system_minute ADD COLUMN gpu_power_max REAL;
+        ALTER TABLE system_minute ADD COLUMN ane_power_avg REAL;
+        ALTER TABLE system_minute ADD COLUMN ane_power_max REAL;
+
+        ALTER TABLE system_hour ADD COLUMN gpu_util_avg REAL;
+        ALTER TABLE system_hour ADD COLUMN gpu_util_max REAL;
+        ALTER TABLE system_hour ADD COLUMN gpu_power_avg REAL;
+        ALTER TABLE system_hour ADD COLUMN gpu_power_max REAL;
+        ALTER TABLE system_hour ADD COLUMN ane_power_avg REAL;
+        ALTER TABLE system_hour ADD COLUMN ane_power_max REAL;
+
+        ALTER TABLE process_samples ADD COLUMN gpu_time INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE process_samples ADD COLUMN gpu_percent REAL NOT NULL DEFAULT 0;
+
+        ALTER TABLE process_minute ADD COLUMN gpu_avg REAL NOT NULL DEFAULT 0;
+        ALTER TABLE process_minute ADD COLUMN gpu_max REAL NOT NULL DEFAULT 0;
+        ALTER TABLE process_hour ADD COLUMN gpu_avg REAL NOT NULL DEFAULT 0;
+        ALTER TABLE process_hour ADD COLUMN gpu_max REAL NOT NULL DEFAULT 0;
         """
 }
 

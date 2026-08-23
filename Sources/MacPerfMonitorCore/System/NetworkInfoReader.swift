@@ -27,11 +27,36 @@ public final class NetworkInfoReader {
     private var sessionIn: [String: UInt64] = [:]
     private var sessionOut: [String: UInt64] = [:]
 
+    /// The configuration half of a read (service names and types, the global
+    /// primary/router/DNS, the host name, Wi-Fi radio details), which changes
+    /// on human timescales. The Network page polls at the refresh dial, down to
+    /// 250 ms, and SystemConfiguration, CoreWLAN and `Host.current()` are far
+    /// too dear to repeat four times a second; the counters and addresses
+    /// (`getifaddrs`) are read every poll.
+    private struct ConfigCache {
+        var at: Date
+        var scNames: [String: (name: String?, type: String?)]
+        var global: (primary: String?, router: String?, dns: [String], searchDomains: [String])
+        var hostName: String
+        var wifi: [String: WiFiInfo?] = [:]
+    }
+    private var configCache: ConfigCache?
+    private let configMaxAge: TimeInterval = 5
+
     /// Read a full snapshot. The rates are zero on the first call (nothing to
     /// difference yet).
     public func read(now: Date = Date()) -> NetworkInfo {
         let dt = lastTime.map { now.timeIntervalSince($0) } ?? 0
-        let scNames = Self.serviceNamesAndTypes()
+        if let cached = configCache, now.timeIntervalSince(cached.at) < configMaxAge {
+            // Still fresh.
+        } else {
+            configCache = ConfigCache(
+                at: now,
+                scNames: Self.serviceNamesAndTypes(),
+                global: Self.globalConfig(),
+                hostName: Host.current().localizedName ?? ProcessInfo.processInfo.hostName)
+        }
+        let scNames = configCache?.scNames ?? [:]
         var raw = Self.rawInterfaces()  // [bsd: (flags, counters, ipv4, ipv6, mac)]
 
         var interfaces: [NetworkInterfaceInfo] = []
@@ -51,8 +76,17 @@ public final class NetworkInfoReader {
             let sc = scNames[bsd]
             let (displayName, kind) = Self.classify(bsd: bsd, sc: sc, flags: info.flags)
             let isRunning = (info.flags & UInt32(IFF_RUNNING)) != 0
-            // Wi-Fi radio detail only for the associated 802.11 interface.
-            let wifi = (kind == .wifi && isRunning) ? Self.wifiInfo(bsd: bsd) : nil
+            // Wi-Fi radio detail only for the associated 802.11 interface,
+            // cached with the rest of the configuration.
+            var wifi: WiFiInfo?
+            if kind == .wifi && isRunning {
+                if let cached = configCache?.wifi[bsd] {
+                    wifi = cached
+                } else {
+                    wifi = Self.wifiInfo(bsd: bsd)
+                    configCache?.wifi[bsd] = wifi
+                }
+            }
             interfaces.append(
                 NetworkInterfaceInfo(
                     bsdName: bsd,
@@ -84,23 +118,25 @@ public final class NetworkInfoReader {
         lastTime = now
         raw.removeAll()
 
-        let global = Self.globalConfig()
+        let global = configCache?.global ?? (primary: nil, router: nil, dns: [], searchDomains: [])
         return NetworkInfo(
             interfaces: interfaces.sorted { $0.bsdName < $1.bsdName },
             primaryInterface: global.primary,
             router: global.router,
             dnsServers: global.dns,
             searchDomains: global.searchDomains,
-            hostName: Host.current().localizedName ?? ProcessInfo.processInfo.hostName,
+            hostName: configCache?.hostName ?? ProcessInfo.processInfo.hostName,
             wifiSSID: nil)
     }
 
-    /// Reset inter-read state so the next read reports zero rates.
+    /// Reset inter-read state so the next read reports zero rates and
+    /// re-reads the configuration.
     public func reset() {
         lastCounters.removeAll()
         lastTime = nil
         sessionIn.removeAll()
         sessionOut.removeAll()
+        configCache = nil
     }
 
     // MARK: - getifaddrs

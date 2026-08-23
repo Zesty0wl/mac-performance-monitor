@@ -2,7 +2,8 @@ import MacPerfMonitorCore
 import SwiftUI
 
 enum MainWindowTab: Hashable {
-    case dashboard, processes, battery, network, diskUsage, analytics, insights, groups
+    case dashboard, processes, gpu, battery, network, diskUsage, hardware
+    case analytics, insights, groups
 }
 
 /// The main window's four tabs: Dashboard (pressure timeline, taxonomy, swap,
@@ -44,6 +45,10 @@ struct ContentView: View {
             .tabItem { Label("Processes", systemImage: "list.bullet.rectangle") }
             .tag(MainWindowTab.processes)
 
+            TabGate(isActive: tab == .gpu) { GPUView() }
+                .tabItem { Label("GPU", systemImage: "display") }
+                .tag(MainWindowTab.gpu)
+
             TabGate(isActive: tab == .battery) { BatteryView() }
                 .tabItem { Label("Energy", systemImage: "bolt.fill") }
                 .tag(MainWindowTab.battery)
@@ -55,6 +60,10 @@ struct ContentView: View {
             TabGate(isActive: tab == .diskUsage) { DiskUsageView() }
                 .tabItem { Label("Disk", systemImage: "internaldrive") }
                 .tag(MainWindowTab.diskUsage)
+
+            TabGate(isActive: tab == .hardware) { HardwareView() }
+                .tabItem { Label("Hardware", systemImage: "macbook") }
+                .tag(MainWindowTab.hardware)
 
             TabGate(isActive: tab == .analytics) {
                 AnalyticsView(imported: $importedTrace)

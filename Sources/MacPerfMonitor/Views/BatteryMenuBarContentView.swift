@@ -110,6 +110,7 @@ struct BatteryMenuBarContentView: View {
         let level = BatteryLevel(percent: battery.chargePercent)
         MenuTrendChart(
             values: model.batteryChargeTrail(),
+            sampleCapacity: model.systemHistory.capacity,
             color: battery.isCharging ? BatteryStyle.battery : level.color,
             domain: 0...100, ticks: [0, 50, 100], label: { "\(Int($0))" }
         )
@@ -125,7 +126,8 @@ struct BatteryMenuBarContentView: View {
         if let peak = watts.max(), peak > 0 {
             let upper = MenuChart.niceUpperBound(peak)
             MenuTrendChart(
-                values: watts, color: BatteryStyle.consumer,
+                values: watts, sampleCapacity: model.systemHistory.capacity,
+                color: BatteryStyle.consumer,
                 domain: 0...upper, ticks: [0, upper], label: { "\(Int($0.rounded())) W" }
             )
             .frame(height: MenuChart.height)

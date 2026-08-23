@@ -1,5 +1,18 @@
 import Foundation
 
+/// One GPU performance (clock) state and the share of an interval the GPU
+/// spent in it.
+public struct GPUPerformanceState: Sendable, Codable, Equatable {
+    public var name: String
+    /// 0...100.
+    public var residency: Double
+
+    public init(name: String, residency: Double) {
+        self.name = name
+        self.residency = residency
+    }
+}
+
 /// A cheap GPU sample read from the IOAccelerator registry once per system tick.
 /// On Apple silicon the integrated GPU is a single accelerator backed by unified
 /// memory; the figures come straight from the driver's `PerformanceStatistics`.
@@ -24,6 +37,21 @@ public struct GPUSample: Sendable, Codable, Equatable {
     public var anePowerWatts: Double?
     public var cpuPowerWatts: Double?
 
+    // --- IOReport "GPU Stats", filled by the Sampler ---
+    /// Share of the interval the GPU was powered and clocked (100 minus the
+    /// OFF state's residency), 0...100.
+    public var activeResidency: Double?
+    /// Residency per performance state over the interval, lowest clock first,
+    /// the OFF state excluded.
+    public var performanceStates: [GPUPerformanceState]?
+    /// True when thermal management (CLTM) held the GPU's clock down for part
+    /// of the interval.
+    public var throttled: Bool?
+    /// The power manager's target as a share of the GPU's maximum power over
+    /// the interval (100 = no cap in effect).
+    public var powerCapPercent: Double?
+    /// GPU hang recoveries since boot (IOAccelerator `recoveryCount`).
+    public var recoveryCount: Int?
     // --- SMC thermal, filled by the Sampler ---
     /// SoC die temperature (°C). The GPU shares the die, so this is its temperature.
     public var dieTemperatureC: Double?

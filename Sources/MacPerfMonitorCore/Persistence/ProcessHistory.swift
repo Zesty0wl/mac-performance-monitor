@@ -1,9 +1,9 @@
 import Foundation
 import GRDB
 
-// Process-detail and trend charts share the app-wide `HistoryWindow` (1h / 6h /
-// 24h / 7d, defined in HistoryQuery.swift). 1h reads raw process_samples; the
-// longer windows read the minute/hour process aggregates. See
+// Process-detail and trend charts share the app-wide `HistoryWindow` (5m / 30m /
+// 1h / 6h / 24h / 7d, defined in HistoryQuery.swift). Up to 1h reads raw
+// process_samples; the longer windows read the minute/hour aggregates. See
 // `processHistory(for:window:)` below.
 
 /// One point on the process-detail timelines, at raw 2-second resolution. Unlike
@@ -22,6 +22,8 @@ public struct ProcessHistoryPoint: Sendable, Identifiable, Equatable {
     /// instantaneous rate, not a cumulative counter; 0 unless per-app network
     /// tracking was enabled. Defaulted so call sites that predate it still build.
     public var networkBytesPerSec: Double
+    /// GPU share at this point (percent of one GPU); 0 on rows older than v13.
+    public var gpuPercent: Double
 
     public var id: Date { date }
 
@@ -32,7 +34,8 @@ public struct ProcessHistoryPoint: Sendable, Identifiable, Equatable {
         fdTotal: Int,
         diskRead: UInt64,
         diskWritten: UInt64,
-        networkBytesPerSec: Double = 0
+        networkBytesPerSec: Double = 0,
+        gpuPercent: Double = 0
     ) {
         self.date = date
         self.footprint = footprint
@@ -41,6 +44,7 @@ public struct ProcessHistoryPoint: Sendable, Identifiable, Equatable {
         self.diskRead = diskRead
         self.diskWritten = diskWritten
         self.networkBytesPerSec = networkBytesPerSec
+        self.gpuPercent = gpuPercent
     }
 }
 
@@ -64,7 +68,7 @@ extension SampleStore {
     /// readers. Bound with `[pid, start_time, since]`, oldest first.
     private static let pointSQL = """
         SELECT ps.timestamp AS ts, ps.phys_footprint AS fp, ps.cpu_percent AS cpu,
-               ps.fd_total AS fd, ps.disk_read AS dr, ps.disk_written AS dw, ps.net_total AS net
+               ps.fd_total AS fd, ps.disk_read AS dr, ps.disk_written AS dw, ps.net_total AS net, ps.gpu_percent AS gpu
         FROM process_samples ps
         JOIN processes p ON p.id = ps.process_id
         WHERE p.pid = ? AND p.start_time = ? AND ps.timestamp >= ?
@@ -82,6 +86,7 @@ extension SampleStore {
         let dr: Int64 = row[offset + 4]
         let dw: Int64 = row[offset + 5]
         let net: Double = row[offset + 6]
+        let gpu: Double = row[offset + 7]
         return ProcessHistoryPoint(
             date: Date(timeIntervalSince1970: ts),
             footprint: SQLInt.read(fp),
@@ -89,7 +94,8 @@ extension SampleStore {
             fdTotal: Int(fd),
             diskRead: SQLInt.read(dr),
             diskWritten: SQLInt.read(dw),
-            networkBytesPerSec: net
+            networkBytesPerSec: net,
+            gpuPercent: gpu
         )
     }
 
@@ -100,7 +106,7 @@ extension SampleStore {
     private static func aggregateSQL(table: String) -> String {
         """
         SELECT bucket AS ts, footprint_avg AS fp, cpu_avg AS cpu,
-               fd_max AS fd, disk_read_max AS dr, disk_written_max AS dw, net_avg AS net
+               fd_max AS fd, disk_read_max AS dr, disk_written_max AS dw, net_avg AS net, gpu_avg AS gpu
         FROM \(table)
         WHERE process_id = ? AND bucket >= ?
         ORDER BY ts ASC
@@ -182,8 +188,8 @@ extension SampleStore {
             let source = table ?? "process_samples"
             let columns =
                 table == nil
-                ? "timestamp, phys_footprint, cpu_percent, fd_total, disk_read, disk_written, net_total"
-                : "bucket, footprint_avg, cpu_avg, fd_max, disk_read_max, disk_written_max, net_avg"
+                ? "timestamp, phys_footprint, cpu_percent, fd_total, disk_read, disk_written, net_total, gpu_percent"
+                : "bucket, footprint_avg, cpu_avg, fd_max, disk_read_max, disk_written_max, net_avg, gpu_avg"
             let upperBound = to == nil ? "" : " AND \(timeColumn) <= ?"
             let sql = """
                 SELECT process_id, \(columns)
@@ -283,7 +289,7 @@ extension SampleStore {
     /// Bound with `[pid, start_time, from, to]`, oldest first.
     private static let pointSliceSQL = """
         SELECT ps.timestamp AS ts, ps.phys_footprint AS fp, ps.cpu_percent AS cpu,
-               ps.fd_total AS fd, ps.disk_read AS dr, ps.disk_written AS dw, ps.net_total AS net
+               ps.fd_total AS fd, ps.disk_read AS dr, ps.disk_written AS dw, ps.net_total AS net, ps.gpu_percent AS gpu
         FROM process_samples ps
         JOIN processes p ON p.id = ps.process_id
         WHERE p.pid = ? AND p.start_time = ? AND ps.timestamp >= ? AND ps.timestamp <= ?
@@ -295,7 +301,7 @@ extension SampleStore {
     private static func aggregateSliceSQL(table: String) -> String {
         """
         SELECT bucket AS ts, footprint_avg AS fp, cpu_avg AS cpu,
-               fd_max AS fd, disk_read_max AS dr, disk_written_max AS dw, net_avg AS net
+               fd_max AS fd, disk_read_max AS dr, disk_written_max AS dw, net_avg AS net, gpu_avg AS gpu
         FROM \(table)
         WHERE process_id = ? AND bucket >= ? AND bucket <= ?
         ORDER BY ts ASC

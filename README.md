@@ -28,6 +28,20 @@ Free and open source. No telemetry. Every sample stays on your Mac.
   history; per-device hardware identity; per-volume capacity bars grouped by
   APFS container with purgeable space; SMART health for the internal SSD; a
   boot-volume free-space trend; and top processes by attributed disk I/O.
+- **GPU tab:** who is using the GPU on Apple silicon, per process, with no helper
+  (the AGX driver's per-context accounting), plus device utilization, clock-state
+  residency, GPU and Neural Engine power, memory, thermal limit and power cap, a
+  breakdown by workload category, and recognition of AI runtimes (Ollama, llama.cpp,
+  MLX, LM Studio, Core ML, Apple Intelligence) with the model they serve where the
+  command line says; an optional sustained-high-GPU alert. The GPU menu bar
+  dropdown lists the top GPU processes too.
+- **Hardware tab:** this Mac's inventory as a searchable, browsable tree with a
+  visual overview: a block diagram of the chip (CPU clusters, GPU cores, Neural
+  Engine, unified memory), capacity bars, the displays to scale, battery health,
+  and every bus and device `system_profiler` and the kernel report (USB,
+  Thunderbolt, Bluetooth, audio, cameras, storage, network, Wi-Fi via CoreWLAN,
+  Metal limits, instruction-set features, secure boot). Read on demand with a
+  Refresh button, never on the sampling tick; copy any item or save a report.
 - **Leak detection:** flags processes whose footprint climbs steadily, plus a log of
   pressure events over time.
 - **Deep-dive diagnostics:** explains what a process is and whether its behavior is
@@ -52,6 +66,15 @@ Network throughput and every adapter on the machine:
 Disk throughput, service latency, SMART health, free space, and top I/O processes:
 
 ![Disk](docs/images/disk.png)
+
+GPU: utilization, power, clock states, and who is using the GPU, with AI
+workloads picked out:
+
+![GPU](docs/images/gpu.png)
+
+Hardware: this Mac's inventory, searchable, with the chip drawn core by core:
+
+![Hardware](docs/images/hardware.png)
 
 Analytics: build your own per-process charts over any window:
 

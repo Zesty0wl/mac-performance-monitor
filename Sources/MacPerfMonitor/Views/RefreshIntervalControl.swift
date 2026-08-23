@@ -1,11 +1,12 @@
 import MacPerfMonitorCore
 import SwiftUI
 
-/// A compact toolbar control — present on every tab — that sets the GLOBAL refresh
-/// interval: how often the heavy per-process scan runs and the in-window charts,
-/// table, and cards re-render. Slower intervals lower CPU use sharply (the default
-/// is a deliberately light 10 s); the menu-bar read-outs stay live at 1 Hz
-/// regardless.
+/// A compact toolbar control (present on every tab) that sets the GLOBAL refresh
+/// interval: how often the live charts, read-outs and the process rows on screen
+/// update. Slower intervals lower CPU use sharply (the default is a deliberately
+/// light 10 s). The full per-process scan, the table order, rankings and alerts
+/// keep a 5 s floor (`LiveRefreshCadence.fullProcessInterval`); the rows on
+/// screen are re-read at the dial rate in between.
 ///
 /// Backed by the shared `tableIntervalKey`, so it stays in lockstep with the same
 /// setting in Settings, and the app applies any change through its
@@ -35,8 +36,8 @@ struct RefreshIntervalControl: View {
         }
         .fixedSize()
         .help(
-            "How often the charts and process list refresh. A slower interval uses noticeably "
-                + "less CPU; the menu-bar read-outs stay live."
+            "250ms and 500ms speed up the live charts and the process rows on screen. "
+                + "The full process scan, the table order, rankings and alerts refresh every 5 s."
         )
     }
 }

@@ -6,6 +6,7 @@ import SwiftUI
 /// capacity when the total is known.
 struct FreeSpaceChart: View {
     let points: [SystemHistoryPoint]
+    var xDomain: ClosedRange<Date>? = nil
     var showsTimeAxis = false
 
     private var freePoints: [TrendPoint] {
@@ -36,6 +37,7 @@ struct FreeSpaceChart: View {
             series: [
                 TrendSeries(points: freePoints, color: DiskStyle.read, filled: true)
             ],
+            xDomain: xDomain,
             // Anchor the domain at zero up to the disk's capacity so the line's
             // height reads as "how much of the disk is left", not an auto-zoomed
             // wiggle that makes a stable disk look like a cliff.

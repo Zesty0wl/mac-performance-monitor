@@ -60,8 +60,7 @@ final class CPUStatusItemController: NSObject {
         // The menu-bar icon refreshes on the full-rate heartbeat (reading the
         // live `smoothedCPU`), so it stays live even though the heavy `latest`
         // snapshot now publishes only on the slower heavy cadence.
-        model.liveTick
-            .receive(on: RunLoop.main)
+        model.menuBarTick
             .sink { [weak self] _ in
                 self?.refreshImage()
                 self?.reconcileMenuClock()
@@ -177,7 +176,15 @@ final class CPUStatusItemController: NSObject {
     /// frozen). Both calls are idempotent.
     private func reconcileMenuClock() {
         guard let popover else { return }
-        if popover.isShown { menuClock.open() } else { menuClock.close() }
+        if popover.isShown {
+            menuClock.open()
+        } else {
+            menuClock.close()
+            // Release the closed popover with its SwiftUI content: a retained
+            // hosting controller kept observing the menu lists and re-rendered
+            // the hidden panel on every table tick. The next open rebuilds it.
+            self.popover = nil
+        }
     }
 }
 

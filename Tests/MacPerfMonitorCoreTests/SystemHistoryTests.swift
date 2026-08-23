@@ -43,6 +43,22 @@ final class SystemHistoryTests: XCTestCase {
         XCTAssertEqual(points.first?.pressurePercent ?? 0, 42, accuracy: 0.001)
     }
 
+    func testShortRawRangesApplyTheirOwnCutoffs() throws {
+        let now = anchor.addingTimeInterval(30 * 60)
+        try insert(at: now.addingTimeInterval(-31 * 60), pressure: 10)
+        try insert(at: now.addingTimeInterval(-20 * 60), pressure: 20)
+        try insert(at: now.addingTimeInterval(-4 * 60), pressure: 40)
+        try insert(at: now, pressure: 50)
+
+        let fiveMinutes = try store.systemHistory(.fiveMinutes, now: now)
+        let thirtyMinutes = try store.systemHistory(.thirtyMinutes, now: now)
+
+        XCTAssertEqual(fiveMinutes.map(\.pressurePercent), [40, 50])
+        XCTAssertEqual(thirtyMinutes.map(\.pressurePercent), [20, 40, 50])
+        XCTAssertEqual(fiveMinutes.map(\.date), fiveMinutes.map(\.date).sorted())
+        XCTAssertEqual(thirtyMinutes.map(\.date), thirtyMinutes.map(\.date).sorted())
+    }
+
     func testDayRangeReadsMinuteAggregates() throws {
         for i in 0..<40 {
             try insert(at: anchor.addingTimeInterval(Double(i) * 6))
@@ -73,6 +89,15 @@ final class SystemHistoryTests: XCTestCase {
     }
 
     func testGranularityMapping() {
+        XCTAssertEqual(
+            HistoryWindow.allCases,
+            [.fiveMinutes, .thirtyMinutes, .oneHour, .sixHours, .oneDay, .sevenDays])
+        XCTAssertEqual(HistoryWindow.fiveMinutes.seconds, 5 * 60)
+        XCTAssertEqual(HistoryWindow.thirtyMinutes.seconds, 30 * 60)
+        XCTAssertEqual(HistoryWindow.fiveMinutes.label, "5 min")
+        XCTAssertEqual(HistoryWindow.thirtyMinutes.label, "30 min")
+        XCTAssertEqual(HistoryWindow.fiveMinutes.granularity, .raw)
+        XCTAssertEqual(HistoryWindow.thirtyMinutes.granularity, .raw)
         XCTAssertEqual(HistoryWindow.oneHour.granularity, .raw)
         XCTAssertEqual(HistoryWindow.sixHours.granularity, .minute)
         XCTAssertEqual(HistoryWindow.oneDay.granularity, .minute)

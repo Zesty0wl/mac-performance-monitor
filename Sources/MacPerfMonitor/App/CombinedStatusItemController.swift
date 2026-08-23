@@ -39,6 +39,9 @@ final class CombinedStatusItemController: NSObject {
     private var shownSignature: String?
     private var activeConsumer: MenuListKind?
     private var gpuSamplingActive = false
+    /// Whether the open popover is showing the GPU panel, which is registered
+    /// as a live GPU surface so the device is read every tick while it shows.
+    private var gpuPanelLive = false
     private var currentPanel: MenuBarMetric
     private lazy var panelSelection = CombinedMenuBarPanelSelection(metric: currentPanel)
 
@@ -66,8 +69,7 @@ final class CombinedStatusItemController: NSObject {
     }
 
     func start() {
-        model.liveTick
-            .receive(on: RunLoop.main)
+        model.menuBarTick
             .sink { [weak self] _ in
                 self?.refreshImage()
                 self?.reconcileMenuClock()
@@ -115,6 +117,10 @@ final class CombinedStatusItemController: NSObject {
         statusItem = nil
         model.setGPUSamplingEnabled(false)
         gpuSamplingActive = false
+        if gpuPanelLive {
+            gpuPanelLive = false
+            model.removeGPUConsumer()
+        }
     }
 
     private func configurationChanged() {
@@ -289,14 +295,17 @@ final class CombinedStatusItemController: NSObject {
         case .energy: return .energy
         case .network: return .network
         case .disk: return .disk
-        case .gpu: return nil
+        case .gpu: return .gpu
         }
     }
 
     private func reconcileGPUSampling() {
-        let shouldSample =
-            configuration.selectedMetrics.contains(.gpu)
-            || (popover?.isShown == true && currentPanel == .gpu)
+        let panelLive = popover?.isShown == true && currentPanel == .gpu
+        if panelLive != gpuPanelLive {
+            gpuPanelLive = panelLive
+            if panelLive { model.addGPUConsumer() } else { model.removeGPUConsumer() }
+        }
+        let shouldSample = configuration.selectedMetrics.contains(.gpu) || panelLive
         guard shouldSample != gpuSamplingActive else { return }
         gpuSamplingActive = shouldSample
         model.setGPUSamplingEnabled(shouldSample)
@@ -304,7 +313,15 @@ final class CombinedStatusItemController: NSObject {
 
     private func reconcileMenuClock() {
         guard let popover else { return }
-        if popover.isShown { menuClock.open() } else { menuClock.close() }
+        if popover.isShown {
+            menuClock.open()
+        } else {
+            menuClock.close()
+            // Release the closed popover with its SwiftUI content: a retained
+            // hosting controller kept observing the menu lists and re-rendered
+            // the hidden panel on every table tick. The next open rebuilds it.
+            self.popover = nil
+        }
         reconcileGPUSampling()
     }
 }
