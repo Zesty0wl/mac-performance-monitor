@@ -434,7 +434,13 @@ enum HardwareNativeReaders {
         }
         var metal = "Metal"
         if device.supportsFamily(.metal3) { metal = "Metal 3" }
-        if #available(macOS 26.0, *), device.supportsFamily(.metal4) { metal = "Metal 4" }
+        // MTLGPUFamily.metal4 only exists in the macOS 26 SDK (Xcode 26, Swift 6.2);
+        // the #available check alone cannot keep an older SDK compiling.
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *), device.supportsFamily(.metal4) {
+            metal = "Metal 4"
+        }
+        #endif
         return (family, metal)
     }
 
@@ -554,7 +560,11 @@ enum HardwareNativeReaders {
         case .mode11n: return "802.11n (Wi-Fi 4)"
         case .mode11ac: return "802.11ac (Wi-Fi 5)"
         case .mode11ax: return "802.11ax (Wi-Fi 6)"
+        // CWPHYMode.mode11be only exists in the macOS 26 SDK; on older SDKs the
+        // @unknown default below still renders Wi-Fi 7 as "802.11 (mode 7)".
+        #if compiler(>=6.2)
         case .mode11be: return "802.11be (Wi-Fi 7)"
+        #endif
         @unknown default: return "802.11 (mode \(mode.rawValue))"
         }
     }
