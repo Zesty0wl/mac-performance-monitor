@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The first-run education flow (PRD 8.9). Three short, skippable screens that
@@ -8,6 +9,7 @@ import SwiftUI
 struct OnboardingView: View {
     @EnvironmentObject private var onboarding: OnboardingState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openWindow) private var openWindow
 
     @State private var page = 0
 
@@ -38,6 +40,10 @@ struct OnboardingView: View {
         // Reset the transient "config only" hint so a later manual replay from the
         // menu shows the full flow again.
         .onDisappear { onboarding.autoConfigOnly = false }
+        // On first run the scene system presents this window while the app is
+        // still a background accessory; without activation it opens behind
+        // whatever is frontmost and a new user sees nothing.
+        .onAppear { NSApp.activate(ignoringOtherApps: true) }
     }
 
     @ViewBuilder
@@ -65,7 +71,7 @@ struct OnboardingView: View {
 
     private var footer: some View {
         HStack {
-            Button("Skip") { finish() }
+            Button("Skip") { finish(openingDashboard: false) }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .opacity(isLastPage ? 0 : 1)
@@ -80,7 +86,7 @@ struct OnboardingView: View {
 
             Button(isLastPage ? "Get started" : "Next") {
                 if isLastPage {
-                    finish()
+                    finish(openingDashboard: true)
                 } else {
                     withOptionalAnimation { page += 1 }
                 }
@@ -91,10 +97,17 @@ struct OnboardingView: View {
 
     private var isLastPage: Bool { page >= steps.count - 1 }
 
-    private func finish() {
+    /// "Get started" hands the user the dashboard as the payoff (and as
+    /// insurance if they never spot the menu bar item); Skip means "leave me
+    /// alone" and opens nothing.
+    private func finish(openingDashboard: Bool) {
         onboarding.complete()
         onboarding.autoConfigOnly = false
         dismiss()
+        if openingDashboard {
+            openWindow(id: WindowID.main)
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     /// Animate page changes unless the user has asked for reduced motion.
@@ -440,6 +453,19 @@ private struct OnboardingMenuBarStep: View {
                     .labelsHidden()
                     .fixedSize()
                 }
+
+                Text(
+                    """
+                    \(AppInfo.displayName) lives in the menu bar: look for its read-out \
+                    near the clock. A crowded menu bar (or a MacBook's notch) can hide \
+                    it; quit another menu bar item to make room.
+                    """
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2)
             }
             .padding(.top, 4)
         }

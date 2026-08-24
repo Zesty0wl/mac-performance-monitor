@@ -164,6 +164,10 @@ struct MacPerfMonitorApp: App {
         }
         .windowResizability(.contentSize)
         .defaultPosition(.center)
+        // Until setup completes, the scene system itself presents the wizard at
+        // launch. The notification path below depends on a status item view
+        // being mounted before the post; this one has no such ordering to lose.
+        .defaultLaunchBehavior(appDelegate.onboarding.hasCompletedSetup ? .suppressed : .presented)
 
         // The Memory Inspector: one resizable window per inspected process,
         // keyed on a self-contained `InspectorTarget` value. It deliberately gets
@@ -471,20 +475,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         CheckCatalogStore.shared.refreshInBackground()
         ProcessGlossaryStore.shared.refreshInBackground()
 
-        // On first ever launch, surface the education flow so the menubar-first
-        // app still teaches its core idea even though no window opens
-        // automatically. Deferred so the menubar scene (which holds the
-        // `openWindow` action) is mounted and listening before the post.
-        // First run — or first run after updating to a build with the setup
-        // wizard — surface the wizard. New users get the education screens plus
+        // First run (or first run after updating to a build with the setup
+        // wizard): surface the wizard. New users get the education screens plus
         // the config steps; users who already saw the education get the config
-        // steps only. Deferred so the menubar scene (which holds the `openWindow`
-        // action) is mounted and listening before the post.
+        // steps only. The onboarding scene's `defaultLaunchBehavior` presents it
+        // on a cold first launch; this bridge request covers the update case and
+        // queues until a router view is mounted, so it cannot be dropped by
+        // launch ordering the way the old fire-once notification could.
         if !onboarding.hasCompletedSetup {
             onboarding.autoConfigOnly = onboarding.hasCompleted
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .macperfmonitorShowOnboarding, object: nil)
-            }
+            WindowOpenBridge.shared.open(id: WindowID.onboarding)
         }
 
         // Check for updates on every cold start (silent unless one is available),
@@ -643,7 +643,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         _ sender: NSApplication, hasVisibleWindows flag: Bool
     ) -> Bool {
         if !flag {
-            NotificationCenter.default.post(name: .macperfmonitorShowMainWindow, object: nil)
+            // Through the bridge, not a notification: a reopen that arrives
+            // before (or without) a mounted router view queues instead of
+            // vanishing, so `open`-ing the running app always ends in a window.
+            WindowOpenBridge.shared.open(id: WindowID.main)
         }
         return true
     }
@@ -737,6 +740,38 @@ struct MainWindowGate: View {
 /// The primary menubar item is now an AppKit `NSStatusItem` with no SwiftUI label
 /// (see `MemoryStatusItemController`), so the `openWindow`/`openSettings` actions
 /// that used to live on the `MenuBarExtra` label need another always-present home.
+/// Bridges AppKit-side window-open requests (the app delegate) to SwiftUI's
+/// `openWindow` action, which only exists inside a mounted view. A request that
+/// arrives before any `MenuBarWindowRouter` has registered is queued and flushed
+/// on registration, so launch ordering can no longer drop it the way a
+/// fire-once notification with no listener could.
+@MainActor
+final class WindowOpenBridge {
+    static let shared = WindowOpenBridge()
+
+    private var openAction: ((String) -> Void)?
+    private var pending: [String] = []
+
+    /// Called from `MenuBarWindowRouter.onAppear`; replays anything queued while
+    /// no router was mounted. Last registration wins, which is fine: every
+    /// router drives the same scene ids.
+    func register(_ action: @escaping (String) -> Void) {
+        openAction = action
+        let queued = pending
+        pending = []
+        queued.forEach(action)
+    }
+
+    /// Open a window scene by id now if a router is mounted, else queue it.
+    func open(id: String) {
+        if let openAction {
+            openAction(id)
+        } else {
+            pending.append(id)
+        }
+    }
+}
+
 /// `MemoryStatusItemController` hosts one of these inside its status item button
 /// (whose window is live), so the notifications posted by the popovers, the
 /// process actions, notification clicks, and reopen keep opening the right window.
@@ -749,6 +784,12 @@ struct MenuBarWindowRouter: View {
             .frame(width: 1, height: 1)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
+            .onAppear {
+                WindowOpenBridge.shared.register { id in
+                    openWindow(id: id)
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .macperfmonitorShowMainWindow)) {
                 _ in
                 openWindow(id: WindowID.main)

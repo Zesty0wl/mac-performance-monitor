@@ -158,3 +158,5 @@ fi
 echo "==> Launching"
 open "$APP"
 echo "Launched $APP"
+echo "Note: this is a menu bar app (no window, no Dock icon by default);"
+echo "look for its read-out near the clock at the right end of the menu bar."
