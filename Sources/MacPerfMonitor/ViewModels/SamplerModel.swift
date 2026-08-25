@@ -143,6 +143,9 @@ final class SamplerModel: ObservableObject {
     /// One-shot bypass of the dial gate, set by `requestImmediateTick` so an
     /// opening tab paints now instead of waiting out a slow dial.
     private var uiPublishPending = false
+    /// False until the first visible publish, so a cold start paints at once
+    /// rather than after one dial interval of blank surfaces.
+    private var didPublishUI = false
     /// The latest heavy scan's processes, carried between heavy ticks so the
     /// published snapshot always has a process list. Confined to `queue`.
     private var carriedProcesses: [ProcessSample] = []
@@ -803,6 +806,9 @@ final class SamplerModel: ObservableObject {
         uiEveryTicks = LiveRefreshCadence.tickCount(
             for: tableIntervalSeconds, baseInterval: interval)
         uiTickCounter = 0
+        // Publish once on the next tick so changing the dial shows its effect
+        // immediately rather than after one interval of the old rhythm.
+        didPublishUI = false
         // retention/checkpoint count persist() calls (one per scan-due tick), so
         // they key off the scan cadence.
         retentionEveryTicks = max(1, Int((60.0 / scan).rounded()))
@@ -964,6 +970,13 @@ final class SamplerModel: ObservableObject {
     private struct ScanJob {
         var scanDue: Bool
         var tableDue: Bool
+        /// Evaluate alerts when this scan lands: the table cadence, plus any
+        /// kernel-pressure-forced scan, so a spike alerts without waiting for
+        /// the dial.
+        var alertsDue: Bool
+        /// Publish visible figures (the in-place row patches between table
+        /// re-sorts). Dial-driven, never forced.
+        var publishUI: Bool
         var uiWantsProcesses: Bool
         var menuKinds: Set<MenuListKind>
     }
@@ -1014,9 +1027,16 @@ final class SamplerModel: ObservableObject {
         // `heavyEveryTicks`; the main-window UI publish/alerts run at the coarser
         // `tableEveryTicks` (the global Refresh dial), so 1 s logging never forces
         // the in-window table/cards to re-render every second.
+        // A kernel pressure event forces the SCAN and the alert evaluation, so
+        // a spike is caught the moment it happens. It deliberately does NOT
+        // force the visible republish: under sustained pressure the kernel
+        // signals repeatedly, and letting that drive the UI both ignored the
+        // Refresh dial (the table re-sorted on every event) and piled
+        // main-thread work onto a Mac that is already struggling.
         let force = forceHeavy || forceHeavyPending
         let scanDue = force || !hasProcessSnapshot || heavyTickCounter >= heavyEveryTicks
-        let tableDue = force || !hasProcessSnapshot || tableTickCounter >= tableEveryTicks
+        let tableDue = !hasProcessSnapshot || tableTickCounter >= tableEveryTicks
+        let alertsDue = force || tableDue
         let popoverDue =
             popoverOpen
             && (force || !hasProcessSnapshot || popoverTickCounter >= popoverEveryTicks)
@@ -1024,10 +1044,12 @@ final class SamplerModel: ObservableObject {
         // The dial gate for everything visible. An open popover pins it to
         // every tick (its live strips are the point of opening one), and an
         // immediate-tick request publishes once without waiting out the dial.
-        let uiDue = popoverOpen || force || uiPublishPending || uiTickCounter >= uiEveryTicks
+        let uiDue =
+            popoverOpen || uiPublishPending || !didPublishUI || uiTickCounter >= uiEveryTicks
         if uiDue {
             uiTickCounter = 0
             uiPublishPending = false
+            didPublishUI = true
         }
 
         // Publish the fresh system sample every tick, independent of any scan:
@@ -1117,8 +1139,8 @@ final class SamplerModel: ObservableObject {
             if !perAppNetworkEnabled { menuKinds.remove(.network) }
         }
         let job = ScanJob(
-            scanDue: scanDue, tableDue: tableDue, uiWantsProcesses: uiWantsProcesses,
-            menuKinds: menuKinds)
+            scanDue: scanDue, tableDue: tableDue, alertsDue: alertsDue, publishUI: uiDue,
+            uiWantsProcesses: uiWantsProcesses, menuKinds: menuKinds)
         // The database row rides the scan queue too, so the timer queue never
         // waits on the ~15 ms insert. Decided here, where the persist clock
         // lives: at most every `persistMinInterval`, decoupled from the table
@@ -1190,7 +1212,7 @@ final class SamplerModel: ObservableObject {
         // retention cadences count scan-due ticks here. Alert evaluation
         // follows the table cadence.
         if job.scanDue { runPersistenceMaintenance(snapshot) }
-        if job.tableDue { evaluateAlerts(snapshot) }
+        if job.alertsDue { evaluateAlerts(snapshot) }
         guard job.uiWantsProcesses else { return }
 
         // Trails freeze while nothing consumes the scan (full-mode recording
@@ -1225,7 +1247,7 @@ final class SamplerModel: ObservableObject {
                 self.latest = snapshot
                 self.pruneTerminated()
                 self.rebuildDisplayProcesses(live: processes, smoothed: smoothed)
-            } else if !self.displayProcesses.isEmpty {
+            } else if job.publishUI, !self.displayProcesses.isEmpty {
                 var patches: [ProcessIdentity: ProcessSample] = [:]
                 patches.reserveCapacity(processes.count)
                 for process in processes {
