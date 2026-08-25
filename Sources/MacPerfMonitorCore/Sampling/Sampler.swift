@@ -836,7 +836,7 @@ public final class Sampler {
             purgeableBytes: vm?.purgeable ?? 0
         )
 
-        return SystemSample(
+        var sample = SystemSample(
             timestamp: now,
             totalRAM: totalRAM,
             free: vm?.free ?? 0,
@@ -882,14 +882,25 @@ public final class Sampler {
             gpuUtilization: gpu?.utilization,
             gpuPowerWatts: gpu?.gpuPowerWatts,
             anePowerWatts: gpu?.anePowerWatts,
-            cpuDieC: thermal?.cpuDieMaxC,
-            gpuDieC: thermal?.gpuDieMaxC,
-            ssdTemperatureC: thermal?.ssdMaxC,
-            fanRPM: thermal?.primaryFanRPM.map(Double.init),
             // Public API, no SMC involved: read every tick so the throttling
             // record survives even when no thermal surface is active.
             thermalPressure: ThermalPressureState(ProcessInfo.processInfo.thermalState)
         )
+        // Assigned rather than passed: the memberwise call is already at the
+        // type checker's practical limit, and every one of these is a plain
+        // optional copy.
+        sample.cpuDieC = thermal?.cpuDieMaxC
+        sample.gpuDieC = thermal?.gpuDieMaxC
+        sample.ssdTemperatureC = thermal?.ssdMaxC
+        sample.fanRPM = thermal?.primaryFanRPM.map(Double.init)
+        sample.cpuPCoreDieC = thermal?.cpuPCoreMaxC
+        sample.cpuECoreDieC = thermal?.cpuECoreMaxC
+        sample.airflowC = thermal?.airflowMaxC
+        sample.skinC = thermal?.skinMaxC
+        sample.wirelessC = thermal?.wirelessMaxC
+        sample.voltageRailC = thermal?.voltageRailMaxC
+        sample.otherSensorC = thermal?.otherMaxC
+        return sample
     }
 
 }

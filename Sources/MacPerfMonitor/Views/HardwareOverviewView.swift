@@ -356,7 +356,10 @@ struct HardwareOverviewView: View {
             guard appState.mainWindowVisible else { return }
             sensorLive.sweepIfDue(floor: detailGroup == nil ? 5 : 2)
         }
-        .onAppear { sensorLive.sweepIfDue() }
+        .onAppear {
+            sensorLive.seedFromHistory(sampler)
+            sensorLive.sweepIfDue()
+        }
         .sheet(item: $detailGroup) { selection in
             SensorDetailSheet(store: sensorLive, groupName: selection.name)
         }
@@ -427,6 +430,39 @@ private final class SensorLiveStore: ObservableObject {
     private let reader = SensorInventoryReader()
     private var lastSweep: Date?
     private var inFlight = false
+    private var didSeed = false
+
+    /// Seed every chart from the recorded history so a restart resumes the
+    /// trend instead of starting blank. Groups with no persisted column, and a
+    /// database that predates them, simply stay empty and fill from the live
+    /// sweeps. Safe to call repeatedly; only the first call reads.
+    func seedFromHistory(_ model: SamplerModel) {
+        guard !didSeed else { return }
+        didSeed = true
+        model.loadRecentSystemHistory(seconds: Self.chartSpan) { [weak self] points in
+            guard let self, !points.isEmpty else { return }
+            var seeded: [String: [MetricSample]] = [:]
+            for group in HardwareFacts.SensorGroup.displayOrder {
+                let series = points.compactMap { point in
+                    HardwareFacts.SensorGroup.recordedValue(group, in: point)
+                        .map { MetricSample(date: point.date, value: $0) }
+                }
+                if !series.isEmpty { seeded[group] = series }
+            }
+            let fanSeries = points.compactMap { point in
+                point.fanRPM.map { MetricSample(date: point.date, value: $0) }
+            }
+            if !fanSeries.isEmpty { seeded[Self.fansKey] = fanSeries }
+            guard !seeded.isEmpty else { return }
+            // Live sweeps may have landed while the read was in flight; keep
+            // any samples newer than the seed rather than dropping them.
+            for (key, series) in seeded {
+                let seedEnd = series.last?.date ?? .distantPast
+                let live = (self.samples[key] ?? []).filter { $0.date > seedEnd }
+                self.samples[key] = series + live
+            }
+        }
+    }
 
     /// `floor` is the minimum interval between SMC sweeps: the card row uses
     /// 5 s, and the open detail sheet tightens it so its rows track closer to

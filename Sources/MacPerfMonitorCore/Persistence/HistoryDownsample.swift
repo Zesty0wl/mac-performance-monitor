@@ -147,7 +147,14 @@ extension Array where Element == SystemHistoryPoint {
                     ssdTemperatureC: omax { $0.ssdTemperatureC },
                     fanRPM: omax { $0.fanRPM },
                     // Worst pressure in the bucket, for the same reason.
-                    thermalPressure: slice.compactMap(\.thermalPressure).max()
+                    thermalPressure: slice.compactMap(\.thermalPressure).max(),
+                    cpuPCoreDieC: omax { $0.cpuPCoreDieC },
+                    cpuECoreDieC: omax { $0.cpuECoreDieC },
+                    airflowC: omax { $0.airflowC },
+                    skinC: omax { $0.skinC },
+                    wirelessC: omax { $0.wirelessC },
+                    voltageRailC: omax { $0.voltageRailC },
+                    otherSensorC: omax { $0.otherSensorC }
                 ))
             i = j
         }

@@ -15,6 +15,37 @@ public struct SensorValue: Sendable, Equatable, Identifiable {
     public var id: String { key }
 }
 
+extension HardwareFacts.SensorGroup {
+    /// The recorded series for a display group, so a sensor chart can seed
+    /// itself from the log instead of starting empty on every launch. Nil for
+    /// groups with no persisted column (nothing is invented).
+    public static func recordedValue(
+        _ group: String, in point: SystemHistoryPoint
+    ) -> Double? {
+        switch group {
+        case SMCReader.groupCPUPCores: return point.cpuPCoreDieC
+        case SMCReader.groupCPUECores: return point.cpuECoreDieC
+        case SMCReader.groupGPU: return point.gpuDieC
+        case SMCReader.groupSSD: return point.ssdTemperatureC
+        case SMCReader.groupBattery:
+            return point.batteryTemperatureCelsius > 0 ? point.batteryTemperatureCelsius : nil
+        case SMCReader.groupAirflow: return point.airflowC
+        case SMCReader.groupSkin: return point.skinC
+        case SMCReader.groupWireless: return point.wirelessC
+        case SMCReader.groupVoltageRails: return point.voltageRailC
+        case SMCReader.groupOther: return point.otherSensorC
+        default: return nil
+        }
+    }
+
+    /// The fan series' key in the same lookup, kept beside the groups so the
+    /// Fans chart seeds the same way.
+    public static let fansKey = "Fans"
+
+    /// Every display group, in the order surfaces should present them.
+    public static let displayOrder: [String] = SMCReader.sensorGroupOrder
+}
+
 public final class SensorInventoryReader {
     private let reader = SMCReader()
 

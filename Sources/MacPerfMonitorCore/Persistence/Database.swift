@@ -188,6 +188,14 @@ public enum MacPerfMonitorDatabase {
         migrator.registerMigration("v14-thermal") { db in
             try db.execute(sql: Schema.v14)
         }
+        // Per-domain sensor temperatures: the rest of the sensor groups the
+        // Hardware tab charts (P and E core die separately, airflow, skin,
+        // wireless, voltage rails, and the unidentified tail). Without these
+        // those charts could only ever show the current session, losing their
+        // trend on every restart. Max rollups, like the other thermal columns.
+        migrator.registerMigration("v15-sensor-domains") { db in
+            try db.execute(sql: Schema.v15)
+        }
         return migrator
     }
 }
@@ -583,6 +591,32 @@ enum Schema {
         ALTER TABLE system_hour ADD COLUMN fan_rpm_avg REAL;
         ALTER TABLE system_hour ADD COLUMN fan_rpm_max REAL;
         ALTER TABLE system_hour ADD COLUMN thermal_state_max INTEGER;
+        """
+
+    static let v15 = """
+        ALTER TABLE system_samples ADD COLUMN cpu_p_die REAL;
+        ALTER TABLE system_samples ADD COLUMN cpu_e_die REAL;
+        ALTER TABLE system_samples ADD COLUMN airflow_temp REAL;
+        ALTER TABLE system_samples ADD COLUMN skin_temp REAL;
+        ALTER TABLE system_samples ADD COLUMN wireless_temp REAL;
+        ALTER TABLE system_samples ADD COLUMN vrail_temp REAL;
+        ALTER TABLE system_samples ADD COLUMN other_temp REAL;
+
+        ALTER TABLE system_minute ADD COLUMN cpu_p_die_max REAL;
+        ALTER TABLE system_minute ADD COLUMN cpu_e_die_max REAL;
+        ALTER TABLE system_minute ADD COLUMN airflow_temp_max REAL;
+        ALTER TABLE system_minute ADD COLUMN skin_temp_max REAL;
+        ALTER TABLE system_minute ADD COLUMN wireless_temp_max REAL;
+        ALTER TABLE system_minute ADD COLUMN vrail_temp_max REAL;
+        ALTER TABLE system_minute ADD COLUMN other_temp_max REAL;
+
+        ALTER TABLE system_hour ADD COLUMN cpu_p_die_max REAL;
+        ALTER TABLE system_hour ADD COLUMN cpu_e_die_max REAL;
+        ALTER TABLE system_hour ADD COLUMN airflow_temp_max REAL;
+        ALTER TABLE system_hour ADD COLUMN skin_temp_max REAL;
+        ALTER TABLE system_hour ADD COLUMN wireless_temp_max REAL;
+        ALTER TABLE system_hour ADD COLUMN vrail_temp_max REAL;
+        ALTER TABLE system_hour ADD COLUMN other_temp_max REAL;
         """
 }
 

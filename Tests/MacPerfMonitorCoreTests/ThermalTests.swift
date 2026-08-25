@@ -6,33 +6,39 @@ final class ThermalTests: XCTestCase {
     // MARK: - Key classification
 
     func testDieKeysClassifyByPrefix() {
-        XCTAssertEqual(SMCReader.domain(forKeyName: "Tp05"), .cpuDie)
-        XCTAssertEqual(SMCReader.domain(forKeyName: "Tp1K"), .cpuDie)
-        XCTAssertEqual(SMCReader.domain(forKeyName: "Te0S"), .cpuDie)
-        XCTAssertEqual(SMCReader.domain(forKeyName: "Tg0D"), .gpuDie)
-        XCTAssertEqual(SMCReader.domain(forKeyName: "Tg1l"), .gpuDie)
-        XCTAssertEqual(SMCReader.domain(forKeyName: "TH0x"), .ssd)
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "Tp05"), SMCReader.groupCPUPCores)
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "Tp1K"), SMCReader.groupCPUPCores)
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "Te0S"), SMCReader.groupCPUECores)
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "Tg0D"), SMCReader.groupGPU)
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "Tg1l"), SMCReader.groupGPU)
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "TH0x"), SMCReader.groupSSD)
+        for name in ["Tp05", "Te0S", "Tg0D"] {
+            XCTAssertTrue(SMCReader.isDieGroup(SMCReader.sensorGroup(forKeyName: name)), name)
+        }
     }
 
     /// TV* keys are voltage rails, not die sensors. The SMC enumerates keys
     /// sorted with uppercase before lowercase, so a TV-accepting discovery
     /// with a 12-key cap filled every slot with voltage rails on M3 Pro and
-    /// the reported "die temperature" never included a die sensor.
-    func testVoltageRailKeysAreExcluded() {
+    /// the reported "die temperature" never included a die sensor. They are
+    /// still surfaced, in their own group, but can never feed a die figure.
+    func testVoltageRailKeysAreNeverDie() {
         for name in ["TVA0", "TVD0", "TVHE", "TVHF", "TVS0", "TVSx", "TVMD"] {
-            XCTAssertNil(SMCReader.domain(forKeyName: name), name)
+            XCTAssertEqual(
+                SMCReader.sensorGroup(forKeyName: name), SMCReader.groupVoltageRails, name)
+            XCTAssertFalse(SMCReader.isDieGroup(SMCReader.sensorGroup(forKeyName: name)), name)
         }
     }
 
     /// Case is load-bearing: TG0* (uppercase) keys are battery-adjacent ioft
     /// readings, TE*/TP* style names are not die sensors, and Th*/Ts* are
     /// board and skin sensors.
-    func testNonDieFamiliesAreExcluded() {
+    func testNonDieFamiliesAreNeverDie() {
         for name in [
             "TG0B", "TG0V", "TED0", "TFD0", "TB0T", "TW0P", "Ta04", "TaLP",
-            "Th00", "Ts0P", "Tz11", "TCMz", "Tf16", "TR0Z", "F0Ac", "#KEY",
+            "Th00", "Ts0P", "Tz11", "TCMz", "Tf16", "TR0Z",
         ] {
-            XCTAssertNil(SMCReader.domain(forKeyName: name), name)
+            XCTAssertFalse(SMCReader.isDieGroup(SMCReader.sensorGroup(forKeyName: name)), name)
         }
     }
 
@@ -119,6 +125,23 @@ final class ThermalTests: XCTestCase {
         XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "TW0P"), "Wireless")
         XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "TVHE"), "Voltage rails")
         XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "TCMz"), "Other")
+        // The display order the surfaces iterate must cover every group the
+        // classifier can return, or a domain would silently never chart.
+        XCTAssertEqual(Set(HardwareFacts.SensorGroup.displayOrder).count, 10)
+        // The figures a user watches tick at the full read rate; the slow tail
+        // (an extra ~190 keys) rides its own longer cadence.
+        for group in [
+            SMCReader.groupCPUPCores, SMCReader.groupCPUECores, SMCReader.groupGPU,
+            SMCReader.groupSSD, SMCReader.groupBattery,
+        ] {
+            XCTAssertTrue(SMCReader.isFastGroup(group), group)
+        }
+        for group in [
+            SMCReader.groupAirflow, SMCReader.groupSkin, SMCReader.groupWireless,
+            SMCReader.groupVoltageRails, SMCReader.groupOther,
+        ] {
+            XCTAssertFalse(SMCReader.isFastGroup(group), group)
+        }
         // Every group name has a display position.
         let names = [
             "Tp00", "Te00", "Tg00", "TH0a", "TB1T", "TaRF", "Ts00", "TW0P", "TVS0", "Tf16",
@@ -160,6 +183,16 @@ final class ThermalTests: XCTestCase {
         }
         if let gpu = sample.gpuDieMaxC { XCTAssertTrue(SMCReader.isPlausibleReading(gpu)) }
         if let ssd = sample.ssdMaxC { XCTAssertTrue(SMCReader.isPlausibleReading(ssd)) }
+        // The headline die figure is exactly the hotter of the two clusters,
+        // never a rail or a board sensor.
+        let clusters = [sample.cpuPCoreMaxC, sample.cpuECoreMaxC].compactMap { $0 }
+        XCTAssertEqual(sample.cpuDieMaxC, clusters.max())
+        for value in [
+            sample.airflowMaxC, sample.skinMaxC, sample.wirelessMaxC, sample.voltageRailMaxC,
+            sample.otherMaxC, sample.batteryMaxC,
+        ].compactMap({ $0 }) {
+            XCTAssertTrue(SMCReader.isPlausibleReading(value))
+        }
         for fan in sample.fans {
             XCTAssertGreaterThanOrEqual(fan.rpm, 0)
             XCTAssertLessThan(fan.rpm, 20000)
