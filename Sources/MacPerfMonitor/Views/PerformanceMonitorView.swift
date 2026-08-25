@@ -46,6 +46,10 @@ struct PerformanceMonitorView: View {
     /// Raw per-process points backing every metric; the chart derives the
     /// selected metric (and the disk rate) from these on the fly.
     @State private var rawSeries: [ProcessIdentity: [ProcessHistoryPoint]] = [:]
+    /// System history backing the temperature cell (CPU and GPU die). Loaded
+    /// alongside the per-process series for the same span; on aggregate spans
+    /// the points carry the bucket max, so zoomed-out charts keep the spikes.
+    @State private var thermalHistory: [SystemHistoryPoint] = []
 
     /// The chart-ready series per metric, rebuilt only when the underlying data
     /// changes (`rebuildChartSeries()`), never during a body evaluation. Deriving
@@ -222,7 +226,8 @@ struct PerformanceMonitorView: View {
         VStack(spacing: 12) {
             if trackPerAppNetwork {
                 // Per-app network is on, so the per-process network chart is
-                // meaningful: a 3 + 2 grid with a filler to keep cells equal width.
+                // meaningful: a 3 + 3 grid, with the temperature cell (when the
+                // machine has thermal data) taking the filler slot.
                 HStack(spacing: 12) {
                     metricCell(.memory)
                     metricCell(.cpu)
@@ -231,11 +236,16 @@ struct PerformanceMonitorView: View {
                 HStack(spacing: 12) {
                     metricCell(.fileDescriptors)
                     metricCell(.diskIO)
-                    Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if showsThermalCell {
+                        metricCell(.dieTemperature)
+                    } else {
+                        Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
             } else {
                 // Without per-app data the network chart would be a flat zero, so
-                // omit it and keep the original 2 x 2 grid.
+                // omit it and keep the 2-wide grid, with temperature (when
+                // present) on its own row.
                 HStack(spacing: 12) {
                     metricCell(.memory)
                     metricCell(.cpu)
@@ -243,6 +253,12 @@ struct PerformanceMonitorView: View {
                 HStack(spacing: 12) {
                     metricCell(.fileDescriptors)
                     metricCell(.diskIO)
+                }
+                if showsThermalCell {
+                    HStack(spacing: 12) {
+                        metricCell(.dieTemperature)
+                        Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
             }
         }
@@ -952,6 +968,11 @@ struct PerformanceMonitorView: View {
         let domain = visibleDomain
         let visibleSpan = domain.upperBound.timeIntervalSince(domain.lowerBound)
         let bucketWidth = visibleSpan / Double(Self.maxPointsFocused)
+        if metric == .dieTemperature {
+            focusedSeries = thermalSeries(domain: domain, bucketWidth: bucketWidth)
+            rebuildFocusedStats()
+            return
+        }
         let detail = activeDetail
         focusedSeries = selected.compactMap {
             buildSeries(
@@ -1064,15 +1085,70 @@ struct PerformanceMonitorView: View {
         let bucketWidth = visibleSpan / Double(Self.maxPointsPerSeries)
         let detail = activeDetail
         var result: [PerfMetric: [PerfSeries]] = [:]
-        for metric in PerfMetric.allCases {
+        for metric in PerfMetric.processMetrics {
             result[metric] = selected.compactMap {
                 buildSeries(
                     id: $0, metric: metric, domain: domain,
                     bucketWidth: bucketWidth, detail: detail)
             }
         }
+        result[.dieTemperature] = thermalSeries(domain: domain, bucketWidth: bucketWidth)
         seriesByMetric = result
         rebuildFocusedSeries()
+    }
+
+    // MARK: - System temperature series
+
+    /// Synthetic identities for the two system series, so the temperature cell
+    /// rides the same `PerfSeries` machinery (colors, scrubbing, focus, stats)
+    /// as the per-process charts. Negative pids cannot collide with a real
+    /// process.
+    private static let cpuDieIdentity = ProcessIdentity(
+        pid: -1, startTime: Date(timeIntervalSince1970: 0))
+    private static let gpuDieIdentity = ProcessIdentity(
+        pid: -2, startTime: Date(timeIntervalSince1970: 0))
+
+    private func thermalSeries(
+        domain: ClosedRange<Date>, bucketWidth: TimeInterval
+    ) -> [PerfSeries] {
+        func series(
+            _ id: ProcessIdentity, _ name: String, _ color: Color,
+            _ value: (SystemHistoryPoint) -> Double?
+        ) -> PerfSeries? {
+            let points = PerfSeriesBuilder.downsample(
+                thermalPoints(in: domain, value: value), bucketWidth: bucketWidth)
+            guard !points.isEmpty else { return nil }
+            return PerfSeries(id: id, name: name, color: color, points: points)
+        }
+        return [
+            series(Self.cpuDieIdentity, "CPU die", ThermalStyle.cpu) { $0.cpuDieC },
+            series(Self.gpuDieIdentity, "GPU die", ThermalStyle.gpu) { $0.gpuDieC },
+        ].compactMap { $0 }
+    }
+
+    /// The thermal points inside `domain` with one sample of edge padding on
+    /// each side, so lines extend past the plot edges like the process series.
+    private func thermalPoints(
+        in domain: ClosedRange<Date>, value: (SystemHistoryPoint) -> Double?
+    ) -> [PerfPoint] {
+        let all = thermalHistory.compactMap { point in
+            value(point).map { PerfPoint(date: point.date, value: $0) }
+        }
+        guard !all.isEmpty else { return [] }
+        var first = all.startIndex
+        while first < all.endIndex, all[first].date < domain.lowerBound { first += 1 }
+        var last = all.endIndex - 1
+        while last >= all.startIndex, all[last].date > domain.upperBound { last -= 1 }
+        let paddedFirst = max(all.startIndex, first - 1)
+        let paddedLast = min(all.endIndex - 1, last + 1)
+        guard paddedFirst <= paddedLast else { return [] }
+        return Array(all[paddedFirst...paddedLast])
+    }
+
+    /// True once any thermal sample exists in the loaded window, so Macs with
+    /// no readable SMC (or pre-thermal databases) keep the original grid.
+    private var showsThermalCell: Bool {
+        !(seriesByMetric[.dieTemperature] ?? []).isEmpty
     }
 
     /// Slice one process's backing points to `domain` (preferring the fetched
@@ -1120,6 +1196,22 @@ struct PerformanceMonitorView: View {
             return
         }
         let domain = visibleDomain
+        if metric == .dieTemperature {
+            typealias ThermalSource = (
+                id: ProcessIdentity, name: String, color: Color,
+                value: (SystemHistoryPoint) -> Double?
+            )
+            let sources: [ThermalSource] = [
+                (Self.cpuDieIdentity, "CPU die", ThermalStyle.cpu, { $0.cpuDieC }),
+                (Self.gpuDieIdentity, "GPU die", ThermalStyle.gpu, { $0.gpuDieC }),
+            ]
+            focusedStats = sources.compactMap { id, name, color, value in
+                let points = thermalPoints(in: domain, value: value)
+                    .filter { domain.contains($0.date) }
+                return SeriesStat(points: points, id: id, name: name, color: color)
+            }
+            return
+        }
         let detail = activeDetail
         focusedStats = selected.compactMap { id in
             let points = windowPoints(id: id, metric: metric, domain: domain, detail: detail)
@@ -1132,6 +1224,7 @@ struct PerformanceMonitorView: View {
 
     private func reload(spinner: Bool = false) {
         now = latestSampleDate
+        reloadThermal()
         if span.isLive {
             // Seed immediately from the in-memory trail so there is something to
             // draw at once...
@@ -1196,11 +1289,47 @@ struct PerformanceMonitorView: View {
         }
     }
 
+    /// Load the system history behind the temperature cell for the active span.
+    /// The live span reads the raw store (persistence may lag the newest tick;
+    /// `appendTick` stitches the live edge on top either way).
+    private func reloadThermal() {
+        let requested = span
+        if let window = requested.window {
+            model.loadSystemHistory(window, downsampledTo: nil) { points in
+                guard requested == self.span else { return }
+                self.thermalHistory = points
+                self.rebuildChartSeries()
+            }
+        } else {
+            model.loadRecentSystemHistory(seconds: requested.seconds + 30) { points in
+                guard requested == self.span else { return }
+                self.thermalHistory = points
+                self.rebuildChartSeries()
+            }
+        }
+    }
+
     /// Append the current live sample of each selected process to the right edge
     /// of its series, trimming to the active window. Drives both the live stream
     /// and the fresh right edge of the historical spans between reloads.
     private func appendTick() {
         var changed = false
+        if let live = model.liveSystem, live.cpuDieC != nil,
+            thermalHistory.last.map({ live.timestamp > $0.date }) ?? true
+        {
+            var point = SystemHistoryPoint(
+                date: live.timestamp, pressurePercent: live.pressurePercent,
+                appMemory: live.appMemory, wired: live.wired, compressed: live.compressed,
+                cachedFiles: live.cachedFiles, swapUsed: live.swapUsed)
+            point.cpuDieC = live.cpuDieC
+            point.gpuDieC = live.gpuDieC
+            let cutoff = now.addingTimeInterval(-span.seconds)
+            thermalHistory.append(point)
+            if thermalHistory.first.map({ $0.date < cutoff }) ?? false {
+                thermalHistory.removeAll { $0.date < cutoff }
+            }
+            changed = true
+        }
         for id in selected {
             // Read the newest point from the in-memory trail, which advances at the
             // scan cadence (~high-res), not `latest.processes` (the coarser table

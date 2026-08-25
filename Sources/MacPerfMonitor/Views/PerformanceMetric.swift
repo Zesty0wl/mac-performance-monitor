@@ -10,8 +10,15 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
     case network
     case fileDescriptors
     case diskIO
+    case dieTemperature
 
     var id: String { rawValue }
+
+    /// The per-process metrics. `dieTemperature` is a system-wide series (CPU
+    /// and GPU die, the whole Mac): its cell charts system history rather than
+    /// the selected processes, so trace export/import and every per-process
+    /// loop iterate this list instead of `allCases`.
+    static let processMetrics: [PerfMetric] = [.memory, .cpu, .network, .fileDescriptors, .diskIO]
 
     var label: String {
         switch self {
@@ -20,6 +27,7 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
         case .network: return "Network"
         case .fileDescriptors: return "File descriptors"
         case .diskIO: return "Disk I/O"
+        case .dieTemperature: return "Temperature"
         }
     }
 
@@ -31,6 +39,7 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
         case .network: return "Network"
         case .fileDescriptors: return "Files"
         case .diskIO: return "Disk"
+        case .dieTemperature: return "Temp"
         }
     }
 
@@ -41,6 +50,7 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
         case .network: return "network"
         case .fileDescriptors: return "doc.on.doc"
         case .diskIO: return "internaldrive"
+        case .dieTemperature: return "thermometer.medium"
         }
     }
 
@@ -52,6 +62,7 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
         case .network: return "Download + upload throughput (per-app tracking required)"
         case .fileDescriptors: return "Open files, sockets, and pipes"
         case .diskIO: return "Read + write throughput between ticks"
+        case .dieTemperature: return "CPU and GPU die, hottest sensor (whole Mac)"
         }
     }
 
@@ -65,6 +76,9 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
         case .network: return 1
         case .fileDescriptors: return 10
         case .diskIO: return 1
+        // Die sensors idle in the 30s to 50s; a 60 floor keeps a cool Mac's
+        // line low in the plot instead of auto-fit magnifying idle noise.
+        case .dieTemperature: return 60
         }
     }
 
@@ -82,6 +96,8 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
             return String(format: "%.0f", v)
         case .diskIO:
             return "\(ByteFormat.string(Self.clampedByteCount(v)))/s"
+        case .dieTemperature:
+            return String(format: "%.0f°C", v)
         }
     }
 
@@ -124,6 +140,10 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
                 out.append(PerfPoint(date: cur.date, value: (readDelta + writeDelta) / dt))
             }
             return out
+        case .dieTemperature:
+            // System metric: its series come from system history, never from a
+            // per-process projection.
+            return []
         }
     }
 
@@ -170,6 +190,8 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
                 previous = point
             }
             return output
+        case .dieTemperature:
+            return []
         }
     }
 
@@ -182,6 +204,7 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
         case .network: return s.networkBytesPerSec
         case .fileDescriptors: return Double(s.fdTotal)
         case .diskIO: return Double(s.diskBytesRead &+ s.diskBytesWritten)
+        case .dieTemperature: return 0
         }
     }
 
@@ -193,6 +216,7 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
         case .network: return ByteFormat.rate(s.networkBytesPerSec)
         case .fileDescriptors: return "\(s.fdTotal)"
         case .diskIO: return ByteFormat.string(s.diskBytesRead &+ s.diskBytesWritten)
+        case .dieTemperature: return ""
         }
     }
 }

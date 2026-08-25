@@ -171,7 +171,7 @@ enum PerfSeriesBuilder {
     ) -> [PerfMetric: [PerfPoint]]? {
         guard bucketWidth > 0, points.count > 2 else {
             return Dictionary(
-                uniqueKeysWithValues: PerfMetric.allCases.map {
+                uniqueKeysWithValues: PerfMetric.processMetrics.map {
                     ($0, $0.points(from: points))
                 })
         }
@@ -262,6 +262,8 @@ enum PerfSeriesBuilder {
                 } else {
                     value = nil
                 }
+            case .dieTemperature:
+                value = nil
             }
             if let value { accumulator.append(PerfPoint(date: date, value: value)) }
             previous = point
@@ -311,6 +313,8 @@ enum PerfSeriesBuilder {
                 } else {
                     value = nil
                 }
+            case .dieTemperature:
+                value = nil
             }
             previous = point
 

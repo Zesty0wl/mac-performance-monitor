@@ -77,7 +77,7 @@ final class TraceProjectionWorker: @unchecked Sendable {
                 uniqueKeysWithValues: document.processes.map { ($0.identity, $0) })
 
             var grid: [PerfMetric: [TracePreparedSeries]] = Dictionary(
-                uniqueKeysWithValues: PerfMetric.allCases.map { ($0, []) })
+                uniqueKeysWithValues: PerfMetric.processMetrics.map { ($0, []) })
             var focused: [TracePreparedSeries] = []
             var stats: [TracePreparedStat] = []
             let visibleSpan = domain.upperBound.timeIntervalSince(domain.lowerBound)
@@ -116,7 +116,7 @@ final class TraceProjectionWorker: @unchecked Sendable {
                         let projected = PerfSeriesBuilder.traceDownsampled(
                             slice, bucketWidth: width, isCancelled: cancelled)
                     else { return }
-                    for metric in PerfMetric.allCases {
+                    for metric in PerfMetric.processMetrics {
                         guard let points = projected[metric], !points.isEmpty else { continue }
                         grid[metric, default: []].append(
                             TracePreparedSeries(
@@ -191,11 +191,11 @@ struct TraceViewerPreparation: Sendable {
             fullDomain.upperBound.timeIntervalSince(fullDomain.lowerBound)
             / Double(Self.maximumGridPoints)
         var prepared: [PerfMetric: [TracePreparedSeries]] = Dictionary(
-            uniqueKeysWithValues: PerfMetric.allCases.map { ($0, []) })
+            uniqueKeysWithValues: PerfMetric.processMetrics.map { ($0, []) })
         for series in document.processes where activeSet.contains(series.identity) {
             let projected = PerfSeriesBuilder.traceDownsampled(
                 series.points[...], bucketWidth: width)
-            for metric in PerfMetric.allCases {
+            for metric in PerfMetric.processMetrics {
                 guard let points = projected[metric], !points.isEmpty else { continue }
                 prepared[metric, default: []].append(
                     TracePreparedSeries(
