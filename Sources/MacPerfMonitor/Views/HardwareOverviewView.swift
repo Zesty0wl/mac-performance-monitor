@@ -8,6 +8,9 @@ import SwiftUI
 /// radios and buses, and the running software. Every card opens its section.
 struct HardwareOverviewView: View {
     @ObservedObject var model: HardwareExplorerModel
+    @EnvironmentObject private var sampler: SamplerModel
+    @EnvironmentObject private var appState: AppState
+    @StateObject private var sensorLive = SensorLiveStore()
 
     private var facts: HardwareFacts { model.facts }
 
@@ -284,57 +287,62 @@ struct HardwareOverviewView: View {
 
     // MARK: - Sensors
 
-    /// Every readable temperature sensor as one heat tile, grouped by domain,
-    /// hottest first. A refresh-time snapshot like the rest of the page; the
-    /// live thermal story is the Energy tab's.
+    /// Every readable temperature sensor, one quarter-width mini card per
+    /// domain: hottest figure plus a heat strip with one equal segment per
+    /// sensor (a strip divides the width, so a sensor can never wrap). Live:
+    /// the strips re-read the SMC on the app's refresh cycle while this page
+    /// is visible; the Refresh snapshot only seeds the first paint.
     private var sensorsCard: some View {
         HardwarePanel(
             "Sensors", systemImage: "thermometer.medium", action: { model.selectedID = "sensors" }
         ) {
+            let groups = sensorLive.groups.isEmpty ? (facts.sensorGroups ?? []) : sensorLive.groups
+            let fans = sensorLive.groups.isEmpty ? (facts.fanRPMs ?? []) : sensorLive.fans
             VStack(alignment: .leading, spacing: 10) {
-                if let groups = facts.sensorGroups {
-                    if groups.isEmpty {
-                        Text("No readable temperature sensors on this Mac.")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        SensorHeatGrid(groups: groups)
-                        HStack(spacing: 8) {
-                            Text("20\u{00B0}C").font(.caption2).foregroundStyle(.secondary)
-                            LinearGradient(
-                                colors: SensorHeat.legend, startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                            .frame(width: 120, height: 6)
-                            .clipShape(Capsule())
-                            Text("100\u{00B0}C").font(.caption2).foregroundStyle(.secondary)
-                            Spacer(minLength: 8)
-                            if let fans = facts.fanRPMs, !fans.isEmpty {
-                                Text(fanSummary(fans))
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
+                if groups.isEmpty, facts.sensorGroups != nil {
+                    Text("No readable temperature sensors on this Mac.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else if groups.isEmpty {
+                    pending
+                } else {
+                    LazyVGrid(
+                        columns: Array(
+                            repeating: GridItem(.flexible(), spacing: 10, alignment: .top),
+                            count: 4),
+                        alignment: .leading, spacing: 10
+                    ) {
+                        ForEach(groups, id: \.name) { group in
+                            SensorMiniCard(group: group)
                         }
-                        Text(
-                            "One tile per sensor, hottest first. High die temperatures under "
-                                + "load are normal; the Energy tab keeps the thermal history."
+                        if !fans.isEmpty {
+                            FanMiniCard(rpms: fans)
+                        }
+                    }
+                    HStack(spacing: 8) {
+                        Text("20\u{00B0}C").font(.caption2).foregroundStyle(.secondary)
+                        LinearGradient(
+                            colors: SensorHeat.legend, startPoint: .leading, endPoint: .trailing
                         )
-                        .font(.caption)
+                        .frame(width: 120, height: 6)
+                        .clipShape(Capsule())
+                        Text("100\u{00B0}C").font(.caption2).foregroundStyle(.secondary)
+                        Spacer(minLength: 8)
+                        Text(
+                            "One segment per sensor, hottest first \u{00B7} live at the "
+                                + "refresh cycle"
+                        )
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                     }
-                } else {
-                    pending
                 }
             }
         }
-    }
-
-    private func fanSummary(_ fans: [Int]) -> String {
-        let spinning = fans.filter { $0 > 0 }
-        if spinning.isEmpty {
-            return fans.count == 1 ? "Fan off" : "Fans off"
+        .onReceive(sampler.liveTick) {
+            guard appState.mainWindowVisible else { return }
+            sensorLive.sweepIfDue()
         }
-        return "Fans \(spinning.map { "\($0)" }.joined(separator: " / ")) rpm"
+        .onAppear { sensorLive.sweepIfDue() }
     }
 
     private var pending: some View {
@@ -350,7 +358,7 @@ struct HardwareOverviewView: View {
     }
 }
 
-/// The temperature-to-color ramp shared by the heat tiles and their legend:
+/// The temperature-to-color ramp shared by the heat strips and their legend:
 /// cool blue at room temperature through amber to red near the die limit.
 private enum SensorHeat {
     static func color(_ celsius: Double) -> Color {
@@ -363,38 +371,121 @@ private enum SensorHeat {
     }
 }
 
-/// One row per domain: the group label, its tiles (one per sensor, hottest
-/// first), and the hottest figure. Tiles carry their exact reading as a
-/// tooltip.
-private struct SensorHeatGrid: View {
-    let groups: [HardwareFacts.SensorGroup]
+/// Live channel behind the overview's sensor strips: one queue-confined
+/// `SMCReader` whose first sweep pays discovery and whose repeats re-read only
+/// the known keys (tens of milliseconds), throttled so a fast dial cannot turn
+/// the full sensor set into a hot loop.
+private final class SensorLiveStore: ObservableObject {
+    @Published private(set) var groups: [HardwareFacts.SensorGroup] = []
+    @Published private(set) var fans: [Int] = []
 
-    var body: some View {
-        Grid(alignment: .topLeading, horizontalSpacing: 10, verticalSpacing: 6) {
-            ForEach(groups, id: \.name) { group in
-                GridRow {
-                    Text(group.name)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .gridColumnAlignment(.leading)
-                    LazyVGrid(
-                        columns: [
-                            GridItem(.adaptive(minimum: 11, maximum: 11), spacing: 2)
-                        ], alignment: .leading, spacing: 2
-                    ) {
-                        ForEach(Array(group.readings.enumerated()), id: \.offset) { _, celsius in
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(SensorHeat.color(celsius))
-                                .frame(width: 11, height: 11)
-                                .help(String(format: "%.1f\u{00B0}C", celsius))
-                        }
-                    }
-                    Text("\(Int((group.readings.first ?? 0).rounded()))\u{00B0}C")
-                        .font(.caption.monospacedDigit())
-                        .gridColumnAlignment(.trailing)
-                }
+    private let queue = DispatchQueue(
+        label: "uk.co.bzwrd.macperfmonitor.sensor-live", qos: .utility)
+    /// Confined to `queue`.
+    private let reader = SensorInventoryReader()
+    private var lastSweep: Date?
+    private var inFlight = false
+    private let minInterval: TimeInterval = 5
+
+    func sweepIfDue(now: Date = Date()) {
+        if let lastSweep, now.timeIntervalSince(lastSweep) < minInterval { return }
+        guard !inFlight else { return }
+        inFlight = true
+        lastSweep = now
+        queue.async { [weak self] in
+            guard let self else { return }
+            let (groups, fans) = self.reader.read()
+            DispatchQueue.main.async {
+                self.inFlight = false
+                self.groups = groups
+                self.fans = fans
             }
         }
+    }
+}
+
+/// One domain as a quarter-width mini card: the hottest figure, then a heat
+/// strip with one equal segment per sensor (hottest first). A strip divides
+/// the available width, so it can never wrap however many sensors a domain
+/// has; each segment still carries its exact reading as a tooltip.
+private struct SensorMiniCard: View {
+    let group: HardwareFacts.SensorGroup
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(group.name.uppercased())
+                .font(.caption2.weight(.semibold))
+                .tracking(0.4)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(Int((group.readings.first ?? 0).rounded()))\u{00B0}C")
+                    .font(.title3.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(SensorHeat.color(group.readings.first ?? 0))
+                Spacer(minLength: 4)
+                Text(group.readings.count == 1 ? "1 sensor" : "\(group.readings.count) sensors")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            HStack(spacing: 1) {
+                ForEach(Array(group.readings.enumerated()), id: \.offset) { _, celsius in
+                    Rectangle()
+                        .fill(SensorHeat.color(celsius))
+                        .help(String(format: "%.1f\u{00B0}C", celsius))
+                }
+            }
+            .frame(height: 10)
+            .clipShape(RoundedRectangle(cornerRadius: 3))
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.quaternary.opacity(0.32))
+        )
+    }
+}
+
+/// The fans as an eleventh mini card, same chrome as the sensor cards.
+private struct FanMiniCard: View {
+    let rpms: [Int]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("FANS")
+                .font(.caption2.weight(.semibold))
+                .tracking(0.4)
+                .foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(headline)
+                    .font(.title3.weight(.semibold).monospacedDigit())
+                Spacer(minLength: 4)
+                Text(rpms.count == 1 ? "1 fan" : "\(rpms.count) fans")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            Text(detail)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(height: 10)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.quaternary.opacity(0.32))
+        )
+    }
+
+    private var headline: String {
+        let peak = rpms.max() ?? 0
+        return peak == 0 ? "Off" : "\(peak) rpm"
+    }
+
+    private var detail: String {
+        let spinning = rpms.filter { $0 > 0 }
+        if spinning.isEmpty { return "Silent" }
+        return rpms.map { $0 == 0 ? "off" : "\($0)" }.joined(separator: " \u{00B7} ")
     }
 }
 
