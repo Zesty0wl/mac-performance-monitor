@@ -33,6 +33,10 @@ public struct SystemHistoryWindow {
         case gpuUtilization
         case gpuPowerWatts
         case anePowerWatts
+        /// Hottest CPU die sensor. Like the GPU columns, unsampled ticks store
+        /// 0 (the columnar store is non-optional); consumers with a floored
+        /// y-domain should treat near-zero as "not sampled".
+        case cpuDieC
     }
 
     /// Timestamps as `timeIntervalSinceReferenceDate`, oldest first.
@@ -144,6 +148,7 @@ public struct SystemHistoryWindow {
         columns[Column.gpuUtilization.rawValue].append(point.gpuUtilization ?? 0)
         columns[Column.gpuPowerWatts.rawValue].append(point.gpuPowerWatts ?? 0)
         columns[Column.anePowerWatts.rawValue].append(point.anePowerWatts ?? 0)
+        columns[Column.cpuDieC.rawValue].append(point.cpuDieC ?? 0)
         latest = point
     }
 

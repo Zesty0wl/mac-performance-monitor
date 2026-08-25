@@ -29,6 +29,13 @@ struct GPUView: View {
         KeyPathComparator(\ProcessNode.process.gpuPercentValue, order: .reverse)
     ]
     @State private var aiWorkloads: [AIWorkloadRow] = []
+    /// Point-based backing for the temperature chart. Unlike the columnar
+    /// feeds above, temperatures need gap-correct optionals (rows recorded
+    /// before the thermal columns existed must gap, not draw a 0 line), so
+    /// this panel takes the same points path as the Disk and Energy tabs.
+    /// Appended on the thermal cadence, not the dial rate, so the SwiftUI
+    /// chart re-renders about every 5 s and stays out of the live budget.
+    @State private var thermalPoints: [SystemHistoryPoint] = []
 
     var body: some View {
         ScrollView {
@@ -37,6 +44,7 @@ struct GPUView: View {
                 headlineCards
                 utilizationPanel
                 powerPanel
+                temperaturePanel
                 processesPanel
             } rail: {
                 devicePanel
@@ -61,6 +69,7 @@ struct GPUView: View {
         .onReceive(liveTicks) { _ in
             guard appState.mainWindowVisible, let model else { return }
             timeline.append(model.liveSystem, gpu: model.latestGPU)
+            appendThermalPoint(model)
         }
         .onReceive(tableTicks) { _ in
             if appState.mainWindowVisible { rebuildRows() }
@@ -88,7 +97,30 @@ struct GPUView: View {
             guard range == requested else { return }
             timeline.replace(
                 points, span: requested.seconds, live: model.liveSystem, gpu: model.latestGPU)
+            thermalPoints = points
             loadedRange = requested
+        }
+    }
+
+    /// Append the live thermal reading, but only when a fresh SMC sample has
+    /// actually landed (the reader throttles to ~5 s), so the points-based
+    /// chart below re-renders at the thermal cadence rather than the dial rate.
+    private func appendThermalPoint(_ model: SamplerModel) {
+        guard let live = model.liveSystem, live.cpuDieC != nil else { return }
+        if let last = thermalPoints.last {
+            guard live.timestamp.timeIntervalSince(last.date) >= 4 else { return }
+        }
+        var point = SystemHistoryPoint(
+            date: live.timestamp, pressurePercent: live.pressurePercent,
+            appMemory: live.appMemory, wired: live.wired, compressed: live.compressed,
+            cachedFiles: live.cachedFiles, swapUsed: live.swapUsed)
+        point.cpuDieC = live.cpuDieC
+        point.gpuDieC = live.gpuDieC
+        point.fanRPM = live.fanRPM
+        thermalPoints.append(point)
+        let cutoff = Date().addingTimeInterval(-range.seconds)
+        if thermalPoints.first.map({ $0.date < cutoff }) ?? false {
+            thermalPoints.removeAll { $0.date < cutoff }
         }
     }
 
@@ -187,6 +219,30 @@ struct GPUView: View {
                 }
                 Text(
                     "From the chip's energy counters (the same source as powermetrics), averaged over each tick. Neural Engine power is the signal that a Core ML model is running: it reads zero when the ANE is idle."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var temperaturePanel: some View {
+        GPUPanel("Temperature", systemImage: "thermometer.medium") {
+            VStack(alignment: .leading, spacing: 8) {
+                TemperatureChart(
+                    points: thermalPoints,
+                    xDomain: LiveChartGeometry.trailingDomain(
+                        latest: thermalPoints.last?.date, span: range.seconds),
+                    showsTimeAxis: true
+                )
+                .frame(height: 140)
+                HStack(spacing: 22) {
+                    liveStat("GPU DIE", timeline.temperatureText, NSColor(ThermalStyle.gpu))
+                    liveStat("FAN", timeline.fanText, NSColor.labelColor)
+                    Spacer()
+                }
+                Text(
+                    "Each line is the hottest sensor of its domain: CPU die in orange, GPU die in red. High numbers under load are normal; the Energy tab keeps the long-term thermal record and the throttling log."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
