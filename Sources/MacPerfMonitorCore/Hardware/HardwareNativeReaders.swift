@@ -728,9 +728,18 @@ enum HardwareNativeReaders {
     static func sensors(parentID: String, systemImage: String) -> Result {
         var result = Result()
         let inventory = SMCReader().sensorInventory()
+        let grouped = Dictionary(grouping: inventory.sensors, by: \.group)
+        // Facts for the overview's heat grid: raw readings per group, hottest
+        // first, in display order. Set even when empty so the overview card
+        // can report "nothing readable" instead of loading forever.
+        result.facts.sensorGroups = SMCReader.sensorGroupOrder.compactMap { group in
+            guard let readings = grouped[group], !readings.isEmpty else { return nil }
+            return HardwareFacts.SensorGroup(
+                name: group, readings: readings.map(\.celsius).sorted(by: >))
+        }
+        result.facts.fanRPMs = inventory.fans.map(\.rpm)
         guard !inventory.sensors.isEmpty || !inventory.fans.isEmpty else { return result }
 
-        let grouped = Dictionary(grouping: inventory.sensors, by: \.group)
         for group in SMCReader.sensorGroupOrder {
             guard let readings = grouped[group], !readings.isEmpty else { continue }
             let hottest = readings.map(\.celsius).max() ?? 0

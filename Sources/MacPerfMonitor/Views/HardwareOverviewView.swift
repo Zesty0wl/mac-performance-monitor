@@ -34,6 +34,10 @@ struct HardwareOverviewView: View {
                         cell(connectivityCard)
                         cell(softwareCard)
                     }
+                    GridRow {
+                        cell(sensorsCard)
+                            .gridCellColumns(2)
+                    }
                 }
                 .frame(maxWidth: 1240, alignment: .leading)
                 VStack(alignment: .leading, spacing: 16) {
@@ -45,6 +49,7 @@ struct HardwareOverviewView: View {
                     powerCard
                     connectivityCard
                     softwareCard
+                    sensorsCard
                 }
             }
             .padding(20)
@@ -277,6 +282,61 @@ struct HardwareOverviewView: View {
         }
     }
 
+    // MARK: - Sensors
+
+    /// Every readable temperature sensor as one heat tile, grouped by domain,
+    /// hottest first. A refresh-time snapshot like the rest of the page; the
+    /// live thermal story is the Energy tab's.
+    private var sensorsCard: some View {
+        HardwarePanel(
+            "Sensors", systemImage: "thermometer.medium", action: { model.selectedID = "sensors" }
+        ) {
+            VStack(alignment: .leading, spacing: 10) {
+                if let groups = facts.sensorGroups {
+                    if groups.isEmpty {
+                        Text("No readable temperature sensors on this Mac.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        SensorHeatGrid(groups: groups)
+                        HStack(spacing: 8) {
+                            Text("20\u{00B0}C").font(.caption2).foregroundStyle(.secondary)
+                            LinearGradient(
+                                colors: SensorHeat.legend, startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                            .frame(width: 120, height: 6)
+                            .clipShape(Capsule())
+                            Text("100\u{00B0}C").font(.caption2).foregroundStyle(.secondary)
+                            Spacer(minLength: 8)
+                            if let fans = facts.fanRPMs, !fans.isEmpty {
+                                Text(fanSummary(fans))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Text(
+                            "One tile per sensor, hottest first. High die temperatures under "
+                                + "load are normal; the Energy tab keeps the thermal history."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                } else {
+                    pending
+                }
+            }
+        }
+    }
+
+    private func fanSummary(_ fans: [Int]) -> String {
+        let spinning = fans.filter { $0 > 0 }
+        if spinning.isEmpty {
+            return fans.count == 1 ? "Fan off" : "Fans off"
+        }
+        return "Fans \(spinning.map { "\($0)" }.joined(separator: " / ")) rpm"
+    }
+
     private var pending: some View {
         HStack(spacing: 6) {
             if model.isRefreshing {
@@ -286,6 +346,54 @@ struct HardwareOverviewView: View {
             Text(model.isRefreshing ? "Reading\u{2026}" : "Not reported")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// The temperature-to-color ramp shared by the heat tiles and their legend:
+/// cool blue at room temperature through amber to red near the die limit.
+private enum SensorHeat {
+    static func color(_ celsius: Double) -> Color {
+        let t = min(max((celsius - 20) / 80, 0), 1)
+        return Color(hue: 0.58 * (1 - t), saturation: 0.72, brightness: 0.92)
+    }
+
+    static var legend: [Color] {
+        stride(from: 20.0, through: 100.0, by: 10.0).map(color)
+    }
+}
+
+/// One row per domain: the group label, its tiles (one per sensor, hottest
+/// first), and the hottest figure. Tiles carry their exact reading as a
+/// tooltip.
+private struct SensorHeatGrid: View {
+    let groups: [HardwareFacts.SensorGroup]
+
+    var body: some View {
+        Grid(alignment: .topLeading, horizontalSpacing: 10, verticalSpacing: 6) {
+            ForEach(groups, id: \.name) { group in
+                GridRow {
+                    Text(group.name)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .gridColumnAlignment(.leading)
+                    LazyVGrid(
+                        columns: [
+                            GridItem(.adaptive(minimum: 11, maximum: 11), spacing: 2)
+                        ], alignment: .leading, spacing: 2
+                    ) {
+                        ForEach(Array(group.readings.enumerated()), id: \.offset) { _, celsius in
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(SensorHeat.color(celsius))
+                                .frame(width: 11, height: 11)
+                                .help(String(format: "%.1f\u{00B0}C", celsius))
+                        }
+                    }
+                    Text("\(Int((group.readings.first ?? 0).rounded()))\u{00B0}C")
+                        .font(.caption.monospacedDigit())
+                        .gridColumnAlignment(.trailing)
+                }
+            }
         }
     }
 }
