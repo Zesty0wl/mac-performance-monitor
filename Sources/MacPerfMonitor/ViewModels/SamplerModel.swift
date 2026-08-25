@@ -133,6 +133,16 @@ final class SamplerModel: ObservableObject {
     /// 2–4 Hz. This prevents a popover from bypassing the process-scan floor.
     private var popoverEveryTicks = 1
     private var popoverTickCounter = 0
+    /// The visible-surface cadence: `liveTick` (charts, the menu-bar image)
+    /// and the on-screen row re-reads follow the refresh dial, while the 1 Hz
+    /// system heartbeat keeps running underneath for logging and smoothing.
+    /// Before this gate a dial above 1 s slowed only the hidden full scan, so
+    /// everything the user could see still updated every second.
+    private var uiEveryTicks = 1
+    private var uiTickCounter = 0
+    /// One-shot bypass of the dial gate, set by `requestImmediateTick` so an
+    /// opening tab paints now instead of waiting out a slow dial.
+    private var uiPublishPending = false
     /// The latest heavy scan's processes, carried between heavy ticks so the
     /// published snapshot always has a process list. Confined to `queue`.
     private var carriedProcesses: [ProcessSample] = []
@@ -497,6 +507,8 @@ final class SamplerModel: ObservableObject {
             for: processInterval, baseInterval: baseInterval)
         self.popoverEveryTicks = LiveRefreshCadence.tickCount(
             for: LiveRefreshCadence.minimumProcessInterval, baseInterval: baseInterval)
+        self.uiEveryTicks = LiveRefreshCadence.tickCount(
+            for: tableInterval, baseInterval: baseInterval)
         self.retentionEveryTicks = max(1, Int((60.0 / scan).rounded()))
         self.checkpointEveryTicks = max(1, Int((15.0 / scan).rounded()))
         self.persistMinInterval = max(1.0, highRes)
@@ -595,6 +607,9 @@ final class SamplerModel: ObservableObject {
             // the table due via `addProcessConsumer`'s 0→1 transition. Forcing
             // the heavy path here instead made every popover open republish the
             // main window off-dial and reset the refresh-dial phase.
+            // The UI gate does get bypassed once: the caller is a surface that
+            // just appeared and should paint now, not after a slow dial.
+            self.uiPublishPending = true
             self.tick()
         }
     }
@@ -785,6 +800,9 @@ final class SamplerModel: ObservableObject {
             for: processInterval, baseInterval: interval)
         popoverEveryTicks = LiveRefreshCadence.tickCount(
             for: LiveRefreshCadence.minimumProcessInterval, baseInterval: interval)
+        uiEveryTicks = LiveRefreshCadence.tickCount(
+            for: tableIntervalSeconds, baseInterval: interval)
+        uiTickCounter = 0
         // retention/checkpoint count persist() calls (one per scan-due tick), so
         // they key off the scan cadence.
         retentionEveryTicks = max(1, Int((60.0 / scan).rounded()))
@@ -970,6 +988,7 @@ final class SamplerModel: ObservableObject {
 
         heavyTickCounter += 1
         tableTickCounter += 1
+        uiTickCounter += 1
         // Three independent cadences over one per-process scan:
         //   • An open menu-bar popover shows a live top-process list, so while one is
         //     open the scan and menu lists run at their separate 1 Hz floor.
@@ -1002,6 +1021,14 @@ final class SamplerModel: ObservableObject {
             popoverOpen
             && (force || !hasProcessSnapshot || popoverTickCounter >= popoverEveryTicks)
         let runScan = needProcesses && (popoverDue || scanDue || tableDue)
+        // The dial gate for everything visible. An open popover pins it to
+        // every tick (its live strips are the point of opening one), and an
+        // immediate-tick request publishes once without waiting out the dial.
+        let uiDue = popoverOpen || force || uiPublishPending || uiTickCounter >= uiEveryTicks
+        if uiDue {
+            uiTickCounter = 0
+            uiPublishPending = false
+        }
 
         // Publish the fresh system sample every tick, independent of any scan:
         // the full-rate heartbeat the menu bar and the live charts read.
@@ -1030,16 +1057,20 @@ final class SamplerModel: ObservableObject {
                 self.recentGPUSamples = []
                 self.gpuHistoryRing = []
             }
-            // Full-rate heartbeat: keeps the menu-bar icon and the live charts
-            // moving without re-rendering any view that observes the model.
-            self.liveTick.send()
+            // The visible heartbeat. The rings above append on every tick so
+            // charts keep full 1 s resolution, but the redraw signal honours
+            // the refresh dial: at 10 s the menu-bar image and every live
+            // chart advance ten seconds of data at a time.
+            if uiDue { self.liveTick.send() }
             diagnostics.recordPublish(duration: TickDiagnostics.now() - publishStart)
         }
 
         // Between table publishes, re-read just the rows on screen so their
         // figures move at the dial. Skipped on the tick that publishes the
-        // table, whose fresh values are moments away.
-        let fastDue = processConsumers > 0 && !fastPIDs.isEmpty && !(runScan && tableDue)
+        // table, whose fresh values are moments away. Gated on `uiDue`: this
+        // is what previously churned every visible row once a second whatever
+        // the dial said.
+        let fastDue = uiDue && processConsumers > 0 && !fastPIDs.isEmpty && !(runScan && tableDue)
         if fastDue, !fastRefreshInFlight {
             fastRefreshInFlight = true
             let pids = fastPIDs
