@@ -26,6 +26,9 @@ struct BatteryView: View {
     /// during the silent 5-second refresh of the same range.
     @State private var loadedRange: HistoryWindow?
     @State private var topEnergy: [ProcessConsumer] = []
+    /// Recent thermal throttling events (2 h raw window), shown under the
+    /// Thermals charts. Reloaded with the rest of the tab.
+    @State private var thermalEvents: [ThermalEvent] = []
     /// The flow diagram's app branches: top energy users averaged over a short
     /// (60s) window, so they track recent draw without reshuffling every tick.
     @State private var flowEnergy: [EnergyFlowProcess] = []
@@ -331,6 +334,12 @@ struct BatteryView: View {
                 FanChart(points: points, xDomain: chartDomain)
                     .frame(height: 90)
                     .chartReloading(awaitingData)
+            }
+            if !thermalEvents.isEmpty {
+                Divider().opacity(0.5)
+                ForEach(thermalEvents.prefix(5)) { event in
+                    ThermalEventRow(event: event)
+                }
             }
             footnote(
                 "Each line is the hottest sensor of its domain: CPU die in orange, GPU die in "
@@ -659,6 +668,9 @@ struct BatteryView: View {
         // ranking is live but smoothed rather than jumping every tick. Fetch a few
         // extra (8, shown 5) so the liveness filter still leaves a full set after a
         // recently-quit app is dropped.
+        model.loadThermalEvents { events in
+            self.thermalEvents = events
+        }
         model.loadRecentEnergyConsumers(seconds: 60, limit: 8) { rows in
             withAnimation(.easeInOut(duration: 0.6)) {
                 self.flowEnergy = rows.map {
@@ -668,6 +680,46 @@ struct BatteryView: View {
                 }
             }
         }
+    }
+}
+
+/// One thermal throttling event: when macOS stepped into a throttling state
+/// and which process was working the CPU hardest at that moment.
+private struct ThermalEventRow: View {
+    let event: ThermalEvent
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "thermometer.high")
+                .foregroundStyle(event.state.color)
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Throttling began (\(event.state.label.lowercased()))")
+                    .font(.body.weight(.medium))
+                Text(driverLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 8)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(event.date.formatted(date: .omitted, time: .standard))
+                    .font(.caption.monospacedDigit())
+                Text(event.date.formatted(.relative(presentation: .named)))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    private var driverLine: String {
+        if let name = event.dominantName {
+            return "Top CPU: \(name) (\(Int(event.dominantCPUPercent.rounded()))%)"
+        }
+        return "No dominant process recorded"
     }
 }
 

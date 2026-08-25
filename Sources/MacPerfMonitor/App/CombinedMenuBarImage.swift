@@ -17,7 +17,9 @@ extension MenuBarMetric {
             ])
         case .cpu:
             return activeKinds.contains(.highCPU)
-        case .gpu, .energy, .temperature, .network, .disk:
+        case .temperature:
+            return activeKinds.contains(.thermalThrottle)
+        case .gpu, .energy, .network, .disk:
             return false
         }
     }

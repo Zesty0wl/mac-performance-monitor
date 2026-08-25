@@ -21,6 +21,10 @@ public struct AlertConfig: Sendable, Equatable, Codable {
     public var highGPUThresholdPercent: Int
     /// Total-CPU threshold (percent of capacity, 0...100) for the high-CPU alert.
     public var highCPUThresholdPercent: Int
+    /// Notify when macOS's thermal pressure stays at serious or critical (the
+    /// throttling states) for a sustained period, naming the top CPU process.
+    /// Off by default: fanless Macs throttle routinely under real work.
+    public var thermalEnabled: Bool
 
     public init(
         criticalPressureEnabled: Bool = true,
@@ -32,7 +36,8 @@ public struct AlertConfig: Sendable, Equatable, Codable {
         highCPUEnabled: Bool = false,
         highCPUThresholdPercent: Int = 85,
         highGPUEnabled: Bool = false,
-        highGPUThresholdPercent: Int = 85
+        highGPUThresholdPercent: Int = 85,
+        thermalEnabled: Bool = false
     ) {
         self.criticalPressureEnabled = criticalPressureEnabled
         self.swapEnabled = swapEnabled
@@ -44,6 +49,7 @@ public struct AlertConfig: Sendable, Equatable, Codable {
         self.highCPUThresholdPercent = highCPUThresholdPercent
         self.highGPUEnabled = highGPUEnabled
         self.highGPUThresholdPercent = highGPUThresholdPercent
+        self.thermalEnabled = thermalEnabled
     }
 
     /// Decode every field with a default so a config saved by an older build
@@ -75,6 +81,8 @@ public struct AlertConfig: Sendable, Equatable, Codable {
         highGPUThresholdPercent =
             try c.decodeIfPresent(Int.self, forKey: .highGPUThresholdPercent)
             ?? d.highGPUThresholdPercent
+        thermalEnabled =
+            try c.decodeIfPresent(Bool.self, forKey: .thermalEnabled) ?? d.thermalEnabled
     }
 
     public static let `default` = AlertConfig()
@@ -91,6 +99,7 @@ public struct Alert: Sendable, Equatable, Identifiable {
         case leak
         case highCPU
         case highGPU
+        case thermalThrottle
     }
 
     public var kind: Kind
@@ -117,6 +126,7 @@ public struct Alert: Sendable, Equatable, Identifiable {
         case .leak: return "leak.\(identityKey)"
         case .highCPU: return "cpu.high"
         case .highGPU: return "gpu.high"
+        case .thermalThrottle: return "thermal.throttle"
         }
     }
 
@@ -156,6 +166,12 @@ public final class AlertEngine {
     private var highCPUSince: Date?
     private var gpuArmed = true
     private var highGPUSince: Date?
+    private var thermalArmed = true
+    /// When thermal pressure first reached a throttling state in the current
+    /// spell; nil while nominal or fair. Thermal state moves slowly, so the
+    /// sustain window is longer than CPU's to skip brief excursions.
+    private var throttlingSince: Date?
+    private let sustainedThermalDuration: TimeInterval = 30
     /// Last delivery time per alert id, used to suppress re-fires inside the
     /// cooldown window. Recorded only for alerts that survive the throttle, so
     /// a sustained flap cannot slide the window forward and starve the later
@@ -195,6 +211,7 @@ public final class AlertEngine {
             processes, leakingProcesses: leakingProcesses, config: config, now: now, into: &alerts)
         evaluateCPU(cpu, config: config, now: now, into: &alerts)
         evaluateGPU(gpu, config: config, now: now, into: &alerts)
+        evaluateThermal(system, processes: processes, config: config, now: now, into: &alerts)
         refreshActiveKinds()
         // Throttle notification delivery per alert id: drop any alert whose id
         // was already delivered inside the cooldown window. The armed flags
@@ -224,6 +241,8 @@ public final class AlertEngine {
         highCPUSince = nil
         gpuArmed = true
         highGPUSince = nil
+        thermalArmed = true
+        throttlingSince = nil
         lastFiredAt.removeAll()
         activeKinds.removeAll()
     }
@@ -236,6 +255,7 @@ public final class AlertEngine {
         if !leakFired.isEmpty { kinds.insert(.leak) }
         if !cpuArmed { kinds.insert(.highCPU) }
         if !gpuArmed { kinds.insert(.highGPU) }
+        if !thermalArmed { kinds.insert(.thermalThrottle) }
         activeKinds = kinds
     }
 
@@ -428,6 +448,45 @@ public final class AlertEngine {
         } else {
             highGPUSince = nil
             if percent < threshold * rearmFraction { gpuArmed = true }
+        }
+    }
+
+    /// Fire once when macOS's thermal pressure has stayed at a throttling
+    /// state (serious or critical) for a sustained period, naming the top CPU
+    /// consumer at that moment. The states are discrete, so re-arming is a
+    /// plain drop back to fair-or-better rather than a threshold fraction.
+    private func evaluateThermal(
+        _ system: SystemSample, processes: [ProcessSample], config: AlertConfig, now: Date,
+        into alerts: inout [Alert]
+    ) {
+        guard config.thermalEnabled, let pressure = system.thermalPressure else {
+            thermalArmed = true
+            throttlingSince = nil
+            return
+        }
+        if pressure.isThrottling {
+            let since = throttlingSince ?? now
+            throttlingSince = since
+            if thermalArmed && now.timeIntervalSince(since) >= sustainedThermalDuration {
+                thermalArmed = false
+                let top = Ranking.topByCPU(processes, limit: 1).first
+                var body =
+                    "macOS is slowing work down to shed heat (thermal pressure \(pressure.label.lowercased()))."
+                if let top {
+                    let percent = Int(top.cpuPercent.rounded())
+                    body += " Top CPU: \(top.displayName) at \(percent)%."
+                }
+                alerts.append(
+                    Alert(
+                        kind: .thermalThrottle,
+                        title: "Thermal throttling",
+                        body: body,
+                        identity: top?.id,
+                        date: now))
+            }
+        } else {
+            throttlingSince = nil
+            thermalArmed = true
         }
     }
 }

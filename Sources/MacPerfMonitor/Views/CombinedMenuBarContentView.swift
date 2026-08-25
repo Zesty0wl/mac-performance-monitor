@@ -144,6 +144,7 @@ struct CombinedMenuBarContentView: View {
         if kinds.contains(.processCeiling) { labels.append("memory ceiling") }
         if kinds.contains(.leak) { labels.append("possible memory leak") }
         if kinds.contains(.highCPU) { labels.append("sustained high CPU") }
+        if kinds.contains(.thermalThrottle) { labels.append("thermal throttling") }
         return labels.joined(separator: " · ")
     }
 

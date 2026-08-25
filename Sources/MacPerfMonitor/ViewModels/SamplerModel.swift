@@ -441,6 +441,10 @@ final class SamplerModel: ObservableObject {
     private var cachedPressureEvents: (at: Date, events: [PressureEvent])?
     private let pressureEventsMaxAge: TimeInterval = 15
 
+    /// Thermal throttling events, same derivation shape and TTL rationale as
+    /// the pressure events. Confined to `readQueue`.
+    private var cachedThermalEvents: (at: Date, events: [ThermalEvent])?
+
     /// The Insights evidence series (2 h raw history per leaking process, 30 min
     /// per top consumer). The leak series only changes when the leak board does,
     /// so it is keyed to the board's timestamp; the consumer series get the
@@ -2395,6 +2399,7 @@ final class SamplerModel: ObservableObject {
         cachedSystemHistory.removeAll(keepingCapacity: false)
         cachedRecentSystemHistory.removeAll(keepingCapacity: false)
         cachedPressureEvents = nil
+        cachedThermalEvents = nil
         cachedLeakSeries = nil
         cachedConsumerSeries = nil
     }
@@ -2465,6 +2470,33 @@ final class SamplerModel: ObservableObject {
             let events = self.cachedPressureEvents(store)
             DispatchQueue.main.async { completion(events) }
         }
+    }
+
+    /// Load the thermal throttling events off the main thread, then deliver
+    /// them back on the main thread. Same shape as `loadPressureEvents`.
+    func loadThermalEvents(completion: @escaping ([ThermalEvent]) -> Void) {
+        guard let store else {
+            completion([])
+            return
+        }
+        readQueue.async {
+            let events = self.cachedThermalEvents(store)
+            DispatchQueue.main.async { completion(events) }
+        }
+    }
+
+    /// `thermalEvents` behind the same short TTL as the pressure events. Must
+    /// run on `readQueue`.
+    private func cachedThermalEvents(_ store: SampleStore) -> [ThermalEvent] {
+        if let hit = cachedThermalEvents,
+            Date().timeIntervalSince(hit.at) < pressureEventsMaxAge
+        {
+            return hit.events
+        }
+        let events =
+            (try? store.thermalEvents(bucket: Self.configuredStandardResInterval())) ?? []
+        cachedThermalEvents = (Date(), events)
+        return events
     }
 
     /// `pressureEvents` behind its short TTL (the derivation scans the 2 h raw
