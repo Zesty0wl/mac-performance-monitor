@@ -1,27 +1,63 @@
 import Foundation
 import IOKit
 
-/// Apple silicon die temperature and fan speed read from the SMC. The GPU shares
-/// the SoC die with the CPU, so there is no GPU-only temperature key; this reports
-/// the average of the die's thermal sensors (a faithful "what the GPU runs at")
-/// plus the primary fan RPM. Sensor keys are discovered once and then sampled, and
-/// an internal throttle keeps the cost negligible — temperature and fans move
-/// slowly, so it re-reads at most every couple of seconds however often it's
-/// called. Only used while the GPU menubar item is shown.
-struct ThermalSample: Sendable, Equatable {
-    var dieTemperatureC: Double?
-    var fanRPM: Int?
-    var fanMaxRPM: Int?
+/// One fan's telemetry from the SMC.
+struct FanSample: Sendable, Equatable {
+    var rpm: Int
+    var maxRPM: Int?
 }
 
+/// Apple silicon temperatures and fan speeds read from the SMC, grouped by
+/// domain. Sensor keys are discovered once by name prefix and then sampled on
+/// an internal throttle (temperatures move slowly, so the SMC is touched at
+/// most every few seconds however often this is called).
+struct ThermalSample: Sendable, Equatable {
+    /// Hottest CPU die sensor (P or E cluster), degrees Celsius. Max, not
+    /// average: "CPU temperature" means the hottest core to a user.
+    var cpuDieMaxC: Double?
+
+    /// Average across the CPU die sensors, the secondary trend figure.
+    var cpuDieAvgC: Double?
+
+    /// Hottest GPU cluster sensor. Nil on chips with no GPU-specific keys.
+    var gpuDieMaxC: Double?
+
+    /// Hottest SSD sensor.
+    var ssdMaxC: Double?
+
+    /// Every fan the SMC reports, in index order. Empty on fanless Macs.
+    var fans: [FanSample] = []
+
+    /// The fastest-spinning fan, for single-readout displays.
+    var primaryFanRPM: Int? { fans.map(\.rpm).max() }
+
+    /// The highest rated maximum across the fans.
+    var primaryFanMaxRPM: Int? { fans.compactMap(\.maxRPM).max() }
+}
+
+/// Reads die, SSD, and fan telemetry from the AppleSMC user client.
+///
+/// Discovery is pattern based (prefix plus plausibility), never a per-chip key
+/// table: key names drift between M1/M2/M3/M4 generations but the prefixes
+/// have held. See docs/temperature-design.md for the probed key inventory.
 final class SMCReader {
+    /// The temperature domain a discovered key's readings belong to.
+    enum SensorDomain: Sendable, Equatable {
+        case cpuDie
+        case gpuDie
+        case ssd
+    }
+
     private var connection: io_connect_t = 0
     private var didOpen = false
-    private var temperatureKeys: [UInt32] = []
-    private var hasFan = false
+    private var didDiscover = false
+    private var cpuKeys: [UInt32] = []
+    private var gpuKeys: [UInt32] = []
+    private var ssdKeys: [UInt32] = []
+    private var fanCount = 0
     private var cached = ThermalSample()
     private var lastRead: Date?
-    private let minInterval: TimeInterval = 2.0
+    private let minInterval: TimeInterval = 5.0
 
     deinit {
         if connection != 0 { IOServiceClose(connection) }
@@ -30,27 +66,86 @@ final class SMCReader {
     func read(now: Date) -> ThermalSample? {
         if let lastRead, now.timeIntervalSince(lastRead) < minInterval { return cached }
         guard open() else { return nil }
-        if temperatureKeys.isEmpty && !hasFan { discoverKeys() }
+        if !didDiscover { discoverKeys() }
 
         var sample = ThermalSample()
-        if !temperatureKeys.isEmpty {
-            var sum = 0.0
-            var count = 0
-            for key in temperatureKeys {
-                if let v = readFloat(key), v > 1, v < 130 {
-                    sum += v
-                    count += 1
-                }
-            }
-            if count > 0 { sample.dieTemperatureC = sum / Double(count) }
-        }
-        if hasFan {
-            sample.fanRPM = readFloat(Self.fourCC("F0Ac")).map { Int($0.rounded()) }
-            sample.fanMaxRPM = readFloat(Self.fourCC("F0Mx")).map { Int($0.rounded()) }
-        }
+        let cpu = temperatures(of: cpuKeys)
+        sample.cpuDieMaxC = cpu.max()
+        if !cpu.isEmpty { sample.cpuDieAvgC = cpu.reduce(0, +) / Double(cpu.count) }
+        sample.gpuDieMaxC = temperatures(of: gpuKeys).max()
+        sample.ssdMaxC = temperatures(of: ssdKeys).max()
+        sample.fans = (0..<fanCount).compactMap(readFan)
         cached = sample
         lastRead = now
         return sample
+    }
+
+    // MARK: - Classification policy
+
+    /// Which domain an SMC key's readings belong to, or nil for keys that must
+    /// never feed a die figure. `TV*` keys are voltage-rail sensors, not die:
+    /// the SMC enumerates keys sorted with uppercase before lowercase, so a
+    /// `TV`-accepting discovery with a small cap used to fill every slot with
+    /// voltage rails on chips with many `TV*` keys (M3 Pro has 12+ plausible
+    /// ones) and never reach a single `Te*`/`Tp*` die sensor. Case matters
+    /// throughout: `Tg*` is the GPU, while `TG0*` keys are battery-adjacent.
+    static func domain(forKeyName name: String) -> SensorDomain? {
+        if name.hasPrefix("Tp") || name.hasPrefix("Te") { return .cpuDie }
+        if name.hasPrefix("Tg") { return .gpuDie }
+        if name.hasPrefix("TH0") { return .ssd }
+        return nil
+    }
+
+    /// Discovery gate: strict, so calibration offsets (0.00 / -3.10 pairs),
+    /// dead zones, and sub-ambient junk never become sampled keys.
+    static func isPlausibleDiscoveryTemperature(_ celsius: Double) -> Bool {
+        celsius > 10 && celsius < 110
+    }
+
+    /// Read-time gate: lenient, so a known-good key still reports from a Mac
+    /// in a cold room while a failed read (0) stays excluded.
+    static func isPlausibleReading(_ celsius: Double) -> Bool {
+        celsius > 1 && celsius < 130
+    }
+
+    /// Decodes an SMC value by type code. `ioft` is a 64-bit little-endian
+    /// fixed point with 16 fraction bits.
+    static func decode(type: String, bytes: [UInt8]) -> Double? {
+        switch type {
+        case "flt ":
+            guard bytes.count >= 4 else { return nil }
+            let bits =
+                UInt32(bytes[0]) | UInt32(bytes[1]) << 8 | UInt32(bytes[2]) << 16
+                | UInt32(bytes[3]) << 24
+            return Double(Float(bitPattern: bits))
+        case "ioft":
+            guard bytes.count >= 8 else { return nil }
+            var value: UInt64 = 0
+            for index in (0..<8).reversed() { value = value << 8 | UInt64(bytes[index]) }
+            return Double(value) / 65536.0
+        case "ui16":
+            guard bytes.count >= 2 else { return nil }
+            return Double(UInt16(bytes[0]) << 8 | UInt16(bytes[1]))
+        case "ui8 ":
+            return bytes.first.map(Double.init)
+        default:
+            return nil
+        }
+    }
+
+    // MARK: - Reading
+
+    private func temperatures(of keys: [UInt32]) -> [Double] {
+        keys.compactMap { key in
+            guard let value = readFloat(key), Self.isPlausibleReading(value) else { return nil }
+            return value
+        }
+    }
+
+    private func readFan(_ index: Int) -> FanSample? {
+        guard let rpm = readFloat(Self.fourCC("F\(index)Ac")) else { return nil }
+        let maxRPM = readFloat(Self.fourCC("F\(index)Mx")).map { Int($0.rounded()) }
+        return FanSample(rpm: Int(rpm.rounded()), maxRPM: maxRPM)
     }
 
     // MARK: - Connection
@@ -64,25 +159,27 @@ final class SMCReader {
         return IOServiceOpen(service, mach_task_self_, 0, &connection) == kIOReturnSuccess
     }
 
-    /// One-time discovery: cap the temperature set to a representative dozen die
-    /// sensors (more than enough for a stable average) and note whether a fan is
-    /// present. Costs a single enumeration the first time the GPU item is shown.
+    /// One-time discovery: a single enumeration classifying every plausible
+    /// temperature key into its domain (uncapped: the full die-sensor sweep
+    /// costs single-digit milliseconds at the read throttle), plus the fan
+    /// count from `FNum` with a probe of fan 0 as the fallback.
     private func discoverKeys() {
-        hasFan = (readFloat(Self.fourCC("F0Mx")) ?? 0) > 0
+        didDiscover = true
+        fanCount = readFloat(Self.fourCC("FNum")).map { Int($0) } ?? 0
+        if fanCount == 0, (readFloat(Self.fourCC("F0Mx")) ?? 0) > 0 { fanCount = 1 }
         guard let total = readUInt32(Self.fourCC("#KEY")), total > 0 else { return }
-        var keys: [UInt32] = []
-        var i: UInt32 = 0
-        while i < total && keys.count < 12 {
-            defer { i += 1 }
-            guard let key = keyAtIndex(i) else { continue }
-            // CPU/SoC die clusters: P-cores (Tp), E-cores (Te), die/voltage (TV).
-            let name = Self.toString(key)
-            guard name.hasPrefix("Tp") || name.hasPrefix("Te") || name.hasPrefix("TV") else {
+        for index in 0..<total {
+            guard let key = keyAtIndex(index) else { continue }
+            guard let domain = Self.domain(forKeyName: Self.toString(key)) else { continue }
+            guard let value = readFloat(key), Self.isPlausibleDiscoveryTemperature(value) else {
                 continue
             }
-            if let v = readFloat(key), v > 10, v < 110 { keys.append(key) }
+            switch domain {
+            case .cpuDie: cpuKeys.append(key)
+            case .gpuDie: gpuKeys.append(key)
+            case .ssd: ssdKeys.append(key)
+            }
         }
-        temperatureKeys = keys
     }
 
     // MARK: - SMC protocol
@@ -97,21 +194,7 @@ final class SMCReader {
 
     func readFloat(_ key: UInt32) -> Double? {
         guard let (type, bytes) = readKey(key) else { return nil }
-        switch type {
-        case "flt ":
-            guard bytes.count >= 4 else { return nil }
-            let bits =
-                UInt32(bytes[0]) | UInt32(bytes[1]) << 8 | UInt32(bytes[2]) << 16
-                | UInt32(bytes[3]) << 24
-            return Double(Float(bitPattern: bits))
-        case "ui16":
-            guard bytes.count >= 2 else { return nil }
-            return Double(UInt16(bytes[0]) << 8 | UInt16(bytes[1]))
-        case "ui8 ":
-            return bytes.first.map(Double.init)
-        default:
-            return nil
-        }
+        return Self.decode(type: type, bytes: bytes)
     }
 
     private func readUInt32(_ key: UInt32) -> UInt32? {
@@ -153,7 +236,7 @@ final class SMCReader {
         return result
     }
 
-    private static func toString(_ value: UInt32) -> String {
+    static func toString(_ value: UInt32) -> String {
         let bytes = [
             UInt8(value >> 24 & 0xff), UInt8(value >> 16 & 0xff), UInt8(value >> 8 & 0xff),
             UInt8(value & 0xff),
@@ -208,7 +291,7 @@ private struct SMCParamStruct {
     var data8: UInt8 = 0
     var data32: UInt32 = 0
     var bytes: SMCBytes = (
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     )
 }
