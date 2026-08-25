@@ -306,9 +306,11 @@ public final class Sampler {
                     freshGPU?.powerCapPercent = power.gpuPowerCapPercent
                 }
                 if let thermal = smcReader.read(now: now) {
-                    freshGPU?.dieTemperatureC = thermal.dieTemperatureC
-                    freshGPU?.fanRPM = thermal.fanRPM
-                    freshGPU?.fanMaxRPM = thermal.fanMaxRPM
+                    // Prefer the GPU's own cluster sensors; fall back to the
+                    // CPU die max on chips with no GPU-specific keys.
+                    freshGPU?.dieTemperatureC = thermal.gpuDieMaxC ?? thermal.cpuDieMaxC
+                    freshGPU?.fanRPM = thermal.primaryFanRPM
+                    freshGPU?.fanMaxRPM = thermal.primaryFanMaxRPM
                 }
             }
             cachedGPU = freshGPU

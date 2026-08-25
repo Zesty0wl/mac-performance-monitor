@@ -42,7 +42,7 @@ case "verify-checks":
     let a = Array(arguments.dropFirst(2))
     guard a.count == 3,
         let manifestData = try? Data(contentsOf: URL(fileURLWithPath: a[0])),
-        let sigB64 = try? String(contentsOfFile: a[1]).trimmingCharacters(
+        let sigB64 = try? String(contentsOfFile: a[1], encoding: .utf8).trimmingCharacters(
             in: .whitespacesAndNewlines),
         let sig = Data(base64Encoded: sigB64),
         let keyData = Data(base64Encoded: a[2]),

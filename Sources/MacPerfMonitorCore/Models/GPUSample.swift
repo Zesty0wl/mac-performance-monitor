@@ -53,7 +53,8 @@ public struct GPUSample: Sendable, Codable, Equatable {
     /// GPU hang recoveries since boot (IOAccelerator `recoveryCount`).
     public var recoveryCount: Int?
     // --- SMC thermal, filled by the Sampler ---
-    /// SoC die temperature (°C). The GPU shares the die, so this is its temperature.
+    /// GPU die temperature (°C): the hottest GPU cluster sensor, falling back
+    /// to the hottest CPU die sensor on chips with no GPU-specific keys.
     public var dieTemperatureC: Double?
     public var fanRPM: Int?
     public var fanMaxRPM: Int?
