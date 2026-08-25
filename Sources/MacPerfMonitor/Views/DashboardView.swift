@@ -33,6 +33,12 @@ struct DashboardView: View {
     @State private var timeline = DashboardTimelineStore()
     @State private var loadedRange: HistoryWindow?
     @State private var topDiskConsumers: [ProcessConsumer] = []
+    @State private var topCPUConsumers: [ProcessConsumer] = []
+    /// Point-based backing for the thermal panel, the same gap-correct path
+    /// the GPU tab's temperature chart takes: rows recorded before the
+    /// thermal columns existed must gap, not draw a 0 line, and the chart
+    /// re-renders on the ~5 s thermal cadence, not the dial rate.
+    @State private var thermalPoints: [SystemHistoryPoint] = []
 
     private let topology = CPUTopology.current
 
@@ -56,11 +62,20 @@ struct DashboardView: View {
                 coresPanel
                 compositionPanel
                 swapPanel
+                thermalPanel
+                topCPUPanel
                 topDiskPanel
             }
             .padding(20)
         }
-        .onAppear { reload() }
+        .onAppear {
+            reload()
+            // Keep the GPU/SMC read path live while the dashboard is visible
+            // so the thermal panel tracks in real time even when recording is
+            // off. Balanced by onDisappear; TabGate unmounts hidden tabs.
+            model?.addGPUConsumer()
+        }
+        .onDisappear { model?.removeGPUConsumer() }
         .onChange(of: range) { reload() }
         // Consumer rankings follow the table cadence. Chart history does not
         // reload here: the window grows in place as samples land.
@@ -73,6 +88,7 @@ struct DashboardView: View {
                 model.liveSystem, cpu: model.smoothedCPU,
                 networkRates: model.smoothedNetworkRates, diskRates: model.smoothedDiskRates,
                 disk: model.latestDisk)
+            appendThermalPoint(model)
         }
         .onChange(of: appState.mainWindowVisible) { _, visible in if visible { reload() } }
     }
@@ -243,25 +259,105 @@ struct DashboardView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(topDiskConsumers.prefix(6)) { process in
-                    HStack(spacing: 7) {
-                        Image(
-                            nsImage: ProcessIconProvider.shared.icon(
-                                forPath: process.executablePath)
-                        )
-                        .resizable()
-                        .frame(width: 16, height: 16)
-                        Text(process.displayName)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Spacer()
-                        Text(ByteFormat.rate(process.averageDisk))
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 2)
+                    consumerRow(process, value: ByteFormat.rate(process.averageDisk))
                 }
             }
             dashboardFootnote("Kernel-attributed I/O; it may not add up to physical traffic.")
+        }
+    }
+
+    private var topCPUPanel: some View {
+        DashboardPanel("Top CPU processes", systemImage: "list.number") {
+            if topCPUConsumers.isEmpty {
+                Text("No recorded CPU activity in this range.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(topCPUConsumers.prefix(6)) { process in
+                    consumerRow(
+                        process, value: String(format: "%.0f%%", process.averageCPU))
+                }
+            }
+            dashboardFootnote(
+                "Mean CPU over the selected range, as percent of one core; busy "
+                    + "multi-threaded work exceeds 100.")
+        }
+    }
+
+    private func consumerRow(_ process: ProcessConsumer, value: String) -> some View {
+        HStack(spacing: 7) {
+            Image(
+                nsImage: ProcessIconProvider.shared.icon(
+                    forPath: process.executablePath)
+            )
+            .resizable()
+            .frame(width: 16, height: 16)
+            Text(process.displayName)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer()
+            Text(value)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// Die temperature over the selected range with the current read-outs, the
+    /// dashboard-compact sibling of the Energy tab's Thermals section (which
+    /// keeps the fan chart and the throttling log).
+    private var thermalPanel: some View {
+        DashboardPanel("Thermals", systemImage: "thermometer.medium") {
+            TemperatureChart(
+                points: thermalPoints,
+                xDomain: LiveChartGeometry.trailingDomain(
+                    latest: thermalPoints.last?.date, span: range.seconds)
+            )
+            .frame(height: 110)
+            .chartReloading(awaitingData)
+            if let status = thermalStatus {
+                Text(status)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            dashboardFootnote(
+                "Hottest CPU die sensor in orange, GPU die in red. The status ends "
+                    + "with macOS's own thermal pressure verdict.")
+        }
+    }
+
+    /// "CPU 74° · GPU 53° · Fans off · Nominal", omitting unknown parts. Nil
+    /// until the first thermal sample lands.
+    private var thermalStatus: String? {
+        guard let system = model?.liveSystem else { return nil }
+        var parts: [String] = []
+        if let cpu = system.cpuDieC { parts.append("CPU \(Int(cpu.rounded()))\u{00B0}") }
+        if let gpu = system.gpuDieC { parts.append("GPU \(Int(gpu.rounded()))\u{00B0}") }
+        if let fan = system.fanRPM {
+            parts.append(fan == 0 ? "Fans off" : "Fans \(Int(fan.rounded())) rpm")
+        }
+        guard !parts.isEmpty else { return nil }
+        parts.append((system.thermalPressure ?? .nominal).label)
+        return parts.joined(separator: " \u{00B7} ")
+    }
+
+    /// Append the live thermal reading, but only when a fresh SMC sample has
+    /// actually landed (the reader throttles to ~5 s).
+    private func appendThermalPoint(_ model: SamplerModel) {
+        guard let live = model.liveSystem, live.cpuDieC != nil else { return }
+        if let last = thermalPoints.last {
+            guard live.timestamp.timeIntervalSince(last.date) >= 4 else { return }
+        }
+        var point = SystemHistoryPoint(
+            date: live.timestamp, pressurePercent: live.pressurePercent,
+            appMemory: live.appMemory, wired: live.wired, compressed: live.compressed,
+            cachedFiles: live.cachedFiles, swapUsed: live.swapUsed)
+        point.cpuDieC = live.cpuDieC
+        point.gpuDieC = live.gpuDieC
+        thermalPoints.append(point)
+        let cutoff = Date().addingTimeInterval(-range.seconds)
+        if thermalPoints.first.map({ $0.date < cutoff }) ?? false {
+            thermalPoints.removeAll { $0.date < cutoff }
         }
     }
 
@@ -292,6 +388,7 @@ struct DashboardView: View {
             self.timeline.replace(
                 pts, span: requested.seconds, live: model.liveSystem, cpu: model.smoothedCPU,
                 totalRAM: model.liveSystem?.totalRAM ?? model.latest?.system.totalRAM ?? 0)
+            self.thermalPoints = pts
             self.loadedRange = requested
         }
         reloadTopConsumers(window: requested)
@@ -315,6 +412,10 @@ struct DashboardView: View {
         model.loadTopConsumers(window: requested, metric: .averageDisk, limit: 6) { rows in
             guard self.range == requested, rows != self.topDiskConsumers else { return }
             self.topDiskConsumers = rows
+        }
+        model.loadTopConsumers(window: requested, metric: .averageCPU, limit: 6) { rows in
+            guard self.range == requested, rows != self.topCPUConsumers else { return }
+            self.topCPUConsumers = rows
         }
     }
 }
