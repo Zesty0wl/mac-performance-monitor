@@ -33,6 +33,26 @@ public struct ThermalEvent: Sendable, Identifiable, Equatable {
 }
 
 extension SampleStore {
+    /// Hour-tier fan/die pairs for the thermal drift analysis: every
+    /// `system_hour` bucket in the interval that carries both a fan speed and
+    /// a CPU die temperature, oldest first.
+    public func fanTempHours(from: Date, to: Date) throws -> [FanTempHour] {
+        try databasePool.read { db in
+            try Row.fetchAll(
+                db,
+                sql: """
+                    SELECT bucket, fan_rpm_avg, cpu_die_avg FROM system_hour
+                    WHERE bucket >= ? AND bucket < ?
+                      AND fan_rpm_avg IS NOT NULL AND cpu_die_avg IS NOT NULL
+                    ORDER BY bucket ASC
+                    """, arguments: [from.timeIntervalSince1970, to.timeIntervalSince1970]
+            ).map { row in
+                FanTempHour(
+                    date: Date(timeIntervalSince1970: row[0]), fanRPM: row[1], dieC: row[2])
+            }
+        }
+    }
+
     /// Thermal throttling events in the window, most recent first. An event is
     /// recorded each time the thermal pressure state steps up into
     /// serious-or-higher. The dominant process is the largest CPU consumer

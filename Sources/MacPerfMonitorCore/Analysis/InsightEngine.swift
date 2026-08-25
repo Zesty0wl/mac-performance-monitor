@@ -30,7 +30,9 @@ public enum InsightEngine {
 
         /// What produced the insight, so the UI can pick an icon per source.
         public enum Kind: String, Sendable {
-            case leak, pressure, attribution, stepChange, swap, rosetta, cpu, network, allClear
+            case leak, pressure, attribution, stepChange, swap, rosetta, cpu, network
+            case thermalDrift
+            case allClear
         }
 
         /// Stable across reloads for the same underlying finding, so SwiftUI
@@ -98,6 +100,10 @@ public enum InsightEngine {
         /// window, for the heavy-network insight. Empty (the default, and the
         /// case when per-app network tracking is off) disables that part.
         public var networkConsumers: [ProcessConsumer]
+        /// Fans-working-harder-at-the-same-temperature finding, computed from
+        /// the hour tier by the caller (see `ThermalDrift`). Nil disables the
+        /// dust insight.
+        public var thermalDrift: ThermalDrift.Finding?
 
         public init(
             now: Date = Date(),
@@ -111,7 +117,8 @@ public enum InsightEngine {
             rosetta: RosettaCost,
             cpu: CPUSample? = nil,
             cpuConsumers: [ProcessConsumer] = [],
-            networkConsumers: [ProcessConsumer] = []
+            networkConsumers: [ProcessConsumer] = [],
+            thermalDrift: ThermalDrift.Finding? = nil
         ) {
             self.now = now
             self.totalRAM = totalRAM
@@ -125,6 +132,7 @@ public enum InsightEngine {
             self.cpu = cpu
             self.cpuConsumers = cpuConsumers
             self.networkConsumers = networkConsumers
+            self.thermalDrift = thermalDrift
         }
     }
 
@@ -165,6 +173,7 @@ public enum InsightEngine {
         found += rosettaInsights(inputs)
         found += cpuInsights(inputs)
         found += networkInsights(inputs)
+        found += thermalDriftInsights(inputs)
 
         guard !found.isEmpty else {
             return [
@@ -191,6 +200,26 @@ public enum InsightEngine {
     }
 
     // MARK: - Sources
+
+    /// The dust signal: fans measurably faster at the same die temperature
+    /// than weeks ago. Advisory, one card, hardware-care rather than software.
+    private static func thermalDriftInsights(_ inputs: Inputs) -> [Insight] {
+        guard let finding = inputs.thermalDrift else { return [] }
+        let percent = Int((finding.increaseFraction * 100).rounded())
+        return [
+            Insight(
+                id: "thermal-drift",
+                kind: .thermalDrift,
+                severity: .advisory,
+                headline: "Fans are working harder than they used to",
+                detail:
+                    "At the same die temperature, the fans now run about \(percent)% faster "
+                    + "than \(finding.baselineWeeksAgo) weeks ago. Dust buildup in the vents "
+                    + "is the usual cause; cleaning them usually brings speeds back down.",
+                metricText: "+\(percent)%"
+            )
+        ]
+    }
 
     private static func leakInsights(_ inputs: Inputs) -> [Insight] {
         inputs.leaks.prefix(3).map { entry in
