@@ -58,6 +58,11 @@ final class SMCReader {
     private var cached = ThermalSample()
     private var lastRead: Date?
     private let minInterval: TimeInterval = 5.0
+    /// Full-inventory discovery cache (`sensorInventory`), separate from the
+    /// sampling key sets above: every readable temperature key, not just the
+    /// headline domains.
+    private var inventoryKeys: [(key: UInt32, name: String)]?
+    private var inventoryFanCount = 0
 
     deinit {
         if connection != 0 { IOServiceClose(connection) }
@@ -158,27 +163,39 @@ final class SMCReader {
     }
 
     /// Every readable temperature key with a plausible value, grouped by
-    /// domain, plus the fans. A full enumeration costs a few hundred
-    /// milliseconds, so this is for the on-demand Hardware inventory, never
-    /// the sampling tick; callers create a throwaway reader on their own
-    /// queue and let it deinit.
+    /// domain, plus the fans. The first call pays the full enumeration (a few
+    /// hundred milliseconds, so never on the sampling tick); repeat calls on
+    /// the same reader re-read just the discovered keys (tens of
+    /// milliseconds), which is what lets a visible sensor surface stay live.
+    /// Callers keep one reader confined to their own queue.
     func sensorInventory() -> (sensors: [SensorReading], fans: [FanSample]) {
         guard open() else { return ([], []) }
-        var sensors: [SensorReading] = []
-        if let total = readUInt32(Self.fourCC("#KEY")), total > 0 {
-            for index in 0..<total {
-                guard let key = keyAtIndex(index) else { continue }
-                let name = Self.toString(key)
-                guard name.hasPrefix("T") else { continue }
-                guard let value = readFloat(key), Self.isPlausibleReading(value) else { continue }
-                sensors.append(
-                    SensorReading(
-                        key: name, celsius: value, group: Self.sensorGroup(forKeyName: name)))
+        if inventoryKeys == nil {
+            var discovered: [(key: UInt32, name: String)] = []
+            if let total = readUInt32(Self.fourCC("#KEY")), total > 0 {
+                for index in 0..<total {
+                    guard let key = keyAtIndex(index) else { continue }
+                    let name = Self.toString(key)
+                    guard name.hasPrefix("T") else { continue }
+                    guard let value = readFloat(key), Self.isPlausibleReading(value) else {
+                        continue
+                    }
+                    discovered.append((key, name))
+                }
             }
+            inventoryKeys = discovered
+            var fans = readFloat(Self.fourCC("FNum")).map { Int($0) } ?? 0
+            if fans == 0, (readFloat(Self.fourCC("F0Mx")) ?? 0) > 0 { fans = 1 }
+            inventoryFanCount = fans
         }
-        var fanCount = readFloat(Self.fourCC("FNum")).map { Int($0) } ?? 0
-        if fanCount == 0, (readFloat(Self.fourCC("F0Mx")) ?? 0) > 0 { fanCount = 1 }
-        return (sensors, (0..<fanCount).compactMap(readFan))
+        let sensors = (inventoryKeys ?? []).compactMap { entry -> SensorReading? in
+            guard let value = readFloat(entry.key), Self.isPlausibleReading(value) else {
+                return nil
+            }
+            return SensorReading(
+                key: entry.name, celsius: value, group: Self.sensorGroup(forKeyName: entry.name))
+        }
+        return (sensors, (0..<inventoryFanCount).compactMap(readFan))
     }
 
     /// Human grouping for the full key set. Broader than `domain(forKeyName:)`,

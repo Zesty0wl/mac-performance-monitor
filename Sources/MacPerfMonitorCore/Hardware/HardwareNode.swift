@@ -165,6 +165,17 @@ public struct HardwareFacts: Hashable, Sendable, Codable {
         }
     }
 
+    /// One temperature domain for the overview's heat grid: the group name and
+    /// its raw readings in Celsius, hottest first.
+    public struct SensorGroup: Hashable, Sendable, Codable {
+        public var name: String
+        public var readings: [Double]
+        public init(name: String, readings: [Double]) {
+            self.name = name
+            self.readings = readings
+        }
+    }
+
     public var productName: String?
     public var modelIdentifier: String?
     public var serialNumber: String?
@@ -188,6 +199,10 @@ public struct HardwareFacts: Hashable, Sendable, Codable {
     public var usbDeviceCount: Int?
     public var thunderboltPortCount: Int?
     public var secureBoot: String?
+    /// Empty (not nil) when the SMC was read and found nothing, so the
+    /// overview can say so instead of spinning forever.
+    public var sensorGroups: [SensorGroup]?
+    public var fanRPMs: [Int]?
 
     public init() {}
 
@@ -216,6 +231,8 @@ public struct HardwareFacts: Hashable, Sendable, Codable {
         if let v = other.usbDeviceCount { usbDeviceCount = v }
         if let v = other.thunderboltPortCount { thunderboltPortCount = v }
         if let v = other.secureBoot { secureBoot = v }
+        if let v = other.sensorGroups { sensorGroups = v }
+        if let v = other.fanRPMs { fanRPMs = v }
     }
 }
 

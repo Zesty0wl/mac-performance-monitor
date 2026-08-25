@@ -8,6 +8,11 @@ import SwiftUI
 /// radios and buses, and the running software. Every card opens its section.
 struct HardwareOverviewView: View {
     @ObservedObject var model: HardwareExplorerModel
+    @EnvironmentObject private var sampler: SamplerModel
+    @EnvironmentObject private var appState: AppState
+    @StateObject private var sensorLive = SensorLiveStore()
+    /// The domain whose live per-sensor sheet is open, if any.
+    @State private var detailGroup: SensorDetailSelection?
 
     private var facts: HardwareFacts { model.facts }
 
@@ -34,6 +39,10 @@ struct HardwareOverviewView: View {
                         cell(connectivityCard)
                         cell(softwareCard)
                     }
+                    GridRow {
+                        cell(sensorsCard)
+                            .gridCellColumns(2)
+                    }
                 }
                 .frame(maxWidth: 1240, alignment: .leading)
                 VStack(alignment: .leading, spacing: 16) {
@@ -45,6 +54,7 @@ struct HardwareOverviewView: View {
                     powerCard
                     connectivityCard
                     softwareCard
+                    sensorsCard
                 }
             }
             .padding(20)
@@ -277,6 +287,94 @@ struct HardwareOverviewView: View {
         }
     }
 
+    // MARK: - Sensors
+
+    /// Every temperature domain as a quarter-width chart block in the same
+    /// style as the Processes tab's detail rail: a titled `MetricChart` of
+    /// the domain's hottest sensor over a fixed five-minute window, live at
+    /// the app's refresh cycle while this page is visible. Clicking a block
+    /// opens a live sheet listing every individual sensor behind the figure.
+    private var sensorsCard: some View {
+        let groups = sensorLive.groups.isEmpty ? (facts.sensorGroups ?? []) : sensorLive.groups
+        let fans = sensorLive.groups.isEmpty ? (facts.fanRPMs ?? []) : sensorLive.fans
+        return HardwarePanel(
+            "Sensors", systemImage: "thermometer.medium", action: { model.selectedID = "sensors" }
+        ) {
+            VStack(alignment: .leading, spacing: 10) {
+                if groups.isEmpty, facts.sensorGroups != nil {
+                    Text("No readable temperature sensors on this Mac.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else if groups.isEmpty {
+                    pending
+                } else {
+                    LazyVGrid(
+                        columns: Array(
+                            repeating: GridItem(.flexible(), spacing: 14, alignment: .top),
+                            count: 4),
+                        alignment: .leading, spacing: 14
+                    ) {
+                        ForEach(groups, id: \.name) { group in
+                            SensorChartBlock(
+                                title: group.name,
+                                systemImage: Self.sensorSymbol(group.name),
+                                value: "\(Int((group.readings.first ?? 0).rounded()))\u{00B0}C",
+                                tint: SensorHeat.color(group.readings.first ?? 0),
+                                samples: sensorLive.samples[group.name] ?? [],
+                                minTop: 60,
+                                yFormat: { "\(Int(max($0, 0).rounded()))\u{00B0}" },
+                                action: { detailGroup = SensorDetailSelection(name: group.name) }
+                            )
+                        }
+                        if !fans.isEmpty {
+                            SensorChartBlock(
+                                title: "Fans",
+                                systemImage: "fanblades",
+                                value: (fans.max() ?? 0) == 0 ? "Off" : "\(fans.max() ?? 0) rpm",
+                                tint: (fans.max() ?? 0) == 0 ? .secondary : .teal,
+                                samples: sensorLive.samples[SensorLiveStore.fansKey] ?? [],
+                                minTop: 2000,
+                                yFormat: { "\(Int(max($0, 0).rounded()))" },
+                                action: {
+                                    detailGroup = SensorDetailSelection(
+                                        name: SensorLiveStore.fansKey)
+                                }
+                            )
+                        }
+                    }
+                    Text(
+                        "Each chart is the hottest sensor of its domain over the last five "
+                            + "minutes, live at the refresh cycle. Click a chart to watch "
+                            + "every sensor behind it; Details lists the raw keys."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .onReceive(sampler.liveTick) {
+            guard appState.mainWindowVisible else { return }
+            sensorLive.sweepIfDue(floor: detailGroup == nil ? 5 : 2)
+        }
+        .onAppear { sensorLive.sweepIfDue() }
+        .sheet(item: $detailGroup) { selection in
+            SensorDetailSheet(store: sensorLive, groupName: selection.name)
+        }
+    }
+
+    private static func sensorSymbol(_ group: String) -> String {
+        switch group {
+        case "CPU die (P cores)", "CPU die (E cores)": return "cpu"
+        case "GPU clusters": return "square.grid.3x3.fill"
+        case "SSD": return "internaldrive"
+        case "Battery": return "minus.plus.batteryblock"
+        case "Airflow": return "wind"
+        case "Wireless": return "wifi"
+        case "Voltage rails": return "bolt"
+        default: return "thermometer.medium"
+        }
+    }
+
     private var pending: some View {
         HStack(spacing: 6) {
             if model.isRefreshing {
@@ -286,6 +384,215 @@ struct HardwareOverviewView: View {
             Text(model.isRefreshing ? "Reading\u{2026}" : "Not reported")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// The temperature-to-color ramp for the sensor card figures: cool blue at
+/// room temperature through amber to red near the die limit.
+private enum SensorHeat {
+    static func color(_ celsius: Double) -> Color {
+        let t = min(max((celsius - 20) / 80, 0), 1)
+        return Color(hue: 0.58 * (1 - t), saturation: 0.72, brightness: 0.92)
+    }
+}
+
+/// Identifies the open per-sensor sheet.
+private struct SensorDetailSelection: Identifiable {
+    var name: String
+    var id: String { name }
+}
+
+/// Live channel behind the overview's sensor charts: one queue-confined
+/// reader whose first sweep pays discovery and whose repeats re-read only the
+/// known keys (tens of milliseconds), throttled so a fast dial cannot turn
+/// the full sensor set into a hot loop. Each sweep appends the per-domain
+/// hottest (and the fastest fan) to a trailing five-minute trend, and keeps
+/// the individual named readings for the detail sheet.
+private final class SensorLiveStore: ObservableObject {
+    static let fansKey = "Fans"
+    static let chartSpan: TimeInterval = 5 * 60
+
+    @Published private(set) var groups: [HardwareFacts.SensorGroup] = []
+    @Published private(set) var fans: [Int] = []
+    /// Trailing five-minute trend per group name (plus `fansKey`), oldest
+    /// first, appended once per sweep.
+    @Published private(set) var samples: [String: [MetricSample]] = [:]
+    /// Every named reading of the latest sweep, hottest first, per group.
+    @Published private(set) var sensorsByGroup: [String: [SensorValue]] = [:]
+
+    private let queue = DispatchQueue(
+        label: "uk.co.bzwrd.macperfmonitor.sensor-live", qos: .utility)
+    /// Confined to `queue`.
+    private let reader = SensorInventoryReader()
+    private var lastSweep: Date?
+    private var inFlight = false
+
+    /// `floor` is the minimum interval between SMC sweeps: the card row uses
+    /// 5 s, and the open detail sheet tightens it so its rows track closer to
+    /// real time.
+    func sweepIfDue(now: Date = Date(), floor minInterval: TimeInterval = 5) {
+        if let lastSweep, now.timeIntervalSince(lastSweep) < minInterval { return }
+        guard !inFlight else { return }
+        inFlight = true
+        lastSweep = now
+        queue.async { [weak self] in
+            guard let self else { return }
+            let (groups, fans, sensors) = self.reader.read()
+            let byGroup = Dictionary(grouping: sensors, by: \.group)
+                .mapValues { $0.sorted { $0.celsius > $1.celsius } }
+            DispatchQueue.main.async {
+                self.inFlight = false
+                self.groups = groups
+                self.fans = fans
+                self.sensorsByGroup = byGroup
+                var next = self.samples
+                let cutoff = now.addingTimeInterval(-Self.chartSpan - 30)
+                for group in groups {
+                    guard let hottest = group.readings.first else { continue }
+                    var series = next[group.name] ?? []
+                    series.append(MetricSample(date: now, value: hottest))
+                    series.removeAll { $0.date < cutoff }
+                    next[group.name] = series
+                }
+                if !fans.isEmpty {
+                    var series = next[Self.fansKey] ?? []
+                    series.append(MetricSample(date: now, value: Double(fans.max() ?? 0)))
+                    series.removeAll { $0.date < cutoff }
+                    next[Self.fansKey] = series
+                }
+                self.samples = next
+            }
+        }
+    }
+}
+
+/// One domain in the Sensors panel, drawn like the Processes tab's detail
+/// rail: a titled `MetricChart` of the hottest sensor over a fixed
+/// five-minute window, with the current figure trailing the title. The whole
+/// block is a button opening the live per-sensor sheet.
+private struct SensorChartBlock: View {
+    let title: String
+    let systemImage: String
+    let value: String
+    let tint: Color
+    let samples: [MetricSample]
+    let minTop: Double
+    let yFormat: (Double) -> String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Label(title, systemImage: systemImage)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer(minLength: 6)
+                    Text(value)
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(tint)
+                }
+                MetricChart(
+                    samples: samples, tint: tint, minTop: minTop,
+                    windowSeconds: SensorLiveStore.chartSpan, accessibilityTitle: title,
+                    yFormat: yFormat
+                )
+                .equatable()
+                .frame(height: 96)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Watch every \(title) sensor live")
+    }
+}
+
+/// The deep-dive modal: every sensor behind one domain figure, re-sorted and
+/// re-read live while the sheet is open (the host tightens the sweep floor).
+private struct SensorDetailSheet: View {
+    @ObservedObject var store: SensorLiveStore
+    let groupName: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Label(groupName, systemImage: "thermometer.medium")
+                    .font(.headline)
+                Spacer()
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(16)
+            Divider()
+            if groupName == SensorLiveStore.fansKey {
+                fanRows
+            } else {
+                sensorRows
+            }
+        }
+        .frame(width: 440, height: 520)
+    }
+
+    private var subtitle: String {
+        if groupName == SensorLiveStore.fansKey {
+            return store.fans.count == 1 ? "1 fan, live" : "\(store.fans.count) fans, live"
+        }
+        let count = store.sensorsByGroup[groupName]?.count ?? 0
+        return count == 1 ? "1 sensor, live" : "\(count) sensors, live"
+    }
+
+    private var sensorRows: some View {
+        ScrollView {
+            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 7) {
+                ForEach(store.sensorsByGroup[groupName] ?? []) { sensor in
+                    GridRow {
+                        Text(sensor.key)
+                            .font(.callout.monospaced())
+                            .gridColumnAlignment(.leading)
+                        GeometryReader { proxy in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(.quaternary.opacity(0.5))
+                                Capsule()
+                                    .fill(SensorHeat.color(sensor.celsius))
+                                    .frame(
+                                        width: proxy.size.width
+                                            * min(max((sensor.celsius - 20) / 90, 0.02), 1))
+                            }
+                        }
+                        .frame(height: 7)
+                        .gridCellUnsizedAxes(.vertical)
+                        Text(String(format: "%.1f\u{00B0}C", sensor.celsius))
+                            .font(.callout.monospacedDigit())
+                            .foregroundStyle(SensorHeat.color(sensor.celsius))
+                            .gridColumnAlignment(.trailing)
+                    }
+                }
+            }
+            .padding(16)
+        }
+    }
+
+    private var fanRows: some View {
+        ScrollView {
+            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 7) {
+                ForEach(Array(store.fans.enumerated()), id: \.offset) { index, rpm in
+                    GridRow {
+                        Text("Fan \(index + 1)")
+                            .font(.callout)
+                            .gridColumnAlignment(.leading)
+                        Text(rpm == 0 ? "Off" : "\(rpm) rpm")
+                            .font(.callout.monospacedDigit())
+                            .gridColumnAlignment(.trailing)
+                    }
+                }
+            }
+            .padding(16)
         }
     }
 }

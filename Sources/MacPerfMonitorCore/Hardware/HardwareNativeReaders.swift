@@ -720,6 +720,20 @@ enum HardwareNativeReaders {
 
     // MARK: - Sensors
 
+    /// Shared shaping for the sensor facts: display-ordered groups with
+    /// readings hottest first, plus the fan speeds.
+    static func sensorFacts(
+        _ inventory: (sensors: [SMCReader.SensorReading], fans: [FanSample])
+    ) -> (groups: [HardwareFacts.SensorGroup], fans: [Int]) {
+        let grouped = Dictionary(grouping: inventory.sensors, by: \.group)
+        let groups = SMCReader.sensorGroupOrder.compactMap { group -> HardwareFacts.SensorGroup? in
+            guard let readings = grouped[group], !readings.isEmpty else { return nil }
+            return HardwareFacts.SensorGroup(
+                name: group, readings: readings.map(\.celsius).sorted(by: >))
+        }
+        return (groups, inventory.fans.map(\.rpm))
+    }
+
     /// Every readable temperature sensor the SMC exposes, grouped by domain,
     /// plus the fans. Values are one refresh-time snapshot, matching the rest
     /// of the explorer; the live thermal story lives on the Energy tab. This
@@ -728,9 +742,16 @@ enum HardwareNativeReaders {
     static func sensors(parentID: String, systemImage: String) -> Result {
         var result = Result()
         let inventory = SMCReader().sensorInventory()
+        let grouped = Dictionary(grouping: inventory.sensors, by: \.group)
+        // Facts for the overview's heat strips: raw readings per group,
+        // hottest first, in display order. Set even when empty so the
+        // overview card can report "nothing readable" instead of loading
+        // forever.
+        let facts = sensorFacts(inventory)
+        result.facts.sensorGroups = facts.groups
+        result.facts.fanRPMs = facts.fans
         guard !inventory.sensors.isEmpty || !inventory.fans.isEmpty else { return result }
 
-        let grouped = Dictionary(grouping: inventory.sensors, by: \.group)
         for group in SMCReader.sensorGroupOrder {
             guard let readings = grouped[group], !readings.isEmpty else { continue }
             let hottest = readings.map(\.celsius).max() ?? 0
