@@ -273,9 +273,10 @@ public final class SampleStore {
                  battery_cycles, battery_temp, net_in, net_out,
                  disk_read, disk_write, disk_read_iops, disk_write_iops,
                  disk_read_latency, disk_write_latency, disk_util, boot_free, boot_total,
-                 gpu_util, gpu_power, ane_power)
+                 gpu_util, gpu_power, ane_power,
+                 cpu_die, gpu_die, ssd_temp, fan_rpm, thermal_state)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
-                        ?,?,?,?,?,?,?,?)
+                        ?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """)
         try statement.execute(
             arguments: [
@@ -298,6 +299,8 @@ public final class SampleStore {
                 s.diskReadLatencyMs, s.diskWriteLatencyMs, s.diskUtilizationPercent,
                 s.bootVolumeFreeBytes.map(SQLInt.store), s.bootVolumeTotalBytes.map(SQLInt.store),
                 s.gpuUtilization, s.gpuPowerWatts, s.anePowerWatts,
+                s.cpuDieC, s.gpuDieC, s.ssdTemperatureC, s.fanRPM,
+                s.thermalPressure?.rawValue,
             ])
     }
 
@@ -523,7 +526,16 @@ public final class SampleStore {
             diskWriteLatencyMs: row["disk_write_latency"],
             diskUtilizationPercent: row["disk_util"],
             bootVolumeTotalBytes: (row["boot_total"] as Int64?).map(SQLInt.read),
-            bootVolumeFreeBytes: (row["boot_free"] as Int64?).map(SQLInt.read)
+            bootVolumeFreeBytes: (row["boot_free"] as Int64?).map(SQLInt.read),
+            gpuUtilization: row["gpu_util"],
+            gpuPowerWatts: row["gpu_power"],
+            anePowerWatts: row["ane_power"],
+            cpuDieC: row["cpu_die"],
+            gpuDieC: row["gpu_die"],
+            ssdTemperatureC: row["ssd_temp"],
+            fanRPM: row["fan_rpm"],
+            thermalPressure: (row["thermal_state"] as Int?)
+                .flatMap { ThermalPressureState(rawValue: $0) }
         )
     }
 

@@ -153,6 +153,7 @@ public final class Sampler {
     /// ticks. Their values do not benefit from polling above 1 Hz, and each call
     /// crosses into IOKit or the SMC driver.
     private var cachedGPU: GPUSample?
+    private var cachedThermal: ThermalSample?
     private var lastGPUReadAt: Date?
 
     /// Per-process facts that never change for a given pid+startTime: the
@@ -295,6 +296,9 @@ public final class Sampler {
             lastGPUReadAt.map({ now.timeIntervalSince($0) >= gpuReadInterval }) ?? true
         {
             var freshGPU = gpuReader.read()
+            // Thermal rides the GPU cadence but does not depend on the GPU
+            // reader succeeding; SMCReader throttles itself internally.
+            if let thermal = smcReader.read(now: now) { cachedThermal = thermal }
             if freshGPU != nil {
                 if let power = powerReader.read(now: now) {
                     freshGPU?.gpuPowerWatts = power.gpuWatts
@@ -305,7 +309,7 @@ public final class Sampler {
                     freshGPU?.throttled = power.gpuThrottled
                     freshGPU?.powerCapPercent = power.gpuPowerCapPercent
                 }
-                if let thermal = smcReader.read(now: now) {
+                if let thermal = cachedThermal {
                     // Prefer the GPU's own cluster sensors; fall back to the
                     // CPU die max on chips with no GPU-specific keys.
                     freshGPU?.dieTemperatureC = thermal.gpuDieMaxC ?? thermal.cpuDieMaxC
@@ -317,9 +321,10 @@ public final class Sampler {
             lastGPUReadAt = now
         }
         let gpu = readGPU ? cachedGPU : nil
+        let thermal = readGPU ? cachedThermal : nil
         let system = sampleSystem(
             now: now, wallDeltaSeconds: wallDeltaSeconds, cpuLoad: cpu.totalUsage, battery: battery,
-            network: network, disk: disk, bootVolume: bootVolume, gpu: gpu)
+            network: network, disk: disk, bootVolume: bootVolume, gpu: gpu, thermal: thermal)
         lastSystemTime = now
         return (system, cpu, battery, network, disk, gpu)
     }
@@ -760,6 +765,7 @@ public final class Sampler {
         cachedBattery = nil
         lastBatteryReadAt = nil
         cachedGPU = nil
+        cachedThermal = nil
         lastGPUReadAt = nil
         networkReader.reset()
         diskReader.reset()
@@ -777,7 +783,7 @@ public final class Sampler {
     private func sampleSystem(
         now: Date, wallDeltaSeconds: TimeInterval, cpuLoad: Double, battery: BatterySample?,
         network: NetworkSample?, disk: DiskSample?, bootVolume: BootVolumeReader.Capacity?,
-        gpu: GPUSample? = nil
+        gpu: GPUSample? = nil, thermal: ThermalSample? = nil
     ) -> SystemSample {
         let totalRAM = memoryReader.totalRAM
         let vm = memoryReader.sampleVM()
@@ -875,7 +881,14 @@ public final class Sampler {
             bootVolumeFreeBytes: bootVolume?.freeBytes,
             gpuUtilization: gpu?.utilization,
             gpuPowerWatts: gpu?.gpuPowerWatts,
-            anePowerWatts: gpu?.anePowerWatts
+            anePowerWatts: gpu?.anePowerWatts,
+            cpuDieC: thermal?.cpuDieMaxC,
+            gpuDieC: thermal?.gpuDieMaxC,
+            ssdTemperatureC: thermal?.ssdMaxC,
+            fanRPM: thermal?.primaryFanRPM.map(Double.init),
+            // Public API, no SMC involved: read every tick so the throttling
+            // record survives even when no thermal surface is active.
+            thermalPressure: ThermalPressureState(ProcessInfo.processInfo.thermalState)
         )
     }
 

@@ -179,6 +179,15 @@ public enum MacPerfMonitorDatabase {
         migrator.registerMigration("v13-gpu") { db in
             try db.execute(sql: Schema.v13)
         }
+        // Thermal: per-domain die temperatures (hottest sensor), the fastest
+        // fan, and macOS's thermal pressure verdict on the system rows. All
+        // nullable like the GPU columns: a tick that did not read the SMC
+        // stores nothing, not 0. Rollups keep max as well as avg because the
+        // spikes are the point of thermal history; a plain average would
+        // erase exactly the moments users go looking for.
+        migrator.registerMigration("v14-thermal") { db in
+            try db.execute(sql: Schema.v14)
+        }
         return migrator
     }
 }
@@ -546,6 +555,34 @@ enum Schema {
         ALTER TABLE process_minute ADD COLUMN gpu_max REAL NOT NULL DEFAULT 0;
         ALTER TABLE process_hour ADD COLUMN gpu_avg REAL NOT NULL DEFAULT 0;
         ALTER TABLE process_hour ADD COLUMN gpu_max REAL NOT NULL DEFAULT 0;
+        """
+
+    static let v14 = """
+        ALTER TABLE system_samples ADD COLUMN cpu_die REAL;
+        ALTER TABLE system_samples ADD COLUMN gpu_die REAL;
+        ALTER TABLE system_samples ADD COLUMN ssd_temp REAL;
+        ALTER TABLE system_samples ADD COLUMN fan_rpm REAL;
+        ALTER TABLE system_samples ADD COLUMN thermal_state INTEGER;
+
+        ALTER TABLE system_minute ADD COLUMN cpu_die_avg REAL;
+        ALTER TABLE system_minute ADD COLUMN cpu_die_max REAL;
+        ALTER TABLE system_minute ADD COLUMN gpu_die_avg REAL;
+        ALTER TABLE system_minute ADD COLUMN gpu_die_max REAL;
+        ALTER TABLE system_minute ADD COLUMN ssd_temp_avg REAL;
+        ALTER TABLE system_minute ADD COLUMN ssd_temp_max REAL;
+        ALTER TABLE system_minute ADD COLUMN fan_rpm_avg REAL;
+        ALTER TABLE system_minute ADD COLUMN fan_rpm_max REAL;
+        ALTER TABLE system_minute ADD COLUMN thermal_state_max INTEGER;
+
+        ALTER TABLE system_hour ADD COLUMN cpu_die_avg REAL;
+        ALTER TABLE system_hour ADD COLUMN cpu_die_max REAL;
+        ALTER TABLE system_hour ADD COLUMN gpu_die_avg REAL;
+        ALTER TABLE system_hour ADD COLUMN gpu_die_max REAL;
+        ALTER TABLE system_hour ADD COLUMN ssd_temp_avg REAL;
+        ALTER TABLE system_hour ADD COLUMN ssd_temp_max REAL;
+        ALTER TABLE system_hour ADD COLUMN fan_rpm_avg REAL;
+        ALTER TABLE system_hour ADD COLUMN fan_rpm_max REAL;
+        ALTER TABLE system_hour ADD COLUMN thermal_state_max INTEGER;
         """
 }
 
