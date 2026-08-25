@@ -296,16 +296,22 @@ final class CombinedStatusItemController: NSObject {
         case .network: return .network
         case .disk: return .disk
         case .gpu: return .gpu
+        case .temperature: return nil
         }
     }
 
     private func reconcileGPUSampling() {
-        let panelLive = popover?.isShown == true && currentPanel == .gpu
+        // Temperature rides the GPU/SMC read path, so a visible temperature
+        // readout or panel keeps that path live exactly like the GPU ones.
+        let panelLive =
+            popover?.isShown == true && (currentPanel == .gpu || currentPanel == .temperature)
         if panelLive != gpuPanelLive {
             gpuPanelLive = panelLive
             if panelLive { model.addGPUConsumer() } else { model.removeGPUConsumer() }
         }
-        let shouldSample = configuration.selectedMetrics.contains(.gpu) || panelLive
+        let shouldSample =
+            configuration.selectedMetrics.contains(.gpu)
+            || configuration.selectedMetrics.contains(.temperature) || panelLive
         guard shouldSample != gpuSamplingActive else { return }
         gpuSamplingActive = shouldSample
         model.setGPUSamplingEnabled(shouldSample)

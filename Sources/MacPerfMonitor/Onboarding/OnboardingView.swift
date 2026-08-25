@@ -487,6 +487,7 @@ private struct OnboardingMenuBarStep: View {
         case .cpu: return "Total CPU, every core, and top CPU processes."
         case .gpu: return "GPU activity, power, memory, and temperature."
         case .energy: return "Charge, power flow, and top energy users."
+        case .temperature: return "CPU and GPU die temperature, fan speed, and throttling."
         case .network: return "Download, upload, latency, and top network apps."
         case .disk: return "Physical read and write activity, devices, and top processes."
         }

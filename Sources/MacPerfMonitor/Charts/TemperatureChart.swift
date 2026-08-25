@@ -1,12 +1,26 @@
 import MacPerfMonitorCore
 import SwiftUI
 
-/// Shared colors for the thermal surfaces, so the Energy tab and any future
-/// menu bar panel tell the same story.
+/// Shared colors for the thermal surfaces, so the Energy tab and the menu bar
+/// panel tell the same story.
 enum ThermalStyle {
     static let cpu = Color.orange
     static let gpu = Color.red
     static let fan = Color.teal
+}
+
+extension ThermalPressureState {
+    /// Display tint keyed to macOS's verdict, never to a degree threshold: a
+    /// hot number in green is a Mac working as designed; an orange or red one
+    /// is macOS actually slowing work down.
+    var color: Color {
+        switch self {
+        case .nominal: return .green
+        case .fair: return .yellow
+        case .serious: return .orange
+        case .critical: return .red
+        }
+    }
 }
 
 /// CPU and GPU die temperature over the selected window. The thermal fields
