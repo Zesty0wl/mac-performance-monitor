@@ -274,9 +274,11 @@ public final class SampleStore {
                  disk_read, disk_write, disk_read_iops, disk_write_iops,
                  disk_read_latency, disk_write_latency, disk_util, boot_free, boot_total,
                  gpu_util, gpu_power, ane_power,
-                 cpu_die, gpu_die, ssd_temp, fan_rpm, thermal_state)
+                 cpu_die, gpu_die, ssd_temp, fan_rpm, thermal_state,
+                 cpu_p_die, cpu_e_die, airflow_temp, skin_temp, wireless_temp, vrail_temp,
+                 other_temp)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
-                        ?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """)
         try statement.execute(
             arguments: [
@@ -301,6 +303,8 @@ public final class SampleStore {
                 s.gpuUtilization, s.gpuPowerWatts, s.anePowerWatts,
                 s.cpuDieC, s.gpuDieC, s.ssdTemperatureC, s.fanRPM,
                 s.thermalPressure?.rawValue,
+                s.cpuPCoreDieC, s.cpuECoreDieC, s.airflowC, s.skinC, s.wirelessC,
+                s.voltageRailC, s.otherSensorC,
             ])
     }
 
@@ -535,7 +539,14 @@ public final class SampleStore {
             ssdTemperatureC: row["ssd_temp"],
             fanRPM: row["fan_rpm"],
             thermalPressure: (row["thermal_state"] as Int?)
-                .flatMap { ThermalPressureState(rawValue: $0) }
+                .flatMap { ThermalPressureState(rawValue: $0) },
+            cpuPCoreDieC: row["cpu_p_die"],
+            cpuECoreDieC: row["cpu_e_die"],
+            airflowC: row["airflow_temp"],
+            skinC: row["skin_temp"],
+            wirelessC: row["wireless_temp"],
+            voltageRailC: row["vrail_temp"],
+            otherSensorC: row["other_temp"]
         )
     }
 

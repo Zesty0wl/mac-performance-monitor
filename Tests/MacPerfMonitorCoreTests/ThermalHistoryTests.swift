@@ -132,6 +132,74 @@ final class ThermalHistoryTests: XCTestCase {
         XCTAssertEqual(points.map { $0.cpuDieC ?? 0 }.max() ?? 0, 50, accuracy: 0.001)
     }
 
+    // MARK: - Per-domain sensor history (v15)
+
+    /// Every sensor group the Hardware charts draw must round-trip, so a
+    /// restart resumes the trend instead of starting blank.
+    func testSensorDomainsRoundTripAndSeedEveryChart() throws {
+        let now = Date()
+        var sample = thermalSample(at: now, cpu: 71, gpu: 54, ssd: 35, fan: 2400)
+        sample.cpuPCoreDieC = 71
+        sample.cpuECoreDieC = 63
+        sample.airflowC = 41
+        sample.skinC = 47
+        sample.wirelessC = 42
+        sample.voltageRailC = 66
+        sample.otherSensorC = 76
+        sample.batteryTemperatureCelsius = 29
+        try store.insert(systemSample: sample)
+
+        let history = try store.systemHistory(.fiveMinutes, now: now)
+        let point = try XCTUnwrap(history.last)
+        // Each group resolves to its recorded series through the same lookup
+        // the Hardware overview seeds from.
+        let expected: [(String, Double)] = [
+            (SMCReader.groupCPUPCores, 71), (SMCReader.groupCPUECores, 63),
+            (SMCReader.groupGPU, 54), (SMCReader.groupSSD, 35),
+            (SMCReader.groupBattery, 29), (SMCReader.groupAirflow, 41),
+            (SMCReader.groupSkin, 47), (SMCReader.groupWireless, 42),
+            (SMCReader.groupVoltageRails, 66), (SMCReader.groupOther, 76),
+        ]
+        for (group, value) in expected {
+            let recorded = HardwareFacts.SensorGroup.recordedValue(group, in: point)
+            XCTAssertEqual(try XCTUnwrap(recorded, group), value, accuracy: 0.001, group)
+        }
+        // No group is left without a series, or its chart could never seed.
+        for group in HardwareFacts.SensorGroup.displayOrder {
+            XCTAssertNotNil(HardwareFacts.SensorGroup.recordedValue(group, in: point), group)
+        }
+    }
+
+    /// Ticks that never read the SMC stay nil rather than seeding a chart
+    /// with zeros, and a battery-less desktop reports no battery series.
+    func testUnsampledDomainsStayNil() throws {
+        let now = Date()
+        try store.insert(systemSample: Make.system(timestamp: now, pressurePercent: 10))
+        let point = try XCTUnwrap(try store.systemHistory(.fiveMinutes, now: now).last)
+        for group in HardwareFacts.SensorGroup.displayOrder {
+            XCTAssertNil(HardwareFacts.SensorGroup.recordedValue(group, in: point), group)
+        }
+    }
+
+    func testSensorDomainsSurviveBothRollupTiers() throws {
+        for i in 0..<40 {
+            var sample = thermalSample(at: anchor.addingTimeInterval(Double(i) * 6), cpu: 50)
+            sample.cpuPCoreDieC = i == 20 ? 92 : 50
+            sample.airflowC = 40
+            sample.otherSensorC = 70
+            try store.insert(systemSample: sample)
+        }
+        try Retention.run(store.databasePool, now: anchor.addingTimeInterval(600))
+        let minutePoints = try store.systemHistory(.oneDay, now: anchor.addingTimeInterval(600))
+        XCTAssertEqual(minutePoints.compactMap(\.cpuPCoreDieC).max() ?? 0, 92, accuracy: 0.001)
+        XCTAssertEqual(minutePoints.compactMap(\.airflowC).max() ?? 0, 40, accuracy: 0.001)
+
+        try Retention.run(store.databasePool, now: anchor.addingTimeInterval(7200))
+        let hourPoints = try store.systemHistory(.sevenDays, now: anchor.addingTimeInterval(7200))
+        XCTAssertEqual(hourPoints.compactMap(\.cpuPCoreDieC).max() ?? 0, 92, accuracy: 0.001)
+        XCTAssertEqual(hourPoints.compactMap(\.otherSensorC).max() ?? 0, 70, accuracy: 0.001)
+    }
+
     // MARK: - Chart downsampler
 
     private func historyPoint(index: Int) -> SystemHistoryPoint {

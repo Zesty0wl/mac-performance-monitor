@@ -105,6 +105,17 @@ public struct SystemSample: Sendable, Codable {
     public var gpuDieC: Double?
     public var ssdTemperatureC: Double?
     public var fanRPM: Double?
+    // Per-domain hottest readings (v15), so the Hardware tab's sensor charts
+    // read their trend back from the log instead of starting empty on every
+    // launch. The die, GPU, SSD, battery and fan figures above already cover
+    // their own domains; these are the rest of the sensor groups.
+    public var cpuPCoreDieC: Double?
+    public var cpuECoreDieC: Double?
+    public var airflowC: Double?
+    public var skinC: Double?
+    public var wirelessC: Double?
+    public var voltageRailC: Double?
+    public var otherSensorC: Double?
     /// macOS's own thermal pressure verdict, read every tick (public API, no
     /// SMC involved), so throttling history survives even without sensors.
     public var thermalPressure: ThermalPressureState?
@@ -159,7 +170,14 @@ public struct SystemSample: Sendable, Codable {
         gpuDieC: Double? = nil,
         ssdTemperatureC: Double? = nil,
         fanRPM: Double? = nil,
-        thermalPressure: ThermalPressureState? = nil
+        thermalPressure: ThermalPressureState? = nil,
+        cpuPCoreDieC: Double? = nil,
+        cpuECoreDieC: Double? = nil,
+        airflowC: Double? = nil,
+        skinC: Double? = nil,
+        wirelessC: Double? = nil,
+        voltageRailC: Double? = nil,
+        otherSensorC: Double? = nil
     ) {
         self.timestamp = timestamp
         self.totalRAM = totalRAM
@@ -211,5 +229,12 @@ public struct SystemSample: Sendable, Codable {
         self.ssdTemperatureC = ssdTemperatureC
         self.fanRPM = fanRPM
         self.thermalPressure = thermalPressure
+        self.cpuPCoreDieC = cpuPCoreDieC
+        self.cpuECoreDieC = cpuECoreDieC
+        self.airflowC = airflowC
+        self.skinC = skinC
+        self.wirelessC = wirelessC
+        self.voltageRailC = voltageRailC
+        self.otherSensorC = otherSensorC
     }
 }

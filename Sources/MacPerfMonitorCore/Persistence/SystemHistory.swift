@@ -54,6 +54,15 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
     public var fanRPM: Double?
     /// Worst thermal pressure in the interval.
     public var thermalPressure: ThermalPressureState?
+    // Per-domain hottest readings (v15), the recorded series behind the
+    // Hardware tab's sensor charts.
+    public var cpuPCoreDieC: Double?
+    public var cpuECoreDieC: Double?
+    public var airflowC: Double?
+    public var skinC: Double?
+    public var wirelessC: Double?
+    public var voltageRailC: Double?
+    public var otherSensorC: Double?
 
     public var id: Date { date }
 
@@ -88,7 +97,14 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
         gpuDieC: Double? = nil,
         ssdTemperatureC: Double? = nil,
         fanRPM: Double? = nil,
-        thermalPressure: ThermalPressureState? = nil
+        thermalPressure: ThermalPressureState? = nil,
+        cpuPCoreDieC: Double? = nil,
+        cpuECoreDieC: Double? = nil,
+        airflowC: Double? = nil,
+        skinC: Double? = nil,
+        wirelessC: Double? = nil,
+        voltageRailC: Double? = nil,
+        otherSensorC: Double? = nil
     ) {
         self.date = date
         self.pressurePercent = pressurePercent
@@ -121,6 +137,13 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
         self.ssdTemperatureC = ssdTemperatureC
         self.fanRPM = fanRPM
         self.thermalPressure = thermalPressure
+        self.cpuPCoreDieC = cpuPCoreDieC
+        self.cpuECoreDieC = cpuECoreDieC
+        self.airflowC = airflowC
+        self.skinC = skinC
+        self.wirelessC = wirelessC
+        self.voltageRailC = voltageRailC
+        self.otherSensorC = otherSensorC
     }
 }
 
@@ -165,7 +188,9 @@ extension SampleStore {
                            disk_read, disk_write, disk_read_iops, disk_write_iops,
                            disk_read_latency, disk_write_latency, disk_util, boot_free, boot_total,
                            gpu_util, gpu_power, ane_power,
-                           cpu_die, gpu_die, ssd_temp, fan_rpm, thermal_state
+                           cpu_die, gpu_die, ssd_temp, fan_rpm, thermal_state,
+                           cpu_p_die, cpu_e_die, airflow_temp, skin_temp, wireless_temp,
+                           vrail_temp, other_temp
                     FROM system_samples
                     WHERE timestamp >= ?
                     ORDER BY timestamp ASC
@@ -186,7 +211,9 @@ extension SampleStore {
                            disk_read_latency_avg, disk_write_latency_avg, disk_util_avg,
                            boot_free_min, boot_total,
                            gpu_util_avg, gpu_power_avg, ane_power_avg,
-                           cpu_die_max, gpu_die_max, ssd_temp_max, fan_rpm_max, thermal_state_max
+                           cpu_die_max, gpu_die_max, ssd_temp_max, fan_rpm_max, thermal_state_max,
+                           cpu_p_die_max, cpu_e_die_max, airflow_temp_max, skin_temp_max,
+                           wireless_temp_max, vrail_temp_max, other_temp_max
                     FROM \(table)
                     WHERE bucket >= ?
                     ORDER BY bucket ASC
@@ -232,7 +259,14 @@ extension SampleStore {
             gpuDieC: row[27],
             ssdTemperatureC: row[28],
             fanRPM: row[29],
-            thermalPressure: (row[30] as Int?).flatMap { ThermalPressureState(rawValue: $0) }
+            thermalPressure: (row[30] as Int?).flatMap { ThermalPressureState(rawValue: $0) },
+            cpuPCoreDieC: row[31],
+            cpuECoreDieC: row[32],
+            airflowC: row[33],
+            skinC: row[34],
+            wirelessC: row[35],
+            voltageRailC: row[36],
+            otherSensorC: row[37]
         )
     }
 }

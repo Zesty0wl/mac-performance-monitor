@@ -16,6 +16,17 @@ struct ThermalSample: Sendable, Equatable {
     /// average: "CPU temperature" means the hottest core to a user.
     var cpuDieMaxC: Double?
 
+    /// Per-display-group hottest readings, recorded so the Hardware tab's
+    /// sensor charts have history to read back after a restart.
+    var cpuPCoreMaxC: Double?
+    var cpuECoreMaxC: Double?
+    var batteryMaxC: Double?
+    var airflowMaxC: Double?
+    var skinMaxC: Double?
+    var wirelessMaxC: Double?
+    var voltageRailMaxC: Double?
+    var otherMaxC: Double?
+
     /// Average across the CPU die sensors, the secondary trend figure.
     var cpuDieAvgC: Double?
 
@@ -41,44 +52,80 @@ struct ThermalSample: Sendable, Equatable {
 /// table: key names drift between M1/M2/M3/M4 generations but the prefixes
 /// have held. See docs/temperature-design.md for the probed key inventory.
 final class SMCReader {
-    /// The temperature domain a discovered key's readings belong to.
-    enum SensorDomain: Sendable, Equatable {
-        case cpuDie
-        case gpuDie
-        case ssd
-    }
 
     private var connection: io_connect_t = 0
     private var didOpen = false
-    private var didDiscover = false
-    private var cpuKeys: [UInt32] = []
-    private var gpuKeys: [UInt32] = []
-    private var ssdKeys: [UInt32] = []
     private var fanCount = 0
     private var cached = ThermalSample()
     private var lastRead: Date?
     private let minInterval: TimeInterval = 5.0
-    /// Full-inventory discovery cache (`sensorInventory`), separate from the
-    /// sampling key sets above: every readable temperature key, not just the
-    /// headline domains.
-    private var inventoryKeys: [(key: UInt32, name: String)]?
-    private var inventoryFanCount = 0
+    /// Every readable temperature key with its display group, discovered once
+    /// and shared by the sampling read and the full inventory. One list, so a
+    /// sensor is classified the same way wherever it surfaces.
+    private var groupedKeys: [(key: UInt32, name: String, group: String)]?
+    /// The slow-moving domains' last readings, refreshed on their own longer
+    /// cadence (see `slowInterval`) and carried between sweeps.
+    private var slowMaxima: [String: Double] = [:]
+    private var lastSlowRead: Date?
+    /// Airflow, skin, wireless, rails and the unidentified tail move over
+    /// minutes, not seconds, and there are ~190 of them against ~75 die keys:
+    /// sweeping the lot every read cost 37 ms a time (measured on an M3 Pro),
+    /// which would have pushed the app's time-averaged CPU from 1.3% toward
+    /// the 2% budget. They get a 30 s cadence; the figures a user watches move
+    /// at the full read rate.
+    private let slowInterval: TimeInterval = 30
 
     deinit {
         if connection != 0 { IOServiceClose(connection) }
     }
 
+    /// The per-domain hottest readings for one tick. Every display group is
+    /// carried, not just the die figures: the recorded history behind the
+    /// Hardware tab's sensor charts is built from these, so the trends survive
+    /// a restart.
     func read(now: Date) -> ThermalSample? {
         if let lastRead, now.timeIntervalSince(lastRead) < minInterval { return cached }
         guard open() else { return nil }
-        if !didDiscover { discoverKeys() }
+        discover()
+
+        let slowDue = lastSlowRead.map { now.timeIntervalSince($0) >= slowInterval } ?? true
+        var maxima: [String: Double] = [:]
+        var slow: [String: Double] = [:]
+        var cpuValues: [Double] = []
+        for entry in groupedKeys ?? [] {
+            let isFast = Self.isFastGroup(entry.group)
+            guard isFast || slowDue else { continue }
+            guard let value = readFloat(entry.key), Self.isPlausibleReading(value) else { continue }
+            if isFast {
+                maxima[entry.group] = Swift.max(maxima[entry.group] ?? value, value)
+                if entry.group == Self.groupCPUPCores || entry.group == Self.groupCPUECores {
+                    cpuValues.append(value)
+                }
+            } else {
+                slow[entry.group] = Swift.max(slow[entry.group] ?? value, value)
+            }
+        }
+        if slowDue {
+            slowMaxima = slow
+            lastSlowRead = now
+        }
+        maxima.merge(slowMaxima) { current, _ in current }
 
         var sample = ThermalSample()
-        let cpu = temperatures(of: cpuKeys)
-        sample.cpuDieMaxC = cpu.max()
-        if !cpu.isEmpty { sample.cpuDieAvgC = cpu.reduce(0, +) / Double(cpu.count) }
-        sample.gpuDieMaxC = temperatures(of: gpuKeys).max()
-        sample.ssdMaxC = temperatures(of: ssdKeys).max()
+        sample.cpuPCoreMaxC = maxima[Self.groupCPUPCores]
+        sample.cpuECoreMaxC = maxima[Self.groupCPUECores]
+        sample.cpuDieMaxC = [sample.cpuPCoreMaxC, sample.cpuECoreMaxC].compactMap { $0 }.max()
+        if !cpuValues.isEmpty {
+            sample.cpuDieAvgC = cpuValues.reduce(0, +) / Double(cpuValues.count)
+        }
+        sample.gpuDieMaxC = maxima[Self.groupGPU]
+        sample.ssdMaxC = maxima[Self.groupSSD]
+        sample.batteryMaxC = maxima[Self.groupBattery]
+        sample.airflowMaxC = maxima[Self.groupAirflow]
+        sample.skinMaxC = maxima[Self.groupSkin]
+        sample.wirelessMaxC = maxima[Self.groupWireless]
+        sample.voltageRailMaxC = maxima[Self.groupVoltageRails]
+        sample.otherMaxC = maxima[Self.groupOther]
         sample.fans = (0..<fanCount).compactMap(readFan)
         cached = sample
         lastRead = now
@@ -87,18 +134,22 @@ final class SMCReader {
 
     // MARK: - Classification policy
 
-    /// Which domain an SMC key's readings belong to, or nil for keys that must
-    /// never feed a die figure. `TV*` keys are voltage-rail sensors, not die:
-    /// the SMC enumerates keys sorted with uppercase before lowercase, so a
-    /// `TV`-accepting discovery with a small cap used to fill every slot with
-    /// voltage rails on chips with many `TV*` keys (M3 Pro has 12+ plausible
-    /// ones) and never reach a single `Te*`/`Tp*` die sensor. Case matters
-    /// throughout: `Tg*` is the GPU, while `TG0*` keys are battery-adjacent.
-    static func domain(forKeyName name: String) -> SensorDomain? {
-        if name.hasPrefix("Tp") || name.hasPrefix("Te") { return .cpuDie }
-        if name.hasPrefix("Tg") { return .gpuDie }
-        if name.hasPrefix("TH0") { return .ssd }
-        return nil
+    /// True for the groups that may feed a die temperature figure. `TV*` keys
+    /// are voltage-rail sensors, not die: the SMC enumerates keys sorted with
+    /// uppercase before lowercase, so a `TV`-accepting discovery with a small
+    /// cap used to fill every slot with voltage rails on chips with many `TV*`
+    /// keys (M3 Pro has 12+ plausible ones) and never reach a single
+    /// `Te*`/`Tp*` die sensor. Case matters throughout: `Tg*` is the GPU,
+    /// while `TG0*` keys are battery-adjacent.
+    static func isDieGroup(_ group: String) -> Bool {
+        group == groupCPUPCores || group == groupCPUECores || group == groupGPU
+    }
+
+    /// The domains read on every sampling pass: the ones a user watches move
+    /// second to second, and few enough keys to be cheap. The rest ride
+    /// `slowInterval`.
+    static func isFastGroup(_ group: String) -> Bool {
+        isDieGroup(group) || group == groupSSD || group == groupBattery
     }
 
     /// Discovery gate: strict, so calibration offsets (0.00 / -3.10 pairs),
@@ -140,13 +191,6 @@ final class SMCReader {
 
     // MARK: - Reading
 
-    private func temperatures(of keys: [UInt32]) -> [Double] {
-        keys.compactMap { key in
-            guard let value = readFloat(key), Self.isPlausibleReading(value) else { return nil }
-            return value
-        }
-    }
-
     private func readFan(_ index: Int) -> FanSample? {
         guard let rpm = readFloat(Self.fourCC("F\(index)Ac")) else { return nil }
         let maxRPM = readFloat(Self.fourCC("F\(index)Mx")).map { Int($0.rounded()) }
@@ -164,61 +208,54 @@ final class SMCReader {
 
     /// Every readable temperature key with a plausible value, grouped by
     /// domain, plus the fans. The first call pays the full enumeration (a few
-    /// hundred milliseconds, so never on the sampling tick); repeat calls on
-    /// the same reader re-read just the discovered keys (tens of
-    /// milliseconds), which is what lets a visible sensor surface stay live.
-    /// Callers keep one reader confined to their own queue.
+    /// hundred milliseconds); repeat calls on the same reader re-read just the
+    /// discovered keys (tens of milliseconds), which is what lets a visible
+    /// sensor surface stay live. Callers keep one reader confined to their own
+    /// queue.
     func sensorInventory() -> (sensors: [SensorReading], fans: [FanSample]) {
         guard open() else { return ([], []) }
-        if inventoryKeys == nil {
-            var discovered: [(key: UInt32, name: String)] = []
-            if let total = readUInt32(Self.fourCC("#KEY")), total > 0 {
-                for index in 0..<total {
-                    guard let key = keyAtIndex(index) else { continue }
-                    let name = Self.toString(key)
-                    guard name.hasPrefix("T") else { continue }
-                    guard let value = readFloat(key), Self.isPlausibleReading(value) else {
-                        continue
-                    }
-                    discovered.append((key, name))
-                }
-            }
-            inventoryKeys = discovered
-            var fans = readFloat(Self.fourCC("FNum")).map { Int($0) } ?? 0
-            if fans == 0, (readFloat(Self.fourCC("F0Mx")) ?? 0) > 0 { fans = 1 }
-            inventoryFanCount = fans
-        }
-        let sensors = (inventoryKeys ?? []).compactMap { entry -> SensorReading? in
+        discover()
+        let sensors = (groupedKeys ?? []).compactMap { entry -> SensorReading? in
             guard let value = readFloat(entry.key), Self.isPlausibleReading(value) else {
                 return nil
             }
-            return SensorReading(
-                key: entry.name, celsius: value, group: Self.sensorGroup(forKeyName: entry.name))
+            return SensorReading(key: entry.name, celsius: value, group: entry.group)
         }
-        return (sensors, (0..<inventoryFanCount).compactMap(readFan))
+        return (sensors, (0..<fanCount).compactMap(readFan))
     }
 
-    /// Human grouping for the full key set. Broader than `domain(forKeyName:)`,
-    /// which only admits keys safe to fold into headline die figures; here
-    /// everything readable is shown, honestly labelled. Ordering for display
-    /// lives in `sensorGroupOrder`.
+    static let groupCPUPCores = "CPU die (P cores)"
+    static let groupCPUECores = "CPU die (E cores)"
+    static let groupGPU = "GPU clusters"
+    static let groupSSD = "SSD"
+    static let groupBattery = "Battery"
+    static let groupAirflow = "Airflow"
+    static let groupSkin = "Skin and board"
+    static let groupWireless = "Wireless"
+    static let groupVoltageRails = "Voltage rails"
+    static let groupOther = "Other"
+
+    /// Human grouping for the full key set: every readable sensor is placed,
+    /// honestly labelled, including the rails and the unidentified tail that
+    /// must never reach a die figure. Ordering for display lives in
+    /// `sensorGroupOrder`.
     static func sensorGroup(forKeyName name: String) -> String {
-        if name.hasPrefix("Tp") { return "CPU die (P cores)" }
-        if name.hasPrefix("Te") { return "CPU die (E cores)" }
-        if name.hasPrefix("Tg") { return "GPU clusters" }
-        if name.hasPrefix("TH0") { return "SSD" }
-        if name.hasPrefix("TB") { return "Battery" }
-        if name.hasPrefix("Ta") { return "Airflow" }
-        if name.hasPrefix("Ts") { return "Skin and board" }
-        if name.hasPrefix("Th") { return "Skin and board" }
-        if name.hasPrefix("TW") { return "Wireless" }
-        if name.hasPrefix("TV") { return "Voltage rails" }
-        return "Other"
+        if name.hasPrefix("Tp") { return groupCPUPCores }
+        if name.hasPrefix("Te") { return groupCPUECores }
+        if name.hasPrefix("Tg") { return groupGPU }
+        if name.hasPrefix("TH0") { return groupSSD }
+        if name.hasPrefix("TB") { return groupBattery }
+        if name.hasPrefix("Ta") { return groupAirflow }
+        if name.hasPrefix("Ts") { return groupSkin }
+        if name.hasPrefix("Th") { return groupSkin }
+        if name.hasPrefix("TW") { return groupWireless }
+        if name.hasPrefix("TV") { return groupVoltageRails }
+        return groupOther
     }
 
     static let sensorGroupOrder = [
-        "CPU die (P cores)", "CPU die (E cores)", "GPU clusters", "SSD", "Battery",
-        "Airflow", "Skin and board", "Wireless", "Voltage rails", "Other",
+        groupCPUPCores, groupCPUECores, groupGPU, groupSSD, groupBattery,
+        groupAirflow, groupSkin, groupWireless, groupVoltageRails, groupOther,
     ]
 
     // MARK: - Connection
@@ -233,26 +270,25 @@ final class SMCReader {
     }
 
     /// One-time discovery: a single enumeration classifying every plausible
-    /// temperature key into its domain (uncapped: the full die-sensor sweep
-    /// costs single-digit milliseconds at the read throttle), plus the fan
-    /// count from `FNum` with a probe of fan 0 as the fallback.
-    private func discoverKeys() {
-        didDiscover = true
-        fanCount = readFloat(Self.fourCC("FNum")).map { Int($0) } ?? 0
-        if fanCount == 0, (readFloat(Self.fourCC("F0Mx")) ?? 0) > 0 { fanCount = 1 }
-        guard let total = readUInt32(Self.fourCC("#KEY")), total > 0 else { return }
-        for index in 0..<total {
-            guard let key = keyAtIndex(index) else { continue }
-            guard let domain = Self.domain(forKeyName: Self.toString(key)) else { continue }
-            guard let value = readFloat(key), Self.isPlausibleDiscoveryTemperature(value) else {
-                continue
-            }
-            switch domain {
-            case .cpuDie: cpuKeys.append(key)
-            case .gpuDie: gpuKeys.append(key)
-            case .ssd: ssdKeys.append(key)
+    /// temperature key into its display group, plus the fan count from `FNum`
+    /// with a probe of fan 0 as the fallback. The strict gate here is what
+    /// keeps calibration offsets and dead zones out of every later sweep.
+    private func discover() {
+        guard groupedKeys == nil else { return }
+        var found: [(key: UInt32, name: String, group: String)] = []
+        if let total = readUInt32(Self.fourCC("#KEY")), total > 0 {
+            for index in 0..<total {
+                guard let key = keyAtIndex(index) else { continue }
+                let name = Self.toString(key)
+                guard name.hasPrefix("T") else { continue }
+                guard let value = readFloat(key), Self.isPlausibleDiscoveryTemperature(value)
+                else { continue }
+                found.append((key, name, Self.sensorGroup(forKeyName: name)))
             }
         }
+        groupedKeys = found
+        fanCount = readFloat(Self.fourCC("FNum")).map { Int($0) } ?? 0
+        if fanCount == 0, (readFloat(Self.fourCC("F0Mx")) ?? 0) > 0 { fanCount = 1 }
     }
 
     // MARK: - SMC protocol
