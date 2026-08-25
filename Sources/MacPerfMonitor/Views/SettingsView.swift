@@ -284,6 +284,15 @@ private struct AlertsSettingsView: View {
             }
 
             Section {
+                Toggle("Thermal throttling", isOn: $alertSettings.config.thermalEnabled)
+                caption(
+                    "Notify when macOS keeps slowing work down to shed heat, naming the process "
+                        + "using the most CPU at that moment.")
+            } header: {
+                Text("Thermal Throttling")
+            }
+
+            Section {
                 Toggle("Heavy swap use", isOn: $alertSettings.config.swapEnabled)
                 if alertSettings.config.swapEnabled {
                     gigabyteStepper(
