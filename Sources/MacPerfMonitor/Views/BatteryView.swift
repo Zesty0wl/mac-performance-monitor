@@ -44,7 +44,14 @@ struct BatteryView: View {
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .onAppear { reload() }
+        .onAppear {
+            reload()
+            // Keep the GPU/SMC read path live while the tab is visible so the
+            // thermal panel tracks in real time even when recording is off.
+            // Balanced by onDisappear; TabGate unmounts the tab when hidden.
+            model.addGPUConsumer()
+        }
+        .onDisappear { model.removeGPUConsumer() }
         .onChange(of: range) { reload() }
         .onChange(of: model.displayProcessesVersion) {
             if appState.mainWindowVisible { reload() }
@@ -79,6 +86,7 @@ struct BatteryView: View {
         MainRailLayout {
             pageHeader(subtitle: "on power adapter")
             desktopEnergyFlowPanel
+            thermalPanel
             topEnergyPanel
         } rail: {
             desktopPowerPanel
@@ -152,6 +160,7 @@ struct BatteryView: View {
             headlineNumbers(battery)
             energyFlowPanel(battery)
             chargeTimelinePanel(battery)
+            thermalPanel
             topEnergyPanel
         } rail: {
             healthPanel(battery)
@@ -299,6 +308,60 @@ struct BatteryView: View {
                 .font(.callout.weight(.medium))
                 .foregroundStyle(.primary)
         }
+    }
+
+    // MARK: - Thermals
+
+    /// Die temperature and fan history with the current readings, shared by
+    /// the laptop and desktop layouts. Heat sits with power on purpose: this
+    /// tab already answers "what is working the Mac hardest", and the thermal
+    /// record answers "and what did that cost".
+    private var thermalPanel: some View {
+        BatteryPanel("Thermals", systemImage: "thermometer.medium") {
+            TemperatureChart(points: points, xDomain: chartDomain, showsTimeAxis: true)
+                .frame(height: 150)
+                .chartReloading(awaitingData)
+            if let status = thermalStatus {
+                Text(status)
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.primary)
+            }
+            if hasFanHistory {
+                Divider().opacity(0.5)
+                FanChart(points: points, xDomain: chartDomain)
+                    .frame(height: 90)
+                    .chartReloading(awaitingData)
+            }
+            footnote(
+                "Each line is the hottest sensor of its domain: CPU die in orange, GPU die in "
+                    + "red. Longer ranges keep the peaks, not the average, so spikes stay "
+                    + "visible. The status follows macOS's own thermal pressure verdict, the "
+                    + "signal that the system is actually slowing work down.")
+        }
+    }
+
+    /// "CPU 47°C · GPU 41°C · SSD 29°C · Fans off · Nominal", omitting parts
+    /// that have no reading. Nil until the first thermal sample lands.
+    private var thermalStatus: String? {
+        guard let system = model.liveSystem else { return nil }
+        var parts: [String] = []
+        if let cpu = system.cpuDieC { parts.append("CPU \(Int(cpu.rounded()))°C") }
+        if let gpu = system.gpuDieC { parts.append("GPU \(Int(gpu.rounded()))°C") }
+        if let ssd = system.ssdTemperatureC { parts.append("SSD \(Int(ssd.rounded()))°C") }
+        if let fan = system.fanRPM {
+            parts.append(fan == 0 ? "Fans off" : "Fans \(Int(fan.rounded())) rpm")
+        }
+        guard !parts.isEmpty else { return nil }
+        if let pressure = system.thermalPressure {
+            parts.append(pressure.label)
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Hide the fan chart outright on fanless Macs (MacBook Air) rather than
+    /// drawing an empty plot under a real temperature chart.
+    private var hasFanHistory: Bool {
+        points.contains { $0.fanRPM != nil } || model.liveSystem?.fanRPM != nil
     }
 
     /// A one-line plain-language summary of the current power state, shown under
@@ -562,7 +625,12 @@ struct BatteryView: View {
                 batteryCharge: system.batteryCharge,
                 batteryPowerWatts: system.batteryPowerWatts,
                 batteryHealthPercent: system.batteryHealthPercent,
-                batteryTemperatureCelsius: system.batteryTemperatureCelsius
+                batteryTemperatureCelsius: system.batteryTemperatureCelsius,
+                cpuDieC: system.cpuDieC,
+                gpuDieC: system.gpuDieC,
+                ssdTemperatureC: system.ssdTemperatureC,
+                fanRPM: system.fanRPM,
+                thermalPressure: system.thermalPressure
             )
             if let last = pts.last {
                 if live.date > last.date { pts.append(live) }

@@ -87,6 +87,13 @@ extension Array where Element == SystemHistoryPoint {
                 guard !present.isEmpty else { return nil }
                 return present.reduce(0, +) / Double(present.count)
             }
+            // Peak over only the points that carry a value; all-nil stays nil
+            // so the chart gaps. Temperatures use this rather than omean: a
+            // plain average erases the spikes, which are the point of thermal
+            // history.
+            func omax(_ value: (SystemHistoryPoint) -> Double?) -> Double? {
+                slice.compactMap(value).max()
+            }
             result.append(
                 SystemHistoryPoint(
                     // Grid-anchored start of the bucket: a fixed point that does
@@ -127,7 +134,20 @@ extension Array where Element == SystemHistoryPoint {
                     // Free space wants its low water mark, not its average: the
                     // moment the disk nearly filled is the moment that matters.
                     bootFreeBytes: slice.compactMap(\.bootFreeBytes).min(),
-                    bootTotalBytes: slice.compactMap(\.bootTotalBytes).last
+                    bootTotalBytes: slice.compactMap(\.bootTotalBytes).last,
+                    // Carry the GPU figures through: omitting them defaulted
+                    // them to nil and blanked the GPU tab's history on any
+                    // downsampled range, the same class of drop the battery
+                    // and disk scalars had. Bursty like CPU, so average.
+                    gpuUtilization: omean { $0.gpuUtilization },
+                    gpuPowerWatts: omean { $0.gpuPowerWatts },
+                    anePowerWatts: omean { $0.anePowerWatts },
+                    cpuDieC: omax { $0.cpuDieC },
+                    gpuDieC: omax { $0.gpuDieC },
+                    ssdTemperatureC: omax { $0.ssdTemperatureC },
+                    fanRPM: omax { $0.fanRPM },
+                    // Worst pressure in the bucket, for the same reason.
+                    thermalPressure: slice.compactMap(\.thermalPressure).max()
                 ))
             i = j
         }

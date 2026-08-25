@@ -97,6 +97,17 @@ public struct SystemSample: Sendable, Codable {
     public var gpuUtilization: Double?
     public var gpuPowerWatts: Double?
     public var anePowerWatts: Double?
+    // Thermal figures (v14), read from the SMC on the same ticks as the GPU
+    // figures. Optional for the same reason: "not sampled" stays distinct
+    // from 0. cpuDieC and gpuDieC are the hottest sensor of their domain;
+    // fanRPM is the fastest fan.
+    public var cpuDieC: Double?
+    public var gpuDieC: Double?
+    public var ssdTemperatureC: Double?
+    public var fanRPM: Double?
+    /// macOS's own thermal pressure verdict, read every tick (public API, no
+    /// SMC involved), so throttling history survives even without sensors.
+    public var thermalPressure: ThermalPressureState?
 
     public init(
         timestamp: Date,
@@ -143,7 +154,12 @@ public struct SystemSample: Sendable, Codable {
         bootVolumeFreeBytes: UInt64? = nil,
         gpuUtilization: Double? = nil,
         gpuPowerWatts: Double? = nil,
-        anePowerWatts: Double? = nil
+        anePowerWatts: Double? = nil,
+        cpuDieC: Double? = nil,
+        gpuDieC: Double? = nil,
+        ssdTemperatureC: Double? = nil,
+        fanRPM: Double? = nil,
+        thermalPressure: ThermalPressureState? = nil
     ) {
         self.timestamp = timestamp
         self.totalRAM = totalRAM
@@ -190,5 +206,10 @@ public struct SystemSample: Sendable, Codable {
         self.gpuUtilization = gpuUtilization
         self.gpuPowerWatts = gpuPowerWatts
         self.anePowerWatts = anePowerWatts
+        self.cpuDieC = cpuDieC
+        self.gpuDieC = gpuDieC
+        self.ssdTemperatureC = ssdTemperatureC
+        self.fanRPM = fanRPM
+        self.thermalPressure = thermalPressure
     }
 }

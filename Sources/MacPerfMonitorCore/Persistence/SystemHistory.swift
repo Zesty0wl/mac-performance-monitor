@@ -44,6 +44,16 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
     public var diskUtilizationPercent: Double?
     public var bootFreeBytes: UInt64?
     public var bootTotalBytes: UInt64?
+    // Thermal figures (v14); nil on ticks that did not read the SMC. On
+    // aggregate ranges these carry the bucket MAX, not the average: "how hot
+    // did it get" is the question thermal history answers, and averaging
+    // erases exactly the spikes users go looking for.
+    public var cpuDieC: Double?
+    public var gpuDieC: Double?
+    public var ssdTemperatureC: Double?
+    public var fanRPM: Double?
+    /// Worst thermal pressure in the interval.
+    public var thermalPressure: ThermalPressureState?
 
     public var id: Date { date }
 
@@ -73,7 +83,12 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
         bootTotalBytes: UInt64? = nil,
         gpuUtilization: Double? = nil,
         gpuPowerWatts: Double? = nil,
-        anePowerWatts: Double? = nil
+        anePowerWatts: Double? = nil,
+        cpuDieC: Double? = nil,
+        gpuDieC: Double? = nil,
+        ssdTemperatureC: Double? = nil,
+        fanRPM: Double? = nil,
+        thermalPressure: ThermalPressureState? = nil
     ) {
         self.date = date
         self.pressurePercent = pressurePercent
@@ -101,6 +116,11 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
         self.gpuUtilization = gpuUtilization
         self.gpuPowerWatts = gpuPowerWatts
         self.anePowerWatts = anePowerWatts
+        self.cpuDieC = cpuDieC
+        self.gpuDieC = gpuDieC
+        self.ssdTemperatureC = ssdTemperatureC
+        self.fanRPM = fanRPM
+        self.thermalPressure = thermalPressure
     }
 }
 
@@ -144,7 +164,8 @@ extension SampleStore {
                            battery_charge, battery_power, battery_health, battery_temp, net_in, net_out,
                            disk_read, disk_write, disk_read_iops, disk_write_iops,
                            disk_read_latency, disk_write_latency, disk_util, boot_free, boot_total,
-                           gpu_util, gpu_power, ane_power
+                           gpu_util, gpu_power, ane_power,
+                           cpu_die, gpu_die, ssd_temp, fan_rpm, thermal_state
                     FROM system_samples
                     WHERE timestamp >= ?
                     ORDER BY timestamp ASC
@@ -164,7 +185,8 @@ extension SampleStore {
                            disk_read_avg, disk_write_avg, disk_read_iops_avg, disk_write_iops_avg,
                            disk_read_latency_avg, disk_write_latency_avg, disk_util_avg,
                            boot_free_min, boot_total,
-                           gpu_util_avg, gpu_power_avg, ane_power_avg
+                           gpu_util_avg, gpu_power_avg, ane_power_avg,
+                           cpu_die_max, gpu_die_max, ssd_temp_max, fan_rpm_max, thermal_state_max
                     FROM \(table)
                     WHERE bucket >= ?
                     ORDER BY bucket ASC
@@ -205,7 +227,12 @@ extension SampleStore {
             bootTotalBytes: (row[22] as Int64?).map(SQLInt.read),
             gpuUtilization: row[23],
             gpuPowerWatts: row[24],
-            anePowerWatts: row[25]
+            anePowerWatts: row[25],
+            cpuDieC: row[26],
+            gpuDieC: row[27],
+            ssdTemperatureC: row[28],
+            fanRPM: row[29],
+            thermalPressure: (row[30] as Int?).flatMap { ThermalPressureState(rawValue: $0) }
         )
     }
 }
