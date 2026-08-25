@@ -148,6 +148,62 @@ final class SMCReader {
         return FanSample(rpm: Int(rpm.rounded()), maxRPM: maxRPM)
     }
 
+    // MARK: - Full inventory (Hardware explorer)
+
+    /// One named temperature reading from the full SMC enumeration.
+    struct SensorReading: Sendable, Equatable {
+        var key: String
+        var celsius: Double
+        var group: String
+    }
+
+    /// Every readable temperature key with a plausible value, grouped by
+    /// domain, plus the fans. A full enumeration costs a few hundred
+    /// milliseconds, so this is for the on-demand Hardware inventory, never
+    /// the sampling tick; callers create a throwaway reader on their own
+    /// queue and let it deinit.
+    func sensorInventory() -> (sensors: [SensorReading], fans: [FanSample]) {
+        guard open() else { return ([], []) }
+        var sensors: [SensorReading] = []
+        if let total = readUInt32(Self.fourCC("#KEY")), total > 0 {
+            for index in 0..<total {
+                guard let key = keyAtIndex(index) else { continue }
+                let name = Self.toString(key)
+                guard name.hasPrefix("T") else { continue }
+                guard let value = readFloat(key), Self.isPlausibleReading(value) else { continue }
+                sensors.append(
+                    SensorReading(
+                        key: name, celsius: value, group: Self.sensorGroup(forKeyName: name)))
+            }
+        }
+        var fanCount = readFloat(Self.fourCC("FNum")).map { Int($0) } ?? 0
+        if fanCount == 0, (readFloat(Self.fourCC("F0Mx")) ?? 0) > 0 { fanCount = 1 }
+        return (sensors, (0..<fanCount).compactMap(readFan))
+    }
+
+    /// Human grouping for the full key set. Broader than `domain(forKeyName:)`,
+    /// which only admits keys safe to fold into headline die figures; here
+    /// everything readable is shown, honestly labelled. Ordering for display
+    /// lives in `sensorGroupOrder`.
+    static func sensorGroup(forKeyName name: String) -> String {
+        if name.hasPrefix("Tp") { return "CPU die (P cores)" }
+        if name.hasPrefix("Te") { return "CPU die (E cores)" }
+        if name.hasPrefix("Tg") { return "GPU clusters" }
+        if name.hasPrefix("TH0") { return "SSD" }
+        if name.hasPrefix("TB") { return "Battery" }
+        if name.hasPrefix("Ta") { return "Airflow" }
+        if name.hasPrefix("Ts") { return "Skin and board" }
+        if name.hasPrefix("Th") { return "Skin and board" }
+        if name.hasPrefix("TW") { return "Wireless" }
+        if name.hasPrefix("TV") { return "Voltage rails" }
+        return "Other"
+    }
+
+    static let sensorGroupOrder = [
+        "CPU die (P cores)", "CPU die (E cores)", "GPU clusters", "SSD", "Battery",
+        "Airflow", "Skin and board", "Wireless", "Voltage rails", "Other",
+    ]
+
     // MARK: - Connection
 
     private func open() -> Bool {

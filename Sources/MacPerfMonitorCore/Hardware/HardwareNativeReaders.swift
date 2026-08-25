@@ -718,6 +718,54 @@ enum HardwareNativeReaders {
         return result
     }
 
+    // MARK: - Sensors
+
+    /// Every readable temperature sensor the SMC exposes, grouped by domain,
+    /// plus the fans. Values are one refresh-time snapshot, matching the rest
+    /// of the explorer; the live thermal story lives on the Energy tab. This
+    /// is the long tail's home: airflow, skin, wireless, voltage rails, and
+    /// every individual die sensor behind the headline figures.
+    static func sensors(parentID: String, systemImage: String) -> Result {
+        var result = Result()
+        let inventory = SMCReader().sensorInventory()
+        guard !inventory.sensors.isEmpty || !inventory.fans.isEmpty else { return result }
+
+        let grouped = Dictionary(grouping: inventory.sensors, by: \.group)
+        for group in SMCReader.sensorGroupOrder {
+            guard let readings = grouped[group], !readings.isEmpty else { continue }
+            let hottest = readings.map(\.celsius).max() ?? 0
+            let count = readings.count == 1 ? "1 sensor" : "\(readings.count) sensors"
+            let slug = group.lowercased().replacingOccurrences(of: " ", with: "-")
+            result.nodes.append(
+                HardwareNode(
+                    id: "\(parentID)/\(slug)",
+                    title: group,
+                    subtitle: "\(count) \u{00B7} hottest \(Int(hottest.rounded()))\u{00B0}C",
+                    systemImage: "thermometer.medium",
+                    properties: readings.sorted { $0.key < $1.key }.map {
+                        HardwareProperty($0.key, String(format: "%.1f\u{00B0}C", $0.celsius))
+                    }))
+        }
+
+        if !inventory.fans.isEmpty {
+            let spinning = inventory.fans.filter { $0.rpm > 0 }.count
+            result.nodes.append(
+                HardwareNode(
+                    id: "\(parentID)/fans",
+                    title: "Fans",
+                    subtitle: spinning == 0
+                        ? "\(inventory.fans.count) \u{00B7} all off"
+                        : "\(spinning) of \(inventory.fans.count) spinning",
+                    systemImage: "fanblades",
+                    properties: inventory.fans.enumerated().map { index, fan in
+                        var value = fan.rpm == 0 ? "Off" : "\(fan.rpm) rpm"
+                        if let maxRPM = fan.maxRPM { value += " (maximum \(maxRPM) rpm)" }
+                        return HardwareProperty("Fan \(index + 1)", value)
+                    }))
+        }
+        return result
+    }
+
     // MARK: - Software
 
     static func software(parentID: String, systemImage: String) -> Result {

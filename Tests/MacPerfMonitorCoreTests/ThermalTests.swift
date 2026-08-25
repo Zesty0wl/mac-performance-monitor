@@ -105,6 +105,44 @@ final class ThermalTests: XCTestCase {
         XCTAssertEqual(sample.primaryFanMaxRPM, 6800)
     }
 
+    // MARK: - Inventory grouping (Hardware explorer)
+
+    func testSensorGroupsCoverTheProbedFamilies() {
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "Tp0C"), "CPU die (P cores)")
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "Te0S"), "CPU die (E cores)")
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "Tg0D"), "GPU clusters")
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "TH0x"), "SSD")
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "TB0T"), "Battery")
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "TaLP"), "Airflow")
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "Ts0P"), "Skin and board")
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "Th0a"), "Skin and board")
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "TW0P"), "Wireless")
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "TVHE"), "Voltage rails")
+        XCTAssertEqual(SMCReader.sensorGroup(forKeyName: "TCMz"), "Other")
+        // Every group name has a display position.
+        let names = [
+            "Tp00", "Te00", "Tg00", "TH0a", "TB1T", "TaRF", "Ts00", "TW0P", "TVS0", "Tf16",
+        ]
+        for name in names {
+            XCTAssertTrue(
+                SMCReader.sensorGroupOrder.contains(SMCReader.sensorGroup(forKeyName: name)), name)
+        }
+    }
+
+    /// The full enumeration must be safe anywhere and internally consistent
+    /// where hardware exists (a VM returns empty and that is a pass).
+    func testSensorInventoryIsSafeAndConsistent() {
+        let inventory = SMCReader().sensorInventory()
+        for sensor in inventory.sensors {
+            XCTAssertTrue(SMCReader.isPlausibleReading(sensor.celsius), sensor.key)
+            XCTAssertTrue(sensor.key.hasPrefix("T"), sensor.key)
+            XCTAssertEqual(sensor.group, SMCReader.sensorGroup(forKeyName: sensor.key))
+        }
+        for fan in inventory.fans {
+            XCTAssertGreaterThanOrEqual(fan.rpm, 0)
+        }
+    }
+
     // MARK: - Live hardware (tolerates VMs with no SMC)
 
     /// The reader must never crash, and anything it reports must be sane.
