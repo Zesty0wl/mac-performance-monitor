@@ -47,6 +47,9 @@ struct SystemHeaderView: View {
                 if cards.count > 1 {
                     MetricCard(data: cards[1]).frame(maxWidth: .infinity)
                 }
+                if live.hasTemperature {
+                    MetricCard(data: temperatureCard).frame(maxWidth: .infinity)
+                }
             }
             // Cap the row at the tallest card's natural height (the core grid) so it
             // sizes to content instead of grabbing a share of the window.
@@ -69,6 +72,29 @@ struct SystemHeaderView: View {
         model.loadRecentSystemHistory(seconds: 2 * 3600) { points in
             live.replace(points, live: model.liveSystem, cpu: model.smoothedCPU)
         }
+    }
+
+    /// The die-temperature card, live-fed like the total-CPU card. Only added
+    /// to the row once a temperature has actually been seen.
+    private var temperatureCard: MetricCardData {
+        MetricCardData(
+            label: "CPU die",
+            unit: .celsius,
+            yDomain: 0...110,
+            help:
+                "The hottest CPU die sensor. The colour follows macOS's thermal pressure: "
+                + "green means hot but working as designed. Click for details.",
+            explanation: MetricExplanation(
+                meaning:
+                    "The hottest of the CPU die's temperature sensors, the figure people mean "
+                    + "by \u{201C}CPU temperature\u{201D}. High numbers under load are normal on "
+                    + "Apple silicon; the colour turns orange or red only when macOS itself "
+                    + "reports thermal pressure, the signal that it is slowing work down.",
+                calculation:
+                    "Every P-core and E-core cluster sensor the SMC exposes is read on a short "
+                    + "throttle, and the card shows the maximum. The trend behind it is the "
+                    + "same two-hour window as the other header cards."),
+            live: live.temperatureFeed)
     }
 
     // MARK: - Coverage
@@ -168,19 +194,23 @@ final class ProcessHeaderStore: ObservableObject {
     let usageFeed = MetricCardFeed()
     let loadFeed = MetricCardFeed()
     let coreFeed = CoreGridFeed()
+    let temperatureFeed = MetricCardFeed()
+    /// True once any die-temperature sample has been seen, so the header only
+    /// grows the fourth card on machines that actually report one.
+    @Published private(set) var hasTemperature = false
 
     func replace(_ points: [SystemHistoryPoint], live: SystemSample?, cpu: CPUSample?) {
         window.replace(points)
         if let live { window.append(Self.point(from: live)) }
-        publish(cpu)
+        publish(cpu, system: live)
     }
 
     func append(_ system: SystemSample?, cpu: CPUSample?) {
         if let system { window.append(Self.point(from: system)) }
-        publish(cpu)
+        publish(cpu, system: system)
     }
 
-    private func publish(_ cpu: CPUSample?) {
+    private func publish(_ cpu: CPUSample?, system: SystemSample?) {
         let level = CPULevel(fraction: cpu?.totalUsage ?? 0)
         usageFeed.publish(
             value: cpu.map { "\(Int(($0.totalUsage * 100).rounded()))%" },
@@ -190,6 +220,15 @@ final class ProcessHeaderStore: ObservableObject {
             value: cpu.map { String(format: "%.2f", $0.loadAverage1) }, tint: .labelColor,
             column: nil, xDomain: nil, yDomain: nil)
         coreFeed.publish(cpu?.cores ?? [])
+        // The temperature card: hottest die sensor, tinted by macOS's own
+        // thermal pressure verdict (green means "hot but working as designed").
+        let die = system?.cpuDieC ?? window.peakLatestCPUDie
+        if die != nil, !hasTemperature { hasTemperature = true }
+        let pressure = system?.thermalPressure ?? .nominal
+        temperatureFeed.publish(
+            value: die.map { "\(Int($0.rounded()))°C" },
+            tint: NSColor(pressure.color), column: LiveColumn(window, .cpuDieC), scale: 1,
+            xDomain: window.xDomain, yDomain: 0...110)
     }
 
     private static func point(from s: SystemSample) -> SystemHistoryPoint {
@@ -201,7 +240,17 @@ final class ProcessHeaderStore: ObservableObject {
             compressed: s.compressed,
             cachedFiles: s.cachedFiles,
             swapUsed: s.swapUsed,
-            cpuLoad: s.cpuLoad
+            cpuLoad: s.cpuLoad,
+            cpuDieC: s.cpuDieC
         )
+    }
+}
+
+extension SystemHistoryWindow {
+    /// The newest non-zero die temperature, so the header card still shows a
+    /// figure between SMC reads (live ticks carry thermal only on GPU-read
+    /// ticks) and right after a DB seed.
+    fileprivate var peakLatestCPUDie: Double? {
+        values(.cpuDieC).reversed().first { $0 > 1 }
     }
 }
