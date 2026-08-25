@@ -67,6 +67,9 @@ public enum HardwareInventory {
             dataTypes: ["SPPowerDataType"],
             native: { HardwareNativeReaders.battery(parentID: $0, systemImage: $1) }),
         HardwareSectionSpec(
+            id: "sensors", title: "Sensors", systemImage: "thermometer.medium",
+            native: { HardwareNativeReaders.sensors(parentID: $0, systemImage: $1) }),
+        HardwareSectionSpec(
             id: "network", title: "Network", systemImage: "network",
             dataTypes: ["SPNetworkDataType", "SPEthernetDataType"]),
         HardwareSectionSpec(
