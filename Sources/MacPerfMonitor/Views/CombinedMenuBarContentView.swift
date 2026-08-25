@@ -161,6 +161,8 @@ struct CombinedMenuBarContentView: View {
             NetworkMenuBarContentView(dismiss: dismiss, embedded: true)
         case .disk:
             DiskMenuBarContentView(dismiss: dismiss)
+        case .temperature:
+            TemperatureMenuBarContentView(embedded: true)
         }
     }
 
@@ -242,6 +244,8 @@ struct CombinedMenuBarContentView: View {
         case .disk: return .diskUsage
         case .gpu: return .gpu
         case .pressure: return .dashboard
+        // The Thermals section lives on the Energy tab.
+        case .temperature: return .battery
         }
     }
 

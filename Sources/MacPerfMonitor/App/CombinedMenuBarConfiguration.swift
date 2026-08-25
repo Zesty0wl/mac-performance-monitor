@@ -6,6 +6,7 @@ enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
     case cpu
     case gpu
     case energy
+    case temperature
     case network
     case disk
 
@@ -17,6 +18,7 @@ enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
         case .cpu: return "CPU"
         case .gpu: return "GPU"
         case .energy: return "Energy"
+        case .temperature: return "Temperature"
         case .network: return "Network"
         case .disk: return "Disk"
         }
@@ -28,6 +30,7 @@ enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
         case .cpu: return "CPU"
         case .gpu: return "GPU"
         case .energy: return "BAT"
+        case .temperature: return "TMP"
         case .network: return "NET"
         case .disk: return "DSK"
         }
@@ -39,6 +42,7 @@ enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
         case .cpu: return "cpu"
         case .gpu: return "display"
         case .energy: return "bolt.fill"
+        case .temperature: return "thermometer.medium"
         case .network: return "network"
         case .disk: return "internaldrive"
         }

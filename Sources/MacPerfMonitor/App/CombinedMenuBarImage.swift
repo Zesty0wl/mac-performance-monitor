@@ -17,7 +17,7 @@ extension MenuBarMetric {
             ])
         case .cpu:
             return activeKinds.contains(.highCPU)
-        case .gpu, .energy, .network, .disk:
+        case .gpu, .energy, .temperature, .network, .disk:
             return false
         }
     }
@@ -56,6 +56,11 @@ enum CombinedMenuBarReadouts {
             }
             let watts = battery.systemPowerWatts
             return (watts > 0 ? "\(Int(watts.rounded()))W" : "--", nil)
+        case .temperature:
+            // The hottest CPU die sensor; bare degree sign to keep the strip
+            // narrow (the panel spells out the domains and units).
+            let value = (model.liveSystem?.cpuDieC).map { "\(Int($0.rounded()))°" } ?? "--"
+            return (value, nil)
         case .network:
             guard let rates = model.smoothedNetworkRates else { return ("--↓", "--↑") }
             return (
@@ -236,7 +241,13 @@ enum CombinedMenuBarImage {
         let compactValue =
             readout.value.hasSuffix("%") ? String(readout.value.dropLast()) : readout.value
         let value = attributed(compactValue, font: font, color: color)
-        let sampleText = readout.value.hasSuffix("%") ? "100" : "199W"
+        // Width-stability sample per unit family, so a cell never jitters as
+        // digits change: percent readouts size against "100", temperature
+        // against "100°", wattage against "199W".
+        let sampleText =
+            readout.value.hasSuffix("%")
+            ? "100"
+            : readout.value.hasSuffix("°") ? "100°" : "199W"
         let sample = attributed(sampleText, font: font, color: color)
         let width = ceil(max(value.size().width, sample.size().width, label.size().width)) + 1
         return CellLayout(width: width) { x, height in
