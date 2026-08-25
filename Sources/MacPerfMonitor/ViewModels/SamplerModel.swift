@@ -2604,6 +2604,21 @@ final class SamplerModel: ObservableObject {
             let networkConsumers = Array(
                 windowConsumers.sorted { $0.averageNetwork > $1.averageNetwork }.prefix(5))
 
+            // The dust signal: this fortnight's fan/die pairs against the same
+            // pairs six weeks back (hour tier, so two cheap index scans). The
+            // analyzer stays quiet without ~3 days of usable hours per window,
+            // so young databases and fanless Macs contribute nothing.
+            let now = Date()
+            let recentHours =
+                (try? store.fanTempHours(
+                    from: now.addingTimeInterval(-14 * 86_400), to: now)) ?? []
+            let baselineHours =
+                (try? store.fanTempHours(
+                    from: now.addingTimeInterval(-63 * 86_400),
+                    to: now.addingTimeInterval(-35 * 86_400))) ?? []
+            let thermalDrift = ThermalDrift.analyze(
+                recent: recentHours, baseline: baselineHours, baselineWeeksAgo: 6)
+
             bundle.insights = InsightEngine.insights(
                 InsightEngine.Inputs(
                     totalRAM: system?.totalRAM ?? 0,
@@ -2616,7 +2631,8 @@ final class SamplerModel: ObservableObject {
                     rosetta: rosetta,
                     cpu: cpu,
                     cpuConsumers: cpuConsumers,
-                    networkConsumers: networkConsumers
+                    networkConsumers: networkConsumers,
+                    thermalDrift: thermalDrift
                 ))
 
             let ids = Set(bundle.leaks.map(\.identity))

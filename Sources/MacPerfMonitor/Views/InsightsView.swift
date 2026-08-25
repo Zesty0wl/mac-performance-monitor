@@ -210,6 +210,7 @@ extension InsightEngine.Insight {
         case .rosetta: return "cpu"
         case .cpu: return "gauge.with.dots.needle.67percent"
         case .network: return "network"
+        case .thermalDrift: return "fanblades"
         case .allClear: return "checkmark.circle.fill"
         }
     }
