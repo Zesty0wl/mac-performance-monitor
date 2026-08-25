@@ -9,6 +9,7 @@ enum MetricUnit {
     case percent
     case watts
     case celsius
+    case rpm
 
     func format(_ value: Double) -> String {
         switch self {
@@ -16,6 +17,7 @@ enum MetricUnit {
         case .percent: return "\(Int(value.rounded()))%"
         case .watts: return String(format: "%.2f W", value)
         case .celsius: return "\(Int(value.rounded()))°C"
+        case .rpm: return "\(Int(max(0, value.rounded()))) rpm"
         }
     }
 }
@@ -510,6 +512,7 @@ struct MetricDetailChart: View {
         // Die sensors top out near 110; a fixed ceiling keeps the danger zone
         // in a stable place instead of rescaling with each window.
         case .celsius: return 110
+        case .rpm: return max(peak * 1.2, 1)
         }
     }
 
