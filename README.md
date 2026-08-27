@@ -90,6 +90,18 @@ Download `MacPerformanceMonitor.pkg` from the [Releases](../../releases) page an
 double-click it. It's Developer ID signed and notarized by Apple, so it installs and
 launches without security warnings, and keeps itself up to date via Sparkle.
 
+### Homebrew
+
+```sh
+brew tap zesty0wl/mac-performance-monitor https://github.com/Zesty0wl/mac-performance-monitor
+brew install --cask zesty0wl/mac-performance-monitor/mac-performance-monitor
+```
+
+This installs the same signed, notarized pkg. A submission to the main
+[homebrew-cask](https://github.com/Homebrew/homebrew-cask) repository is in
+progress (see `docs/homebrew-submission.md`); once accepted, the tap step won't
+be needed and `brew install --cask mac-performance-monitor` will just work.
+
 ### Build from source
 
 ```sh
