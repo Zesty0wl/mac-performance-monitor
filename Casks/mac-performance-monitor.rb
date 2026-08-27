@@ -2,8 +2,7 @@ cask "mac-performance-monitor" do
   version "1.5.0.198"
   sha256 "362db29f38a34a1970fcdb9b81b7f62dfd6fd1f3ac8c9cc2b32effb196d86a60"
 
-  url "https://github.com/Zesty0wl/mac-performance-monitor/releases/download/v#{version}/MacPerformanceMonitor.pkg",
-      verified: "github.com/Zesty0wl/mac-performance-monitor/"
+  url "https://github.com/Zesty0wl/mac-performance-monitor/releases/download/v#{version}/MacPerformanceMonitor.pkg"
   name "Mac Performance Monitor"
   desc "Menu bar performance monitor with recorded history and analytics"
   homepage "https://macperformancemonitor.com/"

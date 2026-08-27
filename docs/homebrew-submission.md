@@ -32,8 +32,10 @@ without surprises:
 
 ## What the cask declares
 
-- `pkg` install from the per-tag release asset, `verified:` against the
-  GitHub repo since the homepage is macperformancemonitor.com.
+- `pkg` install from the per-tag release asset. The old `verified:`
+  parameter (once required when the download domain differed from the
+  homepage) is deprecated in current Homebrew and must be omitted; their CI
+  rejects casks that still carry it.
 - `auto_updates true`: the app updates itself via Sparkle, so
   `brew upgrade` skips it unless `--greedy`.
 - `depends_on arch: :arm64` and `macos: :sequoia`: the app is Apple silicon
