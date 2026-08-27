@@ -6,6 +6,90 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-08-27
+
+### Added
+
+- **Temperature monitoring.** The SMC reader now classifies every readable
+  sensor by domain with no key cap: CPU die (P and E cores, reported as the
+  hottest core plus the average, since "CPU temperature" means the hottest
+  core), the GPU's own cluster sensors, SSD, battery, airflow, skin and
+  board, wireless, voltage rails, and every fan the controller reports. This
+  also fixes a discovery bug on chips with many voltage-rail keys, where the
+  old 12-key cap filled with rails before any die sensor was found and the
+  reported die temperature could read about 33 C at idle against an actual 38
+  to 53 C. Research notes and the probed sensor inventory are in
+  `docs/temperature-design.md`.
+- **Thermal history (schema v14):** system rows record per-domain
+  temperatures (hottest sensor), the fastest fan, and macOS's thermal
+  pressure verdict, with average and max rollups through the minute and hour
+  tiers. Max is the invariant everywhere, since thermal history answers "how
+  hot did it get". The Energy tab gains a Thermals panel: CPU and GPU die
+  history, a live status line, and a fan chart hidden on fanless Macs.
+- **Sensor-domain history (schema v15):** the remaining sensor groups (P and
+  E core die separately, airflow, skin and board, wireless, voltage rails)
+  are recorded like the headline domains, and the Hardware overview's sensor
+  charts read their history back on launch, so a restart no longer starts
+  the trend lines from blank.
+- **A Temperature metric in the combined menu bar item:** opt-in like the
+  other metrics, showing the hottest CPU die sensor as a bare degree figure.
+  Its panel leads with that figure tinted by macOS's thermal pressure
+  verdict, never by a degree threshold (a hot number in green is a Mac
+  working as designed), above a live die sparkline and per-domain rows for
+  GPU, SSD, battery, fans and the verdict.
+- **Thermal throttling events and a sustained-throttling alert:** each step
+  up into serious or critical pressure is recorded and attributed to the top
+  CPU process at that tick, listed under the Energy tab's Thermals panel.
+  The alert is off by default (fanless Macs throttle routinely under real
+  work): it fires once after 30 sustained seconds, names the process working
+  the CPU hardest, and re-arms on recovery.
+- **The fan-drift insight, a dust signal:** compares this fortnight's fan
+  speeds against six weeks ago at the same die temperature (matched in 2.5 C
+  bands, so a busier, hotter month never reads as drift). A finding needs
+  both 20% and 300 rpm of drift, and suggests cleaning the vents. Young
+  databases, fanless Macs and seasonal shifts stay silent.
+- **Temperature charts across the app:** a CPU and GPU die cell in the
+  Analytics grid, a Temperature panel on the GPU tab, a live CPU die card on
+  the Processes header (it appears only once a temperature has been seen, so
+  SMC-less Macs keep the three-card header), and a Thermals panel plus Top
+  CPU processes in the Dashboard rail.
+- **Sensors in the Hardware explorer:** every readable SMC temperature key,
+  grouped by domain with counts and hottest readings, copyable and
+  exportable like the rest of the inventory. The Hardware overview gains a
+  live sensor card per domain in the detail-rail chart style; clicking one
+  opens a deep-dive sheet listing every individual sensor behind the figure,
+  re-read live while open.
+
+### Changed
+
+- **The Refresh interval dial now governs everything visible.** Above 1 s
+  the dial previously slowed only the hidden full scan, while the menu bar
+  image, every live chart and the on-screen process rows kept updating once
+  a second. A UI gate derived from the dial now paces all of it; an open
+  menu bar popover pins to every tick (its live strips are the point of
+  opening one), and an opening tab paints immediately rather than waiting
+  out a slow dial. The 1 Hz sampling underneath is unchanged, so charts
+  redraw with full-resolution data and logging density is untouched.
+- **Kernel memory-pressure events no longer bypass the dial.** Under
+  sustained pressure the kernel signals repeatedly, and each event used to
+  re-sort the Processes table and republish every live surface, piling on
+  main-thread work exactly when the Mac was struggling. A pressure event now
+  forces only the process scan and an immediate alert evaluation.
+
+### Fixed
+
+- **The first-run wizard and reopen reliably produce a window.** The
+  wizard's auto-open was a fire-once notification racing a listener that
+  could mount later, so a lost race dropped the wizard (and second launches
+  could open nothing). Open requests now queue until the window router is
+  ready, the onboarding scene presents itself on first run, and "Get
+  started" opens the main window.
+- **Two GPU history read-path drops:** system rows never read the v13 GPU
+  columns back, and the chart downsampler dropped the GPU series on any
+  range over the point cap, so the 24 hr GPU history chart drew blank.
+- **The macOS 15 SDK compiles again:** macOS 26 SDK-only symbols (Metal 4,
+  Wi-Fi 7 PHY mode) are guarded by compiler version, not a runtime check.
+
 ## [1.4.0] - 2026-08-23
 
 ### Added
@@ -456,7 +540,16 @@ processes behind them.
 - A clean split between a headless, unit-tested data layer and the SwiftUI app. CI
   builds, tests, and lints on every push and pull request.
 
-[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.1.158...HEAD
+[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.5.0.198...HEAD
+[1.5.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.4.0.197...v1.5.0.198
+[1.4.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.8.189...v1.4.0.197
+[1.3.8]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.7.186...v1.3.8.189
+[1.3.7]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.6.181...v1.3.7.186
+[1.3.6]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.5.178...v1.3.6.181
+[1.3.5]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.4.177...v1.3.5.178
+[1.3.4]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.3.176...v1.3.4.177
+[1.3.3]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.2.174...v1.3.3.176
+[1.3.2]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.1.158...v1.3.2.174
 [1.3.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.0.148...v1.3.1.158
 [1.3.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.2.1.131...v1.3.0.148
 [1.2.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.2.0.127...v1.2.1.131
