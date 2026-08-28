@@ -188,18 +188,52 @@ echo "==> Archiving Sparkle zip: $ARCHIVE"
 # ---- 2) signed installer .pkg (manual download) ----------------------------
 # Stable name (no version) so releases/latest/download/MacPerformanceMonitor.pkg
 # always resolves for the website button; the per-tag URL is in the appcast link.
-# pkgbuild --component reads the app's identifier + version from Info.plist and
-# --install-location drops it in /Applications. The payload is the already-stapled
-# app, so the installed copy launches offline.
+# The payload is the already-stapled app, so the installed copy launches offline.
+#
+# NOT pkgbuild --component: that marks the bundle relocatable, and the installer
+# then follows LaunchServices to whichever copy of the app it fancies (a dev
+# build tree, an old copy in Downloads) and writes the payload THERE as root,
+# instead of /Applications. Stage the app under a clean root and pass a
+# component plist with BundleIsRelocatable=false, so the payload always lands
+# in /Applications. --root needs the identifier and version spelled out; keep
+# them identical to what --component derived (bundle id + short version) so
+# upgrades keep replacing the same pkg receipt.
 mkdir -p "$PKG_DIR"
 PKG="$PKG_DIR/${ARCHIVE_BASENAME}.pkg"
 echo "==> Building signed installer pkg: $PKG"
 rm -f "$PKG"
+PKG_STAGE="build/pkg-stage"
+rm -rf "$PKG_STAGE"
+mkdir -p "$PKG_STAGE/root"
+/usr/bin/ditto "$APP" "$PKG_STAGE/root/$APP_NAME.app"
+cat >"$PKG_STAGE/component.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+    <dict>
+        <key>RootRelativeBundlePath</key>
+        <string>$APP_NAME.app</string>
+        <key>BundleIsRelocatable</key>
+        <false/>
+        <key>BundleIsVersionChecked</key>
+        <true/>
+        <key>BundleOverwriteAction</key>
+        <string>upgrade</string>
+    </dict>
+</array>
+</plist>
+PLIST
+PKG_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")"
 pkgbuild \
-  --component "$APP" \
+  --root "$PKG_STAGE/root" \
+  --component-plist "$PKG_STAGE/component.plist" \
+  --identifier "$PKG_BUNDLE_ID" \
+  --version "$SHORT_VERSION" \
   --install-location "/Applications" \
   --sign "$INSTALLER_ID" \
   "$PKG"
+rm -rf "$PKG_STAGE"
 
 # ---- 3) notarize + staple the pkg ------------------------------------------
 echo "==> Notarizing the pkg (profile: $NOTARY_PROFILE — can take a few minutes)"

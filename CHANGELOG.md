@@ -8,6 +8,13 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Fixed
 
+- **The installer pkg can no longer relocate onto a stray copy of the app.**
+  pkgbuild's default marks the bundle relocatable, so macOS could follow
+  LaunchServices to any copy of the app on disk (a build tree, an old copy
+  in Downloads) and write the payload there, as root, instead of
+  /Applications. The pkg is now built from a staged root with
+  BundleIsRelocatable off; the receipt identifier and version are unchanged.
+
 - **Sensor chart lines no longer cross the vertical axis.** The Hardware
   overview's sensor charts keep samples slightly older than their
   five-minute window so the line enters from the left edge, but those
