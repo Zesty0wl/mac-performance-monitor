@@ -47,9 +47,13 @@ without surprises:
 - `zap`: removes the sample database and settings
   (`~/Library/Application Support/MacPerformanceMonitor` plus the standard
   per-bundle-id preference, cache and saved-state paths).
-- `livecheck` follows the latest GitHub release. The release tags are
-  4-part (`v1.5.0.198`: marketing version plus build number), so the cask
-  `version` is the 4-part string and the URL interpolates it directly.
+- No `livecheck` block: Homebrew's default strategy for a GitHub release
+  URL already follows the latest release, and this repo tags nothing
+  without a release (maintainer feedback on the submission PR; an explicit
+  block is only for repos with pre-releases or release-less tags). The
+  release tags are 4-part (`v1.5.0.198`: marketing version plus build
+  number), so the cask `version` is the 4-part string and the URL
+  interpolates it directly.
 
 ## Local validation (run before submitting)
 
