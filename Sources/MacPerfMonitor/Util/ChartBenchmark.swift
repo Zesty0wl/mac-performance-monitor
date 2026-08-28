@@ -56,7 +56,7 @@ enum ChartBenchmark {
     struct Options {
         enum Scenario: String {
             case dashboard, trend, cards, menu, inspector, processes, dashboardPage, gpuPage
-            case hardwarePage
+            case hardwarePage, analyticsPage
         }
         enum Mode: String { case image, host }
 
@@ -76,6 +76,10 @@ enum ChartBenchmark {
         /// `dashboardPage` only: the range the page starts on (a `HistoryWindow`
         /// raw value, default one hour).
         var range: HistoryWindow = .oneHour
+        /// `analyticsPage` only: how many synthetic processes are pinned to the
+        /// Monitor selection, so the per-tick cost can be measured against the
+        /// overlay count.
+        var monitored = 3
 
         init(arguments: [String]) {
             func value(_ flag: String) -> String? {
@@ -94,6 +98,7 @@ enum ChartBenchmark {
             if let h = value("--height").flatMap(Double.init) { height = CGFloat(h) }
             snapshot = value("--snapshot")
             if let r = value("--range").flatMap(HistoryWindow.init(rawValue:)) { range = r }
+            if let m = value("--monitored").flatMap(Int.init) { monitored = m }
         }
     }
 
@@ -452,6 +457,15 @@ enum ChartBenchmark {
 
         var firstIdentity: ProcessIdentity? { processes.first?.id }
 
+        /// Pin `n` of the busy synthetic processes (every tenth one actually
+        /// changes between ticks) to the Monitor selection, as a user would
+        /// from the Analytics picker.
+        func pinBusy(_ n: Int) {
+            for i in stride(from: 0, to: processes.count, by: 10).prefix(n) {
+                monitor.add(processes[i].id)
+            }
+        }
+
         func tick() {
             tickIndex += 1
             let now = Date(timeIntervalSince1970: 1_700_000_000 + Double(tickIndex) * interval)
@@ -600,7 +614,7 @@ enum ChartBenchmark {
                 })
         }
         if options.scenario == .processes || options.scenario == .dashboardPage
-            || options.scenario == .gpuPage
+            || options.scenario == .gpuPage || options.scenario == .analyticsPage
         {
             let store = ProcessScenarioStore(options: options)
             let view: AnyView
@@ -609,6 +623,12 @@ enum ChartBenchmark {
                 view = AnyView(ProcessesScenario(store: store, width: options.width))
             case .gpuPage:
                 view = AnyView(GPUPageScenario(store: store, width: options.width))
+            case .analyticsPage:
+                store.pinBusy(options.monitored)
+                // Fill the per-process trails to capacity before mounting, so
+                // the live charts measure with full series from the first tick.
+                for _ in 0..<(SamplerModel.processTrailCapacity + 5) { store.tick() }
+                view = AnyView(AnalyticsPageScenario(store: store, width: options.width))
             default:
                 view = AnyView(
                     DashboardPageScenario(
@@ -628,7 +648,28 @@ enum ChartBenchmark {
         case .cards: return AnyView(CardsScenario(store: store, width: options.width))
         case .menu: return AnyView(MenuScenario(store: store, width: options.width))
         case .inspector: return AnyView(InspectorScenario(store: store, width: options.width))
-        case .processes, .dashboardPage, .gpuPage, .hardwarePage: return AnyView(EmptyView())
+        case .processes, .dashboardPage, .gpuPage, .hardwarePage, .analyticsPage:
+            return AnyView(EmptyView())
+        }
+    }
+
+    /// The Analytics tab (the Performance Monitor grid) with synthetic
+    /// processes pinned, fed by the same store as the Processes scenario, to
+    /// measure the per-tick cost of the overlaid charts against the number of
+    /// monitored processes.
+    struct AnalyticsPageScenario: View {
+        let store: ProcessScenarioStore
+        let width: CGFloat
+        var body: some View {
+            PerformanceMonitorView(onImport: { _ in })
+                .frame(width: width, height: 900)
+                .environmentObject(store.model)
+                .environment(\.samplerModel, store.model)
+                .environmentObject(store.appState)
+                .environmentObject(store.monitor)
+                .environmentObject(store.groupStore)
+                .environmentObject(store.helper)
+                .environmentObject(store.appMode)
         }
     }
 
