@@ -295,7 +295,7 @@ struct TrendChart: View {
         let span = tMax - tMin
         guard span > 0 else { return [] }
         let step = clockTickStep(forSpan: span)
-        let fmt = step >= 86_400 ? Self.dayTickFormatter : Self.timeTickFormatter
+        let fmt = tickFormatter(forStep: step)
         return clockTickTimes(from: tMin, to: tMax, step: step).map { t in
             let date = Date(timeIntervalSinceReferenceDate: t)
             return TrendClockTick(
@@ -304,22 +304,28 @@ struct TrendChart: View {
     }
 
     /// The wall-clock tick interval for a visible span. Past ~a day, whole
-    /// days so labels read as dates; below that, minutes/hours so they read as
-    /// clock times. Exposed so a strip chart can draw gridlines beyond the
-    /// visible span at the same step as the visible labels.
+    /// days so labels read as dates; below that, seconds/minutes/hours so they
+    /// read as clock times. Exposed so a strip chart can draw gridlines beyond
+    /// the visible span at the same step as the visible labels.
     static func clockTickStep(forSpan span: Double) -> Double {
         let steps: [Double] =
             span > 86_400
             ? [86_400, 172_800, 604_800]  // 1d, 2d, 1w
-            : [60, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200]  // 1m … 12h
+            : [15, 30, 60, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200]  // 15s … 12h
         return steps.first { span / $0 <= 7 } ?? steps.last!
     }
 
     /// The label for a wall-clock tick at `t` (seconds since the reference
-    /// date) on an axis stepping by `step`: a date past a day, a time below.
+    /// date) on an axis stepping by `step`: a date past a day, a time below,
+    /// with seconds when the step itself is sub-minute.
     static func clockTickLabel(_ t: Double, step: Double) -> String {
-        let fmt = step >= 86_400 ? Self.dayTickFormatter : Self.timeTickFormatter
-        return fmt.string(from: Date(timeIntervalSinceReferenceDate: t))
+        tickFormatter(forStep: step).string(from: Date(timeIntervalSinceReferenceDate: t))
+    }
+
+    private static func tickFormatter(forStep step: Double) -> DateFormatter {
+        if step >= 86_400 { return dayTickFormatter }
+        if step >= 60 { return timeTickFormatter }
+        return secondsTickFormatter
     }
 
     /// Tick times at `step` within `from...to`, aligned to local wall-clock
@@ -351,6 +357,12 @@ struct TrendChart: View {
         let fmt = DateFormatter()
         fmt.locale = .autoupdatingCurrent
         fmt.setLocalizedDateFormatFromTemplate("Hmm")
+        return fmt
+    }()
+    private static let secondsTickFormatter: DateFormatter = {
+        let fmt = DateFormatter()
+        fmt.locale = .autoupdatingCurrent
+        fmt.setLocalizedDateFormatFromTemplate("Hmmss")
         return fmt
     }()
 }

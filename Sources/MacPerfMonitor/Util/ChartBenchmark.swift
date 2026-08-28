@@ -405,6 +405,7 @@ enum ChartBenchmark {
         private var processes: [ProcessSample] = []
         private let base: Sampler.Snapshot
         private let interval: TimeInterval
+        private let start = Date()
         private var tickIndex = 0
 
         init(options: Options) {
@@ -415,7 +416,11 @@ enum ChartBenchmark {
             base = Sampler.Snapshot(
                 system: system, processes: [], unreadableProcessCount: 0, cpu: cpu,
                 battery: battery, network: network, disk: disk)
-            let start = Date(timeIntervalSince1970: 1_700_000_000)
+            // Anchored to the wall clock: the pages mix sample dates with
+            // Date() (trailing live windows, trimming), so a fixed epoch would
+            // leave every synthetic sample outside the visible window. Tick i
+            // lands at start + i×interval, in step with the host-mode timer.
+            let start = self.start
             // The Dashboard page loads its window through the model; with no
             // store, hand it `--points` synthetic samples ending just before
             // the first tick so the charts start full.
@@ -466,9 +471,17 @@ enum ChartBenchmark {
             }
         }
 
+        /// Run `n` ticks backdated BEFORE the wall-clock start, so the trails
+        /// are already full when a page mounts while the next live tick still
+        /// lands at "now".
+        func prewarm(_ n: Int) {
+            tickIndex = -(n + 1)
+            for _ in 0..<n { tick() }
+        }
+
         func tick() {
             tickIndex += 1
-            let now = Date(timeIntervalSince1970: 1_700_000_000 + Double(tickIndex) * interval)
+            let now = start.addingTimeInterval(Double(tickIndex) * interval)
             for i in processes.indices {
                 processes[i].timestamp = now
                 // A tenth of the processes are busy: CPU wanders, footprint and
@@ -478,7 +491,9 @@ enum ChartBenchmark {
                 // is busy on the GPU, so the GPU page has a table to rank.
                 if i % 40 == 0 {
                     let busy = i % 80 == 0
-                    let nanos = UInt64(Double(tickIndex) * interval * (busy ? 0.35 : 0.002) * 1e9)
+                    // max(0, …): prewarm ticks run at negative indices.
+                    let nanos = UInt64(
+                        max(0, Double(tickIndex)) * interval * (busy ? 0.35 : 0.002) * 1e9)
                     processes[i].gpuTimeNanos = nanos
                     processes[i].gpuPercent = busy ? 35 + generator.next() * 10 : 0.1
                     processes[i].gpuLastActive = busy ? now : now.addingTimeInterval(-600)
@@ -627,7 +642,7 @@ enum ChartBenchmark {
                 store.pinBusy(options.monitored)
                 // Fill the per-process trails to capacity before mounting, so
                 // the live charts measure with full series from the first tick.
-                for _ in 0..<(SamplerModel.processTrailCapacity + 5) { store.tick() }
+                store.prewarm(SamplerModel.processTrailCapacity + 5)
                 view = AnyView(AnalyticsPageScenario(store: store, width: options.width))
             default:
                 view = AnyView(

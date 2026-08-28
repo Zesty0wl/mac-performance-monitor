@@ -6,6 +6,29 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Changed
+
+- **The Analytics grid is drawn with the app's Canvas charts.** It was the
+  last Swift Charts surface: every chart was built from one mark per data
+  point, so a full grid re-laid-out around 14,000 marks every time the live
+  window slid a tick, and each added process made it visibly worse (the tab,
+  and with it the app, crawled with several processes overlaid). The grid
+  and the focused chart now ride the same Canvas machinery as the rest of
+  the app, with everything kept: overlaid processes with their colours,
+  legend-hover dimming, gap handling, the combined scrub read-out,
+  wall-clock axes (now with seconds on the short spans), and the full
+  zoom/pan/rubber-band interaction set. Measured at eight overlaid
+  processes, the per-tick cost of the charts fell by more than 3x and no
+  longer grows with the process count; scrubbing no longer re-lays-out the
+  series at all. The trace viewer shares the component and gets the same.
+- **Long Analytics spans no longer re-transform the whole window every
+  tick.** Appending one live sample re-projected and re-downsampled every
+  metric for every process over the full raw window (millions of point
+  operations on the six-hour span). The rebuild is now paced to the chart's
+  own downsample bucket, like the strip charts whose completed columns are
+  final: every tick on the live span, about once a minute on six hours,
+  with nothing visible changing in between.
+
 ### Fixed
 
 - **The installer pkg can no longer relocate onto a stray copy of the app.**

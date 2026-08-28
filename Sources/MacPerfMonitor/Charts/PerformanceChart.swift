@@ -1,4 +1,4 @@
-import Charts
+import AppKit
 import MacPerfMonitorCore
 import SwiftUI
 
@@ -10,16 +10,14 @@ struct PerfPoint: Identifiable, Equatable, Sendable {
 }
 
 /// One overlaid process line on the Performance Monitor: an identity, a display
-/// name, an assigned colour, and the metric's time-series. The plotting `key` is
-/// derived from the identity so two processes that happen to share a name still
-/// draw as separate lines and map to distinct colours.
+/// name, an assigned colour, and the metric's time-series.
 struct PerfSeries: Identifiable, Equatable {
     var id: ProcessIdentity
     var name: String
     var color: Color
     var points: [PerfPoint]
 
-    /// Stable, unique key for the Swift Charts foreground-style scale.
+    /// Stable, unique key for a series, used to tag its gap-free runs.
     var key: String { "\(id.pid)/\(id.startTime.timeIntervalSince1970.bitPattern)" }
 }
 
@@ -29,6 +27,14 @@ struct PerfSeries: Identifiable, Equatable {
 /// scrolls smoothly in live mode and stays fixed for a chosen historical span.
 /// Hovering or dragging scrubs every series at once, pinning a combined
 /// read-out of each process's value at that instant.
+///
+/// Drawn with the Canvas `TrendChart` plus a small decoration canvas (the
+/// series-end dots and the scrub marker). This was a Swift Charts view built
+/// from one mark per data point; a full grid re-laid-out ~14,000 marks every
+/// time the live window slid one tick, which is what made the Analytics tab
+/// the most expensive page in the app. The Canvas layers draw the same series
+/// in well under a millisecond, and a scrub move repaints only the decoration
+/// layer and the read-out card, never the series.
 struct PerformanceChart: View, Equatable {
     let series: [PerfSeries]
     let xDomain: ClosedRange<Date>
@@ -41,8 +47,8 @@ struct PerformanceChart: View, Equatable {
     /// When set (the Monitor's focused chart), the plot becomes interactive:
     /// drag pans, Option-drag rubber-band-selects a range to zoom into,
     /// double-click zooms out a step, pinch and scroll-wheel zoom about the
-    /// cursor, and horizontal two-finger scroll pans. Scrubbing moves to
-    /// hover-only. Nil (the grid cells) keeps the original hover/drag scrub.
+    /// cursor. Scrubbing moves to hover-only. Nil (the grid cells) keeps the
+    /// original hover/drag scrub.
     var zoomActions: ChartZoomActions? = nil
     /// When set (the grid cells), scroll-wheel and pinch zoom the shared window
     /// while hover and drag keep scrubbing, so scrolling over any chart zooms them
@@ -51,9 +57,9 @@ struct PerformanceChart: View, Equatable {
     var scrollZoom: ChartZoomActions? = nil
     let yFormat: (Double) -> String
 
-    /// Used with `.equatable()` so the ~2,400 marks per cell are only rebuilt
-    /// when the plotted data actually changes — not on every unrelated model
-    /// publish that re-evaluates the parent. `yFormat` and `zoomActions` are
+    /// Used with `.equatable()` so the series pipeline only re-runs when the
+    /// plotted data actually changes — not on every unrelated model publish
+    /// that re-evaluates the parent. `yFormat` and the zoom callbacks are
     /// deliberately ignored: pure functions/callbacks fixed per cell.
     static func == (lhs: PerformanceChart, rhs: PerformanceChart) -> Bool {
         lhs.series == rhs.series && lhs.xDomain == rhs.xDomain && lhs.minTop == rhs.minTop
@@ -64,37 +70,33 @@ struct PerformanceChart: View, Equatable {
     @State private var scrubDate: Date?
     /// Last drag X while panning, so each change reports an incremental delta.
     @State private var panLastX: CGFloat?
-    /// Rubber-band selection in overlay-local X, while an Option-drag is live.
+    /// Rubber-band selection in local X, while an Option-drag is live.
     @State private var selection: (start: CGFloat, current: CGFloat)?
     /// Previous pinch magnification, so each change reports an incremental factor.
     @State private var magnifyLast: CGFloat = 1
 
+    /// Mirrors the geometry `TrendChart` lays its plot out with, so the
+    /// interaction overlays and decorations agree with the drawn axes. The
+    /// gutter fits the widest metric tick strings ("38.4 MB/s").
+    private static let chartGeometry = TrendChartGeometry(
+        leftGutter: 52, showsTimeAxis: true, plotBorder: true)
+
+    /// Snapped to a nice ceiling so the axis holds still between ticks instead
+    /// of trembling with the peak.
     private var yMax: Double {
         let peak = series.flatMap(\.points).map(\.value).max() ?? 0
-        // Sit the tallest spike near the top with a little breathing room, rather
-        // than against an arbitrary fixed ceiling that leaves the data hugging
-        // the floor. The floor only applies when everything is near zero.
-        return max(peak * 1.12, minTop)
+        return LiveChartGeometry.niceCeiling(max(peak * 1.12, minTop))
     }
 
-    /// One drawable run of a series: a stretch of points with no gap, tagged with
-    /// the parent process (for colour) and a unique id (so each run is its own
-    /// Swift Charts line and the gaps between runs are left blank).
-    private struct SeriesSegment: Identifiable {
-        let id: String
-        let processKey: String
-        let points: [PerfPoint]
-    }
-
-    /// Every series split into gap-free runs. A process's history can be sparse
-    /// (the database only retains the top consumers, so a pinned process has
-    /// holes wherever it was not among them); splitting at the holes stops the
-    /// chart from joining distant points with a straight diagonal.
-    private var segments: [SeriesSegment] {
-        series.flatMap { s -> [SeriesSegment] in
-            let runs = Self.split(s.points)
-            return runs.enumerated().map { index, run in
-                SeriesSegment(id: "\(s.key)#\(index)", processKey: s.key, points: run)
+    /// Every series split into gap-free runs, each run drawn as its own
+    /// `TrendSeries` (so the gaps between runs stay blank), coloured with the
+    /// dimming already applied.
+    private var trendSeries: [TrendSeries] {
+        series.flatMap { s -> [TrendSeries] in
+            Self.split(s.points).map { run in
+                TrendSeries(
+                    points: run.map { TrendPoint(date: $0.date, value: $0.value) },
+                    color: displayColor(s), filled: false, lineWidth: 1.8)
             }
         }
     }
@@ -177,144 +179,63 @@ struct PerformanceChart: View, Equatable {
         return parts.isEmpty ? "Collecting data." : parts.joined(separator: ", ")
     }
 
-    private var xLabelFormat: Date.FormatStyle {
-        let span = xDomain.upperBound.timeIntervalSince(xDomain.lowerBound)
-        if span <= 600 { return .dateTime.minute().second() }
-        if span <= 26 * 3600 { return .dateTime.hour().minute() }
-        return .dateTime.month(.abbreviated).day()
-    }
-
     var body: some View {
-        // Evaluated once per render: the nearest-sample scan runs per series, so
-        // referencing the computed property from several places in the builder
-        // multiplied it.
-        let readout = scrubReadout
-        return Chart {
-            // Crisp lines only, no fills: a clean instrument-style plot where
-            // the gridlines and values stay readable even with eight processes
-            // overlaid. Each contiguous RUN of a series is drawn as its own line
-            // ("Segment"), so the line breaks wherever a process's history is
-            // missing rather than bridging the hole with a misleading straight
-            // diagonal (the sawtooth/flat-then-jump artifact). Colour stays keyed
-            // to the process, so all of a process's runs share one colour.
-            ForEach(segments) { segment in
-                ForEach(segment.points) { point in
-                    LineMark(
-                        x: .value("Time", point.date),
-                        y: .value("Value", point.value),
-                        series: .value("Segment", segment.id)
-                    )
-                    .interpolationMethod(.linear)
-                    .foregroundStyle(by: .value("Process", segment.processKey))
-                    .lineStyle(StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
-                }
-
-                // A run with a single sample draws no line, so mark it with a dot
-                // to keep an isolated reading visible across the gaps around it.
-                if segment.points.count == 1, let point = segment.points.first {
-                    PointMark(
-                        x: .value("Time", point.date),
-                        y: .value("Value", point.value)
-                    )
-                    .foregroundStyle(by: .value("Process", segment.processKey))
-                    .symbolSize(18)
-                }
-            }
-
-            // A small solid dot pins each series' current value. Hidden for
-            // dimmed series so the highlighted line reads cleanly.
-            ForEach(series) { s in
-                if let last = s.points.last, !isDimmed(s) {
-                    PointMark(
-                        x: .value("Time", last.date),
-                        y: .value("Value", last.value)
-                    )
-                    .foregroundStyle(by: .value("Process", s.key))
-                    .symbolSize(26)
-                }
-            }
-
-            if let scrubDate, !readout.isEmpty {
-                RuleMark(x: .value("Time", scrubDate))
-                    .foregroundStyle(Color.secondary.opacity(0.35))
-                    .lineStyle(StrokeStyle(lineWidth: 1))
-                    .annotation(
-                        position: .top,
-                        spacing: 6,
-                        // Fit on BOTH axes so the readout card can never run up
-                        // out of the chart and behind the window's title/tab bar
-                        // on the top row of charts; it stays clamped inside.
-                        overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
-                    ) {
-                        scrubCard(readout)
+        GeometryReader { geo in
+            let plot = Self.chartGeometry.plotRect(in: geo.size)
+            let readout = scrubReadout
+            ZStack(alignment: .topLeading) {
+                TrendChart(
+                    series: trendSeries,
+                    xDomain: xDomain,
+                    yDomain: 0...yMax,
+                    yFormat: yFormat,
+                    showsTimeAxis: true,
+                    timeAxis: .clock,
+                    gapThreshold: .infinity,
+                    plotBorder: true,
+                    leftGutter: Self.chartGeometry.leftGutter
+                )
+                PerfDecorLayer(
+                    plot: plot,
+                    xDomain: xDomain,
+                    yMax: yMax,
+                    scrubX: scrubDate.map { xFor($0, in: plot) },
+                    endDots: endDots,
+                    scrubDots: readout.compactMap { entry in
+                        isDimmed(entry.series)
+                            ? nil
+                            : PerfDecorLayer.Dot(
+                                date: entry.point.date, value: entry.point.value,
+                                color: entry.series.color, radius: 3.9)
                     }
-
-                ForEach(readout, id: \.series.id) { entry in
-                    PointMark(
-                        x: .value("Time", entry.point.date),
-                        y: .value("Value", entry.point.value)
-                    )
-                    .foregroundStyle(by: .value("Process", entry.series.key))
-                    .symbolSize(isDimmed(entry.series) ? 0 : 48)
-                }
-            }
-        }
-        .chartForegroundStyleScale(domain: series.map(\.key), range: series.map(displayColor))
-        .chartLegend(.hidden)
-        .chartXScale(domain: xDomain)
-        .chartYScale(domain: 0...yMax)
-        .chartPlotStyle { plot in
-            // A neutral panel with a crisp hairline frame reads as a
-            // professional instrument rather than a decorative gradient.
-            plot
-                .border(Color.secondary.opacity(0.22), width: 0.5)
-        }
-        .chartYAxis {
-            AxisMarks(values: .automatic(desiredCount: 5)) { value in
-                // Solid, clearly visible horizontal reference lines: these are
-                // the value gridlines the monitor is read against.
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.secondary.opacity(0.28))
-                AxisTick(length: 4, stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.secondary.opacity(0.4))
-                AxisValueLabel {
-                    if let v = value.as(Double.self) {
-                        Text(yFormat(v))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-        .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 6)) { value in
-                // Lighter vertical gridlines so the horizontal value lines stay
-                // dominant, but still clearly present.
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.secondary.opacity(0.14))
-                AxisTick(length: 4, stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.secondary.opacity(0.4))
-                AxisValueLabel {
-                    if let date = value.as(Date.self) {
-                        Text(date, format: xLabelFormat)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-        .chartOverlay { proxy in
-            GeometryReader { geometry in
+                )
+                .allowsHitTesting(false)
                 if let zoomActions {
-                    zoomableOverlay(zoomActions, proxy: proxy, geometry: geometry)
+                    zoomableOverlay(zoomActions, plot: plot)
                 } else {
-                    scrubOverlay(proxy: proxy, geometry: geometry)
+                    scrubOverlay(plot: plot)
+                }
+                if !readout.isEmpty {
+                    scrubCard(readout)
+                        .offset(x: cardLeft(in: plot), y: plot.minY + 6)
+                        .allowsHitTesting(false)
                 }
             }
         }
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityTitle)
         .accessibilityValue(accessibilitySummary)
         .reducedMotionAware()
+    }
+
+    /// A small solid dot pinning each series' current value, hidden for dimmed
+    /// series so the highlighted line reads cleanly.
+    private var endDots: [PerfDecorLayer.Dot] {
+        series.compactMap { s in
+            guard let last = s.points.last, !isDimmed(s) else { return nil }
+            return PerfDecorLayer.Dot(
+                date: last.date, value: last.value, color: s.color, radius: 2.9)
+        }
     }
 
     // MARK: - Interaction overlays
@@ -322,14 +243,14 @@ struct PerformanceChart: View, Equatable {
     /// The grid cells' overlay: hover or drag scrubs the read-out, and (when
     /// `scrollZoom` is set) scroll-wheel and pinch zoom the shared window so every
     /// chart zooms together. The focused chart uses `zoomableOverlay` instead.
-    private func scrubOverlay(proxy: ChartProxy, geometry: GeometryProxy) -> some View {
+    private func scrubOverlay(plot: CGRect) -> some View {
         Rectangle()
             .fill(.clear)
             .contentShape(Rectangle())
             .onContinuousHover { phase in
                 switch phase {
                 case .active(let location):
-                    updateScrub(at: location, proxy: proxy, geometry: geometry)
+                    updateScrub(at: location, plot: plot)
                 case .ended:
                     scrubDate = nil
                 }
@@ -337,7 +258,7 @@ struct PerformanceChart: View, Equatable {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
-                        updateScrub(at: value.location, proxy: proxy, geometry: geometry)
+                        updateScrub(at: value.location, plot: plot)
                     }
                     .onEnded { _ in scrubDate = nil }
             )
@@ -347,10 +268,8 @@ struct PerformanceChart: View, Equatable {
                         guard let scrollZoom else { return }
                         let factor = value.magnification / magnifyLast
                         magnifyLast = value.magnification
-                        let anchor =
-                            plotDate(atX: value.startLocation.x, proxy: proxy, geometry: geometry)
-                            ?? domainMidpoint
-                        scrollZoom.zoom(anchor, Double(factor))
+                        scrollZoom.zoom(
+                            dateAt(x: value.startLocation.x, in: plot), Double(factor))
                     }
                     .onEnded { _ in magnifyLast = 1 }
             )
@@ -359,8 +278,7 @@ struct PerformanceChart: View, Equatable {
                     if let scrollZoom {
                         ScrollWheelCatcher { location, dx, dy in
                             handleScroll(
-                                scrollZoom, location: location, dx: dx, dy: dy,
-                                proxy: proxy, geometry: geometry)
+                                scrollZoom, location: location, dx: dx, dy: dy, plot: plot)
                         }
                     }
                 }
@@ -370,11 +288,8 @@ struct PerformanceChart: View, Equatable {
     /// The focused chart's interactive overlay: hover scrubs; drag pans;
     /// Option-drag draws a rubber-band selection and zooms to it; double-click
     /// zooms out a step; pinch and scroll-wheel zoom about the cursor.
-    private func zoomableOverlay(
-        _ actions: ChartZoomActions, proxy: ChartProxy, geometry: GeometryProxy
-    ) -> some View {
-        let plotRect = proxy.plotFrame.map { geometry[$0] } ?? geometry.frame(in: .local)
-        return ZStack(alignment: .topLeading) {
+    private func zoomableOverlay(_ actions: ChartZoomActions, plot: CGRect) -> some View {
+        ZStack(alignment: .topLeading) {
             Rectangle().fill(.clear)
             if let selection {
                 let x0 = min(selection.start, selection.current)
@@ -382,8 +297,8 @@ struct PerformanceChart: View, Equatable {
                 Rectangle()
                     .fill(Color.accentColor.opacity(0.12))
                     .overlay(Rectangle().stroke(Color.accentColor.opacity(0.55), lineWidth: 1))
-                    .frame(width: width, height: plotRect.height)
-                    .offset(x: x0, y: plotRect.minY)
+                    .frame(width: width, height: plot.height)
+                    .offset(x: x0, y: plot.minY)
             }
         }
         .contentShape(Rectangle())
@@ -391,46 +306,36 @@ struct PerformanceChart: View, Equatable {
             switch phase {
             case .active(let location):
                 guard panLastX == nil, selection == nil else { return }
-                updateScrub(at: location, proxy: proxy, geometry: geometry)
+                updateScrub(at: location, plot: plot)
             case .ended:
                 scrubDate = nil
             }
         }
         .gesture(
             SpatialTapGesture(count: 2).onEnded { value in
-                let anchor =
-                    plotDate(atX: value.location.x, proxy: proxy, geometry: geometry)
-                    ?? domainMidpoint
-                actions.zoom(anchor, 0.5)
+                actions.zoom(dateAt(x: value.location.x, in: plot), 0.5)
             }
         )
-        .simultaneousGesture(panOrSelectGesture(actions, proxy: proxy, geometry: geometry))
+        .simultaneousGesture(panOrSelectGesture(actions, plot: plot))
         .simultaneousGesture(
             MagnifyGesture()
                 .onChanged { value in
                     let factor = value.magnification / magnifyLast
                     magnifyLast = value.magnification
-                    let anchor =
-                        plotDate(atX: value.startLocation.x, proxy: proxy, geometry: geometry)
-                        ?? domainMidpoint
-                    actions.zoom(anchor, Double(factor))
+                    actions.zoom(dateAt(x: value.startLocation.x, in: plot), Double(factor))
                 }
                 .onEnded { _ in magnifyLast = 1 }
         )
         .background(
             ScrollWheelCatcher { location, dx, dy in
-                handleScroll(
-                    actions, location: location, dx: dx, dy: dy,
-                    proxy: proxy, geometry: geometry)
+                handleScroll(actions, location: location, dx: dx, dy: dy, plot: plot)
             }
         )
     }
 
     /// One drag serves two modes, decided by the Option key at drag start:
     /// plain drag pans the window; Option-drag rubber-bands a range to zoom to.
-    private func panOrSelectGesture(
-        _ actions: ChartZoomActions, proxy: ChartProxy, geometry: GeometryProxy
-    ) -> some Gesture {
+    private func panOrSelectGesture(_ actions: ChartZoomActions, plot: CGRect) -> some Gesture {
         DragGesture(minimumDistance: 2)
             .onChanged { value in
                 if panLastX == nil, selection == nil {
@@ -446,23 +351,20 @@ struct PerformanceChart: View, Equatable {
                 } else if let last = panLastX {
                     let dx = value.location.x - last
                     panLastX = value.location.x
-                    let width = plotWidth(proxy: proxy, geometry: geometry)
-                    guard width > 0 else { return }
+                    guard plot.width > 0 else { return }
                     // Dragging the plot right shows earlier data, like grabbing
                     // the chart paper.
-                    actions.pan(-Double(dx / width) * domainSpan)
+                    actions.pan(-Double(dx / plot.width) * domainSpan)
                 }
             }
             .onEnded { _ in
                 if let sel = selection {
                     let x0 = min(sel.start, sel.current)
                     let x1 = max(sel.start, sel.current)
-                    if x1 - x0 > 8,
-                        let d0 = plotDate(atX: x0, proxy: proxy, geometry: geometry),
-                        let d1 = plotDate(atX: x1, proxy: proxy, geometry: geometry),
-                        d0 < d1
-                    {
-                        actions.selectRange(d0...d1)
+                    if x1 - x0 > 8 {
+                        let d0 = dateAt(x: x0, in: plot)
+                        let d1 = dateAt(x: x1, in: plot)
+                        if d0 < d1 { actions.selectRange(d0...d1) }
                     }
                 }
                 selection = nil
@@ -473,17 +375,13 @@ struct PerformanceChart: View, Equatable {
     /// Scroll-wheel routing: the dominant axis decides. Horizontal (two-finger
     /// swipe) pans; vertical zooms about the cursor — wheel/swipe up zooms in.
     private func handleScroll(
-        _ actions: ChartZoomActions, location: CGPoint, dx: CGFloat, dy: CGFloat,
-        proxy: ChartProxy, geometry: GeometryProxy
+        _ actions: ChartZoomActions, location: CGPoint, dx: CGFloat, dy: CGFloat, plot: CGRect
     ) {
         if abs(dx) > abs(dy) {
-            let width = plotWidth(proxy: proxy, geometry: geometry)
-            guard width > 0 else { return }
-            actions.pan(-Double(dx / width) * domainSpan)
+            guard plot.width > 0 else { return }
+            actions.pan(-Double(dx / plot.width) * domainSpan)
         } else if dy != 0 {
-            let anchor =
-                plotDate(atX: location.x, proxy: proxy, geometry: geometry) ?? domainMidpoint
-            actions.zoom(anchor, exp(Double(dy) * 0.006))
+            actions.zoom(dateAt(x: location.x, in: plot), exp(Double(dy) * 0.006))
         }
     }
 
@@ -491,18 +389,18 @@ struct PerformanceChart: View, Equatable {
         xDomain.upperBound.timeIntervalSince(xDomain.lowerBound)
     }
 
-    private var domainMidpoint: Date {
-        xDomain.lowerBound.addingTimeInterval(domainSpan / 2)
+    /// The date under a local X position, extrapolating linearly beyond the
+    /// plot edges (matching the old ChartProxy behaviour, so a scrub or zoom
+    /// anchor just outside the plot still lands sensibly).
+    private func dateAt(x: CGFloat, in plot: CGRect) -> Date {
+        let fraction = Double((x - plot.minX) / max(plot.width, 1))
+        return xDomain.lowerBound.addingTimeInterval(fraction * domainSpan)
     }
 
-    /// The date under an overlay-local X position, or nil outside the plot.
-    private func plotDate(atX x: CGFloat, proxy: ChartProxy, geometry: GeometryProxy) -> Date? {
-        guard let plotFrame = proxy.plotFrame else { return nil }
-        return proxy.value(atX: x - geometry[plotFrame].origin.x)
-    }
-
-    private func plotWidth(proxy: ChartProxy, geometry: GeometryProxy) -> CGFloat {
-        proxy.plotFrame.map { geometry[$0].width } ?? geometry.size.width
+    private func xFor(_ date: Date, in plot: CGRect) -> CGFloat {
+        guard domainSpan > 0 else { return plot.minX }
+        return plot.minX
+            + CGFloat(date.timeIntervalSince(xDomain.lowerBound) / domainSpan) * plot.width
     }
 
     /// The colour a series draws in, dimmed when another series is highlighted.
@@ -515,22 +413,24 @@ struct PerformanceChart: View, Equatable {
         return s.id != highlighted
     }
 
-    /// Map a cursor location in the overlay to a time on the X axis, quantised
-    /// to the chart's point spacing. Every distinct `scrubDate` rebuilds the
-    /// full mark set, so publishing the raw cursor time re-laid-out ~2,400
-    /// marks on every mouse-move; snapping to the data's own resolution makes
-    /// a move within one bucket free while the read-out still lands on exactly
-    /// the same nearest samples.
-    private func updateScrub(at location: CGPoint, proxy: ChartProxy, geometry: GeometryProxy) {
-        guard let plotFrame = proxy.plotFrame else { return }
-        let origin = geometry[plotFrame].origin
-        let x = location.x - origin.x
-        guard let date: Date = proxy.value(atX: x) else { return }
-        let span = xDomain.upperBound.timeIntervalSince(xDomain.lowerBound)
-        let bucket = max(span / 300, 1)
+    /// Map a cursor location to a time on the X axis, quantised to the chart's
+    /// point spacing: a move within one bucket republishes nothing, while the
+    /// read-out still lands on exactly the same nearest samples.
+    private func updateScrub(at location: CGPoint, plot: CGRect) {
+        let date = dateAt(x: location.x, in: plot)
+        let bucket = max(domainSpan / 300, 1)
         let quantised = Date(
             timeIntervalSince1970: (date.timeIntervalSince1970 / bucket).rounded() * bucket)
         if scrubDate != quantised { scrubDate = quantised }
+    }
+
+    /// Where the read-out card's leading edge sits: centred on the scrub rule,
+    /// clamped so the card (at most 240 wide) stays inside the plot.
+    private func cardLeft(in plot: CGRect) -> CGFloat {
+        guard let scrubDate else { return plot.minX }
+        let half: CGFloat = 120
+        let centre = xFor(scrubDate, in: plot)
+        return min(max(centre - half, plot.minX), max(plot.minX, plot.maxX - 2 * half))
     }
 
     /// The floating read-out listing every series' value at the scrub time.
@@ -566,5 +466,54 @@ struct PerformanceChart: View, Equatable {
         )
         .frame(maxWidth: 240)
         .fixedSize()
+    }
+}
+
+/// The decorations the base chart does not draw: the series-end value dots,
+/// and (while scrubbing) the vertical rule with a dot on each series' nearest
+/// sample. A separate Canvas so a scrub move repaints only this layer and
+/// never the series beneath it.
+private struct PerfDecorLayer: View {
+    struct Dot {
+        var date: Date
+        var value: Double
+        var color: Color
+        var radius: CGFloat
+    }
+
+    let plot: CGRect
+    let xDomain: ClosedRange<Date>
+    let yMax: Double
+    let scrubX: CGFloat?
+    let endDots: [Dot]
+    let scrubDots: [Dot]
+
+    var body: some View {
+        Canvas(opaque: false, rendersAsynchronously: false) { ctx, _ in
+            let span = xDomain.upperBound.timeIntervalSince(xDomain.lowerBound)
+            guard span > 0, yMax > 0 else { return }
+            func x(_ d: Date) -> CGFloat {
+                plot.minX
+                    + CGFloat(d.timeIntervalSince(xDomain.lowerBound) / span) * plot.width
+            }
+            func y(_ v: Double) -> CGFloat {
+                plot.maxY - CGFloat(min(max(v / yMax, 0), 1)) * plot.height
+            }
+            if let scrubX {
+                let xx = min(max(scrubX, plot.minX), plot.maxX)
+                var rule = Path()
+                rule.move(to: CGPoint(x: xx, y: plot.minY))
+                rule.addLine(to: CGPoint(x: xx, y: plot.maxY))
+                ctx.stroke(rule, with: .color(.secondary.opacity(0.35)), lineWidth: 1)
+            }
+            for dot in endDots + scrubDots {
+                let cx = x(dot.date)
+                guard cx >= plot.minX - dot.radius, cx <= plot.maxX + dot.radius else { continue }
+                let rect = CGRect(
+                    x: cx - dot.radius, y: y(dot.value) - dot.radius,
+                    width: 2 * dot.radius, height: 2 * dot.radius)
+                ctx.fill(Path(ellipseIn: rect), with: .color(dot.color))
+            }
+        }
     }
 }

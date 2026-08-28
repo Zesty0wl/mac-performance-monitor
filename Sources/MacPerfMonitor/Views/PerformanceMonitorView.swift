@@ -71,6 +71,11 @@ struct PerformanceMonitorView: View {
     /// being added — never on the 5 s background refresh, which would flicker it.
     @State private var isLoading = false
 
+    /// When the chart series were last rebuilt from the raw windows, so
+    /// `appendTick` can pace the full re-transform to the downsample bucket
+    /// width (see there) instead of re-running it on every tick.
+    @State private var lastSeriesRebuild = Date.distantPast
+
     @State private var highlighted: ProcessIdentity?
     @State private var pickerPresented = false
     @State private var pickerPresentedEmpty = false
@@ -279,11 +284,11 @@ struct PerformanceMonitorView: View {
         )
     }
 
-    /// Fires every base sampling tick (~1 Hz), so the Analytics chart's live edge
-    /// updates at the sampling rate — independent of the main window's coarser
-    /// Refresh-interval publish. A new point only actually lands as fast as the
-    /// per-process trail advances (the scan/logging cadence), so this streams at
-    /// the high-res rate without pinning the whole app to it.
+    /// Fires when the model's live tick publishes, which since the Refresh-dial
+    /// work is already gated to the dial rate (every tick at 1 s, coarser at
+    /// slower dials), so this page honours the dial like every other surface.
+    /// A new point only actually lands as fast as the per-process trail
+    /// advances (the scan cadence).
     private var liveTimestamps: AnyPublisher<Date, Never> {
         model.liveTick
             .map { _ in Date() }
@@ -1076,6 +1081,7 @@ struct PerformanceMonitorView: View {
     /// reload, a live append, or a selection sync — so `body` only ever reads
     /// the prepared arrays.
     private func rebuildChartSeries() {
+        lastSeriesRebuild = Date()
         if focusedMetric != nil {
             rebuildFocusedSeries()
             return
@@ -1341,7 +1347,22 @@ struct PerformanceMonitorView: View {
             rawSeries[id] = trimmed(points)
             changed = true
         }
-        if changed { rebuildChartSeries() }
+        guard changed else { return }
+        // Rebuilding projects and re-downsamples EVERY metric over every
+        // process's full raw window, which on a long span backed by the raw
+        // tier is millions of point transforms to append one sample that
+        // cannot move the plot a pixel. A chart only changes when a point
+        // crosses into a new downsample bucket, so pace the rebuild to the
+        // bucket width: every tick on the live span (sub-second buckets),
+        // once a minute or so on the six-hour window. The appended raw points
+        // wait in `rawSeries` meanwhile, exactly like the strip charts whose
+        // completed columns are final.
+        let visible = visibleDomain
+        let budget = Double(focusedMetric == nil ? Self.maxPointsPerSeries : Self.maxPointsFocused)
+        let bucketWidth = visible.upperBound.timeIntervalSince(visible.lowerBound) / budget
+        if Date().timeIntervalSince(lastSeriesRebuild) >= bucketWidth {
+            rebuildChartSeries()
+        }
     }
 
     private func appendLive(into map: inout [ProcessIdentity: [ProcessHistoryPoint]]) {
