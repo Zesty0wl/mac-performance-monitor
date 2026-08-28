@@ -11,6 +11,7 @@ struct HardwareOverviewView: View {
     @EnvironmentObject private var sampler: SamplerModel
     @EnvironmentObject private var appState: AppState
     @StateObject private var sensorLive = SensorLiveStore()
+    @Environment(\.colorScheme) private var colorScheme
     /// The domain whose live per-sensor sheet is open, if any.
     @State private var detailGroup: SensorDetailSelection?
 
@@ -319,7 +320,7 @@ struct HardwareOverviewView: View {
                                 title: group.name,
                                 systemImage: Self.sensorSymbol(group.name),
                                 value: "\(Int((group.readings.first ?? 0).rounded()))\u{00B0}C",
-                                tint: SensorHeat.color(group.readings.first ?? 0),
+                                tint: SensorHeat.color(group.readings.first ?? 0, in: colorScheme),
                                 samples: sensorLive.samples[group.name] ?? [],
                                 minTop: 60,
                                 yFormat: { "\(Int(max($0, 0).rounded()))\u{00B0}" },
@@ -392,11 +393,17 @@ struct HardwareOverviewView: View {
 }
 
 /// The temperature-to-color ramp for the sensor card figures: cool blue at
-/// room temperature through amber to red near the die limit.
+/// room temperature through amber to red near the die limit. The ramp is
+/// per-appearance: the bright ramp only reads against a dark backdrop, so
+/// light mode gets a darker, more saturated variant that stays legible on
+/// the grey panel.
 private enum SensorHeat {
-    static func color(_ celsius: Double) -> Color {
+    static func color(_ celsius: Double, in scheme: ColorScheme) -> Color {
         let t = min(max((celsius - 20) / 80, 0), 1)
-        return Color(hue: 0.58 * (1 - t), saturation: 0.72, brightness: 0.92)
+        let hue = 0.58 * (1 - t)
+        return scheme == .dark
+            ? Color(hue: hue, saturation: 0.72, brightness: 0.92)
+            : Color(hue: hue, saturation: 0.9, brightness: 0.58)
     }
 }
 
@@ -551,6 +558,7 @@ private struct SensorDetailSheet: View {
     @ObservedObject var store: SensorLiveStore
     let groupName: String
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -595,7 +603,7 @@ private struct SensorDetailSheet: View {
                             ZStack(alignment: .leading) {
                                 Capsule().fill(.quaternary.opacity(0.5))
                                 Capsule()
-                                    .fill(SensorHeat.color(sensor.celsius))
+                                    .fill(SensorHeat.color(sensor.celsius, in: colorScheme))
                                     .frame(
                                         width: proxy.size.width
                                             * min(max((sensor.celsius - 20) / 90, 0.02), 1))
@@ -605,7 +613,7 @@ private struct SensorDetailSheet: View {
                         .gridCellUnsizedAxes(.vertical)
                         Text(String(format: "%.1f\u{00B0}C", sensor.celsius))
                             .font(.callout.monospacedDigit())
-                            .foregroundStyle(SensorHeat.color(sensor.celsius))
+                            .foregroundStyle(SensorHeat.color(sensor.celsius, in: colorScheme))
                             .gridColumnAlignment(.trailing)
                     }
                 }

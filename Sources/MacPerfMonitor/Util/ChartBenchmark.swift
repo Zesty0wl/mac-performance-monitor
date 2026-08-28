@@ -67,6 +67,9 @@ enum ChartBenchmark {
         var ticks = 40
         var mode: Mode = .image
         var width: CGFloat = 900
+        /// `hardwarePage` only: the rendered page height, so a snapshot can
+        /// include cards below the first screenful.
+        var height: CGFloat = 1000
         /// Host mode only: write a PNG of the rendered window after the last
         /// tick, to eyeball what the AppKit surfaces actually drew.
         var snapshot: String?
@@ -88,6 +91,7 @@ enum ChartBenchmark {
             if let t = value("--ticks").flatMap(Int.init) { ticks = t }
             if let m = value("--mode").flatMap(Mode.init(rawValue:)) { mode = m }
             if let w = value("--width").flatMap(Double.init) { width = CGFloat(w) }
+            if let h = value("--height").flatMap(Double.init) { height = CGFloat(h) }
             snapshot = value("--snapshot")
             if let r = value("--range").flatMap(HistoryWindow.init(rawValue:)) { range = r }
         }
@@ -554,8 +558,20 @@ enum ChartBenchmark {
         if options.scenario == .hardwarePage {
             // The real inventory, read once on appearance; the tick only
             // applies an optional selection and search once it has landed, so
-            // a snapshot can show a detail page or a search result.
-            let view = AnyView(HardwarePageScenario(width: options.width))
+            // a snapshot can show a detail page or a search result. The page
+            // needs the app's environment objects (the sensors card seeds and
+            // sweeps through the sampler model), served by a store that never
+            // persists.
+            let store = ProcessScenarioStore(options: options)
+            let view = AnyView(
+                HardwarePageScenario(width: options.width, height: options.height)
+                    .environmentObject(store.model)
+                    .environment(\.samplerModel, store.model)
+                    .environmentObject(store.appState)
+                    .environmentObject(store.monitor)
+                    .environmentObject(store.groupStore)
+                    .environmentObject(store.helper)
+                    .environmentObject(store.appMode))
             let environment = ProcessInfo.processInfo.environment
             return Scenario(
                 view: view,
@@ -619,9 +635,10 @@ enum ChartBenchmark {
     /// The Hardware tab at a fixed width, for snapshots of the real inventory.
     struct HardwarePageScenario: View {
         let width: CGFloat
+        let height: CGFloat
         var body: some View {
             HardwareView()
-                .frame(width: width, height: 1000)
+                .frame(width: width, height: height)
         }
     }
 

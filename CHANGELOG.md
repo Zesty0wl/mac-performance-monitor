@@ -6,6 +6,18 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Sensor chart lines no longer cross the vertical axis.** The Hardware
+  overview's sensor charts keep samples slightly older than their
+  five-minute window so the line enters from the left edge, but those
+  points were stroked straight through the axis labels. Chart series are
+  now clipped to the plot area.
+- **Sensor temperature figures are readable in light mode.** The
+  heat-colored values on the sensor cards (and in the per-sensor sheet)
+  used a bright ramp that only reads against a dark backdrop; light mode
+  now uses a darker, more saturated variant of the same cool-to-hot ramp.
+
 ## [1.5.0] - 2026-08-27
 
 ### Added

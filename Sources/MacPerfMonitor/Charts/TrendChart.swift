@@ -521,6 +521,12 @@ private struct TrendLiveLayer: View {
                     timeIntervalSinceReferenceDate: tMin)...Date(
                     timeIntervalSinceReferenceDate: tMax)
 
+            // Series stay inside the plot: callers retain samples slightly
+            // older than the window (so the line enters from the left edge),
+            // and unclipped those points stroke through the axis gutter.
+            var seriesCtx = ctx
+            seriesCtx.clip(to: Path(plot))
+
             // Each series: gap-aware runs, optional area fill, then the line.
             for s in series {
                 for rawRun in TrendChart.runs(s.points, gapThreshold: gapThreshold)
@@ -544,7 +550,7 @@ private struct TrendLiveLayer: View {
                         fill.addLine(to: CGPoint(x: x(run.last!.date), y: plot.maxY))
                         fill.addLine(to: CGPoint(x: x(run.first!.date), y: plot.maxY))
                         fill.closeSubpath()
-                        ctx.fill(
+                        seriesCtx.fill(
                             fill,
                             with: .linearGradient(
                                 Gradient(colors: [s.color.opacity(0.42), s.color.opacity(0.04)]),
@@ -552,7 +558,7 @@ private struct TrendLiveLayer: View {
                                 endPoint: CGPoint(x: 0, y: plot.maxY)))
                     }
                     if run.count >= 2 {
-                        ctx.stroke(
+                        seriesCtx.stroke(
                             linePath, with: .color(s.color),
                             style: StrokeStyle(
                                 lineWidth: s.lineWidth, lineCap: .round, lineJoin: .round))
@@ -563,7 +569,7 @@ private struct TrendLiveLayer: View {
                             ellipseIn: CGRect(
                                 x: x(only.date) - r, y: y(only.value) - r, width: 2 * r,
                                 height: 2 * r))
-                        ctx.fill(dot, with: .color(s.color))
+                        seriesCtx.fill(dot, with: .color(s.color))
                     }
                 }
             }
