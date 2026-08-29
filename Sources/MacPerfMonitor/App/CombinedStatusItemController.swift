@@ -220,7 +220,7 @@ final class CombinedStatusItemController: NSObject {
         .environmentObject(appModeManager)
         .environmentObject(configuration)
         .environmentObject(notchDisplay)
-        let hosting = NSHostingController(rootView: content)
+        let hosting = PopoverHostingController(rootView: content)
         hosting.sizingOptions = [.preferredContentSize]
         popover.contentViewController = hosting
         return popover

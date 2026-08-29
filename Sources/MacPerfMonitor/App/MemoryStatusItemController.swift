@@ -153,7 +153,7 @@ final class MemoryStatusItemController: NSObject {
             .environmentObject(updateController)
             .environmentObject(menuClock)
             .environmentObject(appModeManager)
-        let hosting = NSHostingController(rootView: content)
+        let hosting = PopoverHostingController(rootView: content)
         // Size the popover to the SwiftUI content (which sets its own width and
         // grows vertically with the summary and process list).
         hosting.sizingOptions = [.preferredContentSize]

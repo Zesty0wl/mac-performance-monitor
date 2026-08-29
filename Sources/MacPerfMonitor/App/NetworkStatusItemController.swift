@@ -312,7 +312,7 @@ final class NetworkStatusItemController: NSObject {
         .environmentObject(appState)
         .environmentObject(updateController)
         .environmentObject(menuClock)
-        let hosting = NSHostingController(rootView: content)
+        let hosting = PopoverHostingController(rootView: content)
         hosting.sizingOptions = [.preferredContentSize]
         popover.contentViewController = hosting
         return popover

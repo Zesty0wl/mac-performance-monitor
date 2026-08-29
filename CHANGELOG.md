@@ -31,6 +31,19 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Fixed
 
+- **Menu-bar popovers can no longer crash the app in a layout loop.** On
+  macOS 26 a popover resize could enter an AppKit/SwiftUI feedback cycle
+  (the hosting view answers "window laid out" by setting the window frame,
+  which lays out again) that recursed until the main thread overran its
+  stack, killing the app while a dropdown was open. The driver is a
+  fractional content height (glass-material metrics) that a pixel-aligned
+  window frame can never match, so the resize chases it forever. All six
+  status-item popovers now wrap their content in a root layout that reports
+  sizes rounded up to whole points, with sub-point hysteresis so ideal-size
+  jitter cannot flip the rounded height back and forth across an integer
+  boundary. Every consumer of the size, the animated window-resize target
+  included, now chases a frame the window can actually reach, and the
+  resize converges.
 - **The installer pkg can no longer relocate onto a stray copy of the app.**
   pkgbuild's default marks the bundle relocatable, so macOS could follow
   LaunchServices to any copy of the app on disk (a build tree, an old copy

@@ -159,7 +159,7 @@ final class CPUStatusItemController: NSObject {
         .environmentObject(appState)
         .environmentObject(updateController)
         .environmentObject(menuClock)
-        let hosting = NSHostingController(rootView: content)
+        let hosting = PopoverHostingController(rootView: content)
         // Size the popover to the SwiftUI content (which sets its own width and
         // grows vertically with the core grid and process list).
         hosting.sizingOptions = [.preferredContentSize]
