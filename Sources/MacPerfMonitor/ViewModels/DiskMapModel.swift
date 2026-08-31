@@ -3,7 +3,8 @@ import Combine
 import Foundation
 import MacPerfMonitorCore
 
-/// One line of a Disk Map slice (Largest, Oldest): a node flattened for a table.
+/// One line of a Disk Map slice (Largest, Oldest, Kinds): a node flattened
+/// for a table.
 struct DiskMapRow: Identifiable, Hashable, Sendable {
     let id: Int32
     let name: String
@@ -22,13 +23,21 @@ struct DiskMapRow: Identifiable, Hashable, Sendable {
     var parentPath: String { (path as NSString).deletingLastPathComponent }
 }
 
+/// One file behind a small-files fold, listed live from the directory.
+struct DiskMapFoldEntry: Identifiable, Hashable, Sendable {
+    var id: String { name }
+    let name: String
+    let bytes: UInt64
+}
+
 /// State for the Disk Map page: the scope, the last scan (restored from disk
-/// on open), the scan in flight, the selection, and the memoised rows of the
-/// active slice. One shared instance, like `HardwareExplorerModel`, because
-/// `TabGate` unmounts the page on every tab switch and a multi-minute scan
-/// must survive that. What it must not survive is the window closing: the
-/// arena is dropped then (memory budget) and comes back from the snapshot
-/// file on the next open. Nothing here runs on the sampler's tick.
+/// on open), the scan in flight, the selection, the map's zoom, the advisor's
+/// analysis and the memoised rows of the active slice. One shared instance,
+/// like `HardwareExplorerModel`, because `TabGate` unmounts the page on every
+/// tab switch and a multi-minute scan must survive that. What it must not
+/// survive is the window closing: the arena is dropped then (memory budget)
+/// and comes back from the snapshot file on the next open. Nothing here runs
+/// on the sampler's tick.
 @MainActor
 final class DiskMapModel: ObservableObject {
     static let shared = DiskMapModel()
@@ -41,6 +50,8 @@ final class DiskMapModel: ObservableObject {
         case map = "Map"
         case largest = "Largest"
         case oldest = "Oldest"
+        case kinds = "Kinds"
+        case reclaim = "Reclaim"
         var id: String { rawValue }
     }
 
@@ -99,6 +110,8 @@ final class DiskMapModel: ObservableObject {
     @Published private(set) var lastError: String?
     /// Mounted user volumes offered in the scope menu.
     @Published private(set) var externalVolumes: [VolumeInfo] = []
+    /// The advisor's tiers, Reclaim items and kind totals for the snapshot.
+    @Published private(set) var analysis: DiskMapAnalysis?
     @Published var selection: Int32?
     @Published var viewMode: ViewMode = .map
     @Published var colorMode: DiskMapColorMode = .kind
@@ -109,18 +122,25 @@ final class DiskMapModel: ObservableObject {
     @Published var largestKind: LargestKind = .files
     @Published var ageBand: AgeBand = .oneYear
     @Published var minimumSize: MinimumSize = .oneMB
+    @Published var selectedKind: FileKind?
     @Published var filterText = ""
     /// The active slice, memoised per (snapshot revision, mode, filters) and
     /// built off the main thread. `rowsRevision` is what views compare.
     @Published private(set) var rows: [DiskMapRow] = []
     @Published private(set) var rowsRevision = 0
     @Published private(set) var rowsBuilding = false
+    /// A node awaiting the Move to Trash confirmation.
+    @Published var pendingTrash: Int32?
+    @Published var trashError: String?
+
+    let advisor = DiskMapAdvisor()
 
     private let scanner = DiskMapScanner()
     private var scanTask: Task<Void, Never>?
     private var scanID = UUID()
     private var restoreID = UUID()
     private var rowsGeneration = 0
+    private var analysisGeneration = 0
     private var cancellables = Set<AnyCancellable>()
     private var windowCancellable: AnyCancellable?
     private weak var fullDiskAccess: FullDiskAccessManager?
@@ -133,6 +153,11 @@ final class DiskMapModel: ObservableObject {
             .dropFirst()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _, _, _, _ in self?.rebuildRows() }
+            .store(in: &cancellables)
+        $selectedKind
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.rebuildRows() }
             .store(in: &cancellables)
         $filterText
             .dropFirst()
@@ -174,13 +199,19 @@ final class DiskMapModel: ObservableObject {
         // in flight is abandoned (its partial result would only shadow the
         // last complete one on disk).
         cancelScan()
+        clearSnapshot()
+        AppLog.ui.notice("Disk Map released its tree on window close")
+    }
+
+    private func clearSnapshot() {
         snapshot = nil
+        analysis = nil
         rows = []
         rowsRevision += 1
         selection = nil
         zoomRoot = FileTree.root
         hover = nil
-        AppLog.ui.notice("Disk Map released its tree on window close")
+        pendingTrash = nil
     }
 
     // MARK: - Scope
@@ -191,12 +222,7 @@ final class DiskMapModel: ObservableObject {
         guard newScope != scope else { return }
         cancelScan()
         scope = newScope
-        snapshot = nil
-        rows = []
-        rowsRevision += 1
-        selection = nil
-        zoomRoot = FileTree.root
-        hover = nil
+        clearSnapshot()
         lastError = nil
         restore(newScope)
     }
@@ -311,21 +337,32 @@ final class DiskMapModel: ObservableObject {
     }
 
     private func finish(_ snapshot: DiskMapSnapshot) {
-        self.snapshot = snapshot
+        install(snapshot)
         isScanning = false
         scanTask = nil
         progress = nil
         preview = nil
-        selection = nil
-        zoomRoot = FileTree.root
-        hover = nil
-        rebuildRows()
         FDWatchdog.check(after: "disk map scan")
         let counts = snapshot.reconciliation.counts
         AppLog.ui.notice(
             "Disk Map scan finished: \(snapshot.tree.nodeCount) nodes, \(counts.entries) entries, \(snapshot.reconciliation.scannedBytes) bytes, \(counts.notPermitted) not permitted"
         )
         guard !snapshot.partial else { return }
+        persist(snapshot)
+    }
+
+    private func install(_ snapshot: DiskMapSnapshot) {
+        self.snapshot = snapshot
+        analysis = nil
+        selection = nil
+        zoomRoot = FileTree.root
+        hover = nil
+        pendingTrash = nil
+        rebuildRows()
+        analyze()
+    }
+
+    private func persist(_ snapshot: DiskMapSnapshot) {
         Task.detached(priority: .utility) {
             do {
                 try DiskMapSnapshotStore.save(snapshot)
@@ -356,9 +393,7 @@ final class DiskMapModel: ObservableObject {
                 guard self.restoreID == id else { return }
                 self.isRestoring = false
                 guard let loaded, self.scope == scope, self.snapshot == nil else { return }
-                self.snapshot = loaded
-                self.zoomRoot = FileTree.root
-                self.rebuildRows()
+                self.install(loaded)
                 AppLog.ui.notice("Disk Map snapshot restored (\(loaded.tree.nodeCount) nodes)")
             }
         }
@@ -367,6 +402,46 @@ final class DiskMapModel: ObservableObject {
     func clearError() {
         lastError = nil
     }
+
+    // MARK: - Analysis
+
+    /// Run the advisor over the snapshot off the main thread; results are
+    /// applied only if the snapshot has not been replaced meanwhile.
+    private func analyze() {
+        guard let snapshot else { return }
+        analysisGeneration += 1
+        let generation = analysisGeneration
+        let advisor = advisor
+        Task.detached(priority: .userInitiated) {
+            let result = advisor.analyze(snapshot)
+            await MainActor.run {
+                guard self.analysisGeneration == generation,
+                    self.snapshot?.revision == snapshot.revision
+                else { return }
+                self.analysis = result
+                if self.viewMode == .kinds, self.selectedKind == nil {
+                    self.selectedKind = result.kinds.first?.kind
+                }
+            }
+        }
+    }
+
+    /// What the advisor says about a node: from the analysis when it has
+    /// landed, else from the path directly.
+    func advice(for node: Int32) -> DiskMapAdvice? {
+        guard let snapshot, Int(node) < snapshot.tree.nodeCount else { return nil }
+        if let analysis, analysis.revision == snapshot.revision,
+            Int(node) < analysis.ruleIndex.count
+        {
+            return advisor.advice(for: node, in: analysis, tree: snapshot.tree)
+        }
+        let flags = snapshot.tree.flags[Int(node)]
+        return advisor.advice(
+            forCanonicalPath: snapshot.displayPath(of: node),
+            isDirectory: flags.contains(.directory), flags: flags)
+    }
+
+    var trashedBytes: UInt64 { analysis?.trashedBytes ?? 0 }
 
     // MARK: - Map navigation
 
@@ -392,9 +467,7 @@ final class DiskMapModel: ObservableObject {
         hover = nil
     }
 
-    /// Show a node in the map: zoom to its parent (or to the node itself when
-    /// it is a directory with children the user came from a list to see) and
-    /// select it.
+    /// Show a node in the map: zoom to its parent and select it.
     func reveal(_ node: Int32) {
         guard let tree = snapshot?.tree, Int(node) < tree.nodeCount else { return }
         viewMode = .map
@@ -415,10 +488,7 @@ final class DiskMapModel: ObservableObject {
     func installForBenchmark(_ snapshot: DiskMapSnapshot) {
         cancelScan()
         scope = snapshot.scope
-        self.snapshot = snapshot
-        zoomRoot = FileTree.root
-        selection = nil
-        rebuildRows()
+        install(snapshot)
     }
 
     // MARK: - Selection and lookups
@@ -440,6 +510,111 @@ final class DiskMapModel: ObservableObject {
         snapshot?.tree.childrenBySize(of: node) ?? []
     }
 
+    /// The files behind a small-files fold, read live from its directory
+    /// (the arena keeps only their total). Largest first, capped.
+    func foldListing(for node: Int32, limit: Int = 40) async -> [DiskMapFoldEntry] {
+        guard let snapshot, Int(node) < snapshot.tree.nodeCount,
+            snapshot.tree.flags[Int(node)].contains(.smallFilesFold)
+        else { return [] }
+        let tree = snapshot.tree
+        let parent = tree.parent[Int(node)]
+        let kind = tree.kind[Int(node)]
+        let threshold = snapshot.smallFileThreshold
+        let path = snapshot.filesystemPath(of: parent)
+        return await Task.detached(priority: .userInitiated) {
+            guard let listing = try? BulkAttributeLister().list(path: path) else { return [] }
+            var entries: [DiskMapFoldEntry] = []
+            for entry in listing.entries where entry.type == .regular && entry.error == 0 {
+                guard threshold == 0 || entry.allocated < threshold else { continue }
+                let name = listing.nameString(of: entry)
+                guard FileKindClassifier.kind(forName: name, isDirectory: false) == kind else {
+                    continue
+                }
+                entries.append(DiskMapFoldEntry(name: name, bytes: entry.allocated))
+            }
+            entries.sort { $0.bytes > $1.bytes }
+            return Array(entries.prefix(limit))
+        }.value
+    }
+
+    // MARK: - Trash
+
+    /// Whether Move to Trash is offered for a node: not a fold, not already
+    /// trashed, not a place the app refuses, and not tiered as protected.
+    func canTrash(_ node: Int32) -> Bool {
+        guard let snapshot, Int(node) < snapshot.tree.nodeCount else { return false }
+        let flags = snapshot.tree.flags[Int(node)]
+        if flags.contains(.smallFilesFold) || flags.contains(.trashed)
+            || flags.contains(.separateVolume) || flags.contains(.restricted)
+            || flags.contains(.immutable) || node == FileTree.root
+        {
+            return false
+        }
+        if advisor.isRefusedForTrash(
+            canonicalPath: snapshot.displayPath(of: node), scanRoot: snapshot.scope.displayRoot)
+        {
+            return false
+        }
+        return advice(for: node)?.canTrash ?? true
+    }
+
+    /// Ask for confirmation; the page hosts the dialog.
+    func requestTrash(_ node: Int32) {
+        guard canTrash(node) else { return }
+        pendingTrash = node
+    }
+
+    /// The confirmed move. The inode is checked first so a scan that is days
+    /// old never removes something that replaced the item the user saw; on
+    /// success the tree is patched in place (bytes re-homed to In Trash) and
+    /// the revision bumps so every view follows.
+    func performTrash(_ node: Int32) {
+        pendingTrash = nil
+        guard let snapshot, Int(node) < snapshot.tree.nodeCount, canTrash(node) else { return }
+        let path = snapshot.filesystemPath(of: node)
+        let displayPath = snapshot.displayPath(of: node)
+        let fileID = snapshot.tree.fileID[Int(node)]
+        let revision = snapshot.revision
+        let advisor = advisor
+        let scanRoot = snapshot.scope.displayRoot
+        Task.detached(priority: .userInitiated) {
+            let check = DiskMapTrash.precheck(
+                path: path, expectedFileID: fileID, advisor: advisor, scanRoot: scanRoot)
+            let outcome: DiskMapTrash.Outcome
+            switch check {
+            case .ok: outcome = DiskMapTrash.trash(path: path)
+            case .vanished: outcome = .alreadyGone
+            case .replaced:
+                outcome = .failed(
+                    "\u{201C}\((displayPath as NSString).lastPathComponent)\u{201D} has changed since the scan. Scan again before removing it."
+                )
+            case .refused(let reason): outcome = .failed(reason)
+            }
+            await MainActor.run {
+                self.finishTrash(node: node, revision: revision, outcome: outcome)
+            }
+        }
+    }
+
+    private func finishTrash(node: Int32, revision: Int, outcome: DiskMapTrash.Outcome) {
+        guard var snapshot, snapshot.revision == revision else { return }
+        switch outcome {
+        case .trashed, .alreadyGone:
+            let removed = snapshot.tree.markTrashed(node)
+            snapshot.revision += 1
+            self.snapshot = snapshot
+            rebuildRows()
+            analyze()
+            AppLog.ui.notice(
+                "Disk Map moved \(removed) bytes to the Trash (\(outcome == .alreadyGone ? "already gone" : "ok", privacy: .public))"
+            )
+        case .failed(let message):
+            // Deferred so the confirmation dialog has fully dismissed; SwiftUI
+            // swallows an alert presented in the same tick.
+            DispatchQueue.main.async { self.trashError = message }
+        }
+    }
+
     // MARK: - Rows
 
     private func rebuildRows() {
@@ -455,11 +630,15 @@ final class DiskMapModel: ObservableObject {
         let band = ageBand
         let minimum = minimumSize
         let filter = filterText.trimmingCharacters(in: .whitespaces)
+        let kindItems = selectedKind.flatMap { selected in
+            analysis?.kinds.first { $0.kind == selected }?.topItems
+        }
         rowsBuilding = true
         Task.detached(priority: .userInitiated) {
             let built = Self.buildRows(
                 snapshot: snapshot, mode: mode, largestKind: kind, ageBand: band,
-                minimumSize: minimum, filter: filter, now: Date(), limit: Self.rowLimit)
+                minimumSize: minimum, filter: filter, kindItems: kindItems, now: Date(),
+                limit: Self.rowLimit)
             await MainActor.run {
                 guard self.rowsGeneration == generation else { return }
                 self.rows = built
@@ -475,7 +654,7 @@ final class DiskMapModel: ObservableObject {
     /// strings are made for the millions that do not match.
     nonisolated static func buildRows(
         snapshot: DiskMapSnapshot, mode: ViewMode, largestKind: LargestKind, ageBand: AgeBand,
-        minimumSize: MinimumSize, filter: String, now: Date, limit: Int
+        minimumSize: MinimumSize, filter: String, kindItems: [Int32]?, now: Date, limit: Int
     ) -> [DiskMapRow] {
         let tree = snapshot.tree
         let n = tree.nodeCount
@@ -492,6 +671,30 @@ final class DiskMapModel: ObservableObject {
             }
         }
 
+        func row(_ node: Int32) -> DiskMapRow {
+            let i = Int(node)
+            return DiskMapRow(
+                id: node, name: tree.name(of: node), path: snapshot.displayPath(of: node),
+                bytes: tree.bytes[i], modified: tree.modifiedDate(of: node), kind: tree.kind[i],
+                isDirectory: tree.flags[i].contains(.directory), flags: tree.flags[i],
+                count: tree.count[i], fraction: Double(tree.bytes[i]) / Double(total))
+        }
+
+        switch mode {
+        case .map, .reclaim:
+            return []
+        case .kinds:
+            guard let kindItems else { return [] }
+            return kindItems.prefix(limit).compactMap { node in
+                let i = Int(node)
+                guard i < n, !tree.flags[i].contains(.trashed) else { return nil }
+                if !needle.isEmpty, !hit[i] { return nil }
+                return row(node)
+            }
+        case .largest, .oldest:
+            break
+        }
+
         let cutoff = ageBand.cutoff(now: now).map {
             UInt32(clamping: Int($0.timeIntervalSince1970))
         }
@@ -503,8 +706,6 @@ final class DiskMapModel: ObservableObject {
             if !needle.isEmpty, !hit[i] { continue }
             let isDirectory = flags.contains(.directory)
             switch mode {
-            case .map:
-                return []
             case .largest:
                 switch largestKind {
                 case .files:
@@ -520,29 +721,24 @@ final class DiskMapModel: ObservableObject {
                 if let cutoff, tree.modified[i] > cutoff { continue }
                 if tree.modified[i] == 0 { continue }
                 candidates.append((key: UInt64(tree.modified[i]), node: Int32(i)))
+            case .map, .kinds, .reclaim:
+                break
             }
         }
         switch mode {
-        case .map: break
         case .largest: candidates.sort { $0.key > $1.key }
         case .oldest: candidates.sort { $0.key < $1.key }
+        case .map, .kinds, .reclaim: break
         }
-
-        return candidates.prefix(limit).map { entry in
-            let i = Int(entry.node)
-            return DiskMapRow(
-                id: entry.node, name: tree.name(of: entry.node),
-                path: snapshot.displayPath(of: entry.node), bytes: tree.bytes[i],
-                modified: tree.modifiedDate(of: entry.node), kind: tree.kind[i],
-                isDirectory: tree.flags[i].contains(.directory), flags: tree.flags[i],
-                count: tree.count[i], fraction: Double(tree.bytes[i]) / Double(total))
-        }
+        return candidates.prefix(limit).map { row($0.node) }
     }
 
     /// ASCII case-insensitive substring search on raw UTF-8.
     private nonisolated static func nameContains(
         _ name: ArraySlice<UInt8>, _ needle: [UInt8]
-    ) -> Bool {
+    )
+        -> Bool
+    {
         let m = needle.count
         guard m > 0, name.count >= m else { return false }
         let start = name.startIndex

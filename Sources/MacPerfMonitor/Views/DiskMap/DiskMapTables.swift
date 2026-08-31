@@ -39,8 +39,13 @@ struct DiskMapSliceTable: View {
     private var controls: some View {
         HStack(spacing: 12) {
             switch model.viewMode {
-            case .map:
+            case .map, .reclaim:
                 EmptyView()
+            case .kinds:
+                if let kind = model.selectedKind {
+                    Text(kind.label)
+                        .font(.subheadline.weight(.semibold))
+                }
             case .largest:
                 Picker("Show", selection: $model.largestKind) {
                     ForEach(DiskMapModel.LargestKind.allCases) { Text($0.rawValue).tag($0) }
@@ -137,6 +142,19 @@ struct DiskMapSliceTable: View {
                 } label: {
                     Label("Copy Path", systemImage: "doc.on.doc")
                 }
+                Button {
+                    model.reveal(id)
+                } label: {
+                    Label("Show in Map", systemImage: "rectangle.3.group")
+                }
+                if model.canTrash(id) {
+                    Divider()
+                    Button(role: .destructive) {
+                        model.requestTrash(id)
+                    } label: {
+                        Label("Move to Trash", systemImage: "trash")
+                    }
+                }
             }
         } primaryAction: { ids in
             if let id = ids.first, let path = model.displayPath(of: id) {
@@ -153,7 +171,13 @@ struct DiskMapSliceTable: View {
         let title: String
         let detail: String
         switch model.viewMode {
-        case .map, .largest:
+        case .kinds:
+            title = model.selectedKind == nil ? "Choose a kind" : "Nothing of this kind"
+            detail =
+                model.selectedKind == nil
+                ? "Pick a kind on the left to list its largest items."
+                : "The scan found nothing of this kind."
+        case .map, .largest, .reclaim:
             title = model.filterText.isEmpty ? "Nothing to show" : "No matches"
             detail =
                 model.filterText.isEmpty

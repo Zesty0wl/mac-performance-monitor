@@ -115,6 +115,40 @@ and no volume figure to reconcile against.
   `NSToolTipManager displayToolTip:` when its timer fired. The hover card
   carries the same information.
 
+## Acting on what the map shows
+
+- `DiskMapAdvisor` holds a rule table of known locations (canonical paths,
+  `~` for home, `**/name` at any depth, `*.ext` by extension) with a tier,
+  a one-sentence reason and the proper way to reclaim the space: caches and
+  build products that regenerate (`safeToRemove`), the user's own files
+  (`reviewBeforeRemoving`, the default), places an app owns and has its own
+  controls for, such as Photos, Mail, iOS backups, Docker.raw, simulator
+  runtimes and cloud folders (`managedByApp`), and macOS itself
+  (`systemProtected`). Flags override rules: SIP-restricted, immutable,
+  mount points and data vaults are protected; dataless items are managed.
+- `analyze(_:)` is one forward pass over the arena: each node's rule is its
+  own match or its parent's (tiers inherit), the Reclaim view lists the nodes
+  where a rule first applies (largest first), and Kinds totals leaf bytes
+  with package contents rolled up into the package (an app's PNGs are
+  "Applications"). The pass also supplies the Safety colour mode's tiers.
+- Move to Trash is `FileManager.trashItem`, as the user, so Put Back works,
+  behind a confirmation that states the size, item count and, for
+  app-managed items, the recommended route instead. Before the move the
+  item is `lstat`ed and its inode compared with the scan's file ID: a
+  mismatch means "changed since the scan" and nothing is moved. A fixed
+  refusal list (volume and scan roots, the home folder and its top-level
+  folders, `/Applications`, `/Library`, `/System`, `/usr` outside
+  `/usr/local`, `/private/var`, anything already in a Trash, the app's own
+  bundle) applies regardless of tier.
+- Trashing frees nothing until Finder empties the Trash (it is a same-volume
+  rename), so the tree is patched in place: the node keeps its own figures
+  and gains `trashed`, its ancestors lose the bytes, the analysis re-homes
+  them into an In Trash chip on the reconciliation bar, and the snapshot's
+  revision bumps so every view follows.
+- Small-files folds cannot be trashed as a unit; the rail lists the files
+  behind a fold live (one `getattrlistbulk` of the directory) so the user
+  can see what is there.
+
 ## Errors, by cause
 
 `EPERM` is privacy protection (TCC): Full Disk Access clears it, and only these

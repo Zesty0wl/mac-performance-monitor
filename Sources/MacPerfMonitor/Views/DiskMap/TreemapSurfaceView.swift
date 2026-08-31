@@ -26,6 +26,8 @@ struct TreemapSurface: NSViewRepresentable {
     let zoomRoot: Int32
     let selection: Int32?
     let colorMode: DiskMapColorMode
+    /// Safety tiers per node from the advisor, for the Safety colour mode.
+    let tiers: [UInt8]?
     let onSelect: (Int32?) -> Void
     let onOpen: (Int32) -> Void
     let onBack: () -> Void
@@ -48,6 +50,7 @@ struct TreemapSurface: NSViewRepresentable {
             onSelect: onSelect, onOpen: onOpen, onBack: onBack, onHover: onHover,
             onQuickLook: onQuickLook, menu: menu)
         view.setTree(tree, revision: revision, zoomRoot: zoomRoot)
+        view.setTiers(tiers)
         view.colorMode = colorMode
         view.selection = selection
     }
@@ -84,6 +87,13 @@ final class TreemapSurfaceView: LiveSurfaceView {
     /// room), so a repaint never formats a byte count or decodes a name.
     private var cellTexts: [CellText?] = []
     private var palette: Palette?
+    private var tiers: [UInt8]?
+
+    func setTiers(_ tiers: [UInt8]?) {
+        let changed = (tiers?.count ?? -1) != (self.tiers?.count ?? -1)
+        self.tiers = tiers
+        if changed, colorMode == .safety { invalidateContent() }
+    }
 
     private struct CellText {
         let name: String
@@ -102,6 +112,8 @@ final class TreemapSurfaceView: LiveSurfaceView {
         let ageLight: [Bool]
         let depth: [CGColor]
         let depthLight: [Bool]
+        let safety: [CGColor]
+        let safetyLight: [Bool]
         let container: CGColor
         let containerBorder: CGColor
         let aggregate: CGColor
@@ -130,6 +142,10 @@ final class TreemapSurfaceView: LiveSurfaceView {
             let depths = (0..<6).map { DiskMapStyle.depthColor(depth: $0, dark: dark) }
             depth = depths.map(\.cgColor)
             depthLight = depths.map(light)
+            let tiersInOrder = DiskMapSafetyTier.allCases.sorted { $0.rawValue < $1.rawValue }
+            let safetyColors = tiersInOrder.map { DiskMapStyle.safetyColor($0, dark: dark) }
+            safety = safetyColors.map(\.cgColor)
+            safetyLight = safetyColors.map(light)
             container = DiskMapStyle.containerFill(dark: dark).cgColor
             containerBorder = DiskMapStyle.containerBorder(dark: dark).cgColor
             let aggregateColor = DiskMapStyle.aggregateFill(dark: dark)
@@ -139,7 +155,8 @@ final class TreemapSurfaceView: LiveSurfaceView {
         }
 
         func fill(
-            kind: FileKind, isDirectory: Bool, modified: UInt32, depth level: Int, now: UInt32
+            kind: FileKind, isDirectory: Bool, modified: UInt32, depth level: Int, tier: Int,
+            now: UInt32
         )
             -> (CGColor, Bool)
         {
@@ -150,6 +167,9 @@ final class TreemapSurfaceView: LiveSurfaceView {
             case .age:
                 let band = DiskMapStyle.ageBand(modified: modified, now: now)
                 return (age[band], ageLight[band])
+            case .safety:
+                let t = min(max(tier, 0), safety.count - 1)
+                return (safety[t], safetyLight[t])
             case .depth:
                 let d = min(max(level, 0), depth.count - 1)
                 return (depth[d], depthLight[d])
@@ -372,9 +392,12 @@ final class TreemapSurfaceView: LiveSurfaceView {
             }
             return
         }
+        let tier =
+            (tiers != nil && i < tiers!.count)
+            ? Int(tiers![i]) : DiskMapSafetyTier.reviewBeforeRemoving.rawValue
         let (fill, light) = palette.fill(
             kind: tree.kind[i], isDirectory: flags.contains(.directory), modified: tree.modified[i],
-            depth: cell.depth, now: now)
+            depth: cell.depth, tier: tier, now: now)
         fillCell(rect, color: fill, in: ctx)
         if flags.contains(.directory), !flags.contains(.smallFilesFold), rect.width >= 40,
             rect.height >= 24

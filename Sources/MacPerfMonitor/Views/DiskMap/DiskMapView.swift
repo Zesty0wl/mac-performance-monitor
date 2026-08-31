@@ -40,6 +40,26 @@ struct DiskMapView: View {
             model.appear()
         }
         .quickLookPreview($quickLookURL)
+        .confirmationDialog(
+            trashTitle, isPresented: trashConfirming, titleVisibility: .visible
+        ) {
+            Button("Move to Trash", role: .destructive) {
+                if let node = model.pendingTrash { model.performTrash(node) }
+            }
+            Button("Cancel", role: .cancel) { model.pendingTrash = nil }
+        } message: {
+            Text(trashMessage)
+        }
+        .alert(
+            "Couldn\u{2019}t move to the Trash",
+            isPresented: Binding(
+                get: { model.trashError != nil },
+                set: { if !$0 { model.trashError = nil } })
+        ) {
+            Button("OK", role: .cancel) { model.trashError = nil }
+        } message: {
+            Text(model.trashError ?? "")
+        }
         .alert(
             "Scan failed",
             isPresented: Binding(
@@ -50,6 +70,42 @@ struct DiskMapView: View {
         } message: {
             Text(model.lastError ?? "")
         }
+    }
+
+    // MARK: - Trash
+
+    private var trashConfirming: Binding<Bool> {
+        Binding(
+            get: { model.pendingTrash != nil },
+            set: { if !$0 { model.pendingTrash = nil } })
+    }
+
+    private var trashTitle: String {
+        guard let node = model.pendingTrash, let snapshot = model.snapshot,
+            Int(node) < snapshot.tree.nodeCount
+        else { return "Move to the Trash?" }
+        return "Move \u{201C}\(snapshot.tree.name(of: node))\u{201D} to the Trash?"
+    }
+
+    private var trashMessage: String {
+        guard let node = model.pendingTrash, let snapshot = model.snapshot,
+            Int(node) < snapshot.tree.nodeCount
+        else { return "" }
+        let tree = snapshot.tree
+        let i = Int(node)
+        var parts = [ByteFormat.string(tree.bytes[i])]
+        if tree.flags[i].contains(.directory) {
+            parts.append(tree.count[i] == 1 ? "1 item" : "\(tree.count[i].formatted()) items")
+        }
+        var text = parts.joined(separator: ", ") + ". "
+        if let advice = model.advice(for: node), advice.tier == .managedByApp,
+            let how = advice.howToReclaim
+        {
+            text += "\(advice.title) is managed by an app; the recommended way is: \(how) "
+        }
+        text +=
+            "The space is freed when you empty the Trash in Finder, and you can put the item back until then."
+        return text
     }
 
     // MARK: - Toolbar
@@ -199,6 +255,7 @@ struct DiskMapView: View {
             VStack(alignment: .leading, spacing: 10) {
                 DiskMapReconciliationBar(
                     reconciliation: snapshot.reconciliation, scope: snapshot.scope,
+                    inTrashBytes: model.trashedBytes,
                     onGrantAccess: { fullDiskAccess.openSystemSettings() })
                 if snapshot.reconciliation.counts.notPermitted > 0, !fullDiskAccess.isGranted {
                     FullDiskAccessCard(
@@ -215,6 +272,10 @@ struct DiskMapView: View {
                         mapContent(snapshot)
                     case .largest, .oldest:
                         DiskMapSliceTable(model: model)
+                    case .kinds:
+                        DiskMapKindsView(model: model)
+                    case .reclaim:
+                        DiskMapReclaimView(model: model)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -237,6 +298,8 @@ struct DiskMapView: View {
                     TreemapSurface(
                         tree: snapshot.tree, revision: snapshot.revision, zoomRoot: model.zoomRoot,
                         selection: model.selection, colorMode: model.colorMode,
+                        tiers: model.analysis?.revision == snapshot.revision
+                            ? model.analysis?.tiers : nil,
                         onSelect: { model.select($0) },
                         onOpen: { model.zoom(into: $0) },
                         onBack: { model.zoomOut() },
@@ -405,6 +468,11 @@ struct DiskMapView: View {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(path, forType: .string)
             })
+        if model.canTrash(node) {
+            menu.addItem(.separator())
+            menu.addItem(
+                ClosureMenuItem("Move to Trash", symbol: "trash") { model.requestTrash(node) })
+        }
         return menu
     }
 
