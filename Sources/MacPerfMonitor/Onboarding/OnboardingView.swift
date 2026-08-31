@@ -225,8 +225,8 @@ struct OnboardingPage {
 private struct OnboardingStepScaffold<Content: View>: View {
     let symbol: String
     let tint: Color
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -256,8 +256,8 @@ private struct OnboardingStepScaffold<Content: View>: View {
 /// One labelled switch row used by the setup steps.
 private struct OnboardingToggleRow: View {
     let symbol: String
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
     @Binding var isOn: Bool
 
     var body: some View {
@@ -288,7 +288,7 @@ private struct OnboardingModeStep: View {
         OnboardingStepScaffold(
             symbol: "switch.2", tint: .blue,
             title: "Choose how it runs",
-            subtitle: "You can switch anytime — in Settings or from the menu bar."
+            subtitle: "You can switch anytime: in Settings or from the menu bar."
         ) {
             VStack(spacing: 10) {
                 ForEach(AppMode.allCases, id: \.self) { mode in
@@ -392,12 +392,12 @@ private struct OnboardingPermissionsStep: View {
         }
     }
 
-    private var helperSubtitle: String {
+    private var helperSubtitle: LocalizedStringKey {
         switch helper.coverage {
         case .requiresApproval:
             return "Approve the helper in System Settings to finish enabling it."
         case .enabled:
-            return "Full coverage is on — even system processes are visible."
+            return "Full coverage is on: even system processes are visible."
         default:
             return
                 "Install a small privileged helper so \(AppInfo.displayName) can read system and other-user processes."
@@ -429,7 +429,7 @@ private struct OnboardingMenuBarStep: View {
 
                 ForEach(MenuBarMetric.allCases) { metric in
                     OnboardingToggleRow(
-                        symbol: metric.symbolName, title: metric.title,
+                        symbol: metric.symbolName, title: LocalizedStringKey(metric.title),
                         subtitle: metricSubtitle(metric), isOn: selectionBinding(metric)
                     )
                     .disabled(menuBar.isSelected(metric) && menuBar.selectedMetrics.count == 1)
@@ -481,7 +481,7 @@ private struct OnboardingMenuBarStep: View {
             set: { menuBar.setSelected(metric, isSelected: $0) })
     }
 
-    private func metricSubtitle(_ metric: MenuBarMetric) -> String {
+    private func metricSubtitle(_ metric: MenuBarMetric) -> LocalizedStringKey {
         switch metric {
         case .pressure: return "Memory pressure and the largest processes."
         case .cpu: return "Total CPU, every core, and top CPU processes."

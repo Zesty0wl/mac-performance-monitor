@@ -251,9 +251,15 @@ struct MenuVersionFooter: View {
 
 /// A full-width, hover-highlighted menu action button.
 struct MenuActionButton: View {
-    let title: String
+    let title: LocalizedStringKey
     let systemImage: String
     let action: () -> Void
+
+    init(title: LocalizedStringKey, systemImage: String, action: @escaping () -> Void) {
+        self.title = title
+        self.systemImage = systemImage
+        self.action = action
+    }
 
     var body: some View {
         Button(action: action) {

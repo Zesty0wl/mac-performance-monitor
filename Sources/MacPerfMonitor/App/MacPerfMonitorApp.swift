@@ -115,16 +115,18 @@ struct MacPerfMonitorApp: App {
         // window, so suppress the launch presentation. It still opens on demand via
         // `openWindow(id:)` from the menubar panels.
         Window(AppInfo.displayName, id: WindowID.main) {
-            MainWindowGate()
-                .environmentObject(appDelegate.model)
-                .environment(\.samplerModel, appDelegate.model)
-                .environmentObject(appDelegate.model.menuLists)
-                .environmentObject(appDelegate.appState)
-                .environmentObject(appDelegate.helperManager)
-                .environmentObject(appDelegate.loginItemManager)
-                .environmentObject(appDelegate.monitorSelection)
-                .environmentObject(appDelegate.groupStore)
-                .environmentObject(appDelegate.appModeManager)
+            LocaleRootView(languageManager: appDelegate.languageManager) {
+                MainWindowGate()
+                    .environmentObject(appDelegate.model)
+                    .environment(\.samplerModel, appDelegate.model)
+                    .environmentObject(appDelegate.model.menuLists)
+                    .environmentObject(appDelegate.appState)
+                    .environmentObject(appDelegate.helperManager)
+                    .environmentObject(appDelegate.loginItemManager)
+                    .environmentObject(appDelegate.monitorSelection)
+                    .environmentObject(appDelegate.groupStore)
+                    .environmentObject(appDelegate.appModeManager)
+            }
         }
         .defaultSize(width: 980, height: 640)
         .defaultLaunchBehavior(.suppressed)
@@ -145,22 +147,26 @@ struct MacPerfMonitorApp: App {
         }
 
         Settings {
-            SettingsView()
-                .environmentObject(appDelegate.alertSettings)
-                .environmentObject(appDelegate.model)
-                .environmentObject(appDelegate.helperManager)
-                .environmentObject(appDelegate.loginItemManager)
-                .environmentObject(appDelegate.appModeManager)
-                .environmentObject(appDelegate.menuBarConfiguration)
+            LocaleRootView(languageManager: appDelegate.languageManager) {
+                SettingsView()
+                    .environmentObject(appDelegate.alertSettings)
+                    .environmentObject(appDelegate.model)
+                    .environmentObject(appDelegate.helperManager)
+                    .environmentObject(appDelegate.loginItemManager)
+                    .environmentObject(appDelegate.appModeManager)
+                    .environmentObject(appDelegate.menuBarConfiguration)
+            }
         }
 
         Window(AppInfo.onboardingWindowTitle, id: WindowID.onboarding) {
-            OnboardingView()
-                .environmentObject(appDelegate.onboarding)
-                .environmentObject(appDelegate.appModeManager)
-                .environmentObject(appDelegate.loginItemManager)
-                .environmentObject(appDelegate.helperManager)
-                .environmentObject(appDelegate.menuBarConfiguration)
+            LocaleRootView(languageManager: appDelegate.languageManager) {
+                OnboardingView()
+                    .environmentObject(appDelegate.onboarding)
+                    .environmentObject(appDelegate.appModeManager)
+                    .environmentObject(appDelegate.loginItemManager)
+                    .environmentObject(appDelegate.helperManager)
+                    .environmentObject(appDelegate.menuBarConfiguration)
+            }
         }
         .windowResizability(.contentSize)
         .defaultPosition(.center)
@@ -176,8 +182,10 @@ struct MacPerfMonitorApp: App {
         // it shows on-demand tool snapshots, not live data.
         WindowGroup(id: WindowID.inspector, for: InspectorTarget.self) { $target in
             if let target {
-                MemoryInspectorView(target: target)
-                    .environmentObject(appDelegate.helperManager)
+                LocaleRootView(languageManager: appDelegate.languageManager) {
+                    MemoryInspectorView(target: target)
+                        .environmentObject(appDelegate.helperManager)
+                }
             }
         }
         .defaultSize(width: 800, height: 660)
@@ -189,8 +197,10 @@ struct MacPerfMonitorApp: App {
         // descriptor list is read once on demand with an explicit Refresh.
         WindowGroup(id: WindowID.openFiles, for: OpenFilesTarget.self) { $target in
             if let target {
-                OpenFilesView(target: target)
-                    .environmentObject(appDelegate.helperManager)
+                LocaleRootView(languageManager: appDelegate.languageManager) {
+                    OpenFilesView(target: target)
+                        .environmentObject(appDelegate.helperManager)
+                }
             }
         }
         .defaultSize(width: 600, height: 560)
@@ -201,8 +211,10 @@ struct MacPerfMonitorApp: App {
         // never the sampler model.
         WindowGroup(id: WindowID.deepDive, for: DeepDiveTarget.self) { $target in
             if let target {
-                ProcessDeepDiveView(target: target)
-                    .environmentObject(appDelegate.helperManager)
+                LocaleRootView(languageManager: appDelegate.languageManager) {
+                    ProcessDeepDiveView(target: target)
+                        .environmentObject(appDelegate.helperManager)
+                }
             }
         }
         .defaultSize(width: 500, height: 520)
@@ -332,6 +344,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
 {
     let model = SamplerModel()
     let appModeManager = AppModeManager()
+    let languageManager = AppLanguageManager()
     let alertSettings = AlertSettings()
     let alertCenter = AlertCenter()
     let appState = AppState()
@@ -364,7 +377,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         let combinedStatusItem = CombinedStatusItemController(
             model: model, appState: appState, helperManager: helperManager,
             updateController: updateController,
-            appModeManager: appModeManager, configuration: menuBarConfiguration,
+            appModeManager: appModeManager, languageManager: languageManager,
+            configuration: menuBarConfiguration,
             notchDisplay: notchDisplayController)
         combinedStatusItem.start()
         self.combinedStatusItem = combinedStatusItem

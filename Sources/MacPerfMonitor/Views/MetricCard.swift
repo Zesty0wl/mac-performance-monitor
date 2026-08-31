@@ -25,8 +25,8 @@ enum MetricUnit {
 /// The plain-language explanation shown in a metric's detail modal: what the
 /// figure means, and exactly how MacPerfMonitor calculates it.
 struct MetricExplanation {
-    let meaning: String
-    let calculation: String
+    let meaning: LocalizedStringKey
+    let calculation: LocalizedStringKey
 }
 
 /// One memory figure rendered as a card: a label, the current value, and a
@@ -136,7 +136,8 @@ struct MetricCard: View {
                 Circle()
                     .fill(data.tint)
                     .frame(width: 6, height: 6)
-                Text(data.label.uppercased())
+                Text(LocalizedStringKey(data.label))
+                    .textCase(.uppercase)
                     .font(.caption2.weight(.semibold))
                     .tracking(0.6)
                     .foregroundStyle(.secondary)
@@ -391,7 +392,7 @@ struct MetricDetailSheet: View {
                 .fill(data.tint)
                 .frame(width: 12, height: 12)
             VStack(alignment: .leading, spacing: 2) {
-                Text(data.label)
+                Text(LocalizedStringKey(data.label))
                     .font(.title2.weight(.semibold))
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(data.value ?? "—")
@@ -408,7 +409,7 @@ struct MetricDetailSheet: View {
         }
     }
 
-    private func explanationSection(_ title: String, _ body: String) -> some View {
+    private func explanationSection(_ title: LocalizedStringKey, _ body: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
@@ -620,15 +621,9 @@ enum MemoryMetrics {
                     "How hard macOS is working to keep memory available, 0 to 100. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "macOS's own read on how hard the memory system is working, on a 0 to 100 scale. "
-                        + "0 to 33 is green and comfortable, 34 to 66 is yellow as it compresses and caches to cope, "
-                        + "and 67 to 100 is red, where it swaps to disk and apps can slow down. It is the single number to watch.",
+                        "macOS's own read on how hard the memory system is working, on a 0 to 100 scale. 0 to 33 is green and comfortable, 34 to 66 is yellow as it compresses and caches to cope, and 67 to 100 is red, where it swaps to disk and apps can slow down. It is the single number to watch.",
                     calculation:
-                        "The colour band comes from the kernel's memory-pressure level. Within that band the exact "
-                        + "position is set by how loaded memory is: 50 percent from compression (compressed memory over RAM, "
-                        + "full at half your RAM), 30 percent from swap (swap over RAM, full at one times your RAM), and "
-                        + "20 percent from how fast compressed plus swap is rising. The value is the band floor plus that "
-                        + "signal times 33.")
+                        "The colour band comes from the kernel's memory-pressure level. Within that band the exact position is set by how loaded memory is: 50 percent from compression (compressed memory over RAM, full at half your RAM), 30 percent from swap (swap over RAM, full at one times your RAM), and 20 percent from how fast compressed plus swap is rising. The value is the band floor plus that signal times 33.")
             ),
             MetricCardData(
                 label: "Free",
@@ -640,13 +635,9 @@ enum MemoryMetrics {
                 help: "RAM not held by any category below, ready for new work. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "RAM that is not currently held by the four categories below, so it is immediately available "
-                        + "for new work. macOS deliberately keeps this low by using spare RAM as a file cache, so a small "
-                        + "free figure is normal and healthy, not a problem.",
+                        "RAM that is not currently held by the four categories below, so it is immediately available for new work. macOS deliberately keeps this low by using spare RAM as a file cache, so a small free figure is normal and healthy, not a problem.",
                     calculation:
-                        "Your total installed RAM minus the four measured categories: free = total minus wired, app, "
-                        + "compressed and cached files, never below zero. Derived this way so the parts always reconcile "
-                        + "to your installed RAM exactly. This is the same as the dashboard's 'Free and available' slice."
+                        "Your total installed RAM minus the four measured categories: free = total minus wired, app, compressed and cached files, never below zero. Derived this way so the parts always reconcile to your installed RAM exactly. This is the same as the dashboard's 'Free and available' slice."
                 )
             ),
             MetricCardData(
@@ -659,11 +650,9 @@ enum MemoryMetrics {
                 help: "Memory apps are actively using, not reclaimable cache. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "Memory that apps are actively using and that is not a reclaimable file cache. It is the closest "
-                        + "match to Activity Monitor's 'App Memory'.",
+                        "Memory that apps are actively using and that is not a reclaimable file cache. It is the closest match to Activity Monitor's 'App Memory'.",
                     calculation:
-                        "Anonymous, app-allocated memory minus the part the system can drop on demand: app = max(internal "
-                        + "minus purgeable, 0), read from the kernel's VM statistics and multiplied by the page size."
+                        "Anonymous, app-allocated memory minus the part the system can drop on demand: app = max(internal minus purgeable, 0), read from the kernel's VM statistics and multiplied by the page size."
                 )
             ),
             MetricCardData(
@@ -676,11 +665,9 @@ enum MemoryMetrics {
                 help: "RAM the compressor has squeezed to fit more in memory. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "Memory the compressor has squeezed so more fits in RAM without going to disk. A little is normal; "
-                        + "a lot, and rising, is an early sign of pressure.",
+                        "Memory the compressor has squeezed so more fits in RAM without going to disk. A little is normal; a lot, and rising, is an early sign of pressure.",
                     calculation:
-                        "The compressor's page count times the page size: compressed = compressor page count times page "
-                        + "size, read from the kernel's VM statistics.")
+                        "The compressor's page count times the page size: compressed = compressor page count times page size, read from the kernel's VM statistics.")
             ),
             MetricCardData(
                 label: "Cached files",
@@ -693,11 +680,9 @@ enum MemoryMetrics {
                     "Spare RAM used as a benign file cache, released on demand. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "Spare RAM that macOS is using to keep recently used files handy. This is not a problem: it is "
-                        + "released the instant anything needs the space, so it should never be a cause for concern.",
+                        "Spare RAM that macOS is using to keep recently used files handy. This is not a problem: it is released the instant anything needs the space, so it should never be a cause for concern.",
                     calculation:
-                        "File-backed pages plus purgeable pages, times the page size: cached = (external plus purgeable) "
-                        + "times page size, from the kernel's VM statistics.")
+                        "File-backed pages plus purgeable pages, times the page size: cached = (external plus purgeable) times page size, from the kernel's VM statistics.")
             ),
             MetricCardData(
                 label: "Swap",
@@ -709,11 +694,9 @@ enum MemoryMetrics {
                 help: "Memory moved out to disk because RAM filled up. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "Data the system has moved out to disk because RAM filled up. It is distinct from compression. "
-                        + "A flat line at zero is ideal; a sustained climb under pressure is the real warning sign.",
+                        "Data the system has moved out to disk because RAM filled up. It is distinct from compression. A flat line at zero is ideal; a sustained climb under pressure is the real warning sign.",
                     calculation:
-                        "Taken straight from the kernel's swap usage figure (vm.swapusage.xsu_used). Swap lives on disk, "
-                        + "not in RAM, so it is shown on its own and is not part of the total-RAM split."
+                        "Taken straight from the kernel's swap usage figure (vm.swapusage.xsu_used). Swap lives on disk, not in RAM, so it is shown on its own and is not part of the total-RAM split."
                 )
             ),
         ]
@@ -800,12 +783,9 @@ enum CPUMetrics {
                 help: "Share of total CPU capacity in use across every core. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "How much of your Mac's total CPU capacity is in use right now, across all cores, "
-                        + "from 0 to 100 percent. 100 percent means every logical core is fully busy.",
+                        "How much of your Mac's total CPU capacity is in use right now, across all cores, from 0 to 100 percent. 100 percent means every logical core is fully busy.",
                     calculation:
-                        "The busy fraction of each logical core (user plus system time over the tick, from the "
-                        + "kernel's per-core tick counters) averaged across all cores, times 100. The split below "
-                        + "is that same total divided into user-mode and system-mode (kernel) time."
+                        "The busy fraction of each logical core (user plus system time over the tick, from the kernel's per-core tick counters) averaged across all cores, times 100. The split below is that same total divided into user-mode and system-mode (kernel) time."
                 )
             ),
             MetricCardData(
@@ -824,13 +804,9 @@ enum CPUMetrics {
                     "Processes competing to run, averaged over 1 minute (5 and 15-minute alongside). Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "The run-queue length — roughly how many processes are competing to run — averaged over "
-                        + "the last minute, with the 5 and 15-minute figures beside it. A load near your core count "
-                        + "(\(coreCount > 0 ? String(coreCount) : "the number of cores")) means the CPU is fully "
-                        + "subscribed; well above it means work is queuing.",
+                        "The run-queue length (roughly how many processes are competing to run) averaged over the last minute, with the 5 and 15-minute figures beside it. A load near your core count (\(coreCount > 0 ? String(coreCount) : "the number of cores")) means the CPU is fully subscribed; well above it means work is queuing.",
                     calculation:
-                        "Read straight from the kernel's load averages (the same numbers `uptime` reports). The bar "
-                        + "shows the 1-minute load relative to your logical core count, full at one process per core."
+                        "Read straight from the kernel's load averages (the same numbers `uptime` reports). The bar shows the 1-minute load relative to your logical core count, full at one process per core."
                 )
             ),
         ]

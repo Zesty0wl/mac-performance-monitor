@@ -149,9 +149,7 @@ struct BatteryView: View {
             detailRow("Health", "—")
             detailRow("Cycle count", "—")
             footnote(
-                "This Mac has no internal battery, so charge, health and runtime don't apply. "
-                    + "System power is the whole machine's measured draw; the energy impact above "
-                    + "ranks which apps are working it hardest.")
+                "This Mac has no internal battery, so charge, health and runtime don't apply. System power is the whole machine's measured draw; the energy impact above ranks which apps are working it hardest.")
         }
     }
 
@@ -342,10 +340,7 @@ struct BatteryView: View {
                 }
             }
             footnote(
-                "Each line is the hottest sensor of its domain: CPU die in orange, GPU die in "
-                    + "red. Longer ranges keep the peaks, not the average, so spikes stay "
-                    + "visible. The status follows macOS's own thermal pressure verdict, the "
-                    + "signal that the system is actually slowing work down.")
+                "Each line is the hottest sensor of its domain: CPU die in orange, GPU die in red. Longer ranges keep the peaks, not the average, so spikes stay visible. The status follows macOS's own thermal pressure verdict, the signal that the system is actually slowing work down.")
         }
     }
 
@@ -406,8 +401,7 @@ struct BatteryView: View {
             .frame(height: 160)
             .chartReloading(awaitingData)
             footnote(
-                "The battery level over the selected window, 0–100%. The line's slope shows how "
-                    + "fast it was charging or draining.")
+                "The battery level over the selected window, 0-100%. The line's slope shows how fast it was charging or draining.")
         }
     }
 
@@ -442,8 +436,7 @@ struct BatteryView: View {
                 detailRow("Design", BatteryFormat.mAh(design))
             }
             footnote(
-                "Maximum capacity is today's full-charge capacity as a share of the original design "
-                    + "capacity — the standard measure of wear. Below ~80% Apple suggests service.")
+                "Maximum capacity is today's full-charge capacity as a share of the original design capacity, the standard measure of wear. Below ~80% Apple suggests service.")
         }
     }
 
@@ -462,8 +455,7 @@ struct BatteryView: View {
                 }
             }
             footnote(
-                "Energy impact is a relative measure, like Activity Monitor's Energy tab: it combines "
-                    + "each process's CPU use and how often it wakes the CPU. Higher means more battery drain."
+                "Energy impact is a relative measure, like Activity Monitor's Energy tab: it combines each process's CPU use and how often it wakes the CPU. Higher means more battery drain."
             )
         }
     }
@@ -562,7 +554,7 @@ struct BatteryView: View {
     // MARK: - Shared bits
 
     private func detailRow(
-        _ label: String, _ value: String, valueColor: Color = .primary
+        _ label: LocalizedStringKey, _ value: String, valueColor: Color = .primary
     )
         -> some View
     {
@@ -579,7 +571,7 @@ struct BatteryView: View {
         }
     }
 
-    private func footnote(_ text: String) -> some View {
+    private func footnote(_ text: LocalizedStringKey) -> some View {
         Text(text)
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -726,11 +718,11 @@ private struct ThermalEventRow: View {
 /// A titled, bordered content card — the Battery tab's structural unit, matching
 /// the Dashboard's panels so the two tabs share the same weight and chrome.
 private struct BatteryPanel<Content: View>: View {
-    let title: String
+    let title: LocalizedStringKey
     let systemImage: String
     @ViewBuilder var content: () -> Content
 
-    init(_ title: String, systemImage: String, @ViewBuilder content: @escaping () -> Content) {
+    init(_ title: LocalizedStringKey, systemImage: String, @ViewBuilder content: @escaping () -> Content) {
         self.title = title
         self.systemImage = systemImage
         self.content = content

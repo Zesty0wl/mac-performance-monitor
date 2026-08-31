@@ -29,6 +29,7 @@ final class CombinedStatusItemController: NSObject {
     private let helperManager: HelperManager
     private let updateController: UpdateController
     private let appModeManager: AppModeManager
+    private let languageManager: AppLanguageManager
     private let configuration: CombinedMenuBarConfiguration
     private let notchDisplay: NotchDisplayController
 
@@ -53,6 +54,7 @@ final class CombinedStatusItemController: NSObject {
     init(
         model: SamplerModel, appState: AppState, helperManager: HelperManager,
         updateController: UpdateController, appModeManager: AppModeManager,
+        languageManager: AppLanguageManager,
         configuration: CombinedMenuBarConfiguration, notchDisplay: NotchDisplayController
     ) {
         self.model = model
@@ -60,6 +62,7 @@ final class CombinedStatusItemController: NSObject {
         self.helperManager = helperManager
         self.updateController = updateController
         self.appModeManager = appModeManager
+        self.languageManager = languageManager
         self.configuration = configuration
         self.notchDisplay = notchDisplay
         currentPanel =
@@ -206,20 +209,22 @@ final class CombinedStatusItemController: NSObject {
         let popover = NSPopover()
         popover.behavior = .transient
         popover.animates = false
-        let content = CombinedMenuBarContentView(
-            selection: panelSelection,
-            selectionChanged: { [weak self] metric in self?.selectPanel(metric) },
-            dismiss: { [weak popover] in popover?.performClose(nil) }
-        )
-        .environmentObject(model)
-        .environmentObject(model.menuLists)
-        .environmentObject(appState)
-        .environmentObject(helperManager)
-        .environmentObject(updateController)
-        .environmentObject(menuClock)
-        .environmentObject(appModeManager)
-        .environmentObject(configuration)
-        .environmentObject(notchDisplay)
+        let content = LocaleRootView(languageManager: languageManager) {
+            CombinedMenuBarContentView(
+                selection: self.panelSelection,
+                selectionChanged: { [weak self] metric in self?.selectPanel(metric) },
+                dismiss: { [weak popover] in popover?.performClose(nil) }
+            )
+            .environmentObject(self.model)
+            .environmentObject(self.model.menuLists)
+            .environmentObject(self.appState)
+            .environmentObject(self.helperManager)
+            .environmentObject(self.updateController)
+            .environmentObject(self.menuClock)
+            .environmentObject(self.appModeManager)
+            .environmentObject(self.configuration)
+            .environmentObject(self.notchDisplay)
+        }
         let hosting = PopoverHostingController(rootView: content)
         hosting.sizingOptions = [.preferredContentSize]
         popover.contentViewController = hosting

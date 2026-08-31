@@ -293,7 +293,7 @@ struct NetworkView: View {
         }
     }
 
-    @ViewBuilder private func configRow(_ label: String, _ value: String?) -> some View {
+    @ViewBuilder private func configRow(_ label: LocalizedStringKey, _ value: String?) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(label).foregroundStyle(.secondary)
             Spacer(minLength: 12)
@@ -310,9 +310,7 @@ struct NetworkView: View {
         NetworkPanel("Per-app usage", systemImage: "list.bullet") {
             Toggle("Track per-app network usage", isOn: $trackPerApp)
             Text(
-                "Attribute traffic to individual apps. Off by default because it runs the system's "
-                    + "“nettop” tool in the background, so it uses a little more CPU. The totals above "
-                    + "work without it."
+                "Attribute traffic to individual apps. Off by default because it runs the system's \u{201C}nettop\u{201D} tool in the background, so it uses a little more CPU. The totals above work without it."
             )
             .font(.caption).foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
@@ -467,7 +465,7 @@ private struct AdapterRow: View {
             .foregroundStyle(color)
     }
 
-    private func detail(_ label: String, _ value: String) -> some View {
+    private func detail(_ label: LocalizedStringKey, _ value: String) -> some View {
         HStack(spacing: 6) {
             Text(label)
                 .font(.caption2.weight(.medium)).foregroundStyle(.tertiary)
@@ -485,11 +483,11 @@ private struct AdapterRow: View {
 /// A titled, bordered card matching the Dashboard's panel chrome (which is
 /// private to that file), so the Network page reads as part of the same app.
 private struct NetworkPanel<Content: View>: View {
-    let title: String
+    let title: LocalizedStringKey
     let systemImage: String
     @ViewBuilder var content: () -> Content
 
-    init(_ title: String, systemImage: String, @ViewBuilder content: @escaping () -> Content) {
+    init(_ title: LocalizedStringKey, systemImage: String, @ViewBuilder content: @escaping () -> Content) {
         self.title = title
         self.systemImage = systemImage
         self.content = content

@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "MacPerfMonitor",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v15)
     ],
@@ -68,6 +69,9 @@ let package = Package(
                 "MacPerfMonitorCore",
                 "MacPerfMonitorIPC",
                 "Sparkle",
+            ],
+            resources: [
+                .process("Resources"),
             ]
         ),
 

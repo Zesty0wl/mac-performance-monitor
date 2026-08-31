@@ -155,57 +155,61 @@ struct ProcessOutlineTable: NSViewRepresentable {
         let rightAligned: Bool
         let ascendingByDefault: Bool
 
-        static let all: [ColumnSpec] = [
-            ColumnSpec(
-                identifier: .process, title: "Process", minWidth: 160, idealWidth: 260,
-                rightAligned: false, ascendingByDefault: true),
-            ColumnSpec(
-                identifier: .memory, title: "Memory", minWidth: 84, idealWidth: 104,
-                rightAligned: true, ascendingByDefault: false),
-            ColumnSpec(
-                identifier: .cpu, title: "CPU", minWidth: 58, idealWidth: 70, rightAligned: true,
-                ascendingByDefault: false),
-            ColumnSpec(
-                identifier: .threads, title: "Threads", minWidth: 60, idealWidth: 72,
-                rightAligned: true, ascendingByDefault: false),
-            ColumnSpec(
-                identifier: .fds, title: "FDs", minWidth: 50, idealWidth: 62, rightAligned: true,
-                ascendingByDefault: false),
-            ColumnSpec(
-                identifier: .arch, title: "Arch", minWidth: 60, idealWidth: 72,
-                rightAligned: false, ascendingByDefault: true),
-            ColumnSpec(
-                identifier: .pid, title: "PID", minWidth: 52, idealWidth: 72, rightAligned: true,
-                ascendingByDefault: true),
-        ]
+        static var all: [ColumnSpec] {
+            [
+                ColumnSpec(
+                    identifier: .process, title: String(localized: "Process"), minWidth: 160, idealWidth: 260,
+                    rightAligned: false, ascendingByDefault: true),
+                ColumnSpec(
+                    identifier: .memory, title: String(localized: "Memory"), minWidth: 84, idealWidth: 104,
+                    rightAligned: true, ascendingByDefault: false),
+                ColumnSpec(
+                    identifier: .cpu, title: String(localized: "CPU"), minWidth: 58, idealWidth: 70, rightAligned: true,
+                    ascendingByDefault: false),
+                ColumnSpec(
+                    identifier: .threads, title: String(localized: "Threads"), minWidth: 60, idealWidth: 72,
+                    rightAligned: true, ascendingByDefault: false),
+                ColumnSpec(
+                    identifier: .fds, title: String(localized: "FDs"), minWidth: 50, idealWidth: 62, rightAligned: true,
+                    ascendingByDefault: false),
+                ColumnSpec(
+                    identifier: .arch, title: String(localized: "Arch"), minWidth: 60, idealWidth: 72,
+                    rightAligned: false, ascendingByDefault: true),
+                ColumnSpec(
+                    identifier: .pid, title: String(localized: "PID"), minWidth: 52, idealWidth: 72, rightAligned: true,
+                    ascendingByDefault: true),
+            ]
+        }
 
         /// The GPU tab's table: who is using the GPU, ranked by share.
-        static let gpu: [ColumnSpec] = [
-            ColumnSpec(
-                identifier: .process, title: "Process", minWidth: 160, idealWidth: 240,
-                rightAligned: false, ascendingByDefault: true),
-            ColumnSpec(
-                identifier: .category, title: "Category", minWidth: 84, idealWidth: 104,
-                rightAligned: false, ascendingByDefault: true),
-            ColumnSpec(
-                identifier: .gpu, title: "GPU", minWidth: 58, idealWidth: 70, rightAligned: true,
-                ascendingByDefault: false),
-            ColumnSpec(
-                identifier: .gpuRate, title: "GPU ms/s", minWidth: 70, idealWidth: 84,
-                rightAligned: true, ascendingByDefault: false),
-            ColumnSpec(
-                identifier: .gpuIdle, title: "Last active", minWidth: 78, idealWidth: 92,
-                rightAligned: true, ascendingByDefault: true),
-            ColumnSpec(
-                identifier: .cpu, title: "CPU", minWidth: 58, idealWidth: 70, rightAligned: true,
-                ascendingByDefault: false),
-            ColumnSpec(
-                identifier: .memory, title: "Memory", minWidth: 84, idealWidth: 104,
-                rightAligned: true, ascendingByDefault: false),
-            ColumnSpec(
-                identifier: .pid, title: "PID", minWidth: 52, idealWidth: 72, rightAligned: true,
-                ascendingByDefault: true),
-        ]
+        static var gpu: [ColumnSpec] {
+            [
+                ColumnSpec(
+                    identifier: .process, title: String(localized: "Process"), minWidth: 160, idealWidth: 240,
+                    rightAligned: false, ascendingByDefault: true),
+                ColumnSpec(
+                    identifier: .category, title: String(localized: "Category"), minWidth: 84, idealWidth: 104,
+                    rightAligned: false, ascendingByDefault: true),
+                ColumnSpec(
+                    identifier: .gpu, title: String(localized: "GPU"), minWidth: 58, idealWidth: 70, rightAligned: true,
+                    ascendingByDefault: false),
+                ColumnSpec(
+                    identifier: .gpuRate, title: String(localized: "GPU ms/s"), minWidth: 70, idealWidth: 84,
+                    rightAligned: true, ascendingByDefault: false),
+                ColumnSpec(
+                    identifier: .gpuIdle, title: String(localized: "Last active"), minWidth: 78, idealWidth: 92,
+                    rightAligned: true, ascendingByDefault: true),
+                ColumnSpec(
+                    identifier: .cpu, title: String(localized: "CPU"), minWidth: 58, idealWidth: 70, rightAligned: true,
+                    ascendingByDefault: false),
+                ColumnSpec(
+                    identifier: .memory, title: String(localized: "Memory"), minWidth: 84, idealWidth: 104,
+                    rightAligned: true, ascendingByDefault: false),
+                ColumnSpec(
+                    identifier: .pid, title: String(localized: "PID"), minWidth: 52, idealWidth: 72, rightAligned: true,
+                    ascendingByDefault: true),
+            ]
+        }
     }
 
     /// The column a comparator sorts by, if it is one of ours.
