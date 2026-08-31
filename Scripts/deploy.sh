@@ -57,7 +57,8 @@ PRODUCT_URL="https://macperformancemonitor.com"
 
 DIST_DIR="dist/updates"                    # Sparkle zip + appcast (fed to generate_appcast)
 PKG_DIR="dist"                             # the installer .pkg, kept OUT of DIST_DIR
-ARCHIVE_BASENAME="MacPerformanceMonitor"   # no spaces — it ends up in a URL
+ARCHIVE_BASENAME="MacPerformanceMonitor"   # no spaces: it ends up in a URL
+CASK="Casks/mac-performance-monitor.rb"    # Homebrew reads this from the default branch
 
 # ---- argument parsing ------------------------------------------------------
 SKIP_UPLOAD=0
@@ -267,6 +268,11 @@ if [[ "$SKIP_UPLOAD" -eq 1 ]]; then
   echo "    Sparkle zip: $ARCHIVE"
   echo "    Installer:   $PKG"
   echo "    Appcast:     $DIST_DIR/appcast.xml"
+  echo
+  echo "    Do NOT copy this pkg's checksum into $CASK. The --resume pass"
+  echo "    rebuilds, notarizes and staples the pkg, which changes its bytes,"
+  echo "    and that later pkg is the one users download. deploy.sh --resume"
+  echo "    writes the correct checksum itself once the asset is published."
   exit 0
 fi
 
@@ -294,7 +300,7 @@ fi
 
 echo "==> Creating GitHub Release $TAG on $REPO"
 if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-  echo "    release $TAG already exists — clobbering its assets"
+  echo "    release $TAG already exists: clobbering its assets"
   gh release upload "$TAG" "$ARCHIVE" "$DIST_DIR/appcast.xml" "$PKG" --repo "$REPO" --clobber
 else
   gh release create "$TAG" \
@@ -303,6 +309,39 @@ else
     --title "Mac Performance Monitor ${SHORT_VERSION} (build ${BUILD})" \
     --notes "Mac Performance Monitor ${SHORT_VERSION} (build ${BUILD}). See CHANGELOG.md for what's new." \
     --latest
+fi
+
+# ---- 6) point the Homebrew cask at the bytes just published -----------------
+# The installer's checksum cannot be known any earlier: notarization stapling
+# rewrites the pkg, so a hash taken from an earlier build (the --skip-upload
+# pass, say) never matches the published asset. That mismatch stays invisible
+# until a user runs `brew install`, because Homebrew reads this cask straight
+# from the default branch rather than from the tagged release. So the checksum
+# is derived here, from the exact file that was uploaded, and committed as a
+# follow-up to the release commit.
+if [[ -f "$CASK" ]]; then
+  CASK_VERSION="${SHORT_VERSION}.${BUILD}"
+  FINAL_SHA="$(shasum -a 256 "$PKG" | awk '{print $1}')"
+  HAVE_SHA="$(awk -F'"' '/^[[:space:]]*sha256 /{print $2; exit}' "$CASK")"
+  HAVE_VERSION="$(awk -F'"' '/^[[:space:]]*version /{print $2; exit}' "$CASK")"
+  if [[ "$HAVE_SHA" == "$FINAL_SHA" && "$HAVE_VERSION" == "$CASK_VERSION" ]]; then
+    echo "==> $CASK already matches the published pkg."
+  else
+    /usr/bin/sed -i '' \
+      -e "s|^\([[:space:]]*version \).*|\1\"${CASK_VERSION}\"|" \
+      -e "s|^\([[:space:]]*sha256 \).*|\1\"${FINAL_SHA}\"|" \
+      "$CASK"
+    echo
+    echo "==> Updated $CASK"
+    echo "    version $CASK_VERSION"
+    echo "    sha256  $FINAL_SHA"
+    echo
+    echo "    ACTION REQUIRED: Homebrew installs read this file from the default"
+    echo "    branch, so brew install keeps failing until this lands:"
+    echo "      git add $CASK"
+    echo "      git commit -m \"Point the Homebrew cask at $TAG\""
+    echo "      git push"
+  fi
 fi
 
 echo
