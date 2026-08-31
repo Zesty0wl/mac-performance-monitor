@@ -409,7 +409,9 @@ struct MetricDetailSheet: View {
         }
     }
 
-    private func explanationSection(_ title: LocalizedStringKey, _ body: LocalizedStringKey) -> some View {
+    private func explanationSection(
+        _ title: LocalizedStringKey, _ body: LocalizedStringKey
+    ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
@@ -623,7 +625,8 @@ enum MemoryMetrics {
                     meaning:
                         "macOS's own read on how hard the memory system is working, on a 0 to 100 scale. 0 to 33 is green and comfortable, 34 to 66 is yellow as it compresses and caches to cope, and 67 to 100 is red, where it swaps to disk and apps can slow down. It is the single number to watch.",
                     calculation:
-                        "The colour band comes from the kernel's memory-pressure level. Within that band the exact position is set by how loaded memory is: 50 percent from compression (compressed memory over RAM, full at half your RAM), 30 percent from swap (swap over RAM, full at one times your RAM), and 20 percent from how fast compressed plus swap is rising. The value is the band floor plus that signal times 33.")
+                        "The colour band comes from the kernel's memory-pressure level. Within that band the exact position is set by how loaded memory is: 50 percent from compression (compressed memory over RAM, full at half your RAM), 30 percent from swap (swap over RAM, full at one times your RAM), and 20 percent from how fast compressed plus swap is rising. The value is the band floor plus that signal times 33."
+                )
             ),
             MetricCardData(
                 label: "Free",
@@ -667,7 +670,8 @@ enum MemoryMetrics {
                     meaning:
                         "Memory the compressor has squeezed so more fits in RAM without going to disk. A little is normal; a lot, and rising, is an early sign of pressure.",
                     calculation:
-                        "The compressor's page count times the page size: compressed = compressor page count times page size, read from the kernel's VM statistics.")
+                        "The compressor's page count times the page size: compressed = compressor page count times page size, read from the kernel's VM statistics."
+                )
             ),
             MetricCardData(
                 label: "Cached files",
@@ -682,7 +686,8 @@ enum MemoryMetrics {
                     meaning:
                         "Spare RAM that macOS is using to keep recently used files handy. This is not a problem: it is released the instant anything needs the space, so it should never be a cause for concern.",
                     calculation:
-                        "File-backed pages plus purgeable pages, times the page size: cached = (external plus purgeable) times page size, from the kernel's VM statistics.")
+                        "File-backed pages plus purgeable pages, times the page size: cached = (external plus purgeable) times page size, from the kernel's VM statistics."
+                )
             ),
             MetricCardData(
                 label: "Swap",

@@ -46,15 +46,17 @@ struct FullDiskAccessCard: View {
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.orange.opacity(0.28)))
     }
 
-    private var title: String {
-        if notPermittedCount > 0 {
-            let folders = notPermittedCount == 1 ? "1 folder" : "\(notPermittedCount) folders"
-            return "\(folders) could not be read without Full Disk Access"
+    private var title: LocalizedStringKey {
+        if notPermittedCount == 1 {
+            return "1 folder could not be read without Full Disk Access"
+        }
+        if notPermittedCount > 1 {
+            return "\(notPermittedCount) folders could not be read without Full Disk Access"
         }
         return "Grant Full Disk Access for a complete map"
     }
 
-    private var explanation: String {
+    private var explanation: LocalizedStringKey {
         if fullDiskAccess.awaitingRelaunch {
             return
                 "If you turned Full Disk Access on, it takes effect once \(AppInfo.displayName) relaunches. Then scan again."

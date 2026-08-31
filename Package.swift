@@ -71,7 +71,7 @@ let package = Package(
                 "Sparkle",
             ],
             resources: [
-                .process("Resources"),
+                .process("Resources")
             ]
         ),
 

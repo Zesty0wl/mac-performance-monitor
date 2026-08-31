@@ -39,7 +39,8 @@ struct DiskMenuBarContentView: View {
         }
     }
 
-    private func rateColumn(_ title: LocalizedStringKey, _ rate: Double?, tint: Color) -> some View {
+    private func rateColumn(_ title: LocalizedStringKey, _ rate: Double?, tint: Color) -> some View
+    {
         VStack(alignment: .leading, spacing: 1) {
             Text(rate.map { ByteFormat.rate($0) } ?? "--")
                 .font(.title3.weight(.semibold).monospacedDigit())
@@ -50,8 +51,14 @@ struct DiskMenuBarContentView: View {
 
     private func activitySummary(_ disk: DiskSample) -> some View {
         HStack(spacing: 14) {
-            Text(String(format: String(localized: "%d read IOPS"), Int(disk.readOperationsPerSec.rounded())))
-            Text(String(format: String(localized: "%d write IOPS"), Int(disk.writeOperationsPerSec.rounded())))
+            Text(
+                String(
+                    format: String(localized: "%d read IOPS"),
+                    Int(disk.readOperationsPerSec.rounded())))
+            Text(
+                String(
+                    format: String(localized: "%d write IOPS"),
+                    Int(disk.writeOperationsPerSec.rounded())))
             Spacer()
         }
         .font(.caption.monospacedDigit())

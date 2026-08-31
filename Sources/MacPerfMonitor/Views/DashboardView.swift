@@ -171,7 +171,8 @@ struct DashboardView: View {
             }
 
             dashboardFootnote(
-                "Total CPU is the share of all cores in use, 0-100%. Per-process CPU (in the list and menubar) follows Activity Monitor: percent of one core, so a busy multi-threaded app can exceed 100%.")
+                "Total CPU is the share of all cores in use, 0-100%. Per-process CPU (in the list and menubar) follows Activity Monitor: percent of one core, so a busy multi-threaded app can exceed 100%."
+            )
         }
     }
 
@@ -226,7 +227,8 @@ struct DashboardView: View {
                 .frame(height: 110)
                 .chartReloading(awaitingData)
             dashboardFootnote(
-                "Swap is memory moved out to disk. A flat line at zero is ideal; a sustained climb under pressure is the real warning sign.")
+                "Swap is memory moved out to disk. A flat line at zero is ideal; a sustained climb under pressure is the real warning sign."
+            )
         }
     }
 
@@ -275,7 +277,8 @@ struct DashboardView: View {
                 }
             }
             dashboardFootnote(
-                "Mean CPU over the selected range, as percent of one core; busy multi-threaded work exceeds 100.")
+                "Mean CPU over the selected range, as percent of one core; busy multi-threaded work exceeds 100."
+            )
         }
     }
 
@@ -316,7 +319,8 @@ struct DashboardView: View {
                     .foregroundStyle(.secondary)
             }
             dashboardFootnote(
-                "Hottest CPU die sensor in orange, GPU die in red. The status ends with macOS's own thermal pressure verdict.")
+                "Hottest CPU die sensor in orange, GPU die in red. The status ends with macOS's own thermal pressure verdict."
+            )
         }
     }
 
@@ -363,7 +367,9 @@ struct DashboardView: View {
     }
 
     /// A small uppercase caption over a live figure painted by AppKit.
-    private func liveStat(_ label: LocalizedStringKey, _ feed: TextFeed, _ tint: NSColor) -> some View {
+    private func liveStat(
+        _ label: LocalizedStringKey, _ feed: TextFeed, _ tint: NSColor
+    ) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
                 .textCase(.uppercase)
@@ -762,7 +768,9 @@ private struct DashboardSystemSubtitle: View {
         let cores = topology.logicalCores
         if topology.performanceCoreCount > 0 && topology.efficiencyCoreCount > 0 {
             parts.append(
-                String(format: String(localized: "%d cores (%dP + %dE)"), cores, topology.performanceCoreCount, topology.efficiencyCoreCount)
+                String(
+                    format: String(localized: "%d cores (%dP + %dE)"), cores,
+                    topology.performanceCoreCount, topology.efficiencyCoreCount)
             )
         } else {
             parts.append(
@@ -770,7 +778,9 @@ private struct DashboardSystemSubtitle: View {
             )
         }
         if timeline.totalRAM > 0 {
-            parts.append(String(format: String(localized: "%@ memory"), ByteFormat.string(timeline.totalRAM)))
+            parts.append(
+                String(format: String(localized: "%@ memory"), ByteFormat.string(timeline.totalRAM))
+            )
         }
         return parts.joined(separator: " · ")
     }

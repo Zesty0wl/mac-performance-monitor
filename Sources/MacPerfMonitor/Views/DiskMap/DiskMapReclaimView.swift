@@ -61,12 +61,12 @@ struct DiskMapReclaimView: View {
             Circle()
                 .fill(DiskMapStyle.safetyTint(tier))
                 .frame(width: 8, height: 8)
-            Text(tier.label)
+            Text(LocalizedStringKey(tier.label))
                 .font(.caption.weight(.semibold))
             Text(ByteFormat.string(bytes))
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
-            Text(tierHint(tier))
+            Text(LocalizedStringKey(tierHint(tier)))
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .lineLimit(1)
@@ -92,7 +92,7 @@ struct DiskMapReclaimView: View {
         let path = snapshot.displayPath(of: item.node)
         return VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(item.advice.title)
+                Text(LocalizedStringKey(item.advice.title))
                     .font(.subheadline.weight(.semibold))
                 Text(path)
                     .font(.caption.monospaced())
@@ -102,7 +102,7 @@ struct DiskMapReclaimView: View {
                 Spacer(minLength: 8)
                 Text(ByteFormat.string(item.bytes))
                     .font(.subheadline.monospacedDigit().weight(.semibold))
-                Text(item.count == 1 ? "1 item" : "\(item.count.formatted()) items")
+                (item.count == 1 ? Text("1 item") : Text("\(item.count.formatted()) items"))
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.tertiary)
                     .frame(width: 84, alignment: .trailing)
@@ -110,12 +110,12 @@ struct DiskMapReclaimView: View {
             GroupProportionBar(
                 fraction: Double(item.bytes) / Double(total),
                 tint: DiskMapStyle.safetyTint(item.advice.tier))
-            Text(item.advice.reason)
+            Text(LocalizedStringKey(item.advice.reason))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if let how = item.advice.howToReclaim {
-                Text(how)
+                Text(LocalizedStringKey(how))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -177,7 +177,7 @@ struct DiskMapKindsView: View {
                             RoundedRectangle(cornerRadius: 2)
                                 .fill(kindColor(entry.kind))
                                 .frame(width: 9, height: 9)
-                            Text(entry.kind.label)
+                            Text(LocalizedStringKey(entry.kind.label))
                                 .font(.subheadline)
                                 .lineLimit(1)
                             Spacer()
@@ -223,6 +223,8 @@ struct DiskMapKindsView: View {
     }
 
     private static func count(_ value: UInt64) -> String {
-        value == 1 ? "1 item" : "\(DiskMapModel.compactCount(value)) items"
+        value == 1
+            ? String(localized: "1 item")
+            : String(format: String(localized: "%@ items"), DiskMapModel.compactCount(value))
     }
 }

@@ -293,7 +293,8 @@ struct NetworkView: View {
         }
     }
 
-    @ViewBuilder private func configRow(_ label: LocalizedStringKey, _ value: String?) -> some View {
+    @ViewBuilder private func configRow(_ label: LocalizedStringKey, _ value: String?) -> some View
+    {
         HStack(alignment: .firstTextBaseline) {
             Text(label).foregroundStyle(.secondary)
             Spacer(minLength: 12)
@@ -487,7 +488,10 @@ private struct NetworkPanel<Content: View>: View {
     let systemImage: String
     @ViewBuilder var content: () -> Content
 
-    init(_ title: LocalizedStringKey, systemImage: String, @ViewBuilder content: @escaping () -> Content) {
+    init(
+        _ title: LocalizedStringKey, systemImage: String,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
         self.title = title
         self.systemImage = systemImage
         self.content = content

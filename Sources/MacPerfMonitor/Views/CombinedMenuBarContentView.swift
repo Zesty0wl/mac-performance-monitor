@@ -139,12 +139,16 @@ struct CombinedMenuBarContentView: View {
     private var alarmText: String {
         let kinds = model.activeAlertKinds
         var labels: [String] = []
-        if kinds.contains(.criticalPressure) { labels.append(String(localized: "critical memory pressure")) }
+        if kinds.contains(.criticalPressure) {
+            labels.append(String(localized: "critical memory pressure"))
+        }
         if kinds.contains(.swap) { labels.append(String(localized: "heavy swap use")) }
         if kinds.contains(.processCeiling) { labels.append(String(localized: "memory ceiling")) }
         if kinds.contains(.leak) { labels.append(String(localized: "possible memory leak")) }
         if kinds.contains(.highCPU) { labels.append(String(localized: "sustained high CPU")) }
-        if kinds.contains(.thermalThrottle) { labels.append(String(localized: "thermal throttling")) }
+        if kinds.contains(.thermalThrottle) {
+            labels.append(String(localized: "thermal throttling"))
+        }
         return labels.joined(separator: " · ")
     }
 
@@ -190,7 +194,8 @@ struct CombinedMenuBarContentView: View {
 
             Menu {
                 Button(
-                    LocalizedStringKey(appMode.mode == .full ? "Pause history logging" : "Resume history logging"),
+                    LocalizedStringKey(
+                        appMode.mode == .full ? "Pause history logging" : "Resume history logging"),
                     systemImage: appMode.mode == .full ? "pause.circle" : "record.circle"
                 ) {
                     appMode.mode = appMode.mode == .full ? .menuBarOnly : .full
@@ -200,7 +205,8 @@ struct CombinedMenuBarContentView: View {
                 // makes room for them; see `NotchDisplayController`.
                 if notchDisplay.isSupported {
                     Button(
-                        LocalizedStringKey(notchDisplay.isNotchHidden ? "Show Notch" : "Hide Notch"),
+                        LocalizedStringKey(
+                            notchDisplay.isNotchHidden ? "Show Notch" : "Hide Notch"),
                         systemImage: "menubar.rectangle"
                     ) {
                         dismiss()

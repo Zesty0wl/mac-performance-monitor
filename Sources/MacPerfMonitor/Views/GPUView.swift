@@ -365,7 +365,9 @@ struct GPUView: View {
 
     // MARK: - Bits
 
-    private func liveStat(_ label: LocalizedStringKey, _ feed: TextFeed, _ tint: NSColor) -> some View {
+    private func liveStat(
+        _ label: LocalizedStringKey, _ feed: TextFeed, _ tint: NSColor
+    ) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
                 .font(.caption2.weight(.semibold))
@@ -463,7 +465,10 @@ private struct GPUPanel<Content: View>: View {
     let systemImage: String
     @ViewBuilder var content: () -> Content
 
-    init(_ title: LocalizedStringKey, systemImage: String, @ViewBuilder content: @escaping () -> Content) {
+    init(
+        _ title: LocalizedStringKey, systemImage: String,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
         self.title = title
         self.systemImage = systemImage
         self.content = content
@@ -717,7 +722,8 @@ final class GPUTimelineStore: ObservableObject {
                     meaning:
                         "The share of each interval the GPU spent executing work, from the graphics driver's own device utilisation counter. It is the same figure Activity Monitor's GPU History shows.",
                     calculation:
-                        "IOAccelerator `Device Utilization %`, read from the IORegistry once a second; the sparkline is the value over the selected range.")
+                        "IOAccelerator `Device Utilization %`, read from the IORegistry once a second; the sparkline is the value over the selected range."
+                )
             ),
             MetricCardData(
                 label: "GPU power",
@@ -728,7 +734,8 @@ final class GPUTimelineStore: ObservableObject {
                     meaning:
                         "How much power the GPU block is drawing. On Apple silicon the GPU shares the chip's power budget with the CPU, so a busy GPU can throttle everything.",
                     calculation:
-                        "The chip's GPU energy counter (IOReport `Energy Model`, the source powermetrics uses) differenced between ticks and divided by the elapsed time.")
+                        "The chip's GPU energy counter (IOReport `Energy Model`, the source powermetrics uses) differenced between ticks and divided by the elapsed time."
+                )
             ),
             MetricCardData(
                 label: "Neural Engine",
@@ -752,7 +759,8 @@ final class GPUTimelineStore: ObservableObject {
                     meaning:
                         "How much of the unified memory is currently in use by GPU clients: textures, buffers, and, for AI runtimes, the model weights. It counts against the same RAM the CPU uses.",
                     calculation:
-                        "IOAccelerator `In use system memory`; the allocated figure in the Device panel is the larger amount reserved to GPU clients including cached allocations.")
+                        "IOAccelerator `In use system memory`; the allocated figure in the Device panel is the larger amount reserved to GPU clients including cached allocations."
+                )
             ),
             MetricCardData(
                 label: "Active",

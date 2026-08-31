@@ -94,7 +94,7 @@ struct DiskMapChangesView: View {
     }
 
     private func sectionHeader(
-        _ title: String, entries: [DiskMapDiffEntry], tint: Color
+        _ title: LocalizedStringKey, entries: [DiskMapDiffEntry], tint: Color
     ) -> some View {
         let total = entries.reduce(Int64(0)) { $0 + $1.delta }
         return HStack(spacing: 8) {
@@ -104,7 +104,7 @@ struct DiskMapChangesView: View {
             Text(signed(total))
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
-            Text("\(entries.count) entries")
+            Text(entries.count == 1 ? "1 entry" : "\(entries.count) entries")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
             Spacer()
@@ -193,7 +193,7 @@ struct DiskMapChangesView: View {
     }
 
     private func signed(_ delta: Int64) -> String {
-        if delta == 0 { return "no change" }
+        if delta == 0 { return String(localized: "no change") }
         let magnitude = ByteFormat.string(UInt64(abs(delta)))
         return delta > 0 ? "+\(magnitude)" : "\u{2212}\(magnitude)"
     }

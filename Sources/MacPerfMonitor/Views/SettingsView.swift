@@ -298,7 +298,8 @@ private struct AlertsSettingsView: View {
             Section {
                 Toggle("Thermal throttling", isOn: $alertSettings.config.thermalEnabled)
                 caption(
-                    "Notify when macOS keeps slowing work down to shed heat, naming the process using the most CPU at that moment.")
+                    "Notify when macOS keeps slowing work down to shed heat, naming the process using the most CPU at that moment."
+                )
             } header: {
                 Text("Thermal Throttling")
             }
@@ -595,7 +596,7 @@ private struct AdvancedSettingsView: View {
     }
 
     /// A plain-language description of the Full Disk Access state.
-    private var fullDiskAccessStatus: String {
+    private var fullDiskAccessStatus: LocalizedStringKey {
         switch fullDiskAccess.status {
         case .granted:
             return "On. The Disk Map can read every folder your account owns."

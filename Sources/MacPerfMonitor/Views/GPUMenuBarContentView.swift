@@ -101,7 +101,9 @@ struct GPUMenuBarContentView: View {
         }
     }
 
-    private func bar(_ label: LocalizedStringKey, _ percent: Double, trailing: String? = nil) -> some View {
+    private func bar(
+        _ label: LocalizedStringKey, _ percent: Double, trailing: String? = nil
+    ) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 Text(label).font(.caption).foregroundStyle(.secondary)

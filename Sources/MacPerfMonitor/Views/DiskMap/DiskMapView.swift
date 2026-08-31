@@ -83,8 +83,10 @@ struct DiskMapView: View {
     private var trashTitle: String {
         guard let node = model.pendingTrash, let snapshot = model.snapshot,
             Int(node) < snapshot.tree.nodeCount
-        else { return "Move to the Trash?" }
-        return "Move \u{201C}\(snapshot.tree.name(of: node))\u{201D} to the Trash?"
+        else { return String(localized: "Move to the Trash?") }
+        return String(
+            format: String(localized: "Move \u{201C}%@\u{201D} to the Trash?"),
+            snapshot.tree.name(of: node))
     }
 
     private var trashMessage: String {
@@ -95,16 +97,25 @@ struct DiskMapView: View {
         let i = Int(node)
         var parts = [ByteFormat.string(tree.bytes[i])]
         if tree.flags[i].contains(.directory) {
-            parts.append(tree.count[i] == 1 ? "1 item" : "\(tree.count[i].formatted()) items")
+            parts.append(
+                tree.count[i] == 1
+                    ? String(localized: "1 item")
+                    : String(format: String(localized: "%@ items"), tree.count[i].formatted()))
         }
         var text = parts.joined(separator: ", ") + ". "
         if let advice = model.advice(for: node), advice.tier == .managedByApp,
             let how = advice.howToReclaim
         {
-            text += "\(advice.title) is managed by an app; the recommended way is: \(how) "
+            text += String(
+                format: String(
+                    localized: "%1$@ is managed by an app; the recommended way is: %2$@ "),
+                String(localized: String.LocalizationValue(advice.title)),
+                String(localized: String.LocalizationValue(how)))
         }
-        text +=
-            "The space is freed when you empty the Trash in Finder, and you can put the item back until then."
+        text += String(
+            localized:
+                "The space is freed when you empty the Trash in Finder, and you can put the item back until then."
+        )
         return text
     }
 
@@ -148,7 +159,9 @@ struct DiskMapView: View {
             Spacer(minLength: 12)
             if model.snapshot != nil {
                 Picker("View", selection: $model.viewMode) {
-                    ForEach(DiskMapModel.ViewMode.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(DiskMapModel.ViewMode.allCases) {
+                        Text(LocalizedStringKey($0.rawValue)).tag($0)
+                    }
                 }
                 .pickerStyle(.segmented)
                 .controlSize(.small)
@@ -156,7 +169,9 @@ struct DiskMapView: View {
                 .fixedSize()
                 if model.viewMode == .map {
                     Picker("Colour", selection: $model.colorMode) {
-                        ForEach(DiskMapColorMode.allCases) { Text($0.rawValue).tag($0) }
+                        ForEach(DiskMapColorMode.allCases) {
+                            Text(LocalizedStringKey($0.rawValue)).tag($0)
+                        }
                     }
                     .pickerStyle(.menu)
                     .controlSize(.small)
@@ -245,7 +260,8 @@ struct DiskMapView: View {
 
     private func scannedText(_ snapshot: DiskMapSnapshot) -> String {
         let when = snapshot.scannedAt.formatted(.relative(presentation: .named))
-        return snapshot.partial ? "Partial scan \(when)" : "Scanned \(when)"
+        return String(
+            format: String(localized: snapshot.partial ? "Partial scan %@" : "Scanned %@"), when)
     }
 
     // MARK: - States
@@ -365,7 +381,7 @@ struct DiskMapView: View {
                     RoundedRectangle(cornerRadius: 2)
                         .fill(entry.color)
                         .frame(width: 9, height: 9)
-                    Text(entry.label)
+                    Text(LocalizedStringKey(entry.label))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -383,28 +399,29 @@ struct DiskMapView: View {
         let parentBytes = max(tree.bytes[Int(hover.parent)], 1)
         let name: String
         let bytes: UInt64
-        var detail: String
+        var detail: Text
         var isFolder = false
         if hover.node == TreemapCell.aggregateNode {
-            name = "\(hover.aggregateCount.formatted()) more items"
+            name = String(
+                format: String(localized: "%@ more items"), hover.aggregateCount.formatted())
             bytes = hover.aggregateBytes
-            detail = "Too small to draw separately"
+            detail = Text("Too small to draw separately")
         } else {
             let i = Int(hover.node)
             let flags = tree.flags[i]
             bytes = tree.bytes[i]
             if flags.contains(.smallFilesFold) {
-                let kind = tree.kind[i]
-                name =
-                    "\(tree.count[i].formatted()) small \(kind == .other ? "items" : kind.label.lowercased())"
-                detail = "Folded together for the map"
+                name = DiskMapFoldNaming.name(count: tree.count[i], kind: tree.kind[i])
+                detail = Text("Folded together for the map")
             } else {
                 name = tree.name(of: hover.node)
                 isFolder = flags.contains(.directory) && tree.childCount[i] > 0
                 detail =
                     isFolder && !flags.contains(.smallFilesFold)
-                    ? "\(tree.count[i].formatted()) items \u{00B7} double-click to open"
-                    : (flags.contains(.directory) ? "Folder" : tree.kind[i].label)
+                    ? Text("\(tree.count[i].formatted()) items \u{00B7} double-click to open")
+                    : Text(
+                        LocalizedStringKey(
+                            flags.contains(.directory) ? "Folder" : tree.kind[i].label))
             }
         }
         let share = Double(bytes) / Double(parentBytes) * 100
@@ -429,7 +446,7 @@ struct DiskMapView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
-            Text(detail)
+            detail
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)

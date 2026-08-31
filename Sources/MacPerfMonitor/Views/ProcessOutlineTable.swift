@@ -158,25 +158,32 @@ struct ProcessOutlineTable: NSViewRepresentable {
         static var all: [ColumnSpec] {
             [
                 ColumnSpec(
-                    identifier: .process, title: String(localized: "Process"), minWidth: 160, idealWidth: 260,
+                    identifier: .process, title: String(localized: "Process"), minWidth: 160,
+                    idealWidth: 260,
                     rightAligned: false, ascendingByDefault: true),
                 ColumnSpec(
-                    identifier: .memory, title: String(localized: "Memory"), minWidth: 84, idealWidth: 104,
+                    identifier: .memory, title: String(localized: "Memory"), minWidth: 84,
+                    idealWidth: 104,
                     rightAligned: true, ascendingByDefault: false),
                 ColumnSpec(
-                    identifier: .cpu, title: String(localized: "CPU"), minWidth: 58, idealWidth: 70, rightAligned: true,
+                    identifier: .cpu, title: String(localized: "CPU"), minWidth: 58, idealWidth: 70,
+                    rightAligned: true,
                     ascendingByDefault: false),
                 ColumnSpec(
-                    identifier: .threads, title: String(localized: "Threads"), minWidth: 60, idealWidth: 72,
+                    identifier: .threads, title: String(localized: "Threads"), minWidth: 60,
+                    idealWidth: 72,
                     rightAligned: true, ascendingByDefault: false),
                 ColumnSpec(
-                    identifier: .fds, title: String(localized: "FDs"), minWidth: 50, idealWidth: 62, rightAligned: true,
+                    identifier: .fds, title: String(localized: "FDs"), minWidth: 50, idealWidth: 62,
+                    rightAligned: true,
                     ascendingByDefault: false),
                 ColumnSpec(
-                    identifier: .arch, title: String(localized: "Arch"), minWidth: 60, idealWidth: 72,
+                    identifier: .arch, title: String(localized: "Arch"), minWidth: 60,
+                    idealWidth: 72,
                     rightAligned: false, ascendingByDefault: true),
                 ColumnSpec(
-                    identifier: .pid, title: String(localized: "PID"), minWidth: 52, idealWidth: 72, rightAligned: true,
+                    identifier: .pid, title: String(localized: "PID"), minWidth: 52, idealWidth: 72,
+                    rightAligned: true,
                     ascendingByDefault: true),
             ]
         }
@@ -185,28 +192,36 @@ struct ProcessOutlineTable: NSViewRepresentable {
         static var gpu: [ColumnSpec] {
             [
                 ColumnSpec(
-                    identifier: .process, title: String(localized: "Process"), minWidth: 160, idealWidth: 240,
+                    identifier: .process, title: String(localized: "Process"), minWidth: 160,
+                    idealWidth: 240,
                     rightAligned: false, ascendingByDefault: true),
                 ColumnSpec(
-                    identifier: .category, title: String(localized: "Category"), minWidth: 84, idealWidth: 104,
+                    identifier: .category, title: String(localized: "Category"), minWidth: 84,
+                    idealWidth: 104,
                     rightAligned: false, ascendingByDefault: true),
                 ColumnSpec(
-                    identifier: .gpu, title: String(localized: "GPU"), minWidth: 58, idealWidth: 70, rightAligned: true,
+                    identifier: .gpu, title: String(localized: "GPU"), minWidth: 58, idealWidth: 70,
+                    rightAligned: true,
                     ascendingByDefault: false),
                 ColumnSpec(
-                    identifier: .gpuRate, title: String(localized: "GPU ms/s"), minWidth: 70, idealWidth: 84,
+                    identifier: .gpuRate, title: String(localized: "GPU ms/s"), minWidth: 70,
+                    idealWidth: 84,
                     rightAligned: true, ascendingByDefault: false),
                 ColumnSpec(
-                    identifier: .gpuIdle, title: String(localized: "Last active"), minWidth: 78, idealWidth: 92,
+                    identifier: .gpuIdle, title: String(localized: "Last active"), minWidth: 78,
+                    idealWidth: 92,
                     rightAligned: true, ascendingByDefault: true),
                 ColumnSpec(
-                    identifier: .cpu, title: String(localized: "CPU"), minWidth: 58, idealWidth: 70, rightAligned: true,
+                    identifier: .cpu, title: String(localized: "CPU"), minWidth: 58, idealWidth: 70,
+                    rightAligned: true,
                     ascendingByDefault: false),
                 ColumnSpec(
-                    identifier: .memory, title: String(localized: "Memory"), minWidth: 84, idealWidth: 104,
+                    identifier: .memory, title: String(localized: "Memory"), minWidth: 84,
+                    idealWidth: 104,
                     rightAligned: true, ascendingByDefault: false),
                 ColumnSpec(
-                    identifier: .pid, title: String(localized: "PID"), minWidth: 52, idealWidth: 72, rightAligned: true,
+                    identifier: .pid, title: String(localized: "PID"), minWidth: 52, idealWidth: 72,
+                    rightAligned: true,
                     ascendingByDefault: true),
             ]
         }

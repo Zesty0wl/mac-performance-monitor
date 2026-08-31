@@ -32,11 +32,13 @@ enum AppMode: String, CaseIterable, Codable, Sendable {
         case .full:
             return String(
                 localized:
-                    "Menu bar read-outs plus a local history database: you get the dashboard's history ranges, the leak board, and pressure events.")
+                    "Menu bar read-outs plus a local history database: you get the dashboard's history ranges, the leak board, and pressure events."
+            )
         case .menuBarOnly:
             return String(
                 localized:
-                    "Just the live menu bar read-outs. Nothing is written to disk, so the app stays as light as possible; history is unavailable until you turn logging back on.")
+                    "Just the live menu bar read-outs. Nothing is written to disk, so the app stays as light as possible; history is unavailable until you turn logging back on."
+            )
         }
     }
 
