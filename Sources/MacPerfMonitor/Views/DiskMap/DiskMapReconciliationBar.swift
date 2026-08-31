@@ -9,6 +9,9 @@ import SwiftUI
 struct DiskMapReconciliationBar: View {
     let reconciliation: DiskMapReconciliation
     let scope: DiskMapScope
+    /// Bytes moved to the Trash from this page since the scan; the volume
+    /// does not shrink until Finder empties it.
+    var inTrashBytes: UInt64 = 0
     var onGrantAccess: (() -> Void)?
     var onFolderAccess: (() -> Void)?
 
@@ -130,6 +133,13 @@ struct DiskMapReconciliationBar: View {
 
     @ViewBuilder
     private var chips: some View {
+        if inTrashBytes > 0 {
+            chipButton(
+                "In Trash \(ByteFormat.string(inTrashBytes))", tint: .green,
+                help:
+                    "Moved to the Trash from here. The space is freed when the Trash is emptied in Finder.",
+                action: nil)
+        }
         if let purgeable = reconciliation.purgeableBytes, purgeable > 0 {
             chip("Purgeable \(ByteFormat.string(purgeable))", help: purgeableHelp)
         }
@@ -199,7 +209,7 @@ struct DiskMapReconciliationBar: View {
     ) -> some View {
         Button(action: { action?() }) {
             HStack(spacing: 4) {
-                Image(systemName: "exclamationmark.triangle.fill")
+                Image(systemName: tint == .green ? "trash" : "exclamationmark.triangle.fill")
                     .font(.caption2)
                 Text(text)
                     .font(.caption2.weight(.semibold))

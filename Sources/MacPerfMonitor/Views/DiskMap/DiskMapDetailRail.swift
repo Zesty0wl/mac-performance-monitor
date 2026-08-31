@@ -5,10 +5,12 @@ import SwiftUI
 /// The right-hand rail: everything about the selected item and the ways to
 /// act on it. Facts the scan did not carry (logical length, the bytes a delete
 /// would free) are read on selection with one `getattrlist`, off the main
-/// thread, and shown when they arrive.
+/// thread, and shown when they arrive; the advisor's verdict says how safe
+/// removing it is and what the proper way to reclaim the space would be.
 struct DiskMapDetailRail: View {
     @ObservedObject var model: DiskMapModel
     @State private var facts: DiskMapItemFacts?
+    @State private var foldEntries: [DiskMapFoldEntry] = []
     @State private var quickLookURL: URL?
 
     var body: some View {
@@ -25,7 +27,7 @@ struct DiskMapDetailRail: View {
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .task(id: model.selection) { await loadFacts() }
+        .task(id: model.selection) { await loadDetails() }
         .quickLookPreview($quickLookURL)
     }
 
@@ -37,10 +39,12 @@ struct DiskMapDetailRail: View {
             Text("Select an item")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
-            Text("Its size, age and location appear here, with Reveal in Finder and Quick Look.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
+            Text(
+                "Its size, age, location and how safe it is to remove appear here, with Reveal in Finder, Quick Look and Move to Trash."
+            )
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 60)
@@ -62,7 +66,7 @@ struct DiskMapDetailRail: View {
 
         header(
             name: name, path: displayPath, isFold: isFold, kind: tree.kind[i],
-            isDirectory: isDirectory)
+            isDirectory: isDirectory, trashed: flags.contains(.trashed))
 
         pathRow(displayPath)
 
@@ -74,15 +78,18 @@ struct DiskMapDetailRail: View {
             badgeRow(badges(flags))
         }
 
-        if !isFold {
-            actions(
-                node: node, displayPath: displayPath,
-                canOpen: isDirectory && tree.childCount[i] > 0)
-        } else {
-            showInMap(node)
+        if !isFold, !flags.contains(.trashed), let advice = model.advice(for: node) {
+            verdict(advice)
         }
 
-        if isDirectory, tree.childCount[i] > 0 {
+        actions(
+            node: node, displayPath: displayPath, isFold: isFold,
+            canOpen: isDirectory && !isFold && tree.childCount[i] > 0,
+            trashed: flags.contains(.trashed))
+
+        if isFold {
+            foldList
+        } else if isDirectory, tree.childCount[i] > 0 {
             topContents(tree: tree, node: node)
         } else if flags.contains(.notPermitted) {
             note(
@@ -100,11 +107,16 @@ struct DiskMapDetailRail: View {
     }
 
     private func header(
-        name: String, path: String, isFold: Bool, kind: FileKind, isDirectory: Bool
+        name: String, path: String, isFold: Bool, kind: FileKind, isDirectory: Bool, trashed: Bool
     ) -> some View {
         HStack(alignment: .top, spacing: 10) {
             if isFold {
                 Image(systemName: "square.stack.3d.up")
+                    .font(.title)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 36, height: 36)
+            } else if trashed {
+                Image(systemName: "trash")
                     .font(.title)
                     .foregroundStyle(.secondary)
                     .frame(width: 36, height: 36)
@@ -118,9 +130,12 @@ struct DiskMapDetailRail: View {
                     .font(.headline)
                     .lineLimit(2)
                     .truncationMode(.middle)
-                Text(isDirectory && kind == .folder ? "Folder" : kind.label)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    trashed
+                        ? "In the Trash" : (isDirectory && kind == .folder ? "Folder" : kind.label)
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
     }
@@ -148,9 +163,7 @@ struct DiskMapDetailRail: View {
     @ViewBuilder
     private func factsGrid(
         tree: FileTree, node: Int32, parentBytes: UInt64, isDirectory: Bool, isFold: Bool
-    )
-        -> some View
-    {
+    ) -> some View {
         let i = Int(node)
         let bytes = tree.bytes[i]
         let total = max(tree.bytes[0], 1)
@@ -177,7 +190,9 @@ struct DiskMapDetailRail: View {
                 factRow("Share of parent", shareText(Double(bytes) / Double(parentBytes)))
             }
             if tree.modified[i] > 0 {
-                factRow("Modified", modifiedText(tree.modifiedDate(of: node)))
+                factRow(
+                    "Modified",
+                    tree.modifiedDate(of: node).formatted(.relative(presentation: .named)))
             }
         }
     }
@@ -224,21 +239,64 @@ struct DiskMapDetailRail: View {
         }
     }
 
-    private func actions(node: Int32, displayPath: String, canOpen: Bool) -> some View {
+    /// The advisor's verdict: tier, the rule that applied, why, and how to
+    /// reclaim the space properly.
+    private func verdict(_ advice: DiskMapAdvice) -> some View {
+        let tint = DiskMapStyle.safetyTint(advice.tier)
+        return VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(tint)
+                    .frame(width: 8, height: 8)
+                Text(advice.tier.label)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(tint)
+                Text("\u{00B7}")
+                    .foregroundStyle(.tertiary)
+                Text(advice.title)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+            }
+            Text(advice.reason)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let how = advice.howToReclaim {
+                Text(how)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(tint.opacity(0.25)))
+    }
+
+    private func actions(
+        node: Int32, displayPath: String, isFold: Bool, canOpen: Bool, trashed: Bool
+    )
+        -> some View
+    {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Button {
-                    ProcessActions.revealInFinder(path: displayPath)
-                } label: {
-                    Label("Reveal in Finder", systemImage: "folder")
+            if !isFold {
+                HStack(spacing: 8) {
+                    Button {
+                        ProcessActions.revealInFinder(path: displayPath)
+                    } label: {
+                        Label("Reveal in Finder", systemImage: "folder")
+                    }
+                    .help("Show this item in the Finder")
+                    .disabled(trashed)
+                    Button {
+                        quickLookURL = URL(fileURLWithPath: displayPath)
+                    } label: {
+                        Label("Quick Look", systemImage: "eye")
+                    }
+                    .help("Preview without opening")
+                    .disabled(trashed)
                 }
-                .help("Show this item in the Finder")
-                Button {
-                    quickLookURL = URL(fileURLWithPath: displayPath)
-                } label: {
-                    Label("Quick Look", systemImage: "eye")
-                }
-                .help("Preview without opening")
             }
             HStack(spacing: 8) {
                 if canOpen, model.viewMode == .map, model.zoomRoot != node {
@@ -249,24 +307,26 @@ struct DiskMapDetailRail: View {
                     }
                     .help("Zoom the map into this folder")
                 }
-                showInMap(node)
+                if model.viewMode != .map {
+                    Button {
+                        model.reveal(node)
+                    } label: {
+                        Label("Show in Map", systemImage: "rectangle.3.group")
+                    }
+                    .help("Switch to the map with this item selected")
+                }
+                if model.canTrash(node) {
+                    Button(role: .destructive) {
+                        model.requestTrash(node)
+                    } label: {
+                        Label("Move to Trash", systemImage: "trash")
+                    }
+                    .keyboardShortcut(.delete, modifiers: .command)
+                    .help("Move to the Trash (Command-Delete). You can put it back from the Trash.")
+                }
             }
         }
         .controlSize(.small)
-    }
-
-    /// From a list, jump to where the item sits in the map.
-    @ViewBuilder
-    private func showInMap(_ node: Int32) -> some View {
-        if model.viewMode != .map {
-            Button {
-                model.reveal(node)
-            } label: {
-                Label("Show in Map", systemImage: "rectangle.3.group")
-            }
-            .controlSize(.small)
-            .help("Switch to the map with this item selected")
-        }
     }
 
     private func topContents(tree: FileTree, node: Int32) -> some View {
@@ -308,6 +368,46 @@ struct DiskMapDetailRail: View {
         }
     }
 
+    /// The files behind a fold, listed live.
+    private var foldList: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text("LARGEST OF THESE")
+                    .font(.caption2.weight(.semibold))
+                    .tracking(0.6)
+                    .foregroundStyle(.tertiary)
+                Text("live")
+                    .font(.caption2)
+                    .padding(.horizontal, 5)
+                    .background(Capsule().fill(.quaternary))
+                    .foregroundStyle(.secondary)
+            }
+            if foldEntries.isEmpty {
+                Text("Reading the folder\u{2026}")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                let top = max(foldEntries.first?.bytes ?? 1, 1)
+                ForEach(foldEntries) { entry in
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 6) {
+                            Text(entry.name)
+                                .font(.caption)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer()
+                            Text(ByteFormat.string(entry.bytes))
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                        GroupProportionBar(
+                            fraction: Double(entry.bytes) / Double(top), tint: DiskStyle.read)
+                    }
+                }
+            }
+        }
+    }
+
     private func note(_ text: String) -> some View {
         Text(text)
             .font(.caption)
@@ -333,17 +433,18 @@ struct DiskMapDetailRail: View {
         return String(format: "%.1f%%", percent)
     }
 
-    private func modifiedText(_ date: Date) -> String {
-        let relative = date.formatted(.relative(presentation: .named))
-        return "\(relative)"
-    }
-
-    private func loadFacts() async {
+    private func loadDetails() async {
         facts = nil
+        foldEntries = []
         guard let node = model.selection, let snapshot = model.snapshot,
-            Int(node) < snapshot.tree.nodeCount,
-            !snapshot.tree.flags[Int(node)].contains(.smallFilesFold)
+            Int(node) < snapshot.tree.nodeCount
         else { return }
+        if snapshot.tree.flags[Int(node)].contains(.smallFilesFold) {
+            let entries = await model.foldListing(for: node)
+            guard !Task.isCancelled, model.selection == node else { return }
+            foldEntries = entries
+            return
+        }
         let path = snapshot.filesystemPath(of: node)
         let read = await Task.detached(priority: .userInitiated) {
             DiskMapItemFacts.read(path: path)

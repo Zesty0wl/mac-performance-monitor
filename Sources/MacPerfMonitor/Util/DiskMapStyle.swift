@@ -6,6 +6,7 @@ import SwiftUI
 enum DiskMapColorMode: String, CaseIterable, Identifiable {
     case kind = "Kind"
     case age = "Age"
+    case safety = "Safety"
     case depth = "Depth"
     var id: String { rawValue }
 
@@ -14,6 +15,9 @@ enum DiskMapColorMode: String, CaseIterable, Identifiable {
         case .kind: return "Colour by what a file is: video, images, code, archives and so on."
         case .age:
             return "Colour by when a file was last modified, cool for recent and warm for old."
+        case .safety:
+            return
+                "Colour by how safe it is to remove: caches in green, your files in blue, app-managed in orange, macOS in grey."
         case .depth: return "One hue, darker the deeper an item sits in the folder tree."
         }
     }
@@ -82,6 +86,24 @@ enum DiskMapStyle {
         return NSColor(hex: dark ? pair.dark : pair.light)
     }
 
+    // MARK: - Safety
+
+    private static let safetyHex: [DiskMapSafetyTier: (light: UInt32, dark: UInt32)] = [
+        .systemProtected: (0x64748B, 0x707E94),
+        .managedByApp: (0xF97316, 0xF08030),
+        .reviewBeforeRemoving: (0x3B82F6, 0x4F8DF7),
+        .safeToRemove: (0x16A34A, 0x2BB85E),
+    ]
+
+    static func safetyColor(_ tier: DiskMapSafetyTier, dark: Bool) -> NSColor {
+        let pair = safetyHex[tier]!
+        return NSColor(hex: dark ? pair.dark : pair.light)
+    }
+
+    static func safetyTint(_ tier: DiskMapSafetyTier) -> Color {
+        dynamic { safetyColor(tier, dark: $0) }
+    }
+
     // MARK: - Depth
 
     /// One blue, stepping darker and more saturated with each level so the
@@ -101,13 +123,15 @@ enum DiskMapStyle {
 
     static func cellColor(
         mode: DiskMapColorMode, kind: FileKind, isDirectory: Bool, modified: UInt32, depth: Int,
-        now: UInt32, dark: Bool
+        tier: DiskMapSafetyTier, now: UInt32, dark: Bool
     ) -> NSColor {
         switch mode {
         case .kind:
             return kindColor(isDirectory && kind == .folder ? .folder : kind, dark: dark)
         case .age:
             return ageColor(band: ageBand(modified: modified, now: now), dark: dark)
+        case .safety:
+            return safetyColor(tier, dark: dark)
         case .depth:
             return depthColor(depth: depth, dark: dark)
         }
@@ -156,6 +180,13 @@ enum DiskMapStyle {
         case .age:
             return ageBandLabels.enumerated().map { band, label in
                 LegendEntry(label: label, color: dynamic { ageColor(band: band, dark: $0) })
+            }
+        case .safety:
+            return [
+                DiskMapSafetyTier.safeToRemove, .reviewBeforeRemoving, .managedByApp,
+                .systemProtected,
+            ].map { tier in
+                LegendEntry(label: tier.label, color: dynamic { safetyColor(tier, dark: $0) })
             }
         case .depth:
             return (0..<4).map { depth in
