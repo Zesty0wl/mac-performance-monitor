@@ -56,7 +56,7 @@ enum ChartBenchmark {
     struct Options {
         enum Scenario: String {
             case dashboard, trend, cards, menu, inspector, processes, dashboardPage, gpuPage
-            case hardwarePage, analyticsPage
+            case hardwarePage, analyticsPage, diskMapPage
         }
         enum Mode: String { case image, host }
 
@@ -628,6 +628,49 @@ enum ChartBenchmark {
                     }
                 })
         }
+        if options.scenario == .diskMapPage {
+            // The Disk Map with a deterministic synthetic tree (about 200 k
+            // nodes), no scan and no disk. Each tick alternates the zoom root
+            // between the top level and the largest folder, which relays out
+            // and repaints the whole map: the worst case the page can hit.
+            let store = ProcessScenarioStore(options: options)
+            store.appState.mainWindowOpen = true
+            store.appState.mainWindowVisible = true
+            let fullDiskAccess = FullDiskAccessManager()
+            let snapshot = DiskMapBenchmarkTree.snapshot(points: options.points)
+            DiskMapModel.shared.installForBenchmark(snapshot)
+            let view = AnyView(
+                DiskMapPageScenario(width: options.width, height: options.height)
+                    .environmentObject(store.model)
+                    .environment(\.samplerModel, store.model)
+                    .environmentObject(store.appState)
+                    .environmentObject(store.monitor)
+                    .environmentObject(store.groupStore)
+                    .environmentObject(store.helper)
+                    .environmentObject(store.appMode)
+                    .environmentObject(fullDiskAccess))
+            let environment = ProcessInfo.processInfo.environment
+            var tickIndex = 0
+            return Scenario(
+                view: view,
+                tick: {
+                    tickIndex += 1
+                    let model = DiskMapModel.shared
+                    if let mode = environment["MPM_DISKMAP_COLOR"]
+                        .flatMap(DiskMapColorMode.init(rawValue:)), model.colorMode != mode
+                    {
+                        model.colorMode = mode
+                    }
+                    if environment["MPM_DISKMAP_STATIC"] == "1" { return }
+                    if model.zoomRoot == FileTree.root {
+                        if let largest = model.childrenBySize(of: FileTree.root).first {
+                            model.zoom(into: largest)
+                        }
+                    } else {
+                        model.zoomOut()
+                    }
+                })
+        }
         if options.scenario == .processes || options.scenario == .dashboardPage
             || options.scenario == .gpuPage || options.scenario == .analyticsPage
         {
@@ -663,7 +706,7 @@ enum ChartBenchmark {
         case .cards: return AnyView(CardsScenario(store: store, width: options.width))
         case .menu: return AnyView(MenuScenario(store: store, width: options.width))
         case .inspector: return AnyView(InspectorScenario(store: store, width: options.width))
-        case .processes, .dashboardPage, .gpuPage, .hardwarePage, .analyticsPage:
+        case .processes, .dashboardPage, .gpuPage, .hardwarePage, .analyticsPage, .diskMapPage:
             return AnyView(EmptyView())
         }
     }
@@ -685,6 +728,85 @@ enum ChartBenchmark {
                 .environmentObject(store.groupStore)
                 .environmentObject(store.helper)
                 .environmentObject(store.appMode)
+        }
+    }
+
+    /// The Disk Map page at a fixed size, fed by `DiskMapBenchmarkTree`.
+    struct DiskMapPageScenario: View {
+        let width: CGFloat
+        let height: CGFloat
+        var body: some View {
+            DiskMapView()
+                .frame(width: width, height: height)
+        }
+    }
+
+    /// A deterministic filesystem for the Disk Map benchmark: `points`
+    /// scaled to roughly that many nodes over a three-level tree with sizes
+    /// spread over five orders of magnitude and a spread of extensions, so
+    /// the layout, the aggregate cells and every colour mode get exercised.
+    enum DiskMapBenchmarkTree {
+        static func snapshot(points: Int) -> DiskMapSnapshot {
+            let builder = FileTreeBuilder()
+            builder.appendRoot(name: "Benchmark HD", fileID: 1, modified: 1_700_000_000, flags: [])
+            let extensions = [
+                "mov", "jpg", "mp3", "zip", "pdf", "swift", "sqlite", "log", "dylib", "bin",
+            ]
+            var seed: UInt64 = 0x9E37_79B9_7F4A_7C15
+            func next() -> UInt64 {
+                seed ^= seed << 13
+                seed ^= seed >> 7
+                seed ^= seed << 17
+                return seed
+            }
+            let topCount = 40
+            let midCount = 40
+            let fileCount = max(4, min(400, points / (topCount * midCount)))
+            var topEntries: [FileTreeBuilder.Entry] = []
+            for t in 0..<topCount {
+                topEntries.append(
+                    FileTreeBuilder.Entry(
+                        name: ArraySlice("Folder \(t)".utf8), bytes: 0, fileID: UInt64(100 + t),
+                        modified: 1_700_000_000, count: 1, flags: [.directory], kind: .folder))
+            }
+            let topRange = builder.appendChildren(of: 0, topEntries)
+            for top in topRange {
+                var midEntries: [FileTreeBuilder.Entry] = []
+                for m in 0..<midCount {
+                    midEntries.append(
+                        FileTreeBuilder.Entry(
+                            name: ArraySlice("Sub \(m)".utf8), bytes: 0, fileID: next(),
+                            modified: 1_700_000_000, count: 1, flags: [.directory], kind: .folder))
+                }
+                let midRange = builder.appendChildren(of: top, midEntries)
+                for mid in midRange {
+                    var files: [FileTreeBuilder.Entry] = []
+                    for f in 0..<fileCount {
+                        let ext = extensions[Int(next() % UInt64(extensions.count))]
+                        let magnitude = Double(next() % 1000) / 1000
+                        let bytes = UInt64(pow(10, 3 + magnitude * 5.5))
+                        let age = UInt32(next() % (3 * 365 * 86_400))
+                        files.append(
+                            FileTreeBuilder.Entry(
+                                name: ArraySlice("file-\(f).\(ext)".utf8), bytes: bytes,
+                                fileID: next(), modified: 1_700_000_000 - age, count: 1,
+                                flags: [],
+                                kind: FileKindClassifier.kind(
+                                    forName: "x.\(ext)", isDirectory: false)))
+                    }
+                    builder.appendChildren(of: mid, files)
+                }
+            }
+            let tree = builder.build()
+            let reconciliation = DiskMapReconciliation.compute(
+                scope: .folder("/Benchmark"), mountPoint: "/", volume: nil, allVolumes: [],
+                usedBefore: nil, scannedBytes: tree.bytes[0], sharedBytes: 0,
+                scannedItems: UInt64(tree.count[0]), counts: DiskMapScanCounts(),
+                localSnapshotCount: nil)
+            return DiskMapSnapshot(
+                scope: .folder("/Benchmark"), rootPath: "/Benchmark", tree: tree,
+                reconciliation: reconciliation, scannedAt: Date(), duration: 0, partial: false,
+                smallFileThreshold: 0, revision: 1)
         }
     }
 

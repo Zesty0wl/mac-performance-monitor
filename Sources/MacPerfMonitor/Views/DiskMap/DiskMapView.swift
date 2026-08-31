@@ -1,14 +1,17 @@
+import AppKit
 import MacPerfMonitorCore
 import SwiftUI
 
 /// The Disk tab's second page: scan a volume or folder and see what is using
 /// the space. This page hosts the scope and scan controls, the reconciliation
-/// bar, the active slice (Largest, Oldest) and the detail rail. The model is
-/// shared so a scan survives switching tabs; the page merely observes it.
+/// bar, the active view (the map, Largest, Oldest) and the detail rail. The
+/// model is shared so a scan survives switching tabs; the page merely
+/// observes it.
 struct DiskMapView: View {
     @ObservedObject private var model = DiskMapModel.shared
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var fullDiskAccess: FullDiskAccessManager
+    @State private var quickLookURL: URL?
 
     static let railWidth: CGFloat = 330
 
@@ -36,6 +39,7 @@ struct DiskMapView: View {
             model.bind(appState: appState, fullDiskAccess: fullDiskAccess)
             model.appear()
         }
+        .quickLookPreview($quickLookURL)
         .alert(
             "Scan failed",
             isPresented: Binding(
@@ -94,7 +98,17 @@ struct DiskMapView: View {
                 .controlSize(.small)
                 .labelsHidden()
                 .fixedSize()
-                searchField
+                if model.viewMode == .map {
+                    Picker("Colour", selection: $model.colorMode) {
+                        ForEach(DiskMapColorMode.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .controlSize(.small)
+                    .fixedSize()
+                    .help(model.colorMode.help)
+                } else {
+                    searchField
+                }
             }
         }
     }
@@ -195,13 +209,203 @@ struct DiskMapView: View {
             .padding(.vertical, 12)
             Divider()
             HStack(spacing: 0) {
-                DiskMapSliceTable(model: model)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Group {
+                    switch model.viewMode {
+                    case .map:
+                        mapContent(snapshot)
+                    case .largest, .oldest:
+                        DiskMapSliceTable(model: model)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 Divider()
                 DiskMapDetailRail(model: model)
                     .frame(width: Self.railWidth)
             }
         }
+    }
+
+    // MARK: - Map
+
+    private func mapContent(_ snapshot: DiskMapSnapshot) -> some View {
+        VStack(spacing: 0) {
+            breadcrumbBar
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+            GeometryReader { geometry in
+                ZStack(alignment: .topLeading) {
+                    TreemapSurface(
+                        tree: snapshot.tree, revision: snapshot.revision, zoomRoot: model.zoomRoot,
+                        selection: model.selection, colorMode: model.colorMode,
+                        onSelect: { model.select($0) },
+                        onOpen: { model.zoom(into: $0) },
+                        onBack: { model.zoomOut() },
+                        onHover: { model.hover = $0 },
+                        onQuickLook: { node in
+                            quickLookURL = URL(fileURLWithPath: snapshot.displayPath(of: node))
+                        },
+                        menu: { node in cellMenu(node, snapshot: snapshot) })
+                    if let hover = model.hover {
+                        hoverCard(hover, snapshot: snapshot, in: geometry.size)
+                            .allowsHitTesting(false)
+                    }
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 8)
+            legend
+                .padding(.horizontal, 14)
+                .padding(.bottom, 8)
+        }
+    }
+
+    private var breadcrumbBar: some View {
+        HStack(spacing: 6) {
+            Button {
+                model.zoomOut()
+            } label: {
+                Image(systemName: "chevron.left")
+            }
+            .buttonStyle(.borderless)
+            .disabled(model.zoomRoot == FileTree.root)
+            .help("Back out one level (Escape)")
+            let crumbs = model.breadcrumbs
+            ForEach(Array(crumbs.enumerated()), id: \.offset) { index, crumb in
+                if index > 0 {
+                    Text("\u{203A}")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                Button(crumb.name) {
+                    if crumb.node != model.zoomRoot { model.zoom(into: crumb.node) }
+                }
+                .buttonStyle(.plain)
+                .font(.caption.weight(index == crumbs.count - 1 ? .semibold : .regular))
+                .foregroundStyle(index == crumbs.count - 1 ? .primary : .secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            }
+            Spacer(minLength: 8)
+            Text("Double-click a folder to open it \u{00B7} Escape to go back")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
+        }
+    }
+
+    private var legend: some View {
+        HStack(spacing: 12) {
+            ForEach(DiskMapStyle.legend(for: model.colorMode)) { entry in
+                HStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(entry.color)
+                        .frame(width: 9, height: 9)
+                    Text(entry.label)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func hoverCard(
+        _ hover: TreemapHover, snapshot: DiskMapSnapshot, in size: CGSize
+    )
+        -> some View
+    {
+        let tree = snapshot.tree
+        let parentBytes = max(tree.bytes[Int(hover.parent)], 1)
+        let name: String
+        let bytes: UInt64
+        var detail: String
+        var isFolder = false
+        if hover.node == TreemapCell.aggregateNode {
+            name = "\(hover.aggregateCount.formatted()) more items"
+            bytes = hover.aggregateBytes
+            detail = "Too small to draw separately"
+        } else {
+            let i = Int(hover.node)
+            let flags = tree.flags[i]
+            bytes = tree.bytes[i]
+            if flags.contains(.smallFilesFold) {
+                let kind = tree.kind[i]
+                name =
+                    "\(tree.count[i].formatted()) small \(kind == .other ? "items" : kind.label.lowercased())"
+                detail = "Folded together for the map"
+            } else {
+                name = tree.name(of: hover.node)
+                isFolder = flags.contains(.directory) && tree.childCount[i] > 0
+                detail =
+                    isFolder && !flags.contains(.smallFilesFold)
+                    ? "\(tree.count[i].formatted()) items \u{00B7} double-click to open"
+                    : (flags.contains(.directory) ? "Folder" : tree.kind[i].label)
+            }
+        }
+        let share = Double(bytes) / Double(parentBytes) * 100
+        let parentName =
+            hover.parent == FileTree.root ? snapshot.scope.rootName : tree.name(of: hover.parent)
+        let cardWidth: CGFloat = 250
+        let cardHeight: CGFloat = 64
+        let x = min(max(8, hover.rect.midX - cardWidth / 2), max(8, size.width - cardWidth - 8))
+        let below = hover.rect.maxY + 8
+        let y = below + cardHeight <= size.height ? below : max(8, hover.rect.minY - cardHeight - 8)
+        return VStack(alignment: .leading, spacing: 3) {
+            Text(name)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .truncationMode(.middle)
+            HStack(spacing: 6) {
+                Text(ByteFormat.string(bytes))
+                    .font(.caption2.weight(.semibold).monospacedDigit())
+                Text(String(format: "%.1f%% of %@", share, parentName))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            Text(detail)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .frame(width: cardWidth, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 7))
+        .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.secondary.opacity(0.15)))
+        .offset(x: x, y: y)
+    }
+
+    private func cellMenu(_ node: Int32, snapshot: DiskMapSnapshot) -> NSMenu? {
+        let tree = snapshot.tree
+        guard Int(node) < tree.nodeCount else { return nil }
+        let path = snapshot.displayPath(of: node)
+        let flags = tree.flags[Int(node)]
+        let menu = NSMenu()
+        if flags.contains(.directory), !flags.contains(.smallFilesFold),
+            tree.childCount[Int(node)] > 0
+        {
+            menu.addItem(
+                ClosureMenuItem("Open in Map", symbol: "square.grid.2x2") { model.zoom(into: node) }
+            )
+        }
+        menu.addItem(
+            ClosureMenuItem("Reveal in Finder", symbol: "folder") {
+                ProcessActions.revealInFinder(path: path)
+            })
+        if !flags.contains(.smallFilesFold) {
+            menu.addItem(
+                ClosureMenuItem("Quick Look", symbol: "eye") {
+                    quickLookURL = URL(fileURLWithPath: path)
+                })
+        }
+        menu.addItem(
+            ClosureMenuItem("Copy Path", symbol: "doc.on.doc") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(path, forType: .string)
+            })
+        return menu
     }
 
     private var scanning: some View {

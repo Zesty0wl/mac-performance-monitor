@@ -38,6 +38,7 @@ final class DiskMapModel: ObservableObject {
     nonisolated static let rowLimit = 2_000
 
     enum ViewMode: String, CaseIterable, Identifiable {
+        case map = "Map"
         case largest = "Largest"
         case oldest = "Oldest"
         var id: String { rawValue }
@@ -99,7 +100,12 @@ final class DiskMapModel: ObservableObject {
     /// Mounted user volumes offered in the scope menu.
     @Published private(set) var externalVolumes: [VolumeInfo] = []
     @Published var selection: Int32?
-    @Published var viewMode: ViewMode = .largest
+    @Published var viewMode: ViewMode = .map
+    @Published var colorMode: DiskMapColorMode = .kind
+    /// The directory the map is zoomed into; the root when not zoomed.
+    @Published private(set) var zoomRoot: Int32 = FileTree.root
+    /// The cell under the pointer, for the hover card.
+    @Published var hover: TreemapHover?
     @Published var largestKind: LargestKind = .files
     @Published var ageBand: AgeBand = .oneYear
     @Published var minimumSize: MinimumSize = .oneMB
@@ -143,8 +149,12 @@ final class DiskMapModel: ObservableObject {
     func bind(appState: AppState, fullDiskAccess: FullDiskAccessManager) {
         self.fullDiskAccess = fullDiskAccess
         guard windowCancellable == nil else { return }
+        // Transitions only: the page exists, so the current value is not a
+        // close, whatever it reads (the benchmark harness mounts the page
+        // without ever opening a window).
         windowCancellable = appState.$mainWindowOpen
             .removeDuplicates()
+            .dropFirst()
             .sink { [weak self] open in
                 if !open { self?.windowClosed() }
             }
@@ -168,6 +178,8 @@ final class DiskMapModel: ObservableObject {
         rows = []
         rowsRevision += 1
         selection = nil
+        zoomRoot = FileTree.root
+        hover = nil
         AppLog.ui.notice("Disk Map released its tree on window close")
     }
 
@@ -183,6 +195,8 @@ final class DiskMapModel: ObservableObject {
         rows = []
         rowsRevision += 1
         selection = nil
+        zoomRoot = FileTree.root
+        hover = nil
         lastError = nil
         restore(newScope)
     }
@@ -303,6 +317,8 @@ final class DiskMapModel: ObservableObject {
         progress = nil
         preview = nil
         selection = nil
+        zoomRoot = FileTree.root
+        hover = nil
         rebuildRows()
         FDWatchdog.check(after: "disk map scan")
         let counts = snapshot.reconciliation.counts
@@ -341,6 +357,7 @@ final class DiskMapModel: ObservableObject {
                 self.isRestoring = false
                 guard let loaded, self.scope == scope, self.snapshot == nil else { return }
                 self.snapshot = loaded
+                self.zoomRoot = FileTree.root
                 self.rebuildRows()
                 AppLog.ui.notice("Disk Map snapshot restored (\(loaded.tree.nodeCount) nodes)")
             }
@@ -349,6 +366,59 @@ final class DiskMapModel: ObservableObject {
 
     func clearError() {
         lastError = nil
+    }
+
+    // MARK: - Map navigation
+
+    /// Zoom the map into a directory that has children to show.
+    func zoom(into node: Int32) {
+        guard let tree = snapshot?.tree, Int(node) < tree.nodeCount else { return }
+        let flags = tree.flags[Int(node)]
+        guard flags.contains(.directory), !flags.contains(.smallFilesFold),
+            tree.childCount[Int(node)] > 0
+        else { return }
+        zoomRoot = node
+        hover = nil
+        if let selection, !tree.node(selection, isWithin: node) { self.selection = nil }
+    }
+
+    /// One level up, keeping the directory just left as the selection so the
+    /// eye lands back where it was.
+    func zoomOut() {
+        guard let tree = snapshot?.tree, zoomRoot != FileTree.root else { return }
+        let leaving = zoomRoot
+        zoomRoot = tree.parent[Int(zoomRoot)]
+        selection = leaving
+        hover = nil
+    }
+
+    /// Show a node in the map: zoom to its parent (or to the node itself when
+    /// it is a directory with children the user came from a list to see) and
+    /// select it.
+    func reveal(_ node: Int32) {
+        guard let tree = snapshot?.tree, Int(node) < tree.nodeCount else { return }
+        viewMode = .map
+        zoomRoot = node == FileTree.root ? FileTree.root : tree.parent[Int(node)]
+        selection = node
+        hover = nil
+    }
+
+    /// The zoom root's ancestry, root first, with display names.
+    var breadcrumbs: [(node: Int32, name: String)] {
+        guard let snapshot else { return [] }
+        return snapshot.tree.ancestry(of: zoomRoot).map { node in
+            (node, node == FileTree.root ? snapshot.scope.rootName : snapshot.tree.name(of: node))
+        }
+    }
+
+    /// Hand a snapshot in directly, for the chart benchmark harness.
+    func installForBenchmark(_ snapshot: DiskMapSnapshot) {
+        cancelScan()
+        scope = snapshot.scope
+        self.snapshot = snapshot
+        zoomRoot = FileTree.root
+        selection = nil
+        rebuildRows()
     }
 
     // MARK: - Selection and lookups
@@ -433,6 +503,8 @@ final class DiskMapModel: ObservableObject {
             if !needle.isEmpty, !hit[i] { continue }
             let isDirectory = flags.contains(.directory)
             switch mode {
+            case .map:
+                return []
             case .largest:
                 switch largestKind {
                 case .files:
@@ -451,6 +523,7 @@ final class DiskMapModel: ObservableObject {
             }
         }
         switch mode {
+        case .map: break
         case .largest: candidates.sort { $0.key > $1.key }
         case .oldest: candidates.sort { $0.key < $1.key }
         }
