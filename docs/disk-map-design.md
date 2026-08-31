@@ -83,6 +83,38 @@ and no volume figure to reconcile against.
   (directories to depth 3 above 0.1% of bytes so far) for progressive drawing;
   the full tree is published once at the end.
 
+## The treemap
+
+- Layout is the squarified treemap of Bruls, Huizing and van Wijk
+  (`TreemapLayout.squarify`), run per directory by `TreemapScene.build`:
+  children largest first, tiny ones folded into one "N more" cell, a
+  directory subdivided only when its cell is at least 40 by 28 points, with
+  a 16 point title strip when there is room, to a default depth of six
+  levels. Because subdivision needs room, the cell count is bounded by the
+  map's area rather than by depth (about 1 600 cells for a top-level view
+  and 2 000 to 5 000 zoomed in), and the layout takes under a millisecond.
+- Rendering is an AppKit `LiveSurfaceView` subclass painting into a
+  `CALayer` with Core Graphics: per-mode `CGColor` palettes resolved once,
+  label texts decided once per scene, labels drawn from a truncating
+  `CTLine` cache. Hover and selection are two border-only layers moved over
+  the map, so pointer movement never repaints anything. Measured with
+  `--benchmark-charts --scenario diskMapPage --mode host` on a 1400 by 900
+  map: a zoom (full relayout and repaint) costs about 39 ms of main-thread
+  time end to end, of which paint is 11 to 15 ms; an idle map costs 0.1 ms
+  per tick. `MPM_DISKMAP_TIMING=1` prints the scene and paint split.
+- Colour modes: Kind (a categorical ramp per `FileKind`, folders in a
+  cool grey), Age (five bands from under a month to over two years), Depth
+  (one hue stepping darker per level). Light and dark variants differ.
+- Interaction: single click selects (the rail follows), double-click or
+  Return opens a folder, Escape or the breadcrumb goes back, arrows walk
+  siblings, Space is Quick Look, right-click offers Open in Map, Reveal in
+  Finder, Quick Look and Copy Path. Top-level cells are exposed as
+  accessibility elements with their frames.
+- Do not attach per-cell `NSView` tooltips: the tooltip owner is not
+  retained, and a temporary `NSString` owner crashed in
+  `NSToolTipManager displayToolTip:` when its timer fired. The hover card
+  carries the same information.
+
 ## Errors, by cause
 
 `EPERM` is privacy protection (TCC): Full Disk Access clears it, and only these

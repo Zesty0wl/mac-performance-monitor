@@ -39,6 +39,8 @@ struct DiskMapSliceTable: View {
     private var controls: some View {
         HStack(spacing: 12) {
             switch model.viewMode {
+            case .map:
+                EmptyView()
             case .largest:
                 Picker("Show", selection: $model.largestKind) {
                     ForEach(DiskMapModel.LargestKind.allCases) { Text($0.rawValue).tag($0) }
@@ -151,7 +153,7 @@ struct DiskMapSliceTable: View {
         let title: String
         let detail: String
         switch model.viewMode {
-        case .largest:
+        case .map, .largest:
             title = model.filterText.isEmpty ? "Nothing to show" : "No matches"
             detail =
                 model.filterText.isEmpty

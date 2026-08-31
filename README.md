@@ -67,6 +67,15 @@ Disk throughput, service latency, SMART health, free space, and top I/O processe
 
 ![Disk](docs/images/disk.png)
 
+Disk Map: scan the startup disk, a volume or any folder and see what is using
+the space as a treemap you can zoom into, coloured by kind, age or depth, with
+Largest and Oldest views, a bar that reconciles the scan against the volume's
+used space (purgeable, clones, folders macOS would not let it read), and Reveal
+in Finder and Quick Look on every item. Byte-exact against `du`, a full 3 M-file
+disk in about twenty seconds, and the last scan comes back instantly:
+
+![Disk Map](docs/images/disk-map.png)
+
 GPU: utilization, power, clock states, and who is using the GPU, with AI
 workloads picked out:
 

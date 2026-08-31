@@ -96,7 +96,7 @@ public struct DiskMapReconciliation: Sendable, Equatable, Codable {
         return min(1, Double(scannedBytes) / Double(usedBytes))
     }
 
-    static func compute(
+    public static func compute(
         scope: DiskMapScope,
         mountPoint: String,
         volume: VolumeInfo?,

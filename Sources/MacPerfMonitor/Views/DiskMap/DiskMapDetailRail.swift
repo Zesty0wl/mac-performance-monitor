@@ -75,7 +75,11 @@ struct DiskMapDetailRail: View {
         }
 
         if !isFold {
-            actions(displayPath: displayPath, isDirectory: isDirectory)
+            actions(
+                node: node, displayPath: displayPath,
+                canOpen: isDirectory && tree.childCount[i] > 0)
+        } else {
+            showInMap(node)
         }
 
         if isDirectory, tree.childCount[i] > 0 {
@@ -220,23 +224,49 @@ struct DiskMapDetailRail: View {
         }
     }
 
-    private func actions(displayPath: String, isDirectory: Bool) -> some View {
-        HStack(spacing: 8) {
-            Button {
-                ProcessActions.revealInFinder(path: displayPath)
-            } label: {
-                Label("Reveal in Finder", systemImage: "folder")
+    private func actions(node: Int32, displayPath: String, canOpen: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Button {
+                    ProcessActions.revealInFinder(path: displayPath)
+                } label: {
+                    Label("Reveal in Finder", systemImage: "folder")
+                }
+                .help("Show this item in the Finder")
+                Button {
+                    quickLookURL = URL(fileURLWithPath: displayPath)
+                } label: {
+                    Label("Quick Look", systemImage: "eye")
+                }
+                .help("Preview without opening")
             }
-            .help("Show this item in the Finder")
-            Button {
-                quickLookURL = URL(fileURLWithPath: displayPath)
-            } label: {
-                Label("Quick Look", systemImage: "eye")
+            HStack(spacing: 8) {
+                if canOpen, model.viewMode == .map, model.zoomRoot != node {
+                    Button {
+                        model.zoom(into: node)
+                    } label: {
+                        Label("Open in Map", systemImage: "square.grid.2x2")
+                    }
+                    .help("Zoom the map into this folder")
+                }
+                showInMap(node)
             }
-            .help("Preview without opening (Space)")
-            .keyboardShortcut(.space, modifiers: [])
         }
         .controlSize(.small)
+    }
+
+    /// From a list, jump to where the item sits in the map.
+    @ViewBuilder
+    private func showInMap(_ node: Int32) -> some View {
+        if model.viewMode != .map {
+            Button {
+                model.reveal(node)
+            } label: {
+                Label("Show in Map", systemImage: "rectangle.3.group")
+            }
+            .controlSize(.small)
+            .help("Switch to the map with this item selected")
+        }
     }
 
     private func topContents(tree: FileTree, node: Int32) -> some View {
