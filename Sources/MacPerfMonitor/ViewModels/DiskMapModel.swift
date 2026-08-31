@@ -298,12 +298,14 @@ final class DiskMapModel: ObservableObject {
     var progressFraction: Double? { progress?.fraction }
 
     var statusText: String {
-        if isPreparing { return "Checking folder access\u{2026}" }
-        guard let progress else { return "Starting\u{2026}" }
+        if isPreparing { return String(localized: "Checking folder access\u{2026}") }
+        guard let progress else { return String(localized: "Starting\u{2026}") }
         let items = Self.compactCount(progress.entries)
         let elapsed = Int(progress.elapsed)
         let clock = String(format: "%d:%02d", elapsed / 60, elapsed % 60)
-        return "\(items) items \u{00B7} \(ByteFormat.string(progress.bytes)) \u{00B7} \(clock)"
+        return String(
+            format: String(localized: "%1$@ items \u{00B7} %2$@ \u{00B7} %3$@"), items,
+            ByteFormat.string(progress.bytes), clock)
     }
 
     var currentPathText: String { progress?.currentPath ?? "" }

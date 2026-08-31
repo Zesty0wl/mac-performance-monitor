@@ -73,6 +73,27 @@ dash**. Use a colon, a pair of commas, parentheses, or two separate sentences
 instead. This keeps the prose plain and consistent. The rule applies to product
 copy and docs; ordinary code comments are exempt.
 
+## Translations
+
+MacPerfMonitor is localized by its community. English strings live in
+`Sources/MacPerfMonitor/Resources/en.lproj/Localizable.strings` with one folder per
+language beside it. Simplified Chinese arrived as a community pull request: thank you!
+
+To add a language:
+
+1. Copy `en.lproj` to your locale's folder, for example `fr.lproj`, and translate the
+   right-hand values. The left-hand side stays in English; it is the lookup key.
+2. Add a case to `AppLanguage` in
+   `Sources/MacPerfMonitor/Settings/AppLanguageManager.swift` so the language appears
+   in the Settings language picker.
+3. Build with `Scripts/run.sh`, switch the language in Settings, and click through the
+   app looking for untranslated or overflowing text.
+4. Open a pull request. Partial translations are fine to start with; any key missing
+   from your file falls back to English.
+
+Keep format specifiers (`%@`, `%lld`) exactly as they appear in the English value and
+in the same order, unless your language needs reordering (then use `%1$@`, `%2$@`).
+
 ## Submitting changes
 
 1. Fork the repository and create a topic branch.

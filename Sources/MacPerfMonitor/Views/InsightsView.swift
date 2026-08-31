@@ -121,13 +121,13 @@ struct InsightsView: View {
 
 /// A titled card used by each History section, matching the app's panel style.
 private struct HistorySection<Content: View>: View {
-    let title: String
+    let title: LocalizedStringKey
     let systemImage: String
-    let subtitle: String?
+    let subtitle: LocalizedStringKey?
     @ViewBuilder let content: Content
 
     init(
-        _ title: String, systemImage: String, subtitle: String? = nil,
+        _ title: LocalizedStringKey, systemImage: String, subtitle: LocalizedStringKey? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
@@ -444,9 +444,11 @@ private struct PressureEventRow: View {
 
     private var driverLine: String {
         if let name = event.dominantName {
-            return "Largest consumer: \(name) (\(ByteFormat.string(event.dominantFootprint)))"
+            return String(
+                format: String(localized: "Largest consumer: %@ (%@)"), name,
+                ByteFormat.string(event.dominantFootprint))
         }
-        return "No dominant process recorded"
+        return String(localized: "No dominant process recorded")
     }
 }
 
@@ -525,7 +527,7 @@ private struct LeakCard: View {
         .processRowActions(identity: entry.identity)
     }
 
-    private func stat(_ label: String, _ value: String) -> some View {
+    private func stat(_ label: LocalizedStringKey, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(value)
                 .font(.callout.monospacedDigit().weight(.semibold))
@@ -600,14 +602,18 @@ private struct TopConsumersSection: View {
         }
     }
 
-    private var consumerSubtitle: String {
+    private var consumerSubtitle: LocalizedStringKey {
         switch metric {
         case .averageFootprint, .peakFootprint:
             return "Heaviest memory users over the selected window."
-        case .averageCPU: return "Highest average CPU use over the selected window."
-        case .averageEnergy: return "Highest average energy impact over the selected window."
-        case .averageNetwork: return "Highest average network throughput over the selected window."
-        case .averageDisk: return "Highest attributed disk throughput over the selected window."
+        case .averageCPU:
+            return "Highest average CPU use over the selected window."
+        case .averageEnergy:
+            return "Highest average energy impact over the selected window."
+        case .averageNetwork:
+            return "Highest average network throughput over the selected window."
+        case .averageDisk:
+            return "Highest attributed disk throughput over the selected window."
         }
     }
 }
@@ -672,20 +678,29 @@ private struct ConsumerRow: View {
     private var secondaryLine: String {
         switch metric {
         case .averageFootprint:
-            return
-                "peak \(ByteFormat.string(consumer.peakFootprint)) · \(consumer.sampleCount) samples"
+            return String(
+                format: String(localized: "peak %@ · %d samples"),
+                ByteFormat.string(consumer.peakFootprint), consumer.sampleCount)
         case .peakFootprint:
-            return
-                "avg \(ByteFormat.string(consumer.averageFootprint)) · \(consumer.sampleCount) samples"
+            return String(
+                format: String(localized: "avg %@ · %d samples"),
+                ByteFormat.string(consumer.averageFootprint), consumer.sampleCount)
         case .averageCPU:
-            return
-                "avg \(ByteFormat.string(consumer.averageFootprint)) memory · \(consumer.sampleCount) samples"
+            return String(
+                format: String(localized: "avg %@ memory · %d samples"),
+                ByteFormat.string(consumer.averageFootprint), consumer.sampleCount)
         case .averageEnergy:
-            return "relative energy impact · \(consumer.sampleCount) samples"
+            return String(
+                format: String(localized: "relative energy impact · %d samples"),
+                consumer.sampleCount)
         case .averageNetwork:
-            return "download + upload · \(consumer.sampleCount) samples"
+            return String(
+                format: String(localized: "download + upload · %d samples"),
+                consumer.sampleCount)
         case .averageDisk:
-            return "attributed read + write · \(consumer.sampleCount) samples"
+            return String(
+                format: String(localized: "attributed read + write · %d samples"),
+                consumer.sampleCount)
         }
     }
 }
@@ -747,7 +762,7 @@ private struct RosettaSection: View {
         }
     }
 
-    private func metric(_ label: String, _ value: String) -> some View {
+    private func metric(_ label: LocalizedStringKey, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value)
                 .font(.title2.weight(.semibold).monospacedDigit())

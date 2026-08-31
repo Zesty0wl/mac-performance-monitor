@@ -6,6 +6,14 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Added
+
+- Simplified Chinese localization, contributed by @zbsdsb, with a language picker
+  in Settings (Follow System, English, or 简体中文). The Disk Map, its Full Disk
+  Access flow, and the advisor's guidance are fully translated, and the app
+  relaunches into the chosen language reliably.
+- A translations guide in CONTRIBUTING.md: adding a language is one pull request.
+
 ## [1.6.0] - 2026-08-31
 
 ### Added

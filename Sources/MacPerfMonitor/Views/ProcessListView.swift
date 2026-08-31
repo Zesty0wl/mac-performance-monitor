@@ -351,8 +351,12 @@ private struct ProcessTable: View, Equatable {
             menu.addItem(
                 ClosureMenuItem(
                     addable > 0
-                        ? "Add \(addable) \(addable == 1 ? "Process" : "Processes") to Analytics"
-                        : "Analytics Full",
+                        ? (addable == 1
+                            ? String(
+                                format: String(localized: "Add %d Process to Analytics"), addable)
+                            : String(
+                                format: String(localized: "Add %d Processes to Analytics"), addable))
+                        : String(localized: "Analytics Full"),
                     symbol: "chart.xyaxis.line", enabled: addable > 0
                 ) { addSelectionToMonitor(ids) })
             return menu
@@ -362,37 +366,49 @@ private struct ProcessTable: View, Equatable {
         let path = live?.executablePath.flatMap { $0.isEmpty ? nil : $0 }
 
         menu.addItem(
-            ClosureMenuItem("Codesign\u{2026}", symbol: "checkmark.seal", enabled: path != nil) {
+            ClosureMenuItem(
+                String(localized: "Codesign\u{2026}"), symbol: "checkmark.seal",
+                enabled: path != nil
+            ) {
                 if let live = model.currentSample(for: id) {
                     ProcessRowIntent.showCodesign(
                         sample: live, appState: appState, bringWindowForward: false)
                 }
             })
         menu.addItem(
-            ClosureMenuItem("Reveal in Finder", symbol: "folder", enabled: path != nil) {
+            ClosureMenuItem(
+                String(localized: "Reveal in Finder"), symbol: "folder", enabled: path != nil
+            ) {
                 _ = ProcessActions.revealInFinder(path: path)
             })
         if let inspect = inspectAction(for: id) {
             menu.addItem(
-                ClosureMenuItem("Inspect Memory\u{2026}", symbol: "scope", handler: inspect))
+                ClosureMenuItem(
+                    String(localized: "Inspect Memory\u{2026}"), symbol: "scope", handler: inspect))
         }
         if let openFiles = openFilesAction(for: id) {
             menu.addItem(
                 ClosureMenuItem(
-                    "Open Files & Sockets\u{2026}", symbol: "doc.on.doc", handler: openFiles))
+                    String(localized: "Open Files & Sockets\u{2026}"), symbol: "doc.on.doc",
+                    handler: openFiles))
         }
         if let deepDive = deepDiveAction(for: id) {
             menu.addItem(
-                ClosureMenuItem("Deep Dive\u{2026}", symbol: "stethoscope", handler: deepDive))
+                ClosureMenuItem(
+                    String(localized: "Deep Dive\u{2026}"), symbol: "stethoscope", handler: deepDive
+                ))
         }
         let isMonitored = monitor.contains(id)
         menu.addItem(
             ClosureMenuItem(
-                isMonitored ? "In Analytics" : "Add to Analytics", symbol: "chart.xyaxis.line",
+                isMonitored
+                    ? String(localized: "In Analytics") : String(localized: "Add to Analytics"),
+                symbol: "chart.xyaxis.line",
                 enabled: !isMonitored && !monitor.isFull
             ) { monitor.add(id) })
 
-        let groupItem = NSMenuItem(title: "Add to Group", action: nil, keyEquivalent: "")
+        let groupItem = NSMenuItem(
+            title: String(localized: "Add to Group"), action: nil, keyEquivalent: "")
         groupItem.image = NSImage(
             systemSymbolName: "square.stack.3d.up", accessibilityDescription: nil)
         let groupMenu = NSMenu()
@@ -406,7 +422,7 @@ private struct ProcessTable: View, Equatable {
         }
         if !groupStore.addTargets.isEmpty { groupMenu.addItem(.separator()) }
         groupMenu.addItem(
-            ClosureMenuItem("New Group from This\u{2026}") {
+            ClosureMenuItem(String(localized: "New Group from This\u{2026}")) {
                 if let s = model.currentSample(for: id) {
                     groupStore.add(
                         ProcessGroup(name: s.displayName, rule: .any([Self.groupRule(for: s)])))
@@ -417,7 +433,10 @@ private struct ProcessTable: View, Equatable {
 
         menu.addItem(.separator())
         menu.addItem(
-            ClosureMenuItem("Force Quit (kill -9)", symbol: "xmark.octagon", enabled: live != nil) {
+            ClosureMenuItem(
+                String(localized: "Force Quit (kill -9)"), symbol: "xmark.octagon",
+                enabled: live != nil
+            ) {
                 appState.pendingForceQuit = id
             })
         return menu

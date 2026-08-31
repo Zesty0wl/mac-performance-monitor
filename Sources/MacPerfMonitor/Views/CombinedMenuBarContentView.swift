@@ -139,12 +139,16 @@ struct CombinedMenuBarContentView: View {
     private var alarmText: String {
         let kinds = model.activeAlertKinds
         var labels: [String] = []
-        if kinds.contains(.criticalPressure) { labels.append("critical memory pressure") }
-        if kinds.contains(.swap) { labels.append("heavy swap use") }
-        if kinds.contains(.processCeiling) { labels.append("memory ceiling") }
-        if kinds.contains(.leak) { labels.append("possible memory leak") }
-        if kinds.contains(.highCPU) { labels.append("sustained high CPU") }
-        if kinds.contains(.thermalThrottle) { labels.append("thermal throttling") }
+        if kinds.contains(.criticalPressure) {
+            labels.append(String(localized: "critical memory pressure"))
+        }
+        if kinds.contains(.swap) { labels.append(String(localized: "heavy swap use")) }
+        if kinds.contains(.processCeiling) { labels.append(String(localized: "memory ceiling")) }
+        if kinds.contains(.leak) { labels.append(String(localized: "possible memory leak")) }
+        if kinds.contains(.highCPU) { labels.append(String(localized: "sustained high CPU")) }
+        if kinds.contains(.thermalThrottle) {
+            labels.append(String(localized: "thermal throttling"))
+        }
         return labels.joined(separator: " · ")
     }
 
@@ -190,7 +194,8 @@ struct CombinedMenuBarContentView: View {
 
             Menu {
                 Button(
-                    appMode.mode == .full ? "Pause history logging" : "Resume history logging",
+                    LocalizedStringKey(
+                        appMode.mode == .full ? "Pause history logging" : "Resume history logging"),
                     systemImage: appMode.mode == .full ? "pause.circle" : "record.circle"
                 ) {
                     appMode.mode = appMode.mode == .full ? .menuBarOnly : .full
@@ -200,7 +205,8 @@ struct CombinedMenuBarContentView: View {
                 // makes room for them; see `NotchDisplayController`.
                 if notchDisplay.isSupported {
                     Button(
-                        notchDisplay.isNotchHidden ? "Show Notch" : "Hide Notch",
+                        LocalizedStringKey(
+                            notchDisplay.isNotchHidden ? "Show Notch" : "Hide Notch"),
                         systemImage: "menubar.rectangle"
                     ) {
                         dismiss()
@@ -252,13 +258,13 @@ struct CombinedMenuBarContentView: View {
 
     private var openTitle: String {
         switch openDestination {
-        case .processes: return "Open Processes"
-        case .battery: return "Open Energy"
-        case .network: return "Open Network"
-        case .diskUsage: return "Open Disk"
-        case .gpu: return "Open GPU"
-        case .dashboard: return "Open Dashboard"
-        default: return "Open"
+        case .processes: return String(localized: "Open Processes")
+        case .battery: return String(localized: "Open Energy")
+        case .network: return String(localized: "Open Network")
+        case .diskUsage: return String(localized: "Open Disk")
+        case .gpu: return String(localized: "Open GPU")
+        case .dashboard: return String(localized: "Open Dashboard")
+        default: return String(localized: "Open")
         }
     }
 }

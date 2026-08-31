@@ -365,7 +365,9 @@ struct GPUView: View {
 
     // MARK: - Bits
 
-    private func liveStat(_ label: String, _ feed: TextFeed, _ tint: NSColor) -> some View {
+    private func liveStat(
+        _ label: LocalizedStringKey, _ feed: TextFeed, _ tint: NSColor
+    ) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
                 .font(.caption2.weight(.semibold))
@@ -376,7 +378,7 @@ struct GPUView: View {
         }
     }
 
-    private func detailRow(_ label: String, _ feed: TextFeed) -> some View {
+    private func detailRow(_ label: LocalizedStringKey, _ feed: TextFeed) -> some View {
         GridRow {
             Text(label)
                 .font(.caption)
@@ -459,11 +461,14 @@ private struct AIWorkloadRowView: View {
 // MARK: - Panel chrome
 
 private struct GPUPanel<Content: View>: View {
-    let title: String
+    let title: LocalizedStringKey
     let systemImage: String
     @ViewBuilder var content: () -> Content
 
-    init(_ title: String, systemImage: String, @ViewBuilder content: @escaping () -> Content) {
+    init(
+        _ title: LocalizedStringKey, systemImage: String,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
         self.title = title
         self.systemImage = systemImage
         self.content = content
@@ -715,11 +720,10 @@ final class GPUTimelineStore: ObservableObject {
                 help: "How busy the GPU is right now, 0 to 100. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "The share of each interval the GPU spent executing work, from the graphics driver's own "
-                        + "device utilisation counter. It is the same figure Activity Monitor's GPU History shows.",
+                        "The share of each interval the GPU spent executing work, from the graphics driver's own device utilisation counter. It is the same figure Activity Monitor's GPU History shows.",
                     calculation:
-                        "IOAccelerator `Device Utilization %`, read from the IORegistry once a second; the "
-                        + "sparkline is the value over the selected range.")
+                        "IOAccelerator `Device Utilization %`, read from the IORegistry once a second; the sparkline is the value over the selected range."
+                )
             ),
             MetricCardData(
                 label: "GPU power",
@@ -728,11 +732,10 @@ final class GPUTimelineStore: ObservableObject {
                 help: "Power drawn by the GPU, in watts. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "How much power the GPU block is drawing. On Apple silicon the GPU shares the chip's "
-                        + "power budget with the CPU, so a busy GPU can throttle everything.",
+                        "How much power the GPU block is drawing. On Apple silicon the GPU shares the chip's power budget with the CPU, so a busy GPU can throttle everything.",
                     calculation:
-                        "The chip's GPU energy counter (IOReport `Energy Model`, the source powermetrics uses) "
-                        + "differenced between ticks and divided by the elapsed time.")
+                        "The chip's GPU energy counter (IOReport `Energy Model`, the source powermetrics uses) differenced between ticks and divided by the elapsed time."
+                )
             ),
             MetricCardData(
                 label: "Neural Engine",
@@ -742,9 +745,7 @@ final class GPUTimelineStore: ObservableObject {
                     "Neural Engine power; zero when no Core ML model is running. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "Power drawn by the Apple Neural Engine, the block Core ML runs models on. It reads zero "
-                        + "when idle, so any reading means an on-device model is executing. Its work is proxied "
-                        + "through a system daemon, so it cannot be attributed to a single process.",
+                        "Power drawn by the Apple Neural Engine, the block Core ML runs models on. It reads zero when idle, so any reading means an on-device model is executing. Its work is proxied through a system daemon, so it cannot be attributed to a single process.",
                     calculation:
                         "The chip's ANE energy counter (IOReport `Energy Model`) differenced between ticks."
                 )
@@ -756,11 +757,10 @@ final class GPUTimelineStore: ObservableObject {
                 help: "Unified memory currently mapped for the GPU. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "How much of the unified memory is currently in use by GPU clients: textures, buffers, "
-                        + "and, for AI runtimes, the model weights. It counts against the same RAM the CPU uses.",
+                        "How much of the unified memory is currently in use by GPU clients: textures, buffers, and, for AI runtimes, the model weights. It counts against the same RAM the CPU uses.",
                     calculation:
-                        "IOAccelerator `In use system memory`; the allocated figure in the Device panel is the "
-                        + "larger amount reserved to GPU clients including cached allocations.")
+                        "IOAccelerator `In use system memory`; the allocated figure in the Device panel is the larger amount reserved to GPU clients including cached allocations."
+                )
             ),
             MetricCardData(
                 label: "Active",
@@ -770,9 +770,7 @@ final class GPUTimelineStore: ObservableObject {
                 help: "Share of the time the GPU was powered and clocked. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "How much of the interval the GPU was powered on at all. The difference between this "
-                        + "and utilisation is time the GPU was awake but waiting; the Device panel shows which "
-                        + "clock states it ran in.",
+                        "How much of the interval the GPU was powered on at all. The difference between this and utilisation is time the GPU was awake but waiting; the Device panel shows which clock states it ran in.",
                     calculation:
                         "100 minus the residency of the OFF state in IOReport's GPU performance-state channel."
                 )

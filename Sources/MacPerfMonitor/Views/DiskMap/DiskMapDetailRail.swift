@@ -131,8 +131,10 @@ struct DiskMapDetailRail: View {
                     .lineLimit(2)
                     .truncationMode(.middle)
                 Text(
-                    trashed
-                        ? "In the Trash" : (isDirectory && kind == .folder ? "Folder" : kind.label)
+                    LocalizedStringKey(
+                        trashed
+                            ? "In the Trash"
+                            : (isDirectory && kind == .folder ? "Folder" : kind.label))
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -197,7 +199,11 @@ struct DiskMapDetailRail: View {
         }
     }
 
-    private func factRow(_ label: String, _ value: String, dim: Bool = false) -> some View {
+    private func factRow(
+        _ label: LocalizedStringKey, _ value: String, dim: Bool = false
+    )
+        -> some View
+    {
         GridRow {
             Text(label)
                 .font(.caption)
@@ -229,7 +235,7 @@ struct DiskMapDetailRail: View {
     private func badgeRow(_ badges: [String]) -> some View {
         HardwareFlowLayout(spacing: 5) {
             ForEach(badges, id: \.self) { badge in
-                Text(badge)
+                Text(LocalizedStringKey(badge))
                     .font(.caption2)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -248,21 +254,21 @@ struct DiskMapDetailRail: View {
                 Circle()
                     .fill(tint)
                     .frame(width: 8, height: 8)
-                Text(advice.tier.label)
+                Text(LocalizedStringKey(advice.tier.label))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(tint)
                 Text("\u{00B7}")
                     .foregroundStyle(.tertiary)
-                Text(advice.title)
+                Text(LocalizedStringKey(advice.title))
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)
             }
-            Text(advice.reason)
+            Text(LocalizedStringKey(advice.reason))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if let how = advice.howToReclaim {
-                Text(how)
+                Text(LocalizedStringKey(how))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -421,10 +427,7 @@ struct DiskMapDetailRail: View {
     }
 
     private func foldName(_ tree: FileTree, _ node: Int32) -> String {
-        let i = Int(node)
-        let kind = tree.kind[i]
-        let what = kind == .other ? "small items" : "small \(kind.label.lowercased())"
-        return "\(tree.count[i].formatted()) \(what)"
+        DiskMapFoldNaming.name(count: tree.count[Int(node)], kind: tree.kind[Int(node)])
     }
 
     private func shareText(_ fraction: Double) -> String {

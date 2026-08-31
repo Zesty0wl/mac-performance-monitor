@@ -86,14 +86,10 @@ struct SystemHeaderView: View {
                 + "green means hot but working as designed. Click for details.",
             explanation: MetricExplanation(
                 meaning:
-                    "The hottest of the CPU die's temperature sensors, the figure people mean "
-                    + "by \u{201C}CPU temperature\u{201D}. High numbers under load are normal on "
-                    + "Apple silicon; the colour turns orange or red only when macOS itself "
-                    + "reports thermal pressure, the signal that it is slowing work down.",
+                    "The hottest of the CPU die's temperature sensors, the figure people mean by \u{201C}CPU temperature\u{201D}. High numbers under load are normal on Apple silicon; the colour turns orange or red only when macOS itself reports thermal pressure, the signal that it is slowing work down.",
                 calculation:
-                    "Every P-core and E-core cluster sensor the SMC exposes is read on a short "
-                    + "throttle, and the card shows the maximum. The trend behind it is the "
-                    + "same two-hour window as the other header cards."),
+                    "Every P-core and E-core cluster sensor the SMC exposes is read on a short throttle, and the card shows the maximum. The trend behind it is the same two-hour window as the other header cards."
+            ),
             live: live.temperatureFeed)
     }
 
@@ -105,19 +101,23 @@ struct SystemHeaderView: View {
     private var coverageLine: some View {
         if let snapshot {
             HStack(spacing: 8) {
-                Text("\(snapshot.processes.count) processes")
+                Text(String(format: String(localized: "%d processes"), snapshot.processes.count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if snapshot.unreadableProcessCount > 0 {
                     Text("\u{2022}")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
-                    Text("\(snapshot.unreadableProcessCount) not readable")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .help(
-                            "Some processes are owned by other users or the system, so macOS does not allow \(AppInfo.displayName) to read their full memory figures."
-                        )
+                    Text(
+                        String(
+                            format: String(localized: "%d not readable"),
+                            snapshot.unreadableProcessCount)
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .help(
+                        "Some processes are owned by other users or the system, so macOS does not allow \(AppInfo.displayName) to read their full memory figures."
+                    )
                     coverageAction
                 }
                 Spacer()

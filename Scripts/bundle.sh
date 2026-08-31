@@ -124,4 +124,18 @@ else
   echo "warning: skipping menu bar icon ($MENU_ICON_SRC missing)" >&2
 fi
 
+# --- Localization tables ----------------------------------------------------
+# Copy every <lang>.lproj from the SPM source tree into the bundle's Resources
+# directory. SwiftPM's .process("Resources") stage merges them into the built
+# binary's module bundle, but the .app assembled here ships only the SPM
+# binary, so the merge is repeated at bundle time. macOS resolves the user's
+# preferred language against these directories at runtime.
+LPROJ_SRC="Sources/MacPerfMonitor/Resources"
+if compgen -G "$LPROJ_SRC/*.lproj" > /dev/null; then
+  for lproj in "$LPROJ_SRC"/*.lproj; do
+    cp -R "$lproj" "$APP/Contents/Resources/"
+    echo "==> Bundled localization $(basename "$lproj")"
+  done
+fi
+
 echo "Bundled $APP"

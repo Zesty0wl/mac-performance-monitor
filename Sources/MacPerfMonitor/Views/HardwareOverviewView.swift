@@ -643,7 +643,7 @@ private struct SensorDetailSheet: View {
 
 /// Label/value rows for a card, skipping facts that are not known yet.
 private struct HardwareFactRows: View {
-    let rows: [(String, String?)]
+    let rows: [(LocalizedStringKey, String?)]
 
     var body: some View {
         Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 5) {

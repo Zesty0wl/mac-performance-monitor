@@ -101,7 +101,7 @@ struct TemperatureMenuBarContentView: View {
         }
     }
 
-    private func detail(_ label: String, _ value: String) -> some View {
+    private func detail(_ label: LocalizedStringKey, _ value: String) -> some View {
         GridRow {
             Text(label).font(.caption).foregroundStyle(.secondary)
             Text(value).font(.caption.monospacedDigit()).gridColumnAlignment(.trailing)

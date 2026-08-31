@@ -21,8 +21,8 @@ enum AppMode: String, CaseIterable, Codable, Sendable {
     /// Short title for the Settings picker and the menu-bar toggle.
     var title: String {
         switch self {
-        case .full: return "Full"
-        case .menuBarOnly: return "Menu bar only"
+        case .full: return String(localized: "Full")
+        case .menuBarOnly: return String(localized: "Menu bar only")
         }
     }
 
@@ -30,11 +30,15 @@ enum AppMode: String, CaseIterable, Codable, Sendable {
     var summary: String {
         switch self {
         case .full:
-            return
-                "Menu bar read-outs plus a local history database — you get the dashboard's history ranges, the leak board, and pressure events."
+            return String(
+                localized:
+                    "Menu bar read-outs plus a local history database: you get the dashboard's history ranges, the leak board, and pressure events."
+            )
         case .menuBarOnly:
-            return
-                "Just the live menu bar read-outs. Nothing is written to disk, so the app stays as light as possible; history is unavailable until you turn logging back on."
+            return String(
+                localized:
+                    "Just the live menu bar read-outs. Nothing is written to disk, so the app stays as light as possible; history is unavailable until you turn logging back on."
+            )
         }
     }
 

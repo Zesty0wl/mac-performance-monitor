@@ -36,11 +36,12 @@ struct DiskMapReconciliationBar: View {
                     color: Color.secondary.opacity(0.45)))
         }
         if systemBytes > 0 {
-            result.append(Segment(id: "macos", label: "macOS", bytes: systemBytes, color: .teal))
+            result.append(
+                Segment(id: "macos", label: "macOS volumes", bytes: systemBytes, color: .teal))
         }
         if let free = reconciliation.availableBytes, free > 0 {
             result.append(
-                Segment(id: "free", label: "Free", bytes: free, color: DiskStyle.freeTrack))
+                Segment(id: "free", label: "Free space", bytes: free, color: DiskStyle.freeTrack))
         }
         return result
     }
@@ -57,9 +58,9 @@ struct DiskMapReconciliationBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(headline)
+                headlineText
                     .font(.subheadline.weight(.semibold))
-                Text(subheadline)
+                subheadlineText
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -74,25 +75,25 @@ struct DiskMapReconciliationBar: View {
         }
     }
 
-    private var headline: String {
+    private var headlineText: Text {
         if let used = reconciliation.usedBytes {
-            let name = reconciliation.volumeName ?? "Volume"
-            return "\(name): \(ByteFormat.string(used)) used"
+            let name = reconciliation.volumeName ?? String(localized: "Volume")
+            return Text("\(name): \(ByteFormat.string(used)) used")
         }
-        return "\(ByteFormat.string(scanned)) scanned"
+        return Text("\(ByteFormat.string(scanned)) scanned")
     }
 
-    private var subheadline: String {
-        var parts: [String] = []
-        parts.append(
-            "\(ByteFormat.string(scanned)) in \(compact(reconciliation.scannedItems)) items")
+    private var subheadlineText: Text {
+        var parts: [Text] = [
+            Text("\(ByteFormat.string(scanned)) in \(compact(reconciliation.scannedItems)) items")
+        ]
         if let total = reconciliation.totalBytes {
-            parts.append("\(ByteFormat.string(total)) capacity")
+            parts.append(Text("\(ByteFormat.string(total)) capacity"))
         }
         if reconciliation.volumeChangedDuringScan {
-            parts.append("volume changed during the scan")
+            parts.append(Text("volume changed during the scan"))
         }
-        return parts.joined(separator: " \u{00B7} ")
+        return parts.dropFirst().reduce(parts[0]) { $0 + Text(" \u{00B7} ") + $1 }
     }
 
     private var bar: some View {
@@ -119,7 +120,7 @@ struct DiskMapReconciliationBar: View {
                     RoundedRectangle(cornerRadius: 2)
                         .fill(segment.color)
                         .frame(width: 8, height: 8)
-                    Text(segment.label)
+                    Text(LocalizedStringKey(segment.label))
                         .font(.caption)
                     Text(ByteFormat.string(segment.bytes))
                         .font(.caption.monospacedDigit())
@@ -135,7 +136,8 @@ struct DiskMapReconciliationBar: View {
     private var chips: some View {
         if inTrashBytes > 0 {
             chipButton(
-                "In Trash \(ByteFormat.string(inTrashBytes))", tint: .green,
+                "In Trash \(ByteFormat.string(inTrashBytes))",
+                tint: .green,
                 help:
                     "Moved to the Trash from here. The space is freed when the Trash is emptied in Finder.",
                 action: nil)
@@ -154,9 +156,15 @@ struct DiskMapReconciliationBar: View {
                 "Shared \(ByteFormat.string(reconciliation.sharedBytes))",
                 help: "Bytes shared with clones or held by snapshots.")
         }
-        if let snapshots = reconciliation.localSnapshotCount, snapshots > 0 {
+        if let snapshots = reconciliation.localSnapshotCount, snapshots == 1 {
             chip(
-                "\(snapshots) local snapshot\(snapshots == 1 ? "" : "s")",
+                "1 local snapshot",
+                help:
+                    "Time Machine local snapshots hold space the scan cannot attribute to files. macOS thins them when space is needed."
+            )
+        } else if let snapshots = reconciliation.localSnapshotCount, snapshots > 1 {
+            chip(
+                "\(snapshots) local snapshots",
                 help:
                     "Time Machine local snapshots hold space the scan cannot attribute to files. macOS thins them when space is needed."
             )
@@ -181,20 +189,26 @@ struct DiskMapReconciliationBar: View {
                     "Folders belonging to another user or to the system that your account cannot list."
             )
         }
-        if counts.separateVolumes > 0 {
+        if counts.separateVolumes == 1 {
             chip(
-                "\(counts.separateVolumes) other volume\(counts.separateVolumes == 1 ? "" : "s")",
+                "1 other volume",
+                help:
+                    "Mount points inside this scope. Their contents belong to other volumes; scan them from the scope menu."
+            )
+        } else if counts.separateVolumes > 1 {
+            chip(
+                "\(counts.separateVolumes) other volumes",
                 help:
                     "Mount points inside this scope. Their contents belong to other volumes; scan them from the scope menu."
             )
         }
     }
 
-    private var purgeableHelp: String {
+    private var purgeableHelp: LocalizedStringKey {
         "Space macOS can reclaim on its own when needed: caches, optimised originals, synced content. It overlaps the files the scan counted."
     }
 
-    private func chip(_ text: String, help: String) -> some View {
+    private func chip(_ text: LocalizedStringKey, help: LocalizedStringKey) -> some View {
         Text(text)
             .font(.caption2)
             .padding(.horizontal, 6)
@@ -205,7 +219,7 @@ struct DiskMapReconciliationBar: View {
     }
 
     private func chipButton(
-        _ text: String, tint: Color, help: String, action: (() -> Void)?
+        _ text: LocalizedStringKey, tint: Color, help: LocalizedStringKey, action: (() -> Void)?
     ) -> some View {
         Button(action: { action?() }) {
             HStack(spacing: 4) {

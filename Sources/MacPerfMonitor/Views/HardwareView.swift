@@ -571,13 +571,13 @@ private struct HardwareChildRow: View {
 
 /// The panel card every Hardware page uses, matching the other tabs.
 struct HardwarePanel<Content: View>: View {
-    let title: String
+    let title: LocalizedStringKey
     let systemImage: String
     var action: (() -> Void)? = nil
     @ViewBuilder var content: () -> Content
 
     init(
-        _ title: String, systemImage: String, action: (() -> Void)? = nil,
+        _ title: LocalizedStringKey, systemImage: String, action: (() -> Void)? = nil,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.title = title

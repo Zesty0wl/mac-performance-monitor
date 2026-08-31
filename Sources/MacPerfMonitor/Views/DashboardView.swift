@@ -171,9 +171,8 @@ struct DashboardView: View {
             }
 
             dashboardFootnote(
-                "Total CPU is the share of all cores in use, 0–100%. Per-process CPU (in the list "
-                    + "and menubar) follows Activity Monitor — percent of one core, so a busy "
-                    + "multi-threaded app can exceed 100%.")
+                "Total CPU is the share of all cores in use, 0-100%. Per-process CPU (in the list and menubar) follows Activity Monitor: percent of one core, so a busy multi-threaded app can exceed 100%."
+            )
         }
     }
 
@@ -206,14 +205,13 @@ struct DashboardView: View {
                 .frame(height: 150)
                 .chartReloading(awaitingData)
             dashboardFootnote(
-                "Download and upload throughput across the Wi-Fi and Ethernet interfaces. "
-                    + "Turn on per-app network tracking in Settings to see which apps are responsible."
+                "Download and upload throughput across the Wi-Fi and Ethernet interfaces. Turn on per-app network tracking in Settings to see which apps are responsible."
             )
         }
     }
 
     private func networkStat(
-        _ label: String, _ feed: TextFeed, _ tint: Color, _ symbol: String
+        _ label: LocalizedStringKey, _ feed: TextFeed, _ tint: Color, _ symbol: String
     )
         -> some View
     {
@@ -229,8 +227,8 @@ struct DashboardView: View {
                 .frame(height: 110)
                 .chartReloading(awaitingData)
             dashboardFootnote(
-                "Swap is memory moved out to disk. A flat line at zero is ideal; a sustained climb "
-                    + "under pressure is the real warning sign.")
+                "Swap is memory moved out to disk. A flat line at zero is ideal; a sustained climb under pressure is the real warning sign."
+            )
         }
     }
 
@@ -279,8 +277,8 @@ struct DashboardView: View {
                 }
             }
             dashboardFootnote(
-                "Mean CPU over the selected range, as percent of one core; busy "
-                    + "multi-threaded work exceeds 100.")
+                "Mean CPU over the selected range, as percent of one core; busy multi-threaded work exceeds 100."
+            )
         }
     }
 
@@ -321,8 +319,8 @@ struct DashboardView: View {
                     .foregroundStyle(.secondary)
             }
             dashboardFootnote(
-                "Hottest CPU die sensor in orange, GPU die in red. The status ends "
-                    + "with macOS's own thermal pressure verdict.")
+                "Hottest CPU die sensor in orange, GPU die in red. The status ends with macOS's own thermal pressure verdict."
+            )
         }
     }
 
@@ -331,10 +329,17 @@ struct DashboardView: View {
     private var thermalStatus: String? {
         guard let system = model?.liveSystem else { return nil }
         var parts: [String] = []
-        if let cpu = system.cpuDieC { parts.append("CPU \(Int(cpu.rounded()))\u{00B0}") }
-        if let gpu = system.gpuDieC { parts.append("GPU \(Int(gpu.rounded()))\u{00B0}") }
+        if let cpu = system.cpuDieC {
+            parts.append(String(format: String(localized: "CPU %d°"), Int(cpu.rounded())))
+        }
+        if let gpu = system.gpuDieC {
+            parts.append(String(format: String(localized: "GPU %d°"), Int(gpu.rounded())))
+        }
         if let fan = system.fanRPM {
-            parts.append(fan == 0 ? "Fans off" : "Fans \(Int(fan.rounded())) rpm")
+            parts.append(
+                fan == 0
+                    ? String(localized: "Fans off")
+                    : String(format: String(localized: "Fans %d rpm"), Int(fan.rounded())))
         }
         guard !parts.isEmpty else { return nil }
         parts.append((system.thermalPressure ?? .nominal).label)
@@ -362,9 +367,12 @@ struct DashboardView: View {
     }
 
     /// A small uppercase caption over a live figure painted by AppKit.
-    private func liveStat(_ label: String, _ feed: TextFeed, _ tint: NSColor) -> some View {
+    private func liveStat(
+        _ label: LocalizedStringKey, _ feed: TextFeed, _ tint: NSColor
+    ) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label.uppercased())
+            Text(label)
+                .textCase(.uppercase)
                 .font(.caption2.weight(.semibold))
                 .tracking(0.6)
                 .foregroundStyle(.secondary)
@@ -422,7 +430,7 @@ struct DashboardView: View {
 
 // MARK: - Shared bits
 
-private func dashboardFootnote(_ text: String) -> some View {
+private func dashboardFootnote(_ text: LocalizedStringKey) -> some View {
     Text(text)
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -760,13 +768,19 @@ private struct DashboardSystemSubtitle: View {
         let cores = topology.logicalCores
         if topology.performanceCoreCount > 0 && topology.efficiencyCoreCount > 0 {
             parts.append(
-                "\(cores) cores (\(topology.performanceCoreCount)P + \(topology.efficiencyCoreCount)E)"
+                String(
+                    format: String(localized: "%d cores (%dP + %dE)"), cores,
+                    topology.performanceCoreCount, topology.efficiencyCoreCount)
             )
         } else {
-            parts.append("\(cores) core\(cores == 1 ? "" : "s")")
+            parts.append(
+                String(format: String(localized: cores == 1 ? "%d core" : "%d cores"), cores)
+            )
         }
         if timeline.totalRAM > 0 {
-            parts.append("\(ByteFormat.string(timeline.totalRAM)) memory")
+            parts.append(
+                String(format: String(localized: "%@ memory"), ByteFormat.string(timeline.totalRAM))
+            )
         }
         return parts.joined(separator: " · ")
     }
@@ -806,7 +820,7 @@ private struct DashboardMetricCards: View {
 /// every section reads with the same weight, spacing, and chrome. Matches the
 /// metric cards' fill and hairline border so the whole page is of a piece.
 private struct DashboardPanel<Content: View, Accessory: View>: View {
-    let title: String
+    let title: LocalizedStringKey
     let systemImage: String
     @ViewBuilder var accessory: () -> Accessory
     @ViewBuilder var content: () -> Content
@@ -839,7 +853,7 @@ private struct DashboardPanel<Content: View, Accessory: View>: View {
 
 extension DashboardPanel where Accessory == EmptyView {
     init(
-        _ title: String, systemImage: String,
+        _ title: LocalizedStringKey, systemImage: String,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.init(

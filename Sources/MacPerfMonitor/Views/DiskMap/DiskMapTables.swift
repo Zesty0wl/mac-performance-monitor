@@ -43,12 +43,14 @@ struct DiskMapSliceTable: View {
                 EmptyView()
             case .kinds:
                 if let kind = model.selectedKind {
-                    Text(kind.label)
+                    Text(LocalizedStringKey(kind.label))
                         .font(.subheadline.weight(.semibold))
                 }
             case .largest:
                 Picker("Show", selection: $model.largestKind) {
-                    ForEach(DiskMapModel.LargestKind.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(DiskMapModel.LargestKind.allCases) {
+                        Text(LocalizedStringKey($0.rawValue)).tag($0)
+                    }
                 }
                 .pickerStyle(.segmented)
                 .controlSize(.small)
@@ -56,12 +58,16 @@ struct DiskMapSliceTable: View {
                 .fixedSize()
             case .oldest:
                 Picker("Age", selection: $model.ageBand) {
-                    ForEach(DiskMapModel.AgeBand.allCases) { Text($0.label).tag($0) }
+                    ForEach(DiskMapModel.AgeBand.allCases) {
+                        Text(LocalizedStringKey($0.label)).tag($0)
+                    }
                 }
                 .controlSize(.small)
                 .fixedSize()
                 Picker("Size", selection: $model.minimumSize) {
-                    ForEach(DiskMapModel.MinimumSize.allCases) { Text($0.label).tag($0) }
+                    ForEach(DiskMapModel.MinimumSize.allCases) {
+                        Text(LocalizedStringKey($0.label)).tag($0)
+                    }
                 }
                 .controlSize(.small)
                 .fixedSize()
@@ -115,7 +121,7 @@ struct DiskMapSliceTable: View {
             }
             .width(min: 90, ideal: 104)
             TableColumn("Kind", value: \.kindLabel) { row in
-                Text(row.kindLabel)
+                Text(LocalizedStringKey(row.kindLabel))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -168,8 +174,8 @@ struct DiskMapSliceTable: View {
     }
 
     private var emptyState: some View {
-        let title: String
-        let detail: String
+        let title: LocalizedStringKey
+        let detail: LocalizedStringKey
         switch model.viewMode {
         case .kinds:
             title = model.selectedKind == nil ? "Choose a kind" : "Nothing of this kind"
@@ -181,12 +187,15 @@ struct DiskMapSliceTable: View {
             title = model.filterText.isEmpty ? "Nothing to show" : "No matches"
             detail =
                 model.filterText.isEmpty
-                ? "The scan found no \(model.largestKind == .files ? "files" : "folders") here."
+                ? (model.largestKind == .files
+                    ? "The scan found no files here." : "The scan found no folders here.")
                 : "Nothing named like \u{201C}\(model.filterText)\u{201D} in this scan."
         case .oldest:
             title = "Nothing that old"
+            let age = String(localized: String.LocalizationValue(model.ageBand.label))
+            let size = String(localized: String.LocalizationValue(model.minimumSize.label))
             detail =
-                "No files match \(model.ageBand.label.lowercased()) and \(model.minimumSize.label.lowercased()). Widen the filters to see more."
+                "No files match \(age.localizedLowercase) and \(size.localizedLowercase). Widen the filters to see more."
         }
         return ContentUnavailableView(title, systemImage: "tray", description: Text(detail))
     }

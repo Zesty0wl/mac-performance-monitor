@@ -259,9 +259,9 @@ private struct ProcessDetailDescription: View {
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Image(systemName: Self.categoryIcon(d.category)).foregroundStyle(tint)
-                Text(d.title).font(.callout.weight(.semibold))
+                Text(LocalizedStringKey(d.title)).font(.callout.weight(.semibold))
                 if let vendor = d.vendor {
-                    Text(vendor)
+                    Text(LocalizedStringKey(vendor))
                         .font(.caption2.weight(.medium))
                         .padding(.horizontal, 5).padding(.vertical, 1)
                         .background(.quaternary, in: Capsule())
@@ -272,7 +272,7 @@ private struct ProcessDetailDescription: View {
                     Text("not yet documented").font(.caption2).foregroundStyle(.tertiary)
                 }
             }
-            Text(d.detail).font(.callout).foregroundStyle(.secondary)
+            Text(LocalizedStringKey(d.detail)).font(.callout).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if d.expectedHigh {
                 Label("High CPU/memory is normal for this process.", systemImage: "info.circle")
@@ -523,8 +523,8 @@ private struct MetadataSection: View {
                     row(
                         "Coverage",
                         live.footprintReadable
-                            ? "Direct user read"
-                            : "Footprint not readable at user level")
+                            ? String(localized: "Direct user read")
+                            : String(localized: "Footprint not readable at user level"))
                 } else {
                     row("PID", "\(identity.pid)")
                     row(
@@ -541,7 +541,7 @@ private struct MetadataSection: View {
         }
     }
 
-    private func row(_ label: String, _ value: String) -> some View {
+    private func row(_ label: LocalizedStringKey, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(label)
                 .font(.caption)
@@ -562,8 +562,9 @@ private struct MetadataSection: View {
     private func cpuNowDescription(_ live: ProcessSample) -> String {
         let cores = max(CPUTopology.current.logicalCores, 1)
         let share = live.cpuPercent / Double(cores)
-        return
-            "\(CPUFormat.percent(live.cpuPercent)) of one core · \(CPUFormat.percent(share)) of total"
+        return String(
+            format: String(localized: "%@ of one core · %@ of total"),
+            CPUFormat.percent(live.cpuPercent), CPUFormat.percent(share))
     }
 
     /// Lifetime user-vs-system CPU split, from the cumulative CPU-time counters.
@@ -573,7 +574,9 @@ private struct MetadataSection: View {
         let total = live.cpuTimeUser &+ live.cpuTimeSystem
         guard total > 0 else { return "—" }
         let userPercent = Int((Double(live.cpuTimeUser) / Double(total) * 100).rounded())
-        return "\(userPercent)% user / \(100 - userPercent)% system (lifetime)"
+        return String(
+            format: String(localized: "%d%% user / %d%% system (lifetime)"),
+            userPercent, 100 - userPercent)
     }
 
     private func ageString(since start: Date) -> String {

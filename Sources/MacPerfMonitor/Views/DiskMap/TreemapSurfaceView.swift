@@ -317,7 +317,8 @@ final class TreemapSurfaceView: LiveSurfaceView {
                     cell.rect.height >= leafLabelMinimumHeight
                 else { return nil }
                 return CellText(
-                    name: "\(cell.aggregateCount.formatted()) more",
+                    name: String(
+                        format: String(localized: "%@ more"), cell.aggregateCount.formatted()),
                     size: ByteFormat.string(cell.aggregateBytes))
             }
             let i = Int(cell.node)
@@ -332,9 +333,7 @@ final class TreemapSurfaceView: LiveSurfaceView {
             let flags = tree.flags[i]
             let name: String
             if flags.contains(.smallFilesFold) {
-                let kind = tree.kind[i]
-                name =
-                    "\(tree.count[i].formatted()) small \(kind == .other ? "items" : kind.label.lowercased())"
+                name = DiskMapFoldNaming.name(count: tree.count[i], kind: tree.kind[i])
             } else {
                 name = tree.name(of: cell.node)
             }

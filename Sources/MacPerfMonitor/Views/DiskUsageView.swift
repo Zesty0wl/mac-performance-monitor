@@ -40,7 +40,7 @@ struct DiskUsageView: View {
         VStack(spacing: 0) {
             HStack {
                 Picker("Page", selection: $subPage) {
-                    ForEach(SubPage.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(SubPage.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -222,9 +222,8 @@ struct DiskUsageView: View {
                 .frame(height: 170)
                 .chartReloading(awaitingData)
             footnote(
-                "Physical traffic across real internal and external disks. Disk images are "
-                    + "excluded, and per-process attribution below may not add up to this: "
-                    + "filesystem caching, metadata, and paging are device traffic too.")
+                "Physical traffic across real internal and external disks. Disk images are excluded, and per-process attribution below may not add up to this: filesystem caching, metadata, and paging are device traffic too."
+            )
         }
     }
 
@@ -251,9 +250,8 @@ struct DiskUsageView: View {
                 .frame(height: 110)
                 .chartReloading(awaitingData)
             footnote(
-                "Service time is the device's average per completed operation; gaps mean no "
-                    + "IO happened in that interval. Utilization is the busiest disk's share "
-                    + "of time spent servicing IO.")
+                "Service time is the device's average per completed operation; gaps mean no IO happened in that interval. Utilization is the busiest disk's share of time spent servicing IO."
+            )
         }
     }
 
@@ -311,9 +309,8 @@ struct DiskUsageView: View {
                         slices: DiskCapacityBreakdown.slices(standaloneVolume: volume))
                 }
                 footnote(
-                    "APFS volumes share their container's free pool, so a container's volumes "
-                        + "are one bar. Purgeable space is allocated content the system can "
-                        + "reclaim when needed.")
+                    "APFS volumes share their container's free pool, so a container's volumes are one bar. Purgeable space is allocated content the system can reclaim when needed."
+                )
             } else {
                 Text("Reading volumes…")
                     .font(.caption)
@@ -456,8 +453,8 @@ struct DiskUsageView: View {
                 .chartReloading(awaitingData)
             purgeableSummary
             footnote(
-                "Boot volume free space over the selected range, sampled once a minute. "
-                    + "On APFS this is the container's shared pool.")
+                "Boot volume free space over the selected range, sampled once a minute. On APFS this is the container's shared pool."
+            )
         }
     }
 
@@ -514,18 +511,32 @@ struct DiskUsageView: View {
         }
     }
 
-    private func chartCaption(_ text: String) -> some View {
+    private func chartCaption(_ text: LocalizedStringKey) -> some View {
         Text(text)
             .font(.caption2.weight(.semibold))
             .tracking(0.6)
             .foregroundStyle(.tertiary)
     }
 
-    private func footnote(_ text: String) -> some View {
+    private func footnote(_ text: LocalizedStringKey) -> some View {
         Text(text)
             .font(.caption)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func infoRow(
+        _ label: LocalizedStringKey, _ value: String, dimZero: Bool = false
+    ) -> some View {
+        HStack {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(dimZero ? .tertiary : .primary)
+        }
     }
 
     private func infoRow(_ label: String, _ value: String, dimZero: Bool = false) -> some View {
@@ -838,11 +849,14 @@ private struct CapacityBarSection: View {
 /// The page's card chrome, matching the dashboard's panel (each page keeps a
 /// private copy by convention).
 private struct DiskPanel<Content: View>: View {
-    let title: String
+    let title: LocalizedStringKey
     let systemImage: String
     @ViewBuilder var content: () -> Content
 
-    init(_ title: String, systemImage: String, @ViewBuilder content: @escaping () -> Content) {
+    init(
+        _ title: LocalizedStringKey, systemImage: String,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
         self.title = title
         self.systemImage = systemImage
         self.content = content

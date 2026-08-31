@@ -30,11 +30,12 @@ struct SettingsView: View {
 
 // MARK: - General
 
-/// Launch-at-login, function mode, and the privacy/about footnotes.
+/// Launch-at-login, function mode, language, and the privacy/about footnotes.
 private struct GeneralSettingsView: View {
     @EnvironmentObject private var loginItem: LoginItemManager
     @EnvironmentObject private var model: SamplerModel
     @EnvironmentObject private var appMode: AppModeManager
+    @EnvironmentObject private var languageManager: AppLanguageManager
     /// The process-table, chart, and live sampler refresh interval.
     @AppStorage(SamplerModel.tableIntervalKey) private var tableInterval =
         SamplerModel.defaultTableInterval
@@ -54,13 +55,24 @@ private struct GeneralSettingsView: View {
             }
 
             Section {
+                Picker("Language", selection: $languageManager.language) {
+                    ForEach(AppLanguage.allCases) { lang in
+                        Text(lang.title).tag(lang)
+                    }
+                }
+                caption("Choose the display language for \(AppInfo.displayName).")
+            } header: {
+                Text("Language")
+            }
+
+            Section {
                 Picker("Mode", selection: $appMode.mode) {
                     ForEach(AppMode.allCases, id: \.self) { mode in
                         Text(mode.title).tag(mode)
                     }
                 }
                 .pickerStyle(.segmented)
-                caption(appMode.mode.summary)
+                caption(LocalizedStringKey(appMode.mode.summary))
             } header: {
                 Text("Mode")
             }
@@ -183,7 +195,7 @@ private struct MenuBarDockSettingsView: View {
             Section {
                 Toggle("Show icon in the Dock", isOn: $showDockIcon)
                 caption(
-                    "Also show \(AppInfo.displayName) in the Dock while it's running, as a second way to open it — handy if your menu bar is too crowded to see the menu bar items. It still runs from the menu bar either way."
+                    "Also show \(AppInfo.displayName) in the Dock while it's running, as a second way to open it: handy if your menu bar is too crowded to see the menu bar items. It still runs from the menu bar either way."
                 )
             } header: {
                 Text("Dock")
@@ -286,8 +298,8 @@ private struct AlertsSettingsView: View {
             Section {
                 Toggle("Thermal throttling", isOn: $alertSettings.config.thermalEnabled)
                 caption(
-                    "Notify when macOS keeps slowing work down to shed heat, naming the process "
-                        + "using the most CPU at that moment.")
+                    "Notify when macOS keeps slowing work down to shed heat, naming the process using the most CPU at that moment."
+                )
             } header: {
                 Text("Thermal Throttling")
             }
@@ -325,7 +337,7 @@ private struct AlertsSettingsView: View {
                         range: 50...100)
                 }
                 caption(
-                    "Notify when total CPU stays above the chosen level for a sustained period. Off by default — high CPU is normal during real work."
+                    "Notify when total CPU stays above the chosen level for a sustained period. Off by default: high CPU is normal during real work."
                 )
             } header: {
                 Text("Sustained High CPU")
@@ -526,7 +538,7 @@ private struct AdvancedSettingsView: View {
                 if projectedBytes > byteCap {
                     WarningBanner(
                         text:
-                            "These settings need about \(ByteFormat.string(UInt64(max(0, projectedBytes)))), more than your \(sizeLabel(megabytes: databaseMaxMB)) size limit. The oldest high-resolution samples will be dropped early to fit — raise the size limit or reduce resolution to keep it all."
+                            "These settings need about \(ByteFormat.string(UInt64(max(0, projectedBytes)))), more than your \(sizeLabel(megabytes: databaseMaxMB)) size limit. The oldest high-resolution samples will be dropped early to fit: raise the size limit or reduce resolution to keep it all."
                     )
                 }
                 if nearSampleCeiling {
@@ -570,7 +582,7 @@ private struct AdvancedSettingsView: View {
     }
 
     /// A plain-language description of the current coverage state.
-    private var coverageStatus: String {
+    private var coverageStatus: LocalizedStringKey {
         switch helper.coverage {
         case .unavailable:
             return "Not available in this build. Install the signed app to use full coverage."
@@ -584,7 +596,7 @@ private struct AdvancedSettingsView: View {
     }
 
     /// A plain-language description of the Full Disk Access state.
-    private var fullDiskAccessStatus: String {
+    private var fullDiskAccessStatus: LocalizedStringKey {
         switch fullDiskAccess.status {
         case .granted:
             return "On. The Disk Map can read every folder your account owns."
@@ -702,13 +714,22 @@ private struct AdvancedSettingsView: View {
     /// Human-readable age, e.g. "30 min", "24 hours", "7 days".
     private func durationLabel(_ seconds: Double) -> String {
         let s = Int(seconds.rounded())
-        if s < 3600 { return "\(max(1, s / 60)) min" }
+        if s < 3600 {
+            let m = max(1, s / 60)
+            return m == 1
+                ? String(localized: "1 min")
+                : String(format: String(localized: "%d min"), m)
+        }
         if s < 86_400 {
             let h = s / 3600
-            return h == 1 ? "1 hour" : "\(h) hours"
+            return h == 1
+                ? String(localized: "1 hour")
+                : String(format: String(localized: "%d hours"), h)
         }
         let d = s / 86_400
-        return d == 1 ? "1 day" : "\(d) days"
+        return d == 1
+            ? String(localized: "1 day")
+            : String(format: String(localized: "%d days"), d)
     }
 
     /// Compact sample count, e.g. "18.6M", "450K".
@@ -722,7 +743,7 @@ private struct AdvancedSettingsView: View {
 /// A highlighted advisory banner for Settings, in the app's warning language
 /// (orange tint + triangle glyph), matching the `InsightCard` fill+border recipe.
 private struct WarningBanner: View {
-    let text: String
+    let text: LocalizedStringKey
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -738,7 +759,7 @@ private struct WarningBanner: View {
 // MARK: - Shared
 
 /// A muted explanatory caption shown beneath a Settings control.
-private func caption(_ text: String) -> some View {
+private func caption(_ text: LocalizedStringKey) -> some View {
     Text(text)
         .font(.caption)
         .foregroundStyle(.secondary)
