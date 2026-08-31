@@ -52,6 +52,7 @@ final class DiskMapModel: ObservableObject {
         case oldest = "Oldest"
         case kinds = "Kinds"
         case reclaim = "Reclaim"
+        case changes = "Changes"
         var id: String { rawValue }
     }
 
@@ -132,6 +133,18 @@ final class DiskMapModel: ObservableObject {
     /// A node awaiting the Move to Trash confirmation.
     @Published var pendingTrash: Int32?
     @Published var trashError: String?
+    /// The current scan compared with the previous one of the same scope,
+    /// computed on demand when the Changes view opens.
+    @Published private(set) var diff: DiskMapDiff?
+    @Published private(set) var diffState: DiffState = .idle
+
+    enum DiffState: Equatable {
+        case idle
+        case loading
+        case ready
+        /// No previous scan of this scope is on disk yet.
+        case noPrevious
+    }
 
     let advisor = DiskMapAdvisor()
 
@@ -141,8 +154,10 @@ final class DiskMapModel: ObservableObject {
     private var restoreID = UUID()
     private var rowsGeneration = 0
     private var analysisGeneration = 0
+    private var diffGeneration = 0
     private var cancellables = Set<AnyCancellable>()
     private var windowCancellable: AnyCancellable?
+    private var unmountObserver: NSObjectProtocol?
     private weak var fullDiskAccess: FullDiskAccessManager?
 
     private init() {
@@ -165,6 +180,32 @@ final class DiskMapModel: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] _ in self?.rebuildRows() }
             .store(in: &cancellables)
+        $viewMode
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] mode in
+                if mode == .changes { self?.loadDiffIfNeeded() }
+            }
+            .store(in: &cancellables)
+        // A volume that goes away mid-scan: stop rather than report a
+        // partial tree as if the disk had shrunk.
+        unmountObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didUnmountNotification, object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let url = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL
+            else { return }
+            Task { @MainActor in self?.volumeDidUnmount(url.path) }
+        }
+    }
+
+    private func volumeDidUnmount(_ mountPoint: String) {
+        guard isScanning else { return }
+        let root = scope.scanRoot
+        let prefix = mountPoint.hasSuffix("/") ? mountPoint : mountPoint + "/"
+        guard root == mountPoint || root.hasPrefix(prefix) else { return }
+        cancelScan()
+        lastError = "\((mountPoint as NSString).lastPathComponent) was ejected during the scan."
+        AppLog.ui.notice("Disk Map scan stopped: volume unmounted \(mountPoint, privacy: .public)")
     }
 
     // MARK: - Lifecycle
@@ -206,6 +247,8 @@ final class DiskMapModel: ObservableObject {
     private func clearSnapshot() {
         snapshot = nil
         analysis = nil
+        diff = nil
+        diffState = .idle
         rows = []
         rowsRevision += 1
         selection = nil
@@ -354,12 +397,15 @@ final class DiskMapModel: ObservableObject {
     private func install(_ snapshot: DiskMapSnapshot) {
         self.snapshot = snapshot
         analysis = nil
+        diff = nil
+        diffState = .idle
         selection = nil
         zoomRoot = FileTree.root
         hover = nil
         pendingTrash = nil
         rebuildRows()
         analyze()
+        if viewMode == .changes { loadDiffIfNeeded() }
     }
 
     private func persist(_ snapshot: DiskMapSnapshot) {
@@ -442,6 +488,30 @@ final class DiskMapModel: ObservableObject {
     }
 
     var trashedBytes: UInt64 { analysis?.trashedBytes ?? 0 }
+
+    // MARK: - Changes since the previous scan
+
+    /// Load the previous snapshot of this scope from disk and diff it against
+    /// the current one, off the main thread; once per snapshot revision.
+    func loadDiffIfNeeded() {
+        guard let snapshot, diffState == .idle || diff.map({ _ in false }) ?? true else { return }
+        guard diffState != .loading else { return }
+        diffState = .loading
+        diffGeneration += 1
+        let generation = diffGeneration
+        let scope = scope
+        Task.detached(priority: .userInitiated) {
+            let previous = try? DiskMapSnapshotStore.load(for: scope, previous: true)
+            let result = previous.map { DiskMapDiff.compute(current: snapshot, previous: $0) }
+            await MainActor.run {
+                guard self.diffGeneration == generation,
+                    self.snapshot?.revision == snapshot.revision
+                else { return }
+                self.diff = result
+                self.diffState = result == nil ? .noPrevious : .ready
+            }
+        }
+    }
 
     // MARK: - Map navigation
 
@@ -579,7 +649,8 @@ final class DiskMapModel: ObservableObject {
         let scanRoot = snapshot.scope.displayRoot
         Task.detached(priority: .userInitiated) {
             let check = DiskMapTrash.precheck(
-                path: path, expectedFileID: fileID, advisor: advisor, scanRoot: scanRoot)
+                path: path, canonicalPath: displayPath, expectedFileID: fileID, advisor: advisor,
+                scanRoot: scanRoot)
             let outcome: DiskMapTrash.Outcome
             switch check {
             case .ok: outcome = DiskMapTrash.trash(path: path)
@@ -681,7 +752,7 @@ final class DiskMapModel: ObservableObject {
         }
 
         switch mode {
-        case .map, .reclaim:
+        case .map, .reclaim, .changes:
             return []
         case .kinds:
             guard let kindItems else { return [] }
@@ -721,14 +792,14 @@ final class DiskMapModel: ObservableObject {
                 if let cutoff, tree.modified[i] > cutoff { continue }
                 if tree.modified[i] == 0 { continue }
                 candidates.append((key: UInt64(tree.modified[i]), node: Int32(i)))
-            case .map, .kinds, .reclaim:
+            case .map, .kinds, .reclaim, .changes:
                 break
             }
         }
         switch mode {
         case .largest: candidates.sort { $0.key > $1.key }
         case .oldest: candidates.sort { $0.key < $1.key }
-        case .map, .kinds, .reclaim: break
+        case .map, .kinds, .reclaim, .changes: break
         }
         return candidates.prefix(limit).map { row($0.node) }
     }

@@ -39,7 +39,7 @@ struct DiskMapSliceTable: View {
     private var controls: some View {
         HStack(spacing: 12) {
             switch model.viewMode {
-            case .map, .reclaim:
+            case .map, .reclaim, .changes:
                 EmptyView()
             case .kinds:
                 if let kind = model.selectedKind {
@@ -177,7 +177,7 @@ struct DiskMapSliceTable: View {
                 model.selectedKind == nil
                 ? "Pick a kind on the left to list its largest items."
                 : "The scan found nothing of this kind."
-        case .map, .largest, .reclaim:
+        case .map, .largest, .reclaim, .changes:
             title = model.filterText.isEmpty ? "Nothing to show" : "No matches"
             detail =
                 model.filterText.isEmpty

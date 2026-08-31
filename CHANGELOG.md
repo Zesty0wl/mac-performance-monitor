@@ -6,6 +6,36 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Added
+
+- **Disk Map.** The Disk tab has a second page for the question the rest of
+  the tab could not answer: what is using the space. Scan the startup disk,
+  any mounted volume or any folder and see it as a squarified treemap you
+  can zoom into (double-click, Escape, breadcrumbs), coloured by kind, age,
+  safety or depth, with a hover read-out and a detail rail that follows the
+  selection. The numbers are the professional kind: allocated bytes rather
+  than lengths, hard links counted once, clones flagged and, on selection,
+  "would free now" read from the filesystem so a 21 GB clone shows as
+  freeing nothing. A bar reconciles the scan against the volume's used
+  figure (macOS system volumes, purgeable space, shared blocks, folders
+  macOS would not let it read, data vaults) so the total agrees with Finder
+  and every caveat is a chip. Largest and Oldest tables, a Kinds view with
+  app bundles rolled up, a Reclaim view that groups known locations (caches,
+  Xcode DerivedData, simulator runtimes, iOS backups, Docker images, cloud
+  folders, Photos and Mail libraries and more) by how safe they are to
+  remove with the proper way to reclaim each, and a Changes view comparing
+  the scan with the previous one. Reveal in Finder, Quick Look and Move to
+  Trash on every item, the last behind a confirmation and an inode check so
+  a scan that is days old never removes something that replaced what you
+  saw; the space moves to an In Trash figure until Finder empties the Trash.
+  Full Disk Access is requested in context (with the relaunch it needs) and
+  never as a modal; without it the page says exactly which folders were
+  skipped. Scans use `getattrlistbulk` on a handful of utility-priority
+  threads that never download iCloud files: a 3 M-file startup disk takes
+  about twenty seconds and its total matches `du` to the byte, and the last
+  scan comes back instantly on the next open from a compact snapshot file.
+  Shift-Command-D opens it from anywhere.
+
 ### Changed
 
 - **The Analytics grid is drawn with the app's Canvas charts.** It was the

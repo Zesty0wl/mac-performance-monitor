@@ -230,24 +230,43 @@ final class DiskMapAdvisorTests: XCTestCase {
         let live = DiskMapAdvisor(home: NSHomeDirectory())
         XCTAssertEqual(
             DiskMapTrash.precheck(
-                path: file.path, expectedFileID: st.st_ino, advisor: live, scanRoot: "/x"),
+                path: file.path, canonicalPath: file.path, expectedFileID: st.st_ino,
+                advisor: live, scanRoot: "/x"),
             .ok)
         XCTAssertEqual(
             DiskMapTrash.precheck(
-                path: file.path, expectedFileID: st.st_ino &+ 1, advisor: live, scanRoot: "/x"),
+                path: file.path, canonicalPath: file.path, expectedFileID: st.st_ino &+ 1,
+                advisor: live, scanRoot: "/x"),
             .replaced)
         XCTAssertEqual(
             DiskMapTrash.precheck(
-                path: root.appendingPathComponent("gone").path, expectedFileID: 1, advisor: live,
-                scanRoot: "/x"),
+                path: root.appendingPathComponent("gone").path,
+                canonicalPath: root.appendingPathComponent("gone").path, expectedFileID: 1,
+                advisor: live, scanRoot: "/x"),
             .vanished)
         if case .refused = DiskMapTrash.precheck(
-            path: "/System", expectedFileID: 0, advisor: live, scanRoot: "/x")
+            path: "/System", canonicalPath: "/System", expectedFileID: 0, advisor: live,
+            scanRoot: "/x")
         {
         } else {
             XCTFail("the system folder must be refused")
         }
         XCTAssertEqual(
             DiskMapTrash.trash(path: root.appendingPathComponent("nope").path), .alreadyGone)
+        // The startup disk is scanned at /System/Volumes/Data, so the path on
+        // disk starts with /System/ while the user's path does not; the
+        // refusal list must be judged on the latter or everything is refused.
+        XCTAssertEqual(
+            DiskMapTrash.precheck(
+                path: file.path, canonicalPath: "/Users/someone/Downloads/victim.txt",
+                expectedFileID: st.st_ino, advisor: live, scanRoot: "/"),
+            .ok)
+        if case .refused = DiskMapTrash.precheck(
+            path: file.path, canonicalPath: "/System/Volumes/Data" + file.path,
+            expectedFileID: st.st_ino, advisor: live, scanRoot: "/")
+        {
+        } else {
+            XCTFail("a /System path is refused, which is why the canonical one must be passed")
+        }
     }
 }
