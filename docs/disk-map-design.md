@@ -149,6 +149,24 @@ and no volume figure to reconcile against.
   behind a fold live (one `getattrlistbulk` of the directory) so the user
   can see what is there.
 
+## Remembering
+
+- Every completed scan is written to
+  `~/Library/Application Support/MacPerformanceMonitor/diskmap/<scope>.mpmdisk`
+  (`DiskMapSnapshotCodec`: raw arrays plus JSON under LZFSE, caps and
+  structural validation on load, mode 0600) and the previous file is kept as
+  `.prev`. The page restores the last scan instantly on open and drops it
+  when the window closes.
+- The Changes view (`DiskMapDiff`) indexes directories and files of at
+  least 10 MB in both snapshots by path relative to the scan root, lists
+  every entry whose size moved by at least that much (largest movement
+  first, so a folder and the child that grew inside it appear together),
+  and lists a disappeared subtree once, at its top-most path. Trashed nodes
+  and folds are left out. The comparison runs on demand when the view opens,
+  off the main thread, once per snapshot revision.
+- A volume unmounted while its scan runs stops the scan with a message
+  rather than finishing a partial tree that would read as a shrunken disk.
+
 ## Errors, by cause
 
 `EPERM` is privacy protection (TCC): Full Disk Access clears it, and only these

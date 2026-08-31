@@ -28,11 +28,16 @@ public enum DiskMapTrash {
         case failed(String)
     }
 
-    /// Confirm the item at `path` is still the scanned one.
+    /// Confirm the item at `path` (the path to open on disk, which on the
+    /// startup disk is under `/System/Volumes/Data`) is still the scanned one.
+    /// The refusal list is judged on `canonicalPath`, the path the user
+    /// knows; judging it on the Data-volume path would refuse everything
+    /// under `/System/`.
     public static func precheck(
-        path: String, expectedFileID: UInt64, advisor: DiskMapAdvisor, scanRoot: String
+        path: String, canonicalPath: String, expectedFileID: UInt64, advisor: DiskMapAdvisor,
+        scanRoot: String
     ) -> Precheck {
-        if advisor.isRefusedForTrash(canonicalPath: path, scanRoot: scanRoot) {
+        if advisor.isRefusedForTrash(canonicalPath: canonicalPath, scanRoot: scanRoot) {
             return .refused("\(AppInfoName.short) does not remove this location.")
         }
         var st = stat()

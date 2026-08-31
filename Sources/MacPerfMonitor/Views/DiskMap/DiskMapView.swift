@@ -276,6 +276,8 @@ struct DiskMapView: View {
                         DiskMapKindsView(model: model)
                     case .reclaim:
                         DiskMapReclaimView(model: model)
+                    case .changes:
+                        DiskMapChangesView(model: model)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
