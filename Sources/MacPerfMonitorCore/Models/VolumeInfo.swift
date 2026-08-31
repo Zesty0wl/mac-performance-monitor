@@ -13,7 +13,7 @@ public struct VolumeSnapshot: Sendable, Equatable {
 /// The role a volume plays inside its APFS container, mapped from the
 /// IORegistry role strings with a well-known mount point fallback for non-APFS
 /// or unmatched volumes.
-public enum VolumeRole: String, Sendable, Equatable {
+public enum VolumeRole: String, Sendable, Equatable, Codable {
     case system
     case data
     case preboot

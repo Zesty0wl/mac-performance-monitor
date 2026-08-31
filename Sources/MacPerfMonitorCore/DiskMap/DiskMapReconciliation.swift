@@ -5,7 +5,7 @@ import os
 
 /// Tallies the scanner keeps as it goes. Published in progress events and
 /// frozen into the reconciliation at the end.
-public struct DiskMapScanCounts: Sendable, Equatable {
+public struct DiskMapScanCounts: Sendable, Equatable, Codable {
     /// Every entry read from a listing, whatever became of it.
     public var entries: UInt64 = 0
     /// Directories listed successfully.
@@ -50,7 +50,7 @@ public struct DiskMapScanCounts: Sendable, Equatable {
 /// A sibling volume of the scanned one that shares its container: the sealed
 /// System volume, Preboot, VM, Update. Not scannable, not removable, but part
 /// of what Finder calls "Macintosh HD used".
-public struct DiskMapSystemVolume: Sendable, Equatable, Identifiable {
+public struct DiskMapSystemVolume: Sendable, Equatable, Identifiable, Codable {
     public var id: String { mountPoint }
     public var mountPoint: String
     public var name: String
@@ -63,7 +63,7 @@ public struct DiskMapSystemVolume: Sendable, Equatable, Identifiable {
 /// overlay (it overlaps files the scan counted as well as snapshot space it
 /// did not), shared blocks come straight from the tree, and the overshoot case
 /// (scanned exceeds used, which clones cause) is reported rather than hidden.
-public struct DiskMapReconciliation: Sendable, Equatable {
+public struct DiskMapReconciliation: Sendable, Equatable, Codable {
     public var volumeMountPoint: String
     public var volumeName: String?
     public var totalBytes: UInt64?
