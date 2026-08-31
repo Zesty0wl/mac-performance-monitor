@@ -280,6 +280,39 @@ private struct OnboardingToggleRow: View {
     }
 }
 
+/// A permission the app cannot toggle itself (it is granted in System
+/// Settings): the toggle row's layout with a button, or a checkmark once done.
+private struct OnboardingActionRow: View {
+    let symbol: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+    let actionTitle: LocalizedStringKey?
+    let action: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .foregroundStyle(.secondary)
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            if let actionTitle {
+                Button(actionTitle, action: action)
+                    .controlSize(.small)
+            } else {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            }
+        }
+    }
+}
+
 /// Step 1: choose the function mode (full history vs menu-bar-only).
 private struct OnboardingModeStep: View {
     @EnvironmentObject private var appMode: AppModeManager
@@ -354,12 +387,13 @@ private struct OnboardingModeCard: View {
 private struct OnboardingPermissionsStep: View {
     @EnvironmentObject private var loginItem: LoginItemManager
     @EnvironmentObject private var helper: HelperManager
+    @EnvironmentObject private var fullDiskAccess: FullDiskAccessManager
 
     var body: some View {
         OnboardingStepScaffold(
             symbol: "checkmark.shield", tint: .teal,
             title: "Set up access",
-            subtitle: "Both are optional and can be changed later in Settings."
+            subtitle: "All of these are optional and can be changed later in Settings."
         ) {
             VStack(spacing: 12) {
                 OnboardingToggleRow(
@@ -387,9 +421,27 @@ private struct OnboardingPermissionsStep: View {
                             .controlSize(.small)
                     }
                 }
+
+                OnboardingActionRow(
+                    symbol: "internaldrive",
+                    title: "Full Disk Access for the Disk Map",
+                    subtitle: fullDiskAccessSubtitle,
+                    actionTitle: fullDiskAccess.isGranted ? nil : "Open System Settings…",
+                    action: { fullDiskAccess.openSystemSettings() })
             }
             .padding(.top, 4)
         }
+    }
+
+    private var fullDiskAccessSubtitle: LocalizedStringKey {
+        if fullDiskAccess.isGranted {
+            return "Granted. The Disk Map can map every folder your account owns."
+        }
+        if fullDiskAccess.awaitingRelaunch {
+            return "Takes effect once \(AppInfo.displayName) relaunches."
+        }
+        return
+            "Lets the Disk Map see Mail, Messages, Safari, Time Machine and other apps' data when you scan for what is using space."
     }
 
     private var helperSubtitle: LocalizedStringKey {

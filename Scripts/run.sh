@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# run.sh :  the dev inner loop: build, bundle, sign, and launch.
+# run.sh — the dev inner loop: build, bundle, sign, and launch.
 #
 # Debug by default for fast iteration; pass --release to match the shipping
 # build.
@@ -70,7 +70,7 @@ if [[ "$SIGN_MODE" == "auto" ]]; then
     SIGN_MODE="identity"
   else
     SIGN_MODE="adhoc"
-    echo "run.sh: no codesigning identity found :  falling back to ad-hoc." >&2
+    echo "run.sh: no codesigning identity found — falling back to ad-hoc." >&2
     echo "        (Helper coverage will not work and perf is unrepresentative.)" >&2
   fi
 fi
@@ -146,18 +146,13 @@ if [[ "$SIGN_MODE" == "identity" ]]; then
   fi
 else
   echo "==> Ad-hoc signing (helper coverage will NOT work; pass --developer-id to sign with your cert)"
-  SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
-  if [[ -d "$SPARKLE" ]]; then
-    codesign --force --sign - "$SPARKLE/Versions/B/Sparkle" 2>/dev/null || true
-    codesign --force --sign - "$SPARKLE" 2>/dev/null || true
-  fi
   # Inside out: sign the nested helper before the enclosing app.
   if [[ -f "$HELPER" ]]; then
-    codesign --force \
+    codesign --force --options runtime \
       --identifier "uk.co.bzwrd.macperfmonitor.helper" \
       --sign - "$HELPER"
   fi
-  codesign --force --sign - "$APP"
+  codesign --force --options runtime --sign - "$APP"
 fi
 
 echo "==> Launching"

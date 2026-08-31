@@ -36,7 +36,7 @@
 "GPU %d°" = "GPU %d°";
 "Building history for this range…" = "Building history for this range…";
 "History store unavailable; showing live data only." = "History store unavailable; showing live data only.";
-"Total CPU is the share of all cores in use, 0-100%. Per-process CPU (in the list and menubar) follows Activity Monitor: percent of one core, so a busy multi-threaded app can exceed 100%." = "Total CPU is the share of all cores in use, 0-100%. Per-process CPU (in the list and menubar) follows Activity Monitor , percent of one core, so a busy multi-threaded app can exceed 100%.";
+"Total CPU is the share of all cores in use, 0-100%. Per-process CPU (in the list and menubar) follows Activity Monitor: percent of one core, so a busy multi-threaded app can exceed 100%." = "Total CPU is the share of all cores in use, 0-100%. Per-process CPU (in the list and menubar) follows Activity Monitor: percent of one core, so a busy multi-threaded app can exceed 100%.";
 "Download and upload throughput across the Wi-Fi and Ethernet interfaces. Turn on per-app network tracking in Settings to see which apps are responsible." = "Download and upload throughput across the Wi-Fi and Ethernet interfaces. Turn on per-app network tracking in Settings to see which apps are responsible.";
 "Swap is memory moved out to disk. A flat line at zero is ideal; a sustained climb under pressure is the real warning sign." = "Swap is memory moved out to disk. A flat line at zero is ideal; a sustained climb under pressure is the real warning sign.";
 "Physical traffic across real internal and external disks. Disk images are excluded." = "Physical traffic across real internal and external disks. Disk images are excluded.";
@@ -68,7 +68,7 @@
 
 "Full" = "Full";
 "Menu bar only" = "Menu bar only";
-"Menu bar read-outs plus a local history database: you get the dashboard's history ranges, the leak board, and pressure events." = "Menu bar read-outs plus a local history database , you get the dashboard's history ranges, the leak board, and pressure events.";
+"Menu bar read-outs plus a local history database: you get the dashboard's history ranges, the leak board, and pressure events." = "Menu bar read-outs plus a local history database: you get the dashboard's history ranges, the leak board, and pressure events.";
 "Just the live menu bar read-outs. Nothing is written to disk, so the app stays as light as possible; history is unavailable until you turn logging back on." = "Just the live menu bar read-outs. Nothing is written to disk, so the app stays as light as possible; history is unavailable until you turn logging back on.";
 
 "General" = "General";
@@ -84,7 +84,6 @@
 "Startup" = "Startup";
 "Mode" = "Mode";
 "Refresh interval" = "Refresh interval";
-"Performance" = "Performance";
 "Data" = "Data";
 "Stored locally, no telemetry" = "Stored locally, no telemetry";
 "About" = "About";
@@ -119,12 +118,12 @@
 "Every process is logged at this resolution for the most recent window. Finer and longer means more detail, and a larger database. At 1 s the per-process scan also runs every second even with the window closed, which is the app's main idle CPU cost; 2 s or slower is noticeably lighter." = "Every process is logged at this resolution for the most recent window. Finer and longer means more detail, and a larger database. At 1 s the per-process scan also runs every second even with the window closed, which is the app's main idle CPU cost; 2 s or slower is noticeably lighter.";
 "Older data is aggregated to this coarser resolution. Its age is additive: detailed history spans the high-resolution age plus this (e.g. 24h + 7d = 8 days), with about 90 days of hourly history kept beneath it." = "Older data is aggregated to this coarser resolution. Its age is additive: detailed history spans the high-resolution age plus this (e.g. 24h + 7d = 8 days), with about 90 days of hourly history kept beneath it.";
 "When the database reaches this size, the oldest high-resolution samples are dropped first, keeping the long low-resolution trend." = "When the database reaches this size, the oldest high-resolution samples are dropped first, keeping the long low-resolution trend.";
-"These settings need about %@, more than your %@ size limit. The oldest high-resolution samples will be dropped early to fit: raise the size limit or reduce resolution to keep it all." = "These settings need about %@, more than your %@ size limit. The oldest high-resolution samples will be dropped early to fit , raise the size limit or reduce resolution to keep it all.";
+"These settings need about %@, more than your %@ size limit. The oldest high-resolution samples will be dropped early to fit: raise the size limit or reduce resolution to keep it all." = "These settings need about %@, more than your %@ size limit. The oldest high-resolution samples will be dropped early to fit: raise the size limit or reduce resolution to keep it all.";
 "You're near the %@-sample limit above which the app slows down, so retention is capped at what fits. To keep more history, choose a coarser frequency." = "You're near the %@-sample limit above which the app slows down, so retention is capped at what fits. To keep more history, choose a coarser frequency.";
 "100 MB" = "100 MB";
 "5 GB" = "5 GB";
 "Open System Settings\u{2026}" = "Open System Settings\u{2026}";
-"Notify when total CPU stays above the chosen level for a sustained period. Off by default: high CPU is normal during real work." = "Notify when total CPU stays above the chosen level for a sustained period. Off by default , high CPU is normal during real work.";
+"Notify when total CPU stays above the chosen level for a sustained period. Off by default: high CPU is normal during real work." = "Notify when total CPU stays above the chosen level for a sustained period. Off by default: high CPU is normal during real work.";
 "%@ can install a small privileged helper so it can read the memory of system and other-user processes (such as WindowServer) that it otherwise cannot see. The helper runs only to read memory statistics and sends nothing off your Mac." = "%@ can install a small privileged helper so it can read the memory of system and other-user processes (such as WindowServer) that it otherwise cannot see. The helper runs only to read memory statistics and sends nothing off your Mac.";
 "1 min" = "1 min";
 "%d min" = "%d min";
@@ -133,7 +132,6 @@
 "1 day" = "1 day";
 "%d days" = "%d days";
 "Latency ping host" = "Latency ping host";
-"Network" = "Network";
 "Show every process" = "Show every process";
 "Full Coverage" = "Full Coverage";
 "Frequency" = "Frequency";
@@ -154,7 +152,7 @@
 "Last error: %@" = "Last error: %@";
 "Start %@ automatically when you sign in, so it is in the menu bar and recording from the moment you log in." = "Start %@ automatically when you sign in, so it is in the menu bar and recording from the moment you log in.";
 "%@ watches its own memory too. It should stay well under 60 MB while only the menubar is active." = "%@ watches its own memory too. It should stay well under 60 MB while only the menubar is active.";
-"Also show %@ in the Dock while it's running, as a second way to open it: handy if your menu bar is too crowded to see the menu bar items. It still runs from the menu bar either way." = "Also show %@ in the Dock while it's running, as a second way to open it , handy if your menu bar is too crowded to see the menu bar items. It still runs from the menu bar either way.";
+"Also show %@ in the Dock while it's running, as a second way to open it: handy if your menu bar is too crowded to see the menu bar items. It still runs from the menu bar either way." = "Also show %@ in the Dock while it's running, as a second way to open it: handy if your menu bar is too crowded to see the menu bar items. It still runs from the menu bar either way.";
 "All alerts are off by default except critical pressure and runaway processes. %@ never sends anything off your Mac." = "All alerts are off by default except critical pressure and runaway processes. %@ never sends anything off your Mac.";
 "Focus shows one chosen read-out in the smallest practical space." = "Focus shows one chosen read-out in the smallest practical space.";
 "Strip shows every selected read-out together in one compact item." = "Strip shows every selected read-out together in one compact item.";
@@ -226,19 +224,16 @@
 "Compression and swap are the real signals" = "Compression and swap are the real signals";
 "When pressure stays high, macOS compresses memory and then writes to swap. A little is fine; a lot, sustained, is the sign that something is asking for too much. %@ watches these trends and points to the process responsible." = "When pressure stays high, macOS compresses memory and then writes to swap. A little is fine; a lot, sustained, is the sign that something is asking for too much. %@ watches these trends and points to the process responsible.";
 "Choose how it runs" = "Choose how it runs";
-"You can switch anytime: in Settings or from the menu bar." = "You can switch anytime , in Settings or from the menu bar.";
+"You can switch anytime: in Settings or from the menu bar." = "You can switch anytime: in Settings or from the menu bar.";
 "Menu bar & refresh" = "Menu bar & refresh";
 "Choose what the single compact menu bar item shows." = "Choose what the single compact menu bar item shows.";
-"Full coverage is on: even system processes are visible." = "Full coverage is on , even system processes are visible.";
+"Full coverage is on: even system processes are visible." = "Full coverage is on: even system processes are visible.";
 "Set up access" = "Set up access";
 "Both are optional and can be changed later in Settings." = "Both are optional and can be changed later in Settings.";
-"Open at login" = "Open at login";
 "Start in the menu bar and keep history unbroken from the moment you sign in." = "Start in the menu bar and keep history unbroken from the moment you sign in.";
-"Show every process" = "Show every process";
 "Approve the helper in System Settings to finish enabling it." = "Approve the helper in System Settings to finish enabling it.";
 "Dock icon" = "Dock icon";
 "Also show %@ in the Dock." = "Also show %@ in the Dock.";
-"Refresh interval" = "Refresh interval";
 "Memory pressure and the largest processes." = "Memory pressure and the largest processes.";
 "Total CPU, every core, and top CPU processes." = "Total CPU, every core, and top CPU processes.";
 "GPU activity, power, memory, and temperature." = "GPU activity, power, memory, and temperature.";
@@ -246,7 +241,6 @@
 "CPU and GPU die temperature, fan speed, and throttling." = "CPU and GPU die temperature, fan speed, and throttling.";
 "Download, upload, latency, and top network apps." = "Download, upload, latency, and top network apps.";
 "Physical read and write activity, devices, and top processes." = "Physical read and write activity, devices, and top processes.";
-"%@. %@" = "%@. %@";
 "Install a small privileged helper so %@ can read system and other-user processes." = "Install a small privileged helper so %@ can read system and other-user processes.";
 
 /* ===== CombinedMenuBarContentView ===== */
@@ -281,10 +275,8 @@
 /* ===== ContentView & Navigation ===== */
 
 "Dashboard" = "Dashboard";
-"Processes" = "Processes";
 "GPU" = "GPU";
 "Energy" = "Energy";
-"Network" = "Network";
 "Disk" = "Disk";
 "Hardware" = "Hardware";
 "Analytics" = "Analytics";
@@ -484,7 +476,6 @@
 "Devices" = "Devices";
 "No physical disks visible yet." = "No physical disks visible yet.";
 "Capacity and volumes" = "Capacity and volumes";
-"Health" = "Health";
 "Verified" = "Verified";
 "Failing" = "Failing";
 "Available spare" = "Available spare";
@@ -503,7 +494,6 @@
 
 /* ===== Hardware View & Overview ===== */
 
-"Hardware" = "Hardware";
 "Refresh" = "Refresh";
 "Read the inventory again (Command-R)" = "Read the inventory again (Command-R)";
 "Copy as Text" = "Copy as Text";
@@ -522,7 +512,6 @@
 "Copy MAC Address" = "Copy MAC Address";
 "This Mac" = "This Mac";
 "Model identifier" = "Model identifier";
-"Chip" = "Chip";
 "Serial number" = "Serial number";
 "Metal" = "Metal";
 "macOS" = "macOS";
@@ -546,16 +535,11 @@
 
 /* ===== Metric Cards & Explanations ===== */
 
-"Pressure" = "Pressure";
 "Free" = "Free";
 "App" = "App";
 "Wired" = "Wired";
 "Compressed" = "Compressed";
 "Cached files" = "Cached files";
-"Swap" = "Swap";
-"Cores" = "Cores";
-"Performance" = "Performance";
-"Efficiency" = "Efficiency";
 "What it means" = "What it means";
 "How it's calculated" = "How it's calculated";
 "macOS's own read on how hard the memory system is working, on a 0 to 100 scale. 0 to 33 is green and comfortable, 34 to 66 is yellow as it compresses and caches to cope, and 67 to 100 is red, where it swaps to disk and apps can slow down. It is the single number to watch." = "macOS's own read on how hard the memory system is working, on a 0 to 100 scale. 0 to 33 is green and comfortable, 34 to 66 is yellow as it compresses and caches to cope, and 67 to 100 is red, where it swaps to disk and apps can slow down. It is the single number to watch.";
@@ -628,7 +612,6 @@
 "Back to the full window" = "Back to the full window";
 "Avg" = "Avg";
 "Peak" = "Peak";
-"Now" = "Now";
 "Trend" = "Trend";
 "Add a process to start plotting" = "Add a process to start plotting";
 "Overlay as many as eight processes and watch them live or over time." = "Overlay as many as eight processes and watch them live or over time.";
@@ -736,7 +719,6 @@
 "%d write IOPS" = "%d write IOPS";
 "system power" = "system power";
 "Open the Energy tab" = "Open the Energy tab";
-"Full" = "Full";
 "Plugged in" = "Plugged in";
 "Open the Network tab" = "Open the Network tab";
 "Top network apps" = "Top network apps";

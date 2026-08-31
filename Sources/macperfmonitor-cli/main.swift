@@ -23,6 +23,8 @@ case "probe":
     runProbe()
 case "sample":
     runSample(arguments: Array(arguments.dropFirst(2)))
+case "scan":
+    runScan(arguments: Array(arguments.dropFirst(2)))
 case "emit-checks":
     // Emit the built-in diagnostic check catalog as JSON, so the publish script can
     // seed the server manifest from the in-app pack without drift.
@@ -74,7 +76,18 @@ func printUsage() {
         Usage:
           macperfmonitor-cli probe                      Probe per-process read coverage and system memory (default)
           macperfmonitor-cli sample [options]           Continuously sample into the database
+          macperfmonitor-cli scan [path] [options]      Scan a folder or volume with the Disk Map engine
           macperfmonitor-cli help                       Show this help
+
+        scan options (path defaults to the home folder; / means the startup disk):
+          --workers <n>          Reader threads (default \(DiskMapScanOptions.defaultWorkerCount))
+          --threshold <bytes>    Small-file fold threshold (default: adaptive from inode count)
+          --no-fold              Keep every file as its own node
+          --private-size         Fetch ATTR_CMNEXT_PRIVATESIZE per entry (about 1.5x slower)
+          --no-throttle          Do not mark reads as utility-class IO
+          --top <n>              Largest directories and files to list (default 15)
+          --json                 Print the summary as JSON instead of text
+          --quiet                No progress line
 
         sample options:
           --interval <seconds>   Sampling cadence (default 2.0)
@@ -357,6 +370,209 @@ func runSample(arguments: [String]) {
     let onDisk = databaseSizeOnDisk(dbURL)
     print("  on-disk size    : \(ByteFormat.string(onDisk)) (incl. WAL/SHM)")
     print("  ticks recorded  : \(tickCount)")
+    print("")
+}
+
+// MARK: - Disk Map scan
+
+/// Headless run of the Disk Map engine: the harness for measuring throughput,
+/// memory and the fold threshold, and for checking totals against `du -sk`.
+func runScan(arguments: [String]) {
+    var path = NSHomeDirectory()
+    var options = DiskMapScanOptions()
+    var top = 15
+    var json = false
+    var quiet = false
+
+    var i = 0
+    while i < arguments.count {
+        let arg = arguments[i]
+        func nextValue() -> String? {
+            guard i + 1 < arguments.count else { return nil }
+            i += 1
+            return arguments[i]
+        }
+        switch arg {
+        case "--workers":
+            if let v = nextValue(), let n = Int(v), n > 0 { options.workerCount = n }
+        case "--threshold":
+            if let v = nextValue(), let n = UInt64(v) { options.smallFileThreshold = n }
+        case "--no-fold":
+            options.smallFileThreshold = 0
+        case "--private-size":
+            options.fetchPrivateSize = true
+        case "--no-throttle":
+            options.throttleIO = false
+        case "--top":
+            if let v = nextValue(), let n = Int(v), n >= 0 { top = n }
+        case "--json":
+            json = true
+        case "--quiet":
+            quiet = true
+        default:
+            if arg.hasPrefix("--") {
+                FileHandle.standardError.write(Data("Ignoring unknown option: \(arg)\n".utf8))
+            } else {
+                path = (arg as NSString).expandingTildeInPath
+            }
+        }
+        i += 1
+    }
+
+    let scope = DiskMapScope.resolved(folder: path)
+    let token = DiskMapCancellationToken()
+    signal(SIGINT, onInterrupt)
+    keepRunning = true
+
+    if !quiet {
+        FileHandle.standardError.write(
+            Data(
+                "Scanning \(scope.scanRoot) (\(scope.rootName)), workers \(options.workerCount)\n"
+                    .utf8))
+    }
+    let started = Date()
+    var lastLine = Date.distantPast
+    let snapshot: DiskMapSnapshot
+    do {
+        snapshot = try DiskMapScanner().scanBlocking(scope, options: options, cancellation: token) {
+            progress, _ in
+            if !keepRunning { token.cancel() }
+            guard !quiet, Date().timeIntervalSince(lastLine) >= 1 else { return }
+            lastLine = Date()
+            let rate = progress.elapsed > 0 ? Double(progress.entries) / progress.elapsed : 0
+            let location =
+                progress.currentPath.count > 60
+                ? "…" + progress.currentPath.suffix(59) : progress.currentPath
+            let line = String(
+                format: "  %6.1fs  %9llu entries  %7.0f/s  %10@  %@\n", progress.elapsed,
+                progress.entries, rate, ByteFormat.string(progress.bytes), location)
+            FileHandle.standardError.write(Data(line.utf8))
+        }
+    } catch {
+        FileHandle.standardError.write(Data("Scan failed: \(error.localizedDescription)\n".utf8))
+        exit(1)
+    }
+
+    let elapsed = Date().timeIntervalSince(started)
+    let tree = snapshot.tree
+    let rec = snapshot.reconciliation
+    let counts = rec.counts
+    var usage = rusage()
+    getrusage(RUSAGE_SELF, &usage)
+    let peakRSS = UInt64(max(0, usage.ru_maxrss))
+    let openFDs = (try? FileManager.default.contentsOfDirectory(atPath: "/dev/fd"))?.count ?? -1
+    let rate = elapsed > 0 ? Double(counts.entries) / elapsed : 0
+    let arenaBytes =
+        tree.nodeCount * (4 + 4 + 4 + 8 + 8 + 8 + 4 + 4 + 2 + 1 + 4) + tree.nameBytes.count
+
+    func topNodes(directories: Bool) -> [(Int32, UInt64)] {
+        var picked: [(Int32, UInt64)] = []
+        for node in 1..<Int32(tree.nodeCount) {
+            let flags = tree.flags[Int(node)]
+            let isDirectory = flags.contains(.directory)
+            guard isDirectory == directories, !flags.contains(.smallFilesFold) else { continue }
+            picked.append((node, tree.bytes[Int(node)]))
+        }
+        picked.sort { $0.1 > $1.1 }
+        return Array(picked.prefix(top))
+    }
+
+    if json {
+        var summary: [String: Any] = [
+            "scope": scope.id, "root": snapshot.rootPath, "partial": snapshot.partial,
+            "elapsedSeconds": elapsed, "entries": counts.entries, "entriesPerSecond": rate,
+            "directories": counts.directories, "files": counts.files,
+            "foldedFiles": counts.foldedFiles, "nodes": tree.nodeCount,
+            "arenaBytes": arenaBytes, "peakRSS": peakRSS, "openFileDescriptors": openFDs,
+            "scannedBytes": rec.scannedBytes, "sharedBytes": rec.sharedBytes,
+            "unaccountedBytes": rec.unaccountedBytes, "overshootBytes": rec.overshootBytes,
+            "notPermitted": counts.notPermitted, "dataVaults": counts.dataVaults,
+            "accessDenied": counts.accessDenied,
+            "unreadable": counts.unreadable, "vanished": counts.vanished,
+            "datalessDirectories": counts.datalessDirectories,
+            "datalessFiles": counts.datalessFiles, "separateVolumes": counts.separateVolumes,
+            "hardLinkDuplicates": counts.hardLinkDuplicates,
+            "sharedBlockFiles": counts.sharedBlockFiles, "entryErrors": counts.entryErrors,
+            "smallFileThreshold": snapshot.smallFileThreshold, "workers": options.workerCount,
+            "volumeChangedDuringScan": rec.volumeChangedDuringScan,
+        ]
+        if let used = rec.usedBytes { summary["usedBytes"] = used }
+        if let purgeable = rec.purgeableBytes { summary["purgeableBytes"] = purgeable }
+        if let snapshots = rec.localSnapshotCount { summary["localSnapshots"] = snapshots }
+        summary["topDirectories"] = topNodes(directories: true).map {
+            ["path": snapshot.displayPath(of: $0.0), "bytes": $0.1]
+        }
+        summary["topFiles"] = topNodes(directories: false).map {
+            ["path": snapshot.displayPath(of: $0.0), "bytes": $0.1]
+        }
+        if let data = try? JSONSerialization.data(
+            withJSONObject: summary, options: [.prettyPrinted, .sortedKeys]),
+            let text = String(data: data, encoding: .utf8)
+        {
+            print(text)
+        }
+        return
+    }
+
+    printSection("Scan" + (snapshot.partial ? " (cancelled, partial)" : ""))
+    print("  root            : \(snapshot.rootPath)")
+    print(String(format: "  elapsed         : %.1fs", elapsed))
+    print("  entries         : \(counts.entries)  (\(Int(rate))/s)")
+    print("  directories     : \(counts.directories)")
+    print("  files           : \(counts.files) kept, \(counts.foldedFiles) folded")
+    print(
+        "  nodes           : \(tree.nodeCount)  (~\(ByteFormat.string(UInt64(arenaBytes))) arena)")
+    print(
+        "  fold threshold  : \(snapshot.smallFileThreshold) bytes, \(options.workerCount) workers")
+    print("  peak RSS        : \(ByteFormat.string(peakRSS))")
+    print("  open fds now    : \(openFDs)")
+
+    printSection("Bytes")
+    print("  scanned         : \(ByteFormat.string(rec.scannedBytes))  (\(rec.scannedBytes))")
+    if let used = rec.usedBytes {
+        print("  volume used     : \(ByteFormat.string(used))  (\(rec.volumeMountPoint))")
+        print("  unaccounted     : \(ByteFormat.string(rec.unaccountedBytes))")
+        if rec.overshootBytes > 0 {
+            print(
+                "  overshoot       : \(ByteFormat.string(rec.overshootBytes)) (clones counted in full)"
+            )
+        }
+        if rec.volumeChangedDuringScan {
+            print("  note            : volume changed during the scan")
+        }
+    }
+    print("  shared blocks   : \(ByteFormat.string(rec.sharedBytes))")
+    if let purgeable = rec.purgeableBytes {
+        print("  purgeable       : \(ByteFormat.string(purgeable))")
+    }
+    if let snapshots = rec.localSnapshotCount { print("  local snapshots : \(snapshots)") }
+    for volume in rec.systemVolumes {
+        print(
+            "  \(pad(volume.role.label.lowercased(), 16)): \(ByteFormat.string(volume.usedBytes))")
+    }
+
+    printSection("Exceptions")
+    print("  not permitted   : \(counts.notPermitted) (EPERM, Full Disk Access)")
+    print("  data vaults     : \(counts.dataVaults) (EPERM, entitlement only)")
+    print("  access denied   : \(counts.accessDenied) (EACCES)")
+    print("  unreadable      : \(counts.unreadable)   vanished: \(counts.vanished)")
+    print("  dataless        : \(counts.datalessDirectories) dirs, \(counts.datalessFiles) files")
+    print("  separate volumes: \(counts.separateVolumes)")
+    print(
+        "  hard-link dupes : \(counts.hardLinkDuplicates)   clone-flagged: \(counts.sharedBlockFiles)"
+    )
+    print("  entry errors    : \(counts.entryErrors)")
+
+    if top > 0 {
+        printSection("Largest directories")
+        for (node, bytes) in topNodes(directories: true) {
+            print("  " + pad(ByteFormat.string(bytes), 11) + snapshot.displayPath(of: node))
+        }
+        printSection("Largest files")
+        for (node, bytes) in topNodes(directories: false) {
+            print("  " + pad(ByteFormat.string(bytes), 11) + snapshot.displayPath(of: node))
+        }
+    }
     print("")
 }
 

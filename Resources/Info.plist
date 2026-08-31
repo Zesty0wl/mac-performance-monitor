@@ -30,9 +30,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.5.0</string>
+	<string>1.6.0</string>
 	<key>CFBundleVersion</key>
-	<string>203</string>
+	<string>204</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
 	<key>LSMultipleInstancesProhibited</key>
@@ -60,14 +60,26 @@
 		<string>_homekit._tcp</string>
 		<string>_hap._tcp</string>
 	</array>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>The Disk Map measures what is using space on your Desktop so it can show the largest items there.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>The Disk Map measures what is using space in Documents so it can show the largest items there.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>The Disk Map measures what is using space in Downloads so it can show the largest items there.</string>
+	<key>NSFileProviderDomainUsageDescription</key>
+	<string>The Disk Map lists cloud-synced folders by name and size without downloading anything.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Mac Performance Monitor. No telemetry. All data stays on your Mac.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Scan your selected local subnet to identify devices and available services.</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>The Disk Map can measure what is using space on network volumes you choose to scan.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>The Disk Map can measure what is using space on external drives you choose to scan.</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>

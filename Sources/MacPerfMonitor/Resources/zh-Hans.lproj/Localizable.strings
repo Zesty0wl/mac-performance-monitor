@@ -83,7 +83,6 @@
 "Startup" = "启动";
 "Mode" = "模式";
 "Refresh interval" = "刷新间隔";
-"Performance" = "性能";
 "Data" = "数据";
 "Stored locally, no telemetry" = "本地存储,无遥测";
 "About" = "关于";
@@ -132,7 +131,6 @@
 "1 day" = "1 天";
 "%d days" = "%d 天";
 "Latency ping host" = "延迟测试主机";
-"Network" = "网络";
 "Show every process" = "显示所有进程";
 "Full Coverage" = "完整覆盖";
 "Frequency" = "频率";
@@ -231,13 +229,10 @@
 "Full coverage is on: even system processes are visible." = "完整覆盖已开启 , 甚至系统进程也可见。";
 "Set up access" = "设置访问权限";
 "Both are optional and can be changed later in Settings." = "两者都是可选的,之后可在设置中更改。";
-"Open at login" = "登录时打开";
 "Start in the menu bar and keep history unbroken from the moment you sign in." = "从菜单栏启动,并在您登录后保持历史记录不间断。";
-"Show every process" = "显示所有进程";
 "Approve the helper in System Settings to finish enabling it." = "在系统设置中批准该辅助程序以完成启用。";
 "Dock icon" = "程序坞图标";
 "Also show %@ in the Dock." = "也在程序坞中显示 %@。";
-"Refresh interval" = "刷新间隔";
 "Memory pressure and the largest processes." = "内存压力与占用最大的进程。";
 "Total CPU, every core, and top CPU processes." = "总 CPU、每个核心以及 CPU 占用最高的进程。";
 "GPU activity, power, memory, and temperature." = "GPU 活动、功耗、内存与温度。";
@@ -245,7 +240,6 @@
 "CPU and GPU die temperature, fan speed, and throttling." = "CPU 与 GPU 芯片温度、风扇转速与降频。";
 "Download, upload, latency, and top network apps." = "下载、上传、延迟与网络占用最高的应用。";
 "Physical read and write activity, devices, and top processes." = "物理读写活动、设备与占用最高的进程。";
-"%@. %@" = "%@。%@";
 "Install a small privileged helper so %@ can read system and other-user processes." = "安装一个小型特权辅助程序,以便 %@ 可以读取系统和其他用户的进程。";
 
 /* ===== CombinedMenuBarContentView ===== */
@@ -280,10 +274,8 @@
 /* ===== ContentView & Navigation ===== */
 
 "Dashboard" = "仪表盘";
-"Processes" = "进程";
 "GPU" = "GPU";
 "Energy" = "能耗";
-"Network" = "网络";
 "Disk" = "磁盘";
 "Hardware" = "硬件";
 "Analytics" = "分析";
@@ -483,7 +475,6 @@
 "Devices" = "设备";
 "No physical disks visible yet." = "暂无可显示的物理磁盘。";
 "Capacity and volumes" = "容量与宗卷";
-"Health" = "健康状态";
 "Verified" = "已验证";
 "Failing" = "即将故障";
 "Available spare" = "可用备用空间";
@@ -502,7 +493,6 @@
 
 /* ===== Hardware View & Overview ===== */
 
-"Hardware" = "硬件";
 "Refresh" = "刷新";
 "Read the inventory again (Command-R)" = "重新读取硬件清单 (Command-R)";
 "Copy as Text" = "作为文本拷贝";
@@ -521,7 +511,6 @@
 "Copy MAC Address" = "拷贝 MAC 地址";
 "This Mac" = "关于本机";
 "Model identifier" = "机型标识符";
-"Chip" = "芯片";
 "Serial number" = "序列号";
 "Metal" = "Metal 支持";
 "macOS" = "macOS 版本";
@@ -545,16 +534,11 @@
 
 /* ===== Metric Cards & Explanations ===== */
 
-"Pressure" = "内存压力";
 "Free" = "可用内存";
 "App" = "App 内存";
 "Wired" = "联动内存";
 "Compressed" = "被压缩内存";
 "Cached files" = "缓存文件";
-"Swap" = "交换内存";
-"Cores" = "核心";
-"Performance" = "性能核";
-"Efficiency" = "能效核";
 "What it means" = "指标含义";
 "How it's calculated" = "计算方式";
 "macOS's own read on how hard the memory system is working, on a 0 to 100 scale. 0 to 33 is green and comfortable, 34 to 66 is yellow as it compresses and caches to cope, and 67 to 100 is red, where it swaps to disk and apps can slow down. It is the single number to watch." = "macOS 自行评估的内存系统负载压力，范围为 0 到 100。0 到 33 为绿色舒适状态；34 到 66 为黄色，表示系统正在通过压缩和缓存来应对；67 到 100 为红色，表示正在向磁盘交换数据且应用可能会变慢。这是最核心需要关注的指标。";
@@ -627,7 +611,6 @@
 "Back to the full window" = "返回完整窗口";
 "Avg" = "平均";
 "Peak" = "峰值";
-"Now" = "当前";
 "Trend" = "趋势";
 "Add a process to start plotting" = "添加进程以开始绘制图表";
 "Overlay as many as eight processes and watch them live or over time." = "最多可叠加八个进程，并观察其实时或历史数据。";
@@ -735,7 +718,6 @@
 "%d write IOPS" = "%d 次写入 IOPS";
 "system power" = "系统功耗";
 "Open the Energy tab" = "打开能耗标签页";
-"Full" = "已充满";
 "Plugged in" = "已连接电源";
 "Open the Network tab" = "打开网络标签页";
 "Top network apps" = "网络占用最高应用";

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# bundle.sh :  assemble the app bundle from the built SPM binary and resources.
+# bundle.sh — assemble the app bundle from the built SPM binary and resources.
 #
 # Usage: Scripts/bundle.sh [debug|release]   (default: release)
 #
@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 CONFIG="${1:-release}"
 shift || true
 
-# Apple Silicon (arm64) only :  no universal/x86_64 slices.
+# Apple Silicon (arm64) only — no universal/x86_64 slices.
 for arg in "$@"; do
   case "$arg" in
     --universal)
@@ -28,7 +28,7 @@ done
 # stay "MacPerfMonitor" (so the approved helper and the on-disk data directory keep
 # working), but the executable inside the bundle is named for the product so the
 # OS reports the process as "Mac Performance Monitor" in Activity Monitor, `ps`,
-# and the app's own process list :  not "MacPerfMonitor".
+# and the app's own process list — not "MacPerfMonitor".
 APP_NAME="Mac Performance Monitor"
 APP="build/$APP_NAME.app"
 EXECUTABLE_NAME="$APP_NAME"
@@ -77,7 +77,7 @@ fi
 # SPM-built binary links @rpath/Sparkle.framework/Versions/B/Sparkle but only
 # carries an @loader_path rpath (= Contents/MacOS), so without this the framework
 # would not resolve at launch. Signed by Scripts/sign.sh (inside-out, before the
-# app). Stripping happens never :  the whole framework (incl. Autoupdate, the
+# app). Stripping happens never — the whole framework (incl. Autoupdate, the
 # Updater.app progress UI, and the XPC services) is required at runtime.
 SPARKLE_FW="$BIN_DIR/Sparkle.framework"
 if [[ -d "$SPARKLE_FW" ]]; then
@@ -126,20 +126,16 @@ fi
 
 # --- Localization tables ----------------------------------------------------
 # Copy every <lang>.lproj from the SPM source tree into the bundle's Resources
-# directory. SwiftPM's .process("Resources") stage already merges them into the
-# built executable's bundle, but the .app we assemble here ships only the SPM
-# binary, so we have to repeat the merge at bundle time. macOS resolves the
-# user's preferred language against these directories at runtime.
+# directory. SwiftPM's .process("Resources") stage merges them into the built
+# binary's module bundle, but the .app assembled here ships only the SPM
+# binary, so the merge is repeated at bundle time. macOS resolves the user's
+# preferred language against these directories at runtime.
 LPROJ_SRC="Sources/MacPerfMonitor/Resources"
-if [[ -d "$LPROJ_SRC" ]]; then
-  shopt -s nullglob
+if compgen -G "$LPROJ_SRC/*.lproj" > /dev/null; then
   for lproj in "$LPROJ_SRC"/*.lproj; do
     cp -R "$lproj" "$APP/Contents/Resources/"
-    echo "Bundled $(basename "$lproj")"
+    echo "==> Bundled localization $(basename "$lproj")"
   done
-  shopt -u nullglob
-else
-  echo "warning: $LPROJ_SRC not found; bundling without localization tables" >&2
 fi
 
 echo "Bundled $APP"

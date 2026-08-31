@@ -122,6 +122,7 @@ struct MacPerfMonitorApp: App {
                     .environmentObject(appDelegate.model.menuLists)
                     .environmentObject(appDelegate.appState)
                     .environmentObject(appDelegate.helperManager)
+                    .environmentObject(appDelegate.fullDiskAccessManager)
                     .environmentObject(appDelegate.loginItemManager)
                     .environmentObject(appDelegate.monitorSelection)
                     .environmentObject(appDelegate.groupStore)
@@ -144,6 +145,19 @@ struct MacPerfMonitorApp: App {
                 }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
             }
+            CommandMenu("Disk") {
+                Button("Disk Map") {
+                    AppLog.ui.notice("Disk Map command invoked")
+                    appDelegate.appState.mainWindowOpen = true
+                    appDelegate.appState.mainWindowVisible = true
+                    appDelegate.appState.showDiskMap = true
+                    appDelegate.appState.requestedMainTab = .diskUsage
+                    NotificationCenter.default.post(
+                        name: .macperfmonitorShowMainWindow, object: nil)
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+                .keyboardShortcut("d", modifiers: [.command, .shift])
+            }
         }
 
         Settings {
@@ -152,6 +166,7 @@ struct MacPerfMonitorApp: App {
                     .environmentObject(appDelegate.alertSettings)
                     .environmentObject(appDelegate.model)
                     .environmentObject(appDelegate.helperManager)
+                    .environmentObject(appDelegate.fullDiskAccessManager)
                     .environmentObject(appDelegate.loginItemManager)
                     .environmentObject(appDelegate.appModeManager)
                     .environmentObject(appDelegate.menuBarConfiguration)
@@ -165,6 +180,7 @@ struct MacPerfMonitorApp: App {
                     .environmentObject(appDelegate.appModeManager)
                     .environmentObject(appDelegate.loginItemManager)
                     .environmentObject(appDelegate.helperManager)
+                    .environmentObject(appDelegate.fullDiskAccessManager)
                     .environmentObject(appDelegate.menuBarConfiguration)
             }
         }
@@ -297,6 +313,10 @@ final class AppState: ObservableObject {
     /// `NetworkView` consumes and clears it when that tab mounts.
     @Published var showNetworkScanner = false
 
+    /// Set by the app command to open the Disk tab's Disk Map page.
+    /// `DiskUsageView` consumes and clears it when that tab mounts.
+    @Published var showDiskMap = false
+
     /// A `.mpmtrace` file opened from Finder, awaiting display. `ContentView`
     /// switches to the Analytics tab and `AnalyticsView` decodes and shows it,
     /// then clears this. Nil when nothing is pending.
@@ -351,6 +371,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     let onboarding = OnboardingState()
     let helperManager = HelperManager()
     let loginItemManager = LoginItemManager()
+    let fullDiskAccessManager = FullDiskAccessManager()
     let updateController = UpdateController()
     let monitorSelection = MonitorSelection()
     let groupStore = ProcessGroupStore.shared
@@ -684,6 +705,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     func applicationDidBecomeActive(_ notification: Notification) {
         helperManager.refresh()
         loginItemManager.refresh()
+        // Full Disk Access is also granted out of process; re-probe so the
+        // Disk Map's card and Settings reflect a fresh grant.
+        fullDiskAccessManager.refresh()
     }
 
     // MARK: - UNUserNotificationCenterDelegate

@@ -20,6 +20,16 @@ struct DiskUsageView: View {
     @State private var loadedRange: HistoryWindow?
     @State private var topDiskConsumers: [ProcessConsumer] = []
 
+    /// The tab's two pages. Remembered across launches: someone who came for
+    /// the Disk Map keeps landing on it.
+    enum SubPage: String, CaseIterable, Identifiable {
+        case overview = "Overview"
+        case map = "Disk Map"
+        var id: String { rawValue }
+    }
+
+    @AppStorage("diskSubPage") private var subPage: SubPage = .overview
+
     private var awaitingData: Bool { loadedRange != range }
 
     private var chartDomain: ClosedRange<Date>? {
@@ -27,6 +37,41 @@ struct DiskUsageView: View {
     }
 
     var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Picker("Page", selection: $subPage) {
+                    ForEach(SubPage.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+            Divider()
+            switch subPage {
+            case .overview: overview
+            case .map: DiskMapView()
+            }
+        }
+        .onAppear { consumeDiskMapRequest() }
+        .onChange(of: appState.showDiskMap) { _, requested in
+            if requested { consumeDiskMapRequest() }
+        }
+    }
+
+    /// A menu command asked for the Disk Map; the same observe-then-clear
+    /// idiom as the Network Scan request.
+    private func consumeDiskMapRequest() {
+        guard appState.showDiskMap else { return }
+        subPage = .map
+        appState.showDiskMap = false
+    }
+
+    /// The original Disk page. Its slow-cadence detail model runs only while
+    /// this page is the one showing.
+    private var overview: some View {
         ScrollView {
             MainRailLayout {
                 pageHeader

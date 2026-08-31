@@ -390,6 +390,7 @@ private struct AlertsSettingsView: View {
 /// helper) and the on-disk storage cap.
 private struct AdvancedSettingsView: View {
     @EnvironmentObject private var helper: HelperManager
+    @EnvironmentObject private var fullDiskAccess: FullDiskAccessManager
     @EnvironmentObject private var model: SamplerModel
 
     /// The database size cap in MB, read by the retention pass (same key).
@@ -451,6 +452,24 @@ private struct AdvancedSettingsView: View {
             } footer: {
                 Text(
                     "\(AppInfo.displayName) can install a small privileged helper so it can read the memory of system and other-user processes (such as WindowServer) that it otherwise cannot see. The helper runs only to read memory statistics and sends nothing off your Mac."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Section {
+                caption(fullDiskAccessStatus)
+                HStack(spacing: 8) {
+                    Button("Open System Settings\u{2026}") { fullDiskAccess.openSystemSettings() }
+                    if fullDiskAccess.awaitingRelaunch {
+                        Button("Relaunch \(AppInfo.displayName)") { fullDiskAccess.relaunch() }
+                    }
+                }
+            } header: {
+                Text("Disk Map Access")
+            } footer: {
+                Text(
+                    "The Disk Map scans your disk to show what is using space. With Full Disk Access it can see Mail, Messages, Safari, Time Machine and other apps' data; without it those stay hidden and macOS asks about Desktop, Documents and Downloads separately. The grant takes effect after \(AppInfo.displayName) relaunches."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -572,6 +591,20 @@ private struct AdvancedSettingsView: View {
             return "Waiting for your approval in System Settings \u{203A} Login Items."
         case .enabled:
             return "On. \(AppInfo.displayName) can read every process, including system processes."
+        }
+    }
+
+    /// A plain-language description of the Full Disk Access state.
+    private var fullDiskAccessStatus: String {
+        switch fullDiskAccess.status {
+        case .granted:
+            return "On. The Disk Map can read every folder your account owns."
+        case .notGranted:
+            return fullDiskAccess.awaitingRelaunch
+                ? "Waiting for a relaunch. If you turned it on, relaunch to apply it."
+                : "Off. Some folders will be missing from the Disk Map."
+        case .unknown:
+            return "Could not be determined on this account."
         }
     }
 
