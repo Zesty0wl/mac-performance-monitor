@@ -6,6 +6,8 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-08-31
+
 ### Added
 
 - **Disk Map.** The Disk tab has a second page for the question the rest of
@@ -626,6 +628,7 @@ processes behind them.
   builds, tests, and lints on every push and pull request.
 
 [Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.5.0.198...HEAD
+[1.6.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.5.0.198...v1.6.0.204
 [1.5.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.4.0.197...v1.5.0.198
 [1.4.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.8.189...v1.4.0.197
 [1.3.8]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.7.186...v1.3.8.189
