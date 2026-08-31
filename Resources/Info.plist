@@ -66,6 +66,18 @@
 	<string>Mac Performance Monitor. No telemetry. All data stays on your Mac.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Scan your selected local subnet to identify devices and available services.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>The Disk Map measures what is using space on your Desktop so it can show the largest items there.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>The Disk Map measures what is using space in Documents so it can show the largest items there.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>The Disk Map measures what is using space in Downloads so it can show the largest items there.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>The Disk Map can measure what is using space on external drives you choose to scan.</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>The Disk Map can measure what is using space on network volumes you choose to scan.</string>
+	<key>NSFileProviderDomainUsageDescription</key>
+	<string>The Disk Map lists cloud-synced folders by name and size without downloading anything.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>SUEnableAutomaticChecks</key>
