@@ -1119,3 +1119,4 @@
 "A disc image, often an OS installer." = "光盘映像，通常是操作系统安装器。";
 "iOS restore image" = "iOS 恢复映像";
 "A firmware image used to restore a device; re-downloadable." = "用于恢复设备的固件映像；可重新下载。";
+"macOS volumes" = "macOS 宗卷";

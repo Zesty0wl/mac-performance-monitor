@@ -1120,3 +1120,4 @@
 "A disc image, often an OS installer." = "A disc image, often an OS installer.";
 "iOS restore image" = "iOS restore image";
 "A firmware image used to restore a device; re-downloadable." = "A firmware image used to restore a device; re-downloadable.";
+"macOS volumes" = "macOS volumes";

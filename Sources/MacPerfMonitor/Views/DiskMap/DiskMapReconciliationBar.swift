@@ -36,11 +36,12 @@ struct DiskMapReconciliationBar: View {
                     color: Color.secondary.opacity(0.45)))
         }
         if systemBytes > 0 {
-            result.append(Segment(id: "macos", label: "macOS", bytes: systemBytes, color: .teal))
+            result.append(
+                Segment(id: "macos", label: "macOS volumes", bytes: systemBytes, color: .teal))
         }
         if let free = reconciliation.availableBytes, free > 0 {
             result.append(
-                Segment(id: "free", label: "Free", bytes: free, color: DiskStyle.freeTrack))
+                Segment(id: "free", label: "Free space", bytes: free, color: DiskStyle.freeTrack))
         }
         return result
     }

@@ -31,6 +31,7 @@ enum MacPerfMonitorMain {
             exit(0)
         }
         SingleInstanceGuard.activateExistingAndExitIfRunning()
+        AppLanguagePreflight.run()
         MacPerfMonitorApp.main()
     }
 }
