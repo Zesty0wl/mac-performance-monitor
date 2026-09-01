@@ -2341,6 +2341,24 @@
         }
       }
     },
+    "%lld cores": {
+      "comment": "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld cores"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个核心"
+          }
+        }
+      }
+    },
     "%lld entries": {
       "comment": "Disk Map (1.6.0)",
       "extractionState": "manual",
@@ -2481,6 +2499,24 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld 个受 macOS 保护"
+          }
+        }
+      }
+    },
+    "%lld supported": {
+      "comment": "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld supported"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持 %lld 项"
           }
         }
       }
