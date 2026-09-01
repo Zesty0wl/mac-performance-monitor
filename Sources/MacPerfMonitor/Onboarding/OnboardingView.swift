@@ -21,17 +21,34 @@ struct OnboardingView: View {
         if !onboarding.autoConfigOnly {
             result += OnboardingPage.all.map(OnboardingStep.info)
         }
-        result += [.mode, .permissions, .menuBar]
+        result += [.mode, .permissions, .menuBar, .done]
         return result
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            stepContent
-                .padding(.horizontal, 40)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .id(page)
-                .transition(pageTransition)
+            // The content scrolls and the footer does not. A step taller than the
+            // window used to push the footer off the bottom edge, which stranded
+            // anyone who did not think to press Return: the menu bar step had
+            // grown past the frame as metrics were added, so its icon was clipped
+            // at the top and Skip, the page dots and the primary button were all
+            // below the visible area. Translations make text taller still, so the
+            // navigation is kept structurally out of the scrolling region.
+            GeometryReader { proxy in
+                ScrollView {
+                    stepContent
+                        .padding(.horizontal, 40)
+                        // Short steps stay vertically centred, because the
+                        // scaffold's spacers expand to fill this minimum; tall
+                        // ones exceed it and scroll.
+                        .frame(maxWidth: .infinity, minHeight: proxy.size.height)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+            }
+            .id(page)
+            .transition(pageTransition)
+
+            Divider()
 
             footer
                 .padding(20)
@@ -58,6 +75,8 @@ struct OnboardingView: View {
             OnboardingPermissionsStep()
         case .menuBar:
             OnboardingMenuBarStep()
+        case .done:
+            OnboardingDoneStep()
         }
     }
 
@@ -72,12 +91,11 @@ struct OnboardingView: View {
 
     private var footer: some View {
         HStack {
-            Button("Skip") { finish(openingDashboard: false) }
+            // "Skip" while steps remain, "Close" on the final card: the flow
+            // should never depend on the traffic light for its ending.
+            Button(isLastPage ? "Close" : "Skip") { finish(openingDashboard: false) }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-                .opacity(isLastPage ? 0 : 1)
-                .disabled(isLastPage)
-                .accessibilityHidden(isLastPage)
 
             Spacer()
 
@@ -85,7 +103,7 @@ struct OnboardingView: View {
 
             Spacer()
 
-            Button(isLastPage ? "Get started" : "Next") {
+            Button(isLastPage ? "Open Dashboard" : "Next") {
                 if isLastPage {
                     finish(openingDashboard: true)
                 } else {
@@ -128,6 +146,7 @@ private enum OnboardingStep {
     case mode
     case permissions
     case menuBar
+    case done
 }
 
 /// One educational screen: a symbol, a title, and a short explanation.
@@ -246,6 +265,55 @@ private struct OnboardingStepScaffold<Content: View>: View {
             }
             content
             Spacer(minLength: 8)
+        }
+    }
+}
+
+/// The closing card.
+///
+/// The flow used to end on the menu bar settings, which reads as one more pane
+/// of switches rather than a finish line. This gives the wizard a visible end
+/// and makes handing the user the dashboard the primary action.
+private struct OnboardingDoneStep: View {
+    var body: some View {
+        OnboardingStepScaffold(
+            symbol: "checkmark.circle.fill", tint: .green,
+            title: "You are all set",
+            subtitle:
+                "\(AppInfo.displayName) is recording now. Its read-out lives in the menu bar, near the clock."
+        ) {
+            VStack(alignment: .leading, spacing: 12) {
+                OnboardingDoneRow(
+                    symbol: "menubar.rectangle",
+                    text: "Click the menu bar read-out for a quick look at any metric.")
+                OnboardingDoneRow(
+                    symbol: "square.grid.2x2",
+                    text: "Open the dashboard for history, charts and per-process detail.")
+                OnboardingDoneRow(
+                    symbol: "gearshape",
+                    text: "Everything you just chose can be changed later in Settings.")
+            }
+            .padding(.top, 4)
+        }
+    }
+}
+
+/// One hint line on the closing card.
+private struct OnboardingDoneRow: View {
+    let symbol: String
+    let text: LocalizedStringKey
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: symbol)
+                .foregroundStyle(.secondary)
+                .frame(width: 22)
+                .accessibilityHidden(true)
+            Text(text)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
     }
 }

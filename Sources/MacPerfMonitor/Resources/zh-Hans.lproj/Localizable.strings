@@ -2101,3 +2101,12 @@
 "%@ d" = "%@ 天";
 "Throttling (%@)" = "正在降频（%@）";
 "Energy impact" = "能耗影响";
+
+/* ===== Onboarding: the closing card (1.7.0) ===== */
+
+"You are all set" = "全部设置完成";
+"%@ is recording now. Its read-out lives in the menu bar, near the clock." = "%@ 已开始记录。它的读数显示在菜单栏中，靠近时钟的位置。";
+"Click the menu bar read-out for a quick look at any metric." = "点按菜单栏读数即可快速查看任一指标。";
+"Open the dashboard for history, charts and per-process detail." = "打开仪表盘可查看历史记录、图表以及各进程的详细信息。";
+"Everything you just chose can be changed later in Settings." = "你刚才的所有选择之后都可以在设置中更改。";
+"Close" = "关闭";
