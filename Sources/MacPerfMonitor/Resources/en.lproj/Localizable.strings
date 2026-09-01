@@ -1122,3 +1122,13 @@
 "A firmware image used to restore a device; re-downloadable." = "A firmware image used to restore a device; re-downloadable.";
 "macOS volumes" = "macOS volumes";
 "Not supported: %@" = "Not supported: %@";
+
+/* Disambiguated keys.
+
+   These exist only so a translation can use two different words where English
+   uses one. The value restores the short English wording, so nothing about the
+   English interface changes. */
+"Performance cores" = "Performance";
+"Efficiency cores" = "Efficiency";
+"Core" = "Core";
+"Off (setting)" = "Off";

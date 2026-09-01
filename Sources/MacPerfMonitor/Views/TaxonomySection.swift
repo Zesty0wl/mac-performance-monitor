@@ -42,8 +42,9 @@ struct TaxonomySection: View {
         .frame(height: 30)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .accessibilityLabel(
-            "Memory taxonomy: "
-                + slices.map { "\($0.name) \(percent($0.bytes))" }.joined(separator: ", "))
+            t(
+                "Memory taxonomy: %@",
+                slices.map { "\($0.name) \(percent($0.bytes))" }.joined(separator: ", ")))
     }
 
     private var legend: some View {

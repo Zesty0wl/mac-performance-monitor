@@ -1,3 +1,4 @@
+import MacPerfMonitorCore
 import SwiftUI
 
 /// A small, consistent "possible memory leak" badge shown beside a process
@@ -22,16 +23,18 @@ struct LeakIndicator: View {
 
     private var helpText: String {
         guard let confidence else {
-            return "Possible memory leak \u{00B7} its memory has been climbing steadily."
+            return t("Possible memory leak \u{00B7} its memory has been climbing steadily.")
         }
         let percent = Int((confidence * 100).rounded())
-        return
-            "Possible memory leak \u{00B7} \(percent)% confidence. "
-            + "Its memory has been climbing steadily."
+        return t(
+            "Possible memory leak \u{00B7} %@%% confidence. Its memory has been climbing steadily.",
+            String(percent))
     }
 
     private var accessibilityText: String {
-        guard let confidence else { return "Possible memory leak" }
-        return "Possible memory leak, \(Int((confidence * 100).rounded())) percent confidence"
+        guard let confidence else { return t("Possible memory leak") }
+        return t(
+            "Possible memory leak, %@ percent confidence",
+            String(Int((confidence * 100).rounded())))
     }
 }

@@ -346,7 +346,7 @@ struct PerformanceMonitorView: View {
     /// wrapper, which swaps this live view for the read-only trace viewer.
     private func importTrace() {
         let panel = NSOpenPanel()
-        panel.title = "Open Trace"
+        panel.title = t("Open Trace")
         panel.allowedContentTypes = [TraceFileType.utType]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
@@ -428,7 +428,7 @@ struct PerformanceMonitorView: View {
                 if isLoading {
                     ProgressView().controlSize(.small)
                 } else if series.allSatisfy({ $0.points.count < 2 }) {
-                    Text(model.hasHistory ? "Collecting data\u{2026}" : "Live data only")
+                    Text(model.hasHistory ? t("Collecting data\u{2026}") : t("Live data only"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -524,7 +524,7 @@ struct PerformanceMonitorView: View {
                 if isLoading {
                     ProgressView().controlSize(.small)
                 } else if focusedSeries.allSatisfy({ $0.points.count < 2 }) {
-                    Text(model.hasHistory ? "Collecting data\u{2026}" : "Live data only")
+                    Text(model.hasHistory ? t("Collecting data\u{2026}") : t("Live data only"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -1578,7 +1578,7 @@ private struct ProcessPickerList: View {
         .frame(width: 320, height: 400)
     }
 
-    private func header(_ title: String, detail: String? = nil) -> some View {
+    private func header(_ title: LocalizedStringKey, detail: String? = nil) -> some View {
         HStack(spacing: 6) {
             Text(title)
                 .font(.caption.weight(.semibold))
@@ -1661,7 +1661,7 @@ private struct ProcessPickerList: View {
         .buttonStyle(.plain)
         .disabled(disabled)
         .opacity(disabled ? 0.4 : 1)
-        .help(disabled ? "Remove a process first (eight maximum)." : "")
+        .help(disabled ? t("Remove a process first (eight maximum).") : "")
     }
 
     /// Time of day for something seen today, otherwise the date: enough to tell

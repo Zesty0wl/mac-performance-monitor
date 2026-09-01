@@ -85,7 +85,7 @@ final class TaxonomySurfaceView: LiveSurfaceView {
         super.init(frame: .zero)
         setAccessibilityElement(true)
         setAccessibilityRole(.image)
-        setAccessibilityLabel("Memory composition")
+        setAccessibilityLabel(t("Memory composition"))
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -113,8 +113,9 @@ final class TaxonomySurfaceView: LiveSurfaceView {
             refreshToolTips()
         }
         setAccessibilityValue(
-            "Memory taxonomy: "
-                + feed.slices.map { "\($0.name) \(percent($0.bytes))" }.joined(separator: ", "))
+            t(
+                "Memory taxonomy: %@",
+                feed.slices.map { "\($0.name) \(percent($0.bytes))" }.joined(separator: ", ")))
         invalidateContent()
     }
 
@@ -162,7 +163,8 @@ final class TaxonomySurfaceView: LiveSurfaceView {
     override func paint(in context: CGContext, dirty: CGRect) {
         guard let feed else { return }
         guard !feed.slices.isEmpty else {
-            labels.label("Collecting the first sample…", style: .axis).draw(at: .zero, in: context)
+            labels.label(t("Collecting the first sample…"), style: .axis).draw(
+                at: .zero, in: context)
             return
         }
         // The stacked bar, clipped to a rounded rect.

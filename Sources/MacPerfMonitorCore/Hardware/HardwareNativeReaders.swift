@@ -33,21 +33,23 @@ enum HardwareNativeReaders {
             if let soc = socName { properties.append(HardwareProperty("System on a chip", soc)) }
             if let upgradeable = uint32(product, "upgradeable-memory") {
                 properties.append(
-                    HardwareProperty("Upgradeable memory", upgradeable == 0 ? "No" : "Yes"))
+                    HardwareProperty("Upgradeable memory", upgradeable == 0 ? t("No") : t("Yes")))
             }
             if let notch = uint32(product, "partially-occluded-display") {
                 properties.append(
-                    HardwareProperty("Display with camera housing", notch == 0 ? "No" : "Yes"))
+                    HardwareProperty(
+                        "Display with camera housing", notch == 0 ? t("No") : t("Yes")))
             }
             if let mirroring = uint32(product, "display-mirroring") {
                 properties.append(
-                    HardwareProperty("Display mirroring", mirroring == 0 ? "No" : "Yes"))
+                    HardwareProperty("Display mirroring", mirroring == 0 ? t("No") : t("Yes")))
             }
             if let chipset = text(product, "wifi-chipset") {
                 properties.append(HardwareProperty("Wi-Fi chipset", chipset))
             }
             if let lea = uint32(product, "bluetooth-lea2") {
-                properties.append(HardwareProperty("Bluetooth LE Audio", lea == 0 ? "No" : "Yes"))
+                properties.append(
+                    HardwareProperty("Bluetooth LE Audio", lea == 0 ? t("No") : t("Yes")))
             }
         }
 
@@ -97,7 +99,7 @@ enum HardwareNativeReaders {
         result.facts.productName = productName
         result.facts.chipName = socName ?? Sysctl.string("machdep.cpu.brand_string")
 
-        let title = productName ?? Sysctl.string("hw.model") ?? "This Mac"
+        let title = productName ?? Sysctl.string("hw.model") ?? t("This Mac")
         result.nodes = [
             HardwareNode(
                 id: "\(parentID)/native/identity", title: title,
@@ -111,7 +113,7 @@ enum HardwareNativeReaders {
 
     static func processor(parentID: String, systemImage: String) -> Result {
         var result = Result()
-        let brand = Sysctl.string("machdep.cpu.brand_string") ?? "Processor"
+        let brand = Sysctl.string("machdep.cpu.brand_string") ?? t("Processor")
         let logical = Sysctl.integer("hw.logicalcpu", as: Int32.self).map(Int.init) ?? 0
         let physical = Sysctl.integer("hw.physicalcpu", as: Int32.self).map(Int.init) ?? 0
         let levels = Sysctl.integer("hw.nperflevels", as: Int32.self).map(Int.init) ?? 0
@@ -126,7 +128,7 @@ enum HardwareNativeReaders {
         var summary: [String] = []
         for level in 0..<max(levels, 0) {
             let prefix = "hw.perflevel\(level)."
-            let name = Sysctl.string(prefix + "name") ?? "Level \(level)"
+            let name = Sysctl.string(prefix + "name") ?? t("Level %@", "\(level)")
             let cores = Sysctl.integer(prefix + "physicalcpu", as: Int32.self).map(Int.init) ?? 0
             let maxCores =
                 Sysctl.integer(prefix + "physicalcpu_max", as: Int32.self).map(Int.init) ?? cores
@@ -134,9 +136,20 @@ enum HardwareNativeReaders {
             let l1d = Sysctl.integer(prefix + "l1dcachesize", as: Int64.self)
             let l2 = Sysctl.integer(prefix + "l2cachesize", as: Int64.self)
             let perL2 = Sysctl.integer(prefix + "cpusperl2", as: Int32.self)
-            summary.append("\(cores) \(name.lowercased())")
-            if name.lowercased().hasPrefix("perf") { result.facts.performanceCores = cores }
-            if name.lowercased().hasPrefix("eff") { result.facts.efficiencyCores = cores }
+            let isPerformance = name.lowercased().hasPrefix("perf")
+            let isEfficiency = name.lowercased().hasPrefix("eff")
+            // "%@ performance" / "%@ efficiency" are Hardware-page-specific
+            // (the summary reads "4 performance, 6 efficiency"); the level
+            // node's own title and subtitle below reuse the same
+            // "Performance cores" / "Efficiency cores" / "%@ cores" keys the
+            // Dashboard and GPU tabs already use for the same concept.
+            summary.append(
+                isPerformance
+                    ? t("%@ performance", "\(cores)")
+                    : isEfficiency
+                        ? t("%@ efficiency", "\(cores)") : "\(cores) \(name.lowercased())")
+            if isPerformance { result.facts.performanceCores = cores }
+            if isEfficiency { result.facts.efficiencyCores = cores }
             var levelProperties: [HardwareProperty] = [
                 HardwareProperty("Cores", "\(cores)"),
                 HardwareProperty("Cores available", "\(maxCores)"),
@@ -147,10 +160,14 @@ enum HardwareNativeReaders {
             if let l1d { levelProperties.append(HardwareProperty("L1 data cache", bytes(l1d))) }
             if let l2 { levelProperties.append(HardwareProperty("L2 cache", bytes(l2))) }
             if let perL2 { levelProperties.append(HardwareProperty("Cores per L2", "\(perL2)")) }
+            let levelTitle =
+                isPerformance
+                ? t("Performance cores") : isEfficiency ? t("Efficiency cores") : "\(name) cores"
             levelNodes.append(
                 HardwareNode(
-                    id: "\(parentID)/native/perflevel\(level)", title: "\(name) cores",
-                    subtitle: "\(cores) cores", systemImage: systemImage,
+                    id: "\(parentID)/native/perflevel\(level)", title: levelTitle,
+                    subtitle: cores == 1 ? t("1 core") : t("%@ cores", "\(cores)"),
+                    systemImage: systemImage,
                     properties: levelProperties))
         }
         if let line = Sysctl.integer("hw.cachelinesize", as: Int64.self) {
@@ -172,26 +189,29 @@ enum HardwareNativeReaders {
             properties.append(HardwareProperty("Target type", target))
         }
         if let cpu64 = Sysctl.integer("hw.cpu64bit_capable", as: Int32.self) {
-            properties.append(HardwareProperty("64-bit capable", cpu64 == 1 ? "Yes" : "No"))
+            properties.append(HardwareProperty("64-bit capable", cpu64 == 1 ? t("Yes") : t("No")))
         }
         if let hv = Sysctl.integer("kern.hv_support", as: Int32.self) {
-            properties.append(HardwareProperty("Hypervisor support", hv == 1 ? "Yes" : "No"))
+            properties.append(
+                HardwareProperty("Hypervisor support", hv == 1 ? t("Yes") : t("No")))
         }
 
         let features = isaFeatures()
         let supported = features.filter(\.supported)
         result.facts.isaFeatureCount = supported.count
         let featureNode = HardwareNode(
-            id: "\(parentID)/native/features", title: "Instruction set features",
-            subtitle: "\(supported.count) supported", systemImage: systemImage,
+            id: "\(parentID)/native/features", title: t("Instruction set features"),
+            subtitle: t("%@ supported", "\(supported.count)"), systemImage: systemImage,
             properties: features.map {
-                HardwareProperty($0.name, $0.supported ? "Supported" : "Not supported")
+                HardwareProperty($0.name, $0.supported ? t("Supported") : t("Not supported"))
             })
 
         result.nodes = [
             HardwareNode(
                 id: "\(parentID)/native/cpu", title: brand,
-                subtitle: summary.isEmpty ? "\(physical) cores" : summary.joined(separator: ", "),
+                subtitle: summary.isEmpty
+                    ? (physical == 1 ? t("1 core") : t("%@ cores", "\(physical)"))
+                    : summary.joined(separator: ", "),
                 systemImage: systemImage, properties: properties,
                 children: levelNodes + [featureNode])
         ]
@@ -288,7 +308,7 @@ enum HardwareNativeReaders {
             properties.append(HardwareProperty("Page size", bytes(page)))
         }
         if let ecc = Sysctl.integer("hw.optional.ecc", as: Int32.self) {
-            properties.append(HardwareProperty("ECC", ecc == 1 ? "Yes" : "No"))
+            properties.append(HardwareProperty("ECC", ecc == 1 ? t("Yes") : t("No")))
         }
         let product = IORegistryEntryFromPath(kIOMainPortDefault, "IODeviceTree:/product")
         if product != 0 {
@@ -296,14 +316,15 @@ enum HardwareNativeReaders {
             if let upgradeable = uint32(product, "upgradeable-memory") {
                 properties.append(
                     HardwareProperty(
-                        "Upgradeable", upgradeable == 0 ? "No (unified, on package)" : "Yes"))
+                        "Upgradeable",
+                        upgradeable == 0 ? t("No (unified, on package)") : t("Yes")))
             }
         }
-        let title = installed.map { "\(bytes(Int64($0))) unified memory" } ?? "Memory"
+        let title = installed.map { t("%@ unified memory", bytes(Int64($0))) } ?? t("Memory")
         result.nodes = [
             HardwareNode(
                 id: "\(parentID)/native/memory", title: title,
-                subtitle: "Shared by CPU, GPU and Neural Engine",
+                subtitle: t("Shared by CPU, GPU and Neural Engine"),
                 systemImage: systemImage, properties: properties)
         ]
         return result
@@ -336,7 +357,7 @@ enum HardwareNativeReaders {
             properties.append(HardwareProperty("GPU family", family))
             result.facts.metalSupport = metal
             properties.append(
-                HardwareProperty("Unified memory", device.hasUnifiedMemory ? "Yes" : "No"))
+                HardwareProperty("Unified memory", device.hasUnifiedMemory ? t("Yes") : t("No")))
             properties.append(
                 HardwareProperty(
                     "Recommended working set", bytes(Int64(device.recommendedMaxWorkingSetSize))))
@@ -351,26 +372,26 @@ enum HardwareNativeReaders {
                 HardwareProperty(
                     "Threadgroup memory", bytes(Int64(device.maxThreadgroupMemoryLength))))
             properties.append(
-                HardwareProperty("Ray tracing", device.supportsRaytracing ? "Yes" : "No"))
+                HardwareProperty("Ray tracing", device.supportsRaytracing ? t("Yes") : t("No")))
             properties.append(
                 HardwareProperty(
-                    "Ray tracing from render", device.supportsRaytracingFromRender ? "Yes" : "No"))
+                    "Ray tracing from render", device.supportsRaytracingFromRender ? t("Yes") : t("No")))
             properties.append(
-                HardwareProperty("32-bit MSAA", device.supports32BitMSAA ? "Yes" : "No"))
-            properties.append(
-                HardwareProperty(
-                    "32-bit float filtering", device.supports32BitFloatFiltering ? "Yes" : "No"))
+                HardwareProperty("32-bit MSAA", device.supports32BitMSAA ? t("Yes") : t("No")))
             properties.append(
                 HardwareProperty(
-                    "BC texture compression", device.supportsBCTextureCompression ? "Yes" : "No"))
+                    "32-bit float filtering", device.supports32BitFloatFiltering ? t("Yes") : t("No")))
             properties.append(
                 HardwareProperty(
-                    "Dynamic libraries", device.supportsDynamicLibraries ? "Yes" : "No"))
+                    "BC texture compression", device.supportsBCTextureCompression ? t("Yes") : t("No")))
             properties.append(
                 HardwareProperty(
-                    "Function pointers", device.supportsFunctionPointers ? "Yes" : "No"))
+                    "Dynamic libraries", device.supportsDynamicLibraries ? t("Yes") : t("No")))
             properties.append(
-                HardwareProperty("Query texture LOD", device.supportsQueryTextureLOD ? "Yes" : "No")
+                HardwareProperty(
+                    "Function pointers", device.supportsFunctionPointers ? t("Yes") : t("No")))
+            properties.append(
+                HardwareProperty("Query texture LOD", device.supportsQueryTextureLOD ? t("Yes") : t("No"))
             )
             properties.append(
                 HardwareProperty(
@@ -382,15 +403,16 @@ enum HardwareNativeReaders {
                 HardwareProperty("Sparse tile size", bytes(Int64(device.sparseTileSizeInBytes))))
             properties.append(HardwareProperty("Registry ID", "\(device.registryID)"))
             properties.append(HardwareProperty("Location", location(device)))
-            properties.append(HardwareProperty("Low power", device.isLowPower ? "Yes" : "No"))
-            properties.append(HardwareProperty("Removable", device.isRemovable ? "Yes" : "No"))
-            properties.append(HardwareProperty("Headless", device.isHeadless ? "Yes" : "No"))
+            properties.append(HardwareProperty("Low power", device.isLowPower ? t("Yes") : t("No")))
+            properties.append(HardwareProperty("Removable", device.isRemovable ? t("Yes") : t("No")))
+            properties.append(HardwareProperty("Headless", device.isHeadless ? t("Yes") : t("No")))
             if let pluginName { properties.append(HardwareProperty("Metal plug-in", pluginName)) }
             if let driverBundle { properties.append(HardwareProperty("Driver", driverBundle)) }
             nodes.append(
                 HardwareNode(
                     id: "\(parentID)/native/gpu", title: device.name,
-                    subtitle: coreCount.map { "\($0)-core GPU" } ?? "GPU", systemImage: systemImage,
+                    subtitle: coreCount.map { t("%@-core GPU", "\($0)") } ?? "GPU",
+                    systemImage: systemImage,
                     properties: properties))
         }
 
@@ -399,7 +421,7 @@ enum HardwareNativeReaders {
         var aneProperties: [HardwareProperty] = []
         let chip = Sysctl.string("machdep.cpu.brand_string") ?? ""
         let aneCores = chip.localizedCaseInsensitiveContains("ultra") ? 32 : 16
-        aneProperties.append(HardwareProperty("Cores", "\(aneCores) (by chip family)"))
+        aneProperties.append(HardwareProperty("Cores", t("%@ (by chip family)", "\(aneCores)")))
         result.facts.neuralEngineCores = aneCores
         let ane = IORegistryEntryFromPath(kIOMainPortDefault, "IODeviceTree:/arm-io/ane")
         if ane != 0 {
@@ -417,15 +439,15 @@ enum HardwareNativeReaders {
         }
         nodes.append(
             HardwareNode(
-                id: "\(parentID)/native/ane", title: "Neural Engine",
-                subtitle: "\(aneCores)-core", systemImage: "brain",
+                id: "\(parentID)/native/ane", title: t("Neural Engine"),
+                subtitle: t("%@-core", "\(aneCores)"), systemImage: "brain",
                 properties: aneProperties))
         result.nodes = nodes
         return result
     }
 
     private static func metalSupport(_ device: MTLDevice) -> (family: String, metal: String) {
-        var family = "Unknown"
+        var family = t("Unknown")
         for n in stride(from: 9, through: 1, by: -1) {
             if let candidate = MTLGPUFamily(rawValue: 1000 + n), device.supportsFamily(candidate) {
                 family = "Apple \(n)"
@@ -454,7 +476,7 @@ enum HardwareNativeReaders {
 
     private static func readWriteTier(_ tier: MTLReadWriteTextureTier) -> String {
         switch tier {
-        case .tierNone: return "Not supported"
+        case .tierNone: return t("Not supported")
         case .tier1: return "Tier 1"
         case .tier2: return "Tier 2"
         @unknown default: return "Tier \(tier.rawValue)"
@@ -463,11 +485,11 @@ enum HardwareNativeReaders {
 
     private static func location(_ device: MTLDevice) -> String {
         switch device.location {
-        case .builtIn: return "Built-in"
-        case .slot: return "Slot \(device.locationNumber)"
-        case .external: return "External \(device.locationNumber)"
-        case .unspecified: return "Unspecified"
-        @unknown default: return "Unknown"
+        case .builtIn: return t("Built-in")
+        case .slot: return t("Slot %@", "\(device.locationNumber)")
+        case .external: return t("External %@", "\(device.locationNumber)")
+        case .unspecified: return t("Unspecified")
+        @unknown default: return t("Unknown")
         }
     }
 
@@ -482,9 +504,10 @@ enum HardwareNativeReaders {
             var properties: [HardwareProperty] = []
             let name = interface.interfaceName ?? "en?"
             properties.append(HardwareProperty("Interface", name))
-            properties.append(HardwareProperty("Power", interface.powerOn() ? "On" : "Off"))
             properties.append(
-                HardwareProperty("Service active", interface.serviceActive() ? "Yes" : "No"))
+                HardwareProperty("Power", interface.powerOn() ? t("On") : t("Off (setting)")))
+            properties.append(
+                HardwareProperty("Service active", interface.serviceActive() ? t("Yes") : t("No")))
             properties.append(HardwareProperty("Mode", mode(interface.interfaceMode())))
             let phy = phyMode(interface.activePHYMode())
             properties.append(HardwareProperty("PHY mode", phy))
@@ -495,7 +518,7 @@ enum HardwareNativeReaders {
                 properties.append(HardwareProperty("Network", ssid))
             } else if interface.powerOn() {
                 properties.append(
-                    HardwareProperty("Network", "Hidden without Location Services access"))
+                    HardwareProperty("Network", t("Hidden without Location Services access")))
             }
             if let bssid = interface.bssid() {
                 properties.append(HardwareProperty("BSSID", bssid))
@@ -504,7 +527,7 @@ enum HardwareNativeReaders {
             if let channel = interface.wlanChannel() {
                 let band = self.band(channel.channelBand)
                 let width = self.width(channel.channelWidth)
-                channelSummary = "\(band) channel \(channel.channelNumber)"
+                channelSummary = t("%1$@ channel %2$@", band, "\(channel.channelNumber)")
                 properties.append(HardwareProperty("Channel", "\(channel.channelNumber)"))
                 properties.append(HardwareProperty("Band", band))
                 properties.append(HardwareProperty("Channel width", width))
@@ -529,11 +552,13 @@ enum HardwareNativeReaders {
             if let channels = interface.supportedWLANChannels() {
                 var byBand: [String: Int] = [:]
                 for channel in channels { byBand[band(channel.channelBand), default: 0] += 1 }
-                let summary = byBand.keys.sorted().map { "\(byBand[$0] ?? 0) on \($0)" }
+                let summary = byBand.keys.sorted().map {
+                    t("%1$@ on %2$@", "\(byBand[$0] ?? 0)", $0)
+                }
                 properties.append(
                     HardwareProperty(
                         "Supported channels",
-                        "\(channels.count) (\(summary.joined(separator: ", ")))"))
+                        t("%1$@ (%2$@)", "\(channels.count)", summary.joined(separator: ", "))))
             }
             if index == 0 {
                 var parts = [phy]
@@ -543,8 +568,9 @@ enum HardwareNativeReaders {
             }
             nodes.append(
                 HardwareNode(
-                    id: "\(parentID)/native/wifi/\(index)", title: "Wi-Fi (\(name))",
-                    subtitle: interface.powerOn() ? phy : "Off", systemImage: systemImage,
+                    id: "\(parentID)/native/wifi/\(index)", title: t("Wi-Fi (%@)", name),
+                    subtitle: interface.powerOn() ? phy : t("Off (setting)"),
+                    systemImage: systemImage,
                     properties: properties))
         }
         result.nodes = nodes
@@ -553,7 +579,7 @@ enum HardwareNativeReaders {
 
     private static func phyMode(_ mode: CWPHYMode) -> String {
         switch mode {
-        case .modeNone: return "None"
+        case .modeNone: return t("None")
         case .mode11a: return "802.11a"
         case .mode11b: return "802.11b"
         case .mode11g: return "802.11g"
@@ -571,11 +597,11 @@ enum HardwareNativeReaders {
 
     private static func mode(_ mode: CWInterfaceMode) -> String {
         switch mode {
-        case .none: return "Not associated"
-        case .station: return "Station"
-        case .IBSS: return "Ad hoc (IBSS)"
-        case .hostAP: return "Access point"
-        @unknown default: return "Unknown"
+        case .none: return t("Not associated")
+        case .station: return t("Station")
+        case .IBSS: return t("Ad hoc (IBSS)")
+        case .hostAP: return t("Access point")
+        @unknown default: return t("Unknown")
         }
     }
 
@@ -584,8 +610,8 @@ enum HardwareNativeReaders {
         case .band2GHz: return "2.4 GHz"
         case .band5GHz: return "5 GHz"
         case .band6GHz: return "6 GHz"
-        case .bandUnknown: return "Unknown band"
-        @unknown default: return "Unknown band"
+        case .bandUnknown: return t("Unknown band")
+        @unknown default: return t("Unknown band")
         }
     }
 
@@ -595,31 +621,31 @@ enum HardwareNativeReaders {
         case .width40MHz: return "40 MHz"
         case .width80MHz: return "80 MHz"
         case .width160MHz: return "160 MHz"
-        case .widthUnknown: return "Unknown"
-        @unknown default: return "Unknown"
+        case .widthUnknown: return t("Unknown")
+        @unknown default: return t("Unknown")
         }
     }
 
     private static func security(_ security: CWSecurity) -> String {
         switch security {
-        case .none: return "None"
+        case .none: return t("None")
         case .WEP: return "WEP"
-        case .wpaPersonal: return "WPA Personal"
-        case .wpaPersonalMixed: return "WPA/WPA2 Personal"
-        case .wpa2Personal: return "WPA2 Personal"
-        case .personal: return "Personal"
-        case .dynamicWEP: return "Dynamic WEP"
-        case .wpaEnterprise: return "WPA Enterprise"
-        case .wpaEnterpriseMixed: return "WPA/WPA2 Enterprise"
-        case .wpa2Enterprise: return "WPA2 Enterprise"
-        case .enterprise: return "Enterprise"
-        case .wpa3Personal: return "WPA3 Personal"
-        case .wpa3Enterprise: return "WPA3 Enterprise"
-        case .wpa3Transition: return "WPA3 Transition"
+        case .wpaPersonal: return t("WPA Personal")
+        case .wpaPersonalMixed: return t("WPA/WPA2 Personal")
+        case .wpa2Personal: return t("WPA2 Personal")
+        case .personal: return t("Personal")
+        case .dynamicWEP: return t("Dynamic WEP")
+        case .wpaEnterprise: return t("WPA Enterprise")
+        case .wpaEnterpriseMixed: return t("WPA/WPA2 Enterprise")
+        case .wpa2Enterprise: return t("WPA2 Enterprise")
+        case .enterprise: return t("Enterprise")
+        case .wpa3Personal: return t("WPA3 Personal")
+        case .wpa3Enterprise: return t("WPA3 Enterprise")
+        case .wpa3Transition: return t("WPA3 Transition")
         case .OWE: return "OWE"
-        case .oweTransition: return "OWE Transition"
-        case .unknown: return "Unknown"
-        @unknown default: return "Unknown"
+        case .oweTransition: return t("OWE Transition")
+        case .unknown: return t("Unknown")
+        @unknown default: return t("Unknown")
         }
     }
 
@@ -629,14 +655,15 @@ enum HardwareNativeReaders {
         var result = Result()
         guard let sample = BatteryReader().read(), sample.isPresent else { return result }
         var properties: [HardwareProperty] = []
-        let condition = sample.isHealthyCondition ? "Normal" : "Service recommended"
+        let condition = sample.isHealthyCondition ? t("Normal") : t("Service recommended")
         properties.append(HardwareProperty("Condition", condition))
         if let cycles = sample.cycleCount {
             properties.append(HardwareProperty("Cycle count", "\(cycles)"))
         }
         if let health = sample.healthPercent {
             properties.append(
-                HardwareProperty("Maximum capacity", "\(Int(health.rounded()))% of design"))
+                HardwareProperty(
+                    "Maximum capacity", t("%@%% of design", "\(Int(health.rounded()))")))
         }
         if let design = sample.designCapacitymAh {
             properties.append(HardwareProperty("Design capacity", "\(design) mAh"))
@@ -649,9 +676,10 @@ enum HardwareNativeReaders {
         }
         properties.append(
             HardwareProperty("Charge", "\(Int(sample.chargePercent.rounded()))%"))
-        properties.append(HardwareProperty("Charging", sample.isCharging ? "Yes" : "No"))
+        properties.append(HardwareProperty("Charging", sample.isCharging ? t("Yes") : t("No")))
         properties.append(
-            HardwareProperty("Power source", sample.isOnAC ? "Power adapter" : "Battery"))
+            HardwareProperty(
+                "Power source", sample.isOnAC ? t("Power adapter") : t("Battery")))
         properties.append(
             HardwareProperty(
                 "Voltage", String(format: "%.3f V", Double(sample.voltageMilliVolts) / 1000)))
@@ -708,9 +736,9 @@ enum HardwareNativeReaders {
             condition: condition, chargePercent: sample.chargePercent)
         result.nodes = [
             HardwareNode(
-                id: "\(parentID)/native/battery", title: "Battery",
+                id: "\(parentID)/native/battery", title: t("Battery"),
                 subtitle: sample.healthPercent.map {
-                    "\(Int($0.rounded()))% capacity, \(condition)"
+                    t("%1$@%% capacity, %2$@", "\(Int($0.rounded()))", condition)
                 }
                     ?? condition,
                 systemImage: systemImage, properties: properties)
@@ -755,13 +783,15 @@ enum HardwareNativeReaders {
         for group in SMCReader.sensorGroupOrder {
             guard let readings = grouped[group], !readings.isEmpty else { continue }
             let hottest = readings.map(\.celsius).max() ?? 0
-            let count = readings.count == 1 ? "1 sensor" : "\(readings.count) sensors"
+            let count = readings.count == 1 ? t("1 sensor") : t("%@ sensors", "\(readings.count)")
             let slug = group.lowercased().replacingOccurrences(of: " ", with: "-")
             result.nodes.append(
                 HardwareNode(
                     id: "\(parentID)/\(slug)",
-                    title: group,
-                    subtitle: "\(count) \u{00B7} hottest \(Int(hottest.rounded()))\u{00B0}C",
+                    title: t(group),
+                    subtitle: t(
+                        "%1$@ \u{00B7} hottest %2$@\u{00B0}C", count,
+                        "\(Int(hottest.rounded()))"),
                     systemImage: "thermometer.medium",
                     properties: readings.sorted { $0.key < $1.key }.map {
                         HardwareProperty($0.key, String(format: "%.1f\u{00B0}C", $0.celsius))
@@ -773,15 +803,17 @@ enum HardwareNativeReaders {
             result.nodes.append(
                 HardwareNode(
                     id: "\(parentID)/fans",
-                    title: "Fans",
+                    title: t("Fans"),
                     subtitle: spinning == 0
-                        ? "\(inventory.fans.count) \u{00B7} all off"
-                        : "\(spinning) of \(inventory.fans.count) spinning",
+                        ? t("%@ \u{00B7} all off", "\(inventory.fans.count)")
+                        : t("%1$@ of %2$@ spinning", "\(spinning)", "\(inventory.fans.count)"),
                     systemImage: "fanblades",
                     properties: inventory.fans.enumerated().map { index, fan in
-                        var value = fan.rpm == 0 ? "Off" : "\(fan.rpm) rpm"
-                        if let maxRPM = fan.maxRPM { value += " (maximum \(maxRPM) rpm)" }
-                        return HardwareProperty("Fan \(index + 1)", value)
+                        var value = fan.rpm == 0 ? t("Off") : t("%@ rpm", "\(fan.rpm)")
+                        if let maxRPM = fan.maxRPM {
+                            value += " " + t("(maximum %@ rpm)", "\(maxRPM)")
+                        }
+                        return HardwareProperty(t("Fan %@", "\(index + 1)"), value)
                     }))
         }
         return result
@@ -827,13 +859,13 @@ enum HardwareNativeReaders {
         }
         if let args = Sysctl.string("kern.bootargs") {
             properties.append(
-                HardwareProperty("Boot arguments", args.isEmpty ? "None" : args))
+                HardwareProperty("Boot arguments", args.isEmpty ? t("None") : args))
         }
         if let safe = Sysctl.integer("kern.safeboot", as: Int32.self) {
-            properties.append(HardwareProperty("Safe mode", safe == 1 ? "Yes" : "No"))
+            properties.append(HardwareProperty("Safe mode", safe == 1 ? t("Yes") : t("No")))
         }
         if let secure = Sysctl.integer("kern.secure_kernel", as: Int32.self) {
-            properties.append(HardwareProperty("Secure kernel", secure == 1 ? "Yes" : "No"))
+            properties.append(HardwareProperty("Secure kernel", secure == 1 ? t("Yes") : t("No")))
         }
         if let maxProc = Sysctl.integer("kern.maxproc", as: Int32.self) {
             properties.append(HardwareProperty("Maximum processes", "\(maxProc)"))
@@ -843,7 +875,8 @@ enum HardwareNativeReaders {
         }
         let rosetta = FileManager.default.fileExists(
             atPath: "/Library/Apple/usr/share/rosetta/rosetta")
-        properties.append(HardwareProperty("Rosetta 2", rosetta ? "Installed" : "Not installed"))
+        properties.append(
+            HardwareProperty("Rosetta 2", rosetta ? t("Installed") : t("Not installed")))
         properties.append(
             HardwareProperty("Active processors", "\(info.activeProcessorCount)"))
         result.nodes = [
@@ -859,15 +892,18 @@ enum HardwareNativeReaders {
 
     static func uptime(since boot: Date, now: Date = Date()) -> String {
         let seconds = Int(now.timeIntervalSince(boot))
-        guard seconds > 0 else { return "0 minutes" }
+        guard seconds > 0 else { return t("0 minutes") }
         let days = seconds / 86_400
         let hours = (seconds % 86_400) / 3_600
         let minutes = (seconds % 3_600) / 60
         var parts: [String] = []
-        if days > 0 { parts.append("\(days) day\(days == 1 ? "" : "s")") }
-        if hours > 0 { parts.append("\(hours) hour\(hours == 1 ? "" : "s")") }
+        // One key per grammatical number rather than an "s" suffix argument,
+        // so a translation is never asked to splice a plural ending into an
+        // otherwise fixed sentence.
+        if days > 0 { parts.append(days == 1 ? t("1 day") : t("%@ days", "\(days)")) }
+        if hours > 0 { parts.append(hours == 1 ? t("1 hour") : t("%@ hours", "\(hours)")) }
         if minutes > 0 || parts.isEmpty {
-            parts.append("\(minutes) minute\(minutes == 1 ? "" : "s")")
+            parts.append(minutes == 1 ? t("1 minute") : t("%@ minutes", "\(minutes)"))
         }
         return parts.joined(separator: ", ")
     }

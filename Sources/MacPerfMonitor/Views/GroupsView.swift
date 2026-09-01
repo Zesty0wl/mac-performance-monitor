@@ -250,11 +250,13 @@ private struct GroupCard: View {
     /// biggest contributors rather than whichever PIDs happened to sort first.
     private var subtitle: String {
         guard let report, !report.members.isEmpty else {
-            return loading ? "Loading…" : "No processes recorded in this window."
+            return loading ? t("Loading…") : t("No processes recorded in this window.")
         }
         let names = report.topMembers(3).map(\.displayName).joined(separator: ", ")
         let count = report.memberCount
-        return "\(count) \(count == 1 ? "program" : "programs") · \(names)"
+        return count == 1
+            ? t("%1$@ program · %2$@", String(count), names)
+            : t("%1$@ programs · %2$@", String(count), names)
     }
 
     private var sparkValues: [Double]? {

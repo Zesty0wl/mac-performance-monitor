@@ -74,7 +74,7 @@ public enum SystemProfilerNodes {
         items.enumerated().map { index, item in
             node(
                 from: item, id: "\(parentID)/\(dataType)/\(index)", dataType: dataType,
-                systemImage: systemImage, fallbackTitle: "Item \(index + 1)")
+                systemImage: systemImage, fallbackTitle: t("Item %@", "\(index + 1)"))
         }
     }
 
@@ -90,7 +90,7 @@ public enum SystemProfilerNodes {
             node.children += itemsRaw.enumerated().map { index, child in
                 self.node(
                     from: child, id: "\(id)/\(index)", dataType: dataType, systemImage: systemImage,
-                    fallbackTitle: "Item \(index + 1)")
+                    fallbackTitle: t("Item %@", "\(index + 1)"))
             }
         }
         var childOffset = node.children.count
@@ -176,7 +176,8 @@ public enum SystemProfilerNodes {
             }
             var child = node(
                 from: record, id: childID, dataType: dataType, systemImage: systemImage,
-                fallbackTitle: records.count == 1 ? label : "\(label) \(index + 1)")
+                fallbackTitle: records.count == 1
+                    ? label : t("%1$@ %2$@", label, "\(index + 1)"))
             if child.subtitle == nil, record["_name"] != nil { child.subtitle = label }
             return child
         }

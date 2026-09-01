@@ -276,7 +276,7 @@ struct TrendChart: View {
 
     /// "now" / "15m" / "2h" / "3d": how far a tick sits behind the live edge.
     private static func agoLabel(_ delta: TimeInterval) -> String {
-        if delta < 45 { return "now" }
+        if delta < 45 { return t("now") }
         if delta < 3600 { return "\(Int((delta / 60).rounded()))m" }
         if delta < 48 * 3600 { return "\(Int((delta / 3600).rounded()))h" }
         return "\(Int((delta / 86_400).rounded()))d"
@@ -465,7 +465,7 @@ private struct TrendValueAxisLayer: View, Equatable {
                     line, with: .color(rule.color.opacity(0.4)),
                     style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
                 let label = ctx.resolve(
-                    Text(rule.label).font(.system(size: 9)).foregroundColor(rule.color))
+                    Text(t(rule.label)).font(.system(size: 9)).foregroundColor(rule.color))
                 ctx.draw(label, at: CGPoint(x: plot.minX + 3, y: yy - 7), anchor: .topLeading)
             }
 

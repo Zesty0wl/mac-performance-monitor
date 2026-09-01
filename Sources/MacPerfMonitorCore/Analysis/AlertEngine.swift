@@ -275,9 +275,10 @@ public final class AlertEngine {
                 alerts.append(
                     Alert(
                         kind: .criticalPressure,
-                        title: "Memory pressure is critical",
-                        body:
-                            "Your Mac is under heavy memory pressure and is compressing and swapping to cope. Closing a few large apps will give it room.",
+                        title: t("Memory pressure is critical"),
+                        body: t(
+                            "Your Mac is under heavy memory pressure and is compressing and swapping to cope. Closing a few large apps will give it room."
+                        ),
                         date: now))
             }
         case .normal:
@@ -304,9 +305,10 @@ public final class AlertEngine {
                 alerts.append(
                     Alert(
                         kind: .swap,
-                        title: "Swap is growing",
-                        body:
-                            "Swap has passed \(ByteFormat.string(config.swapThresholdBytes)). Sustained swapping under pressure can slow things down — consider freeing some memory.",
+                        title: t("Swap is growing"),
+                        body: t(
+                            "Swap has passed %@. Sustained swapping under pressure can slow things down — consider freeing some memory.",
+                            ByteFormat.string(config.swapThresholdBytes)),
                         date: now))
             }
         } else if Double(system.swapUsed) < Double(config.swapThresholdBytes) * rearmFraction {
@@ -339,9 +341,10 @@ public final class AlertEngine {
             alerts.append(
                 Alert(
                     kind: .processCeiling,
-                    title: "\(process.displayName) is using a lot of memory",
-                    body:
-                        "\(process.displayName) has passed \(ByteFormat.string(ceiling)) (now \(ByteFormat.string(process.physFootprint))).",
+                    title: t("%@ is using a lot of memory", process.displayName),
+                    body: t(
+                        "%1$@ has passed %2$@ (now %3$@).", process.displayName,
+                        ByteFormat.string(ceiling), ByteFormat.string(process.physFootprint)),
                     identity: process.id,
                     date: now))
         }
@@ -377,9 +380,10 @@ public final class AlertEngine {
             alerts.append(
                 Alert(
                     kind: .leak,
-                    title: "Possible memory leak",
-                    body:
-                        "\(name) has been growing steadily and may be leaking memory. If it keeps climbing, restarting it will reclaim the memory.",
+                    title: t("Possible memory leak"),
+                    body: t(
+                        "%@ has been growing steadily and may be leaking memory. If it keeps climbing, restarting it will reclaim the memory.",
+                        name),
                     identity: identity,
                     date: now))
         }
@@ -408,9 +412,10 @@ public final class AlertEngine {
                 alerts.append(
                     Alert(
                         kind: .highCPU,
-                        title: "CPU has been busy",
-                        body:
-                            "Total CPU has stayed above \(config.highCPUThresholdPercent)% for a sustained period. If this is unexpected, the top CPU process is the place to look.",
+                        title: t("CPU has been busy"),
+                        body: t(
+                            "Total CPU has stayed above %@%% for a sustained period. If this is unexpected, the top CPU process is the place to look.",
+                            String(config.highCPUThresholdPercent)),
                         date: now))
             }
         } else {
@@ -440,9 +445,10 @@ public final class AlertEngine {
                 alerts.append(
                     Alert(
                         kind: .highGPU,
-                        title: "GPU has been busy",
-                        body:
-                            "GPU utilisation has stayed above \(config.highGPUThresholdPercent)% for a sustained period. The GPU tab shows which process is using it.",
+                        title: t("GPU has been busy"),
+                        body: t(
+                            "GPU utilisation has stayed above %@%% for a sustained period. The GPU tab shows which process is using it.",
+                            String(config.highGPUThresholdPercent)),
                         date: now))
             }
         } else {
@@ -479,7 +485,7 @@ public final class AlertEngine {
                 alerts.append(
                     Alert(
                         kind: .thermalThrottle,
-                        title: "Thermal throttling",
+                        title: t("Thermal throttling"),
                         body: body,
                         identity: top?.id,
                         date: now))

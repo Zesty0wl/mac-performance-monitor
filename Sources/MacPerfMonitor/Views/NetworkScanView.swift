@@ -101,7 +101,7 @@ struct NetworkScanView: View {
         ) {
             Button("OK", role: .cancel) { model.errorMessage = nil }
         } message: {
-            Text(model.errorMessage ?? "The scan could not be completed.")
+            Text(model.errorMessage ?? t("The scan could not be completed."))
         }
     }
 
@@ -431,7 +431,7 @@ struct NetworkScanView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             Spacer()
-            Text("Devices seen: \(model.rows.count)")
+            Text(t("Devices seen: %@", String(model.rows.count)))
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
@@ -486,10 +486,11 @@ private final class NetworkScanViewModel: ObservableObject {
     private var bonjourObservations: [String: NetworkBonjourObservation] = [:]
 
     var scanSubtitle: String {
-        guard let configuration else { return "No active IPv4 interface" }
-        return
-            "\(configuration.interfaceName)  \(configuration.fromIPv4Address) to "
-            + configuration.toIPv4Address
+        guard let configuration else { return t("No active IPv4 interface") }
+        return t(
+            "%1$@  %2$@ to %3$@",
+            configuration.interfaceName, configuration.fromIPv4Address,
+            configuration.toIPv4Address)
     }
 
     var progressFraction: Double {
@@ -502,22 +503,22 @@ private final class NetworkScanViewModel: ObservableObject {
         if isScanning {
             switch progress.phase {
             case .discovering:
-                return
-                    "Discovering \(progress.completedAddressCount) of "
-                    + "\(progress.totalAddressCount) addresses"
+                return t(
+                    "Discovering %1$d of %2$d addresses",
+                    progress.completedAddressCount, progress.totalAddressCount)
             case .identifying:
-                return "Identifying \(progress.deviceCount) devices"
+                return t("Identifying %d devices", progress.deviceCount)
             case .finished:
-                return "Finishing scan"
+                return t("Finishing scan")
             }
         }
         if vendorLookupState == .waiting || vendorLookupState == .searching {
-            return "Devices found · Looking up vendors..."
+            return t("Devices found · Looking up vendors...")
         }
         if progress.totalAddressCount > 0 {
-            return "Scan complete"
+            return t("Scan complete")
         }
-        return configuration == nil ? "No interface available" : "Ready to scan"
+        return configuration == nil ? t("No interface available") : t("Ready to scan")
     }
 
     func prepare(choices: [NetworkScanInterfaceChoice], primaryInterface: String?) {
@@ -782,11 +783,11 @@ private struct NetworkScanRow: Identifiable, Equatable {
     }
 
     var portSummary: String? {
-        if isPortScanning { return "Scanning..." }
+        if isPortScanning { return t("Scanning...") }
         if !openPorts.isEmpty {
             return openPorts.map { "\($0.port) \($0.serviceName)" }.joined(separator: ", ")
         }
-        return didPortScan ? "None found" : nil
+        return didPortScan ? t("None found") : nil
     }
 
     var searchText: String {
@@ -1139,17 +1140,18 @@ private struct NetworkScanDetailsView: View {
     }
 
     @ViewBuilder private func detailSection(
-        _ title: String, @ViewBuilder content: () -> some View
+        _ title: LocalizedStringKey, @ViewBuilder content: () -> some View
     ) -> some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text(title.uppercased())
+            Text(title)
+                .textCase(.uppercase)
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
             content()
         }
     }
 
-    @ViewBuilder private func detail(_ label: String, _ value: String?) -> some View {
+    @ViewBuilder private func detail(_ label: LocalizedStringKey, _ value: String?) -> some View {
         if let value, !value.isEmpty {
             VStack(alignment: .leading, spacing: 1) {
                 Text(label).font(.caption2).foregroundStyle(.tertiary)
@@ -1231,7 +1233,7 @@ private struct NetworkScanConfigurationSheet: View {
     }
 
     private var validationMessage: String? {
-        guard let candidate else { return "Choose an interface." }
+        guard let candidate else { return t("Choose an interface.") }
         do {
             _ = try candidate.addresses()
             return nil
@@ -1328,17 +1330,21 @@ private struct NetworkScanConfigurationSheet: View {
                     .frame(width: 190)
             }
             if let candidate, let count = try? candidate.addresses().count {
-                Text("\(count) addresses will be checked on \(candidate.interfaceName).")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    t(
+                        "%1$@ addresses will be checked on %2$@.", String(count),
+                        candidate.interfaceName)
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
     }
 
-    private func configDetail(_ label: String, _ value: String?) -> some View {
+    private func configDetail(_ label: LocalizedStringKey, _ value: String?) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(label).foregroundStyle(.secondary).frame(width: 78, alignment: .trailing)
-            Text(value ?? "Not available")
+            Text(value ?? t("Not available"))
                 .font(.body.monospacedDigit())
                 .textSelection(.enabled)
                 .lineLimit(1)
@@ -1392,7 +1398,7 @@ private struct NetworkPortScanConfigurationSheet: View {
 
             Picker("Scope", selection: $scope) {
                 ForEach(Scope.allCases, id: \.self) { scope in
-                    Text(scope.rawValue).tag(scope)
+                    Text(t(scope.rawValue)).tag(scope)
                 }
             }
             .pickerStyle(.segmented)
@@ -1409,8 +1415,12 @@ private struct NetworkPortScanConfigurationSheet: View {
                     }
                 }
             } else {
-                Text("Checks \(NetworkScanViewModel.commonPorts.count) common TCP service ports.")
-                    .font(.callout).foregroundStyle(.secondary)
+                Text(
+                    t(
+                        "Checks %@ common TCP service ports.",
+                        String(NetworkScanViewModel.commonPorts.count))
+                )
+                .font(.callout).foregroundStyle(.secondary)
             }
 
             if scope == .range, ports == nil {

@@ -107,7 +107,7 @@ struct NetworkMenuBarContentView: View {
                         .foregroundStyle(.tertiary)
                 }
                 if latency.packetLoss > 0.01 {
-                    Text("\(Int((latency.packetLoss * 100).rounded()))% loss")
+                    Text(t("%d%% loss", Int((latency.packetLoss * 100).rounded())))
                         .foregroundStyle(.orange)
                 }
             } else {
@@ -121,7 +121,7 @@ struct NetworkMenuBarContentView: View {
     }
 
     private func rateColumn(
-        symbol: String, label: String, bytesPerSec: Double?, tint: Color
+        symbol: String, label: LocalizedStringKey, bytesPerSec: Double?, tint: Color
     )
         -> some View
     {
@@ -142,13 +142,16 @@ struct NetworkMenuBarContentView: View {
     /// The interface, local IP, and session totals
     /// ("via Wi-Fi · 192.168.1.5 · 1.2 GB ↓ · 300 MB ↑ this session").
     private var subtitle: String {
-        guard let net = model.latestNetwork else { return "Reading network\u{2026}" }
+        guard let net = model.latestNetwork else { return t("Reading network\u{2026}") }
         var parts: [String] = []
-        if let iface = net.primaryInterface { parts.append("via \(Self.interfaceName(iface))") }
+        if let iface = net.primaryInterface {
+            parts.append(t("via %@", Self.interfaceName(iface)))
+        }
         if let ip = net.localIPv4 { parts.append(ip) }
         parts.append(
-            "\(ByteFormat.string(net.sessionInBytes)) \u{2193} · "
-                + "\(ByteFormat.string(net.sessionOutBytes)) \u{2191} this session")
+            t(
+                "%1$@ \u{2193} · %2$@ \u{2191} this session",
+                ByteFormat.string(net.sessionInBytes), ByteFormat.string(net.sessionOutBytes)))
         return parts.joined(separator: " · ")
     }
 

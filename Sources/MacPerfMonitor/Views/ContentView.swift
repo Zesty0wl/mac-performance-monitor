@@ -97,7 +97,9 @@ struct ContentView: View {
             Button("Not Now", role: .cancel) { helper.declineFirstRunPrompt() }
         } message: {
             Text(
-                "\(AppInfo.displayName) can install a small privileged helper so it can read the memory of system and other-user processes, such as WindowServer, that it otherwise cannot see. The helper runs only to read memory statistics and sends nothing off your Mac. You can change this any time in Settings."
+                t(
+                    "%@ can install a small privileged helper so it can read the memory of system and other-user processes, such as WindowServer, that it otherwise cannot see. The helper runs only to read memory statistics and sends nothing off your Mac. You can change this any time in Settings.",
+                    AppInfo.displayName)
             )
         }
         .alert("Open at login?", isPresented: $appState.loginItemPromptPending) {
@@ -105,7 +107,9 @@ struct ContentView: View {
             Button("Not Now", role: .cancel) { loginItem.declineFirstRunPrompt() }
         } message: {
             Text(
-                "\(AppInfo.displayName) lives in the menu bar and keeps a running history of your Mac's memory, CPU and battery. Opening it at login keeps that history unbroken, watching from the moment you sign in. You can change this any time in Settings."
+                t(
+                    "%@ lives in the menu bar and keeps a running history of your Mac's memory, CPU and battery. Opening it at login keeps that history unbroken, watching from the moment you sign in. You can change this any time in Settings.",
+                    AppInfo.displayName)
             )
         }
         .onChange(of: appState.helperPromptPending) { _, pending in

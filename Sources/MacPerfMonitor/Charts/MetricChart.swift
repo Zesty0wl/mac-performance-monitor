@@ -105,9 +105,10 @@ struct MetricChart: View, Equatable {
     /// A spoken summary for VoiceOver: the latest value and the peak, formatted
     /// in the metric's own units via the caller-supplied `yFormat`.
     private var accessibilitySummary: String {
-        guard let latest = samples.last?.value else { return "No data yet." }
+        guard let latest = samples.last?.value else { return t("No data yet.") }
         let peak = samples.map(\.value).max() ?? latest
-        return "Currently \(yFormat(latest)). Peak \(yFormat(peak)) over the shown window."
+        return t(
+            "Currently %1$@. Peak %2$@ over the shown window.", yFormat(latest), yFormat(peak))
     }
 
     var body: some View {
@@ -140,7 +141,7 @@ struct MetricChart: View, Equatable {
             scrubbable: true,
             leftGutter: 52
         )
-        .accessibilityLabel(accessibilityTitle)
+        .accessibilityLabel(t(accessibilityTitle))
         .accessibilityValue(accessibilitySummary)
         .reducedMotionAware()
     }

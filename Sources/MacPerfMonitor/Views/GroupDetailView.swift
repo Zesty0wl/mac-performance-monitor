@@ -48,7 +48,7 @@ struct GroupDetailView: View {
     private enum ChartMetric: String, CaseIterable, Identifiable {
         case memory, cpu, score
         var id: String { rawValue }
-        var label: String {
+        var label: LocalizedStringKey {
             switch self {
             case .memory: return "Memory"
             case .cpu: return "CPU"
@@ -63,7 +63,7 @@ struct GroupDetailView: View {
     private enum Aggregation: String, CaseIterable, Identifiable {
         case average, peak
         var id: String { rawValue }
-        var label: String {
+        var label: LocalizedStringKey {
             switch self {
             case .average: return "Average"
             case .peak: return "Peak"
@@ -148,7 +148,7 @@ struct GroupDetailView: View {
             RoundedRectangle(cornerRadius: 12).strokeBorder(.quaternary, lineWidth: 1))
     }
 
-    private func metric(_ label: String, _ value: String) -> some View {
+    private func metric(_ label: LocalizedStringKey, _ value: String) -> some View {
         VStack(alignment: .trailing, spacing: 1) {
             Text(value).font(.callout.monospacedDigit().weight(.semibold))
             Text(label).font(.caption2).foregroundStyle(.secondary)
@@ -276,7 +276,7 @@ struct GroupDetailView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
-    private func placeholder(_ text: String) -> some View {
+    private func placeholder(_ text: LocalizedStringKey) -> some View {
         Text(text)
             .font(.callout)
             .foregroundStyle(.secondary)
@@ -320,22 +320,23 @@ struct GroupDetailView: View {
     }
 
     private var headlineCaption: String {
-        guard let report else { return "of this device's capacity" }
+        guard let report else { return t("of this device's capacity") }
         let device = report.device
         switch chartMetric {
         case .memory:
-            return
-                "\(ByteFormat.string(totalFootprint)) of \(ByteFormat.string(device.totalRAM)) RAM"
+            return t(
+                "%1$@ of %2$@ RAM", ByteFormat.string(totalFootprint),
+                ByteFormat.string(device.totalRAM))
         case .cpu:
-            return String(format: "%.2f of %d cores", totalCPUPercent / 100, device.cores)
+            return t("%1$.2f of %2$d cores", totalCPUPercent / 100, device.cores)
         case .score:
-            return "of this device's capacity (CPU + memory)"
+            return t("of this device's capacity (CPU + memory)")
         }
     }
 
     private var coresEquivText: String {
         guard report != nil else { return "—" }
-        return String(format: "%.2f cores", totalCPUPercent / 100)
+        return t("%.2f cores", totalCPUPercent / 100)
     }
 
     private var memoryText: String {
@@ -405,10 +406,10 @@ struct GroupScoreInfoView: View {
         .frame(width: 340)
     }
 
-    private func bullet(_ term: String, _ desc: String) -> some View {
+    private func bullet(_ term: LocalizedStringKey, _ desc: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text("•").foregroundStyle(.secondary)
-            Text(term).font(.callout.weight(.semibold)) + Text(" — \(desc)").font(.callout)
+            Text(term).font(.callout.weight(.semibold)) + Text(" — \(t(desc))").font(.callout)
         }
     }
 }
@@ -464,10 +465,9 @@ private struct MemberRow: View {
     }
 
     private var secondaryLine: String {
-        var line =
-            "\(ByteFormat.string(member.averageFootprint)) · "
-            + String(format: "%.1f%% CPU", member.averageCPU)
-            + String(format: " · footprint %.1f%%", contribution.score)
+        var line = t(
+            "%1$@ · %2$.1f%% CPU · footprint %3$.1f%%",
+            ByteFormat.string(member.averageFootprint), member.averageCPU, contribution.score)
         if let residency { line += " · \(residency)" }
         return line
     }
@@ -478,14 +478,16 @@ private struct MemberRow: View {
     /// with a little slack for sampling edges.
     private var residency: String? {
         guard windowSeconds > 0, member.residentSeconds < windowSeconds * 0.95 else { return nil }
-        return "ran \(DurationFormat.compact(member.residentSeconds))"
-            + " of \(DurationFormat.compact(windowSeconds))"
+        return t(
+            "ran %1$@ of %2$@", DurationFormat.compact(member.residentSeconds),
+            DurationFormat.compact(windowSeconds))
     }
 
     private var instanceHelp: String {
         let count = member.instanceCount
-        return
-            "\(count) recorded runs of this program in the window (restarts and simultaneous instances), merged into one row."
+        return t(
+            "%@ recorded runs of this program in the window (restarts and simultaneous instances), merged into one row.",
+            String(count))
     }
 }
 
@@ -493,9 +495,9 @@ private struct MemberRow: View {
 enum DurationFormat {
     static func compact(_ seconds: TimeInterval) -> String {
         let s = Int(seconds.rounded())
-        if s < 90 { return "\(s) s" }
-        if s < 90 * 60 { return "\(Int((Double(s) / 60).rounded())) min" }
-        if s < 48 * 3600 { return "\(Int((Double(s) / 3600).rounded())) hr" }
-        return "\(Int((Double(s) / 86_400).rounded())) days"
+        if s < 90 { return t("%@ s", String(s)) }
+        if s < 90 * 60 { return t("%@ min", String(Int((Double(s) / 60).rounded()))) }
+        if s < 48 * 3600 { return t("%@ hr", String(Int((Double(s) / 3600).rounded()))) }
+        return t("%@ days", String(Int((Double(s) / 86_400).rounded())))
     }
 }

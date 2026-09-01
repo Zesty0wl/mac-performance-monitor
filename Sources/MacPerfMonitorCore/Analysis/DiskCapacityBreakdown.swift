@@ -88,14 +88,17 @@ public enum DiskCapacityBreakdown {
         if clampedPurgeable > 0 {
             slices.append(
                 DiskCapacitySlice(
-                    id: "\(idPrefix)/purgeable", label: "Purgeable", detail: nil, role: nil,
+                    id: "\(idPrefix)/purgeable", label: t("Purgeable"), detail: nil, role: nil,
                     bytes: clampedPurgeable, kind: .purgeable))
         }
         if !folded.isEmpty {
             slices.append(
                 DiskCapacitySlice(
                     id: "\(idPrefix)/other",
-                    label: "Other volumes",
+                    // Overridden by the view for the `.otherVolumes` kind (it needs the
+                    // count as a format argument), but keep this a real, already-
+                    // localized fallback rather than a raw English literal.
+                    label: t("Other volumes"),
                     detail: nil, role: nil,
                     bytes: folded.reduce(0) { $0 + $1.usedBytes },
                     kind: .otherVolumes(count: folded.count)))
@@ -104,7 +107,7 @@ public enum DiskCapacityBreakdown {
         let used = slices.reduce(0) { $0 + $1.bytes }
         slices.append(
             DiskCapacitySlice(
-                id: "\(idPrefix)/free", label: "Free", detail: nil, role: nil,
+                id: "\(idPrefix)/free", label: t("Free"), detail: nil, role: nil,
                 bytes: capacity > used ? capacity - used : 0, kind: .free))
 
         // Drop empty volume slices (a freshly created volume can be 0 bytes

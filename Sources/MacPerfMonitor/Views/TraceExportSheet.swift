@@ -58,7 +58,9 @@ struct TraceExportSheet: View {
             Text("Export process data")
                 .font(.headline)
             Text(
-                "Save one or more processes' recorded history to a compressed file you can share. The recipient can open it in \(AppInfo.displayName), even without those processes on their Mac."
+                t(
+                    "Save one or more processes' recorded history to a compressed file you can share. The recipient can open it in %@, even without those processes on their Mac.",
+                    AppInfo.displayName)
             )
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -84,7 +86,7 @@ struct TraceExportSheet: View {
             HStack(spacing: 8) {
                 Text("Processes")
                     .font(.subheadline.weight(.semibold))
-                Text("\(selected.count) selected")
+                Text(t("%@ selected", String(selected.count)))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -201,9 +203,10 @@ struct TraceExportSheet: View {
         let span = max(0, window.upperBound.timeIntervalSince(window.lowerBound))
         let perProcess = Int((span / max(resolution.nominalSeconds, 1)).rounded())
         let count = max(selected.count, 0)
-        if count == 0 { return "Higher resolution means a larger file." }
-        return
-            "Up to about \(perProcess.formatted()) points per process \u{00B7} \(count) selected. Higher resolution means a larger file."
+        if count == 0 { return t("Higher resolution means a larger file.") }
+        return t(
+            "Up to about %1$@ points per process \u{00B7} %2$@ selected. Higher resolution means a larger file.",
+            perProcess.formatted(), String(count))
     }
 
     // MARK: - Footer
@@ -309,8 +312,8 @@ struct TraceExportSheet: View {
         for processes: [ProcessSample], exportedAt: Date
     ) -> URL? {
         let panel = NSSavePanel()
-        panel.title = "Export Process Data"
-        panel.message = "Save a shareable Mac Performance Monitor trace."
+        panel.title = t("Export Process Data")
+        panel.message = t("Save a shareable Mac Performance Monitor trace.")
         panel.nameFieldStringValue = suggestedFileName(for: processes, exportedAt: exportedAt)
         panel.allowedContentTypes = [TraceFileType.utType]
         panel.canCreateDirectories = true

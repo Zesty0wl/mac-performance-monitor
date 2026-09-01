@@ -37,9 +37,9 @@ enum CPULevel: Int, CaseIterable {
 
     var label: String {
         switch self {
-        case .light: return "Light"
-        case .busy: return "Busy"
-        case .heavy: return "Heavy"
+        case .light: return t("Light")
+        case .busy: return t("Busy")
+        case .heavy: return t("Heavy")
         }
     }
 }
@@ -54,11 +54,17 @@ extension CoreKind {
         }
     }
 
+    /// Cluster name for tooltips and legends.
+    ///
+    /// The keys say "cores" where the rendered English says only "Performance",
+    /// because a bare "Performance" also titles a Settings section and the two
+    /// need different Chinese words. `en.lproj` maps these keys back to the short
+    /// English wording, so the English interface is unchanged.
     var label: String {
         switch self {
-        case .performance: return "Performance"
-        case .efficiency: return "Efficiency"
-        case .unknown: return "Core"
+        case .performance: return t("Performance cores")
+        case .efficiency: return t("Efficiency cores")
+        case .unknown: return t("Core")
         }
     }
 

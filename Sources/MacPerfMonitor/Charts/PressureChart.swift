@@ -40,12 +40,13 @@ struct PressureChart: View {
     }
 
     private var accessibilitySummary: String {
-        guard let latest = pressure.lastValue else { return "No data yet." }
+        guard let latest = pressure.lastValue else { return t("No data yet.") }
         let range = pressure.range ?? (latest, latest)
         let lo = Int(range.min.rounded())
         let hi = Int(range.max.rounded())
-        return "Currently \(currentLevel.label.lowercased()) at \(Int(latest.rounded())) percent. "
-            + "Window range \(lo) to \(hi) percent."
+        return t(
+            "Currently %1$@ at %2$@ percent. Window range %3$@ to %4$@ percent.",
+            currentLevel.label.lowercased(), String(Int(latest.rounded())), String(lo), String(hi))
     }
 
     var body: some View {
