@@ -2094,3 +2094,12 @@
 "%@ h" = "%@ h";
 "%@ d" = "%@ d";
 "Throttling (%@)" = "Throttling (%@)";
+
+/* ===== Onboarding: the closing card (1.7.0) ===== */
+
+"You are all set" = "You are all set";
+"%@ is recording now. Its read-out lives in the menu bar, near the clock." = "%@ is recording now. Its read-out lives in the menu bar, near the clock.";
+"Click the menu bar read-out for a quick look at any metric." = "Click the menu bar read-out for a quick look at any metric.";
+"Open the dashboard for history, charts and per-process detail." = "Open the dashboard for history, charts and per-process detail.";
+"Everything you just chose can be changed later in Settings." = "Everything you just chose can be changed later in Settings.";
+"Close" = "Close";
