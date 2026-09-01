@@ -39,7 +39,7 @@ struct NetworkAdapterDetailView: View {
             } else {
                 ContentUnavailableView(
                     "Adapter unavailable", systemImage: "network.slash",
-                    description: Text("\(bsdName) is no longer present."))
+                    description: Text(t("%@ is no longer present.", bsdName)))
             }
             Divider()
             HStack {
@@ -101,7 +101,7 @@ struct NetworkAdapterDetailView: View {
     }
 
     private func rateStat(
-        _ label: String, _ value: Double, _ tint: Color, _ symbol: String
+        _ label: LocalizedStringKey, _ value: Double, _ tint: Color, _ symbol: String
     )
         -> some View
     {
@@ -109,7 +109,8 @@ struct NetworkAdapterDetailView: View {
             Image(systemName: symbol).foregroundStyle(tint).imageScale(.small)
             VStack(alignment: .leading, spacing: 0) {
                 Text(ByteFormat.rate(value)).font(.headline.monospacedDigit())
-                Text(label.uppercased())
+                Text(label)
+                    .textCase(.uppercase)
                     .font(.caption2.weight(.semibold)).tracking(0.5).foregroundStyle(.secondary)
             }
         }
@@ -118,13 +119,17 @@ struct NetworkAdapterDetailView: View {
     private func generalSection(_ a: NetworkInterfaceInfo) -> some View {
         section("General") {
             row("Type", kindLabel(a.kind))
-            if a.bsdName == info.primaryInterface { row("Role", "Primary service") }
+            if a.bsdName == info.primaryInterface { row("Role", t("Primary service")) }
             row("Hardware (MAC)", a.macAddress ?? "—")
             if a.linkSpeedBitsPerSec > 0 {
                 row("Link speed", Self.linkSpeed(a.linkSpeedBitsPerSec))
             }
-            if a.mtu > 0 { row("MTU", "\(a.mtu) bytes") }
-            row("Status", a.isUp ? (a.isRunning ? "Up, active" : "Up, no link") : "Down")
+            if a.mtu > 0 { row("MTU", t("%d bytes", a.mtu)) }
+            row(
+                "Status",
+                a.isUp
+                    ? (a.isRunning ? t("Up, active") : t("Up, no link"))
+                    : t("Down"))
         }
     }
 
@@ -133,7 +138,7 @@ struct NetworkAdapterDetailView: View {
         let v6 = a.addresses.filter { $0.family == .ipv6 }
         section("Addresses") {
             if v4.isEmpty && v6.isEmpty {
-                row("IP address", "None assigned")
+                row("IP address", t("None assigned"))
             }
             ForEach(v4) { addr in
                 row("IPv4", addr.cidr)
@@ -153,7 +158,7 @@ struct NetworkAdapterDetailView: View {
 
     private func wifiSection(_ w: WiFiInfo) -> some View {
         section("Wi-Fi") {
-            row("Network (SSID)", w.ssid ?? "Not available")
+            row("Network (SSID)", w.ssid ?? t("Not available"))
             if let bssid = w.bssid { row("BSSID", bssid) }
             if let ch = w.channel {
                 row("Channel", w.band.map { "\(ch) (\($0))" } ?? "\(ch)")
@@ -165,8 +170,9 @@ struct NetworkAdapterDetailView: View {
             if let sec = w.security { row("Security", sec) }
             if w.ssid == nil {
                 Text(
-                    "macOS hides the Wi-Fi name and BSSID unless Location Services is enabled for "
-                        + "\(AppInfo.displayName)."
+                    t(
+                        "macOS hides the Wi-Fi name and BSSID unless Location Services is enabled for %@.",
+                        AppInfo.displayName)
                 )
                 .font(.caption2).foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -182,9 +188,13 @@ struct NetworkAdapterDetailView: View {
                 "This session",
                 "\(ByteFormat.string(a.sessionInBytes)) ↓ · \(ByteFormat.string(a.sessionOutBytes)) ↑"
             )
-            row("Packets", "\(fmt(a.packetsIn)) in · \(fmt(a.packetsOut)) out", secondary: true)
+            row(
+                "Packets", t("%1$@ in · %2$@ out", fmt(a.packetsIn), fmt(a.packetsOut)),
+                secondary: true)
             if a.errorsIn > 0 || a.errorsOut > 0 {
-                row("Errors", "\(fmt(a.errorsIn)) in · \(fmt(a.errorsOut)) out", secondary: true)
+                row(
+                    "Errors", t("%1$@ in · %2$@ out", fmt(a.errorsIn), fmt(a.errorsOut)),
+                    secondary: true)
             }
             if a.collisions > 0 { row("Collisions", fmt(a.collisions), secondary: true) }
             if a.drops > 0 { row("Dropped", fmt(a.drops), secondary: true) }
@@ -194,18 +204,23 @@ struct NetworkAdapterDetailView: View {
     // MARK: - Building blocks
 
     @ViewBuilder private func section(
-        _ title: String, @ViewBuilder _ content: () -> some View
+        _ title: LocalizedStringKey, @ViewBuilder _ content: () -> some View
     )
         -> some View
     {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased())
+            Text(title)
+                .textCase(.uppercase)
                 .font(.caption2.weight(.semibold)).tracking(0.6).foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 5) { content() }
         }
     }
 
-    private func row(_ label: String, _ value: String, secondary: Bool = false) -> some View {
+    private func row(
+        _ label: LocalizedStringKey, _ value: String, secondary: Bool = false
+    )
+        -> some View
+    {
         HStack(alignment: .firstTextBaseline) {
             Text(label)
                 .font(.callout)
@@ -219,7 +234,7 @@ struct NetworkAdapterDetailView: View {
         }
     }
 
-    private func badge(_ text: String, _ color: Color) -> some View {
+    private func badge(_ text: LocalizedStringKey, _ color: Color) -> some View {
         Text(text)
             .font(.caption.weight(.medium))
             .padding(.horizontal, 7).padding(.vertical, 2)
@@ -248,14 +263,14 @@ struct NetworkAdapterDetailView: View {
 
     private func kindLabel(_ kind: NetworkInterfaceInfo.Kind) -> String {
         switch kind {
-        case .wifi: return "Wi-Fi"
-        case .ethernet: return "Ethernet"
-        case .thunderbolt: return "Thunderbolt"
-        case .bridge: return "Bridge"
-        case .vpn: return "VPN"
-        case .cellular: return "Cellular"
-        case .loopback: return "Loopback"
-        case .other: return "Other"
+        case .wifi: return t("Wi-Fi")
+        case .ethernet: return t("Ethernet")
+        case .thunderbolt: return t("Thunderbolt")
+        case .bridge: return t("Bridge")
+        case .vpn: return t("VPN")
+        case .cellular: return t("Cellular")
+        case .loopback: return t("Loopback")
+        case .other: return t("Other")
         }
     }
 
@@ -270,10 +285,14 @@ struct NetworkAdapterDetailView: View {
     /// A plain-language band for a Wi-Fi RSSI in dBm.
     static func signalQuality(_ rssi: Int) -> String {
         switch rssi {
-        case (-60)...: return "Excellent"
-        case (-70)...(-61): return "Good"
-        case (-80)...(-71): return "Fair"
-        default: return "Weak"
+        case (-60)...: return t("Excellent")
+        case (-70)...(-61): return t("Good")
+        // "Fair" is already spoken for by ThermalPressureState (a positive "nominal" reading,
+        // translated "良好"), which would misleadingly read as "Good" here, one tier up from
+        // where this mid-strength Wi-Fi signal actually sits. Disambiguated key; en.lproj should
+        // map it back to "Fair" so the English interface is unaffected.
+        case (-80)...(-71): return t("Wi-Fi signal fair")
+        default: return t("Weak")
         }
     }
 }

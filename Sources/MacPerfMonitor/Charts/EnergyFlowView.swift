@@ -74,7 +74,8 @@ struct EnergyFlowView: View {
     /// power draw in watts (falling back to "AC" when telemetry is unavailable).
     private var macNodeLabel: String {
         if hasBattery { return BatteryFormat.percent(battery.chargePercent) }
-        return battery.systemPowerWatts > 0 ? BatteryFormat.watts(battery.systemPowerWatts) : "AC"
+        return battery.systemPowerWatts > 0
+            ? BatteryFormat.watts(battery.systemPowerWatts) : t("AC")
     }
 
     private enum SymbolID: Hashable { case mac, plug }
@@ -209,7 +210,7 @@ struct EnergyFlowView: View {
             ctx.draw(plug, at: CGPoint(x: c.x, y: c.y - 9))
         }
         drawLabel(
-            ctx, battery.adapterWatts.map { "\($0) W max" } ?? "AC",
+            ctx, battery.adapterWatts.map { t("%@ W max", String($0)) } ?? t("AC"),
             font: .caption2.weight(.medium), color: .secondary, at: CGPoint(x: c.x, y: c.y + 11))
     }
 
@@ -239,7 +240,7 @@ struct EnergyFlowView: View {
     /// (discharging, "−22.1 W"). On AC at full it reads "full"; otherwise idle.
     private var batteryLabel: String {
         if battery.isCharging { return "+" + BatteryFormat.watts(battery.powerWatts) }
-        if battery.isOnAC { return battery.chargePercent >= 99 ? "full" : "holding" }
+        if battery.isOnAC { return battery.chargePercent >= 99 ? t("full") : t("holding") }
         return battery.powerWatts < 0.1 ? "—" : "\u{2212}" + BatteryFormat.watts(battery.powerWatts)
     }
 

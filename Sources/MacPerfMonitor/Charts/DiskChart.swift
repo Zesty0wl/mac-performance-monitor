@@ -42,13 +42,13 @@ struct DiskChart: View {
 
     private var accessibilitySummary: String {
         guard let latestRead = read.lastValue, let latestWrite = write.lastValue else {
-            return "No data yet."
+            return t("No data yet.")
         }
         let peak = max(read.range?.max ?? 0, write.range?.max ?? 0)
-        if peak < 1 { return "No physical disk activity over the shown window." }
-        return
-            "Currently \(ByteFormat.rate(latestRead)) read, \(ByteFormat.rate(latestWrite)) write. "
-            + "Peak \(ByteFormat.rate(peak)) over the shown window."
+        if peak < 1 { return t("No physical disk activity over the shown window.") }
+        return t(
+            "Currently %1$@ read, %2$@ write. Peak %3$@ over the shown window.",
+            ByteFormat.rate(latestRead), ByteFormat.rate(latestWrite), ByteFormat.rate(peak))
     }
 
     var body: some View {

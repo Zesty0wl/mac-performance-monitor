@@ -107,9 +107,13 @@ struct CombinedMenuBarContentView: View {
                 }
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
+                // Built with t() rather than interpolated: `metric.title` is a
+                // String, so the ternary types as String and the interpolated
+                // literal would never be looked up, leaving ", shown in the menu
+                // bar" in English beside an already-translated title.
                 .help(
                     configuration.isSelected(metric)
-                        ? "\(metric.title), shown in the menu bar"
+                        ? t("%@, shown in the menu bar", metric.title)
                         : metric.title
                 )
                 .accessibilityLabel(metric.title)
@@ -256,15 +260,15 @@ struct CombinedMenuBarContentView: View {
         }
     }
 
-    private var openTitle: String {
+    private var openTitle: LocalizedStringKey {
         switch openDestination {
-        case .processes: return String(localized: "Open Processes")
-        case .battery: return String(localized: "Open Energy")
-        case .network: return String(localized: "Open Network")
-        case .diskUsage: return String(localized: "Open Disk")
-        case .gpu: return String(localized: "Open GPU")
-        case .dashboard: return String(localized: "Open Dashboard")
-        default: return String(localized: "Open")
+        case .processes: return "Open Processes"
+        case .battery: return "Open Energy"
+        case .network: return "Open Network"
+        case .diskUsage: return "Open Disk"
+        case .gpu: return "Open GPU"
+        case .dashboard: return "Open Dashboard"
+        default: return "Open"
         }
     }
 }

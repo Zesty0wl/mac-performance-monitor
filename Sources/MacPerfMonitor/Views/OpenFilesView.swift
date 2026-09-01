@@ -81,7 +81,7 @@ struct OpenFilesView: View {
             footer
         }
         .frame(minWidth: 480, minHeight: 380)
-        .navigationTitle("Open Files · \(target.name)")
+        .navigationTitle(t("Open Files · %@", target.name))
         .onAppear(perform: load)
     }
 
@@ -142,7 +142,7 @@ struct OpenFilesView: View {
             }
             Spacer(minLength: 8)
             if let list = loadedList {
-                Text("\(list.count) open")
+                Text(t("%@ open", String(list.count)))
                     .font(.callout.monospacedDigit())
                     .foregroundStyle(.secondary)
             }

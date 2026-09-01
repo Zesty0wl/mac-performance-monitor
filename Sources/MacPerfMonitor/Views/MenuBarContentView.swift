@@ -127,7 +127,8 @@ struct MenuBarContentView: View {
             // writes and keeps just the live read-outs.
             MenuActionButton(
                 title: appMode.mode == .full
-                    ? "Pause history logging" : "Resume history logging",
+                    ? LocalizedStringKey("Pause history logging")
+                    : LocalizedStringKey("Resume history logging"),
                 systemImage: appMode.mode == .full ? "pause.circle" : "record.circle"
             ) {
                 appMode.mode = appMode.mode == .full ? .menuBarOnly : .full
@@ -237,7 +238,7 @@ struct MenuVersionFooter: View {
             .font(.caption2)
             .foregroundStyle(.tertiary)
             .frame(maxWidth: .infinity, alignment: .center)
-            .accessibilityLabel("Version \(AppInfo.version), build \(AppInfo.build)")
+            .accessibilityLabel(t("Version %1$@, build %2$@", AppInfo.version, AppInfo.build))
     }
 }
 
@@ -250,6 +251,12 @@ struct MenuVersionFooter: View {
 }
 
 /// A full-width, hover-highlighted menu action button.
+///
+/// `title` is a plain `String` and is rendered verbatim: every call site names
+/// the app in its title, so the caller resolves the whole sentence through
+/// `t("Open %@", AppInfo.displayName)` and hands the finished text over. Taking a
+/// `LocalizedStringKey` here would be wrong, because an interpolated title is not
+/// a key.
 struct MenuActionButton: View {
     let title: LocalizedStringKey
     let systemImage: String

@@ -140,7 +140,11 @@ public enum HardwareInventory {
         _ spec: HardwareSectionSpec, runner: SystemProfilerRunning
     ) -> HardwareSection {
         let start = Date()
-        var root = HardwareNode(id: spec.id, title: spec.title, systemImage: spec.systemImage)
+        // `spec.title` stays the canonical English name (used as a stable
+        // identifier); only the node/section title shown in the UI is
+        // translated, and it is translated fresh on every capture so a
+        // language switch takes effect on the next Refresh.
+        var root = HardwareNode(id: spec.id, title: t(spec.title), systemImage: spec.systemImage)
         var facts = HardwareFacts()
         var notes: [String] = []
 
@@ -154,7 +158,7 @@ public enum HardwareInventory {
         var produced = false
         for dataType in spec.dataTypes {
             guard let items = runner.items(for: dataType) else {
-                notes.append("\(dataType) did not report")
+                notes.append(t("%@ did not report", dataType))
                 continue
             }
             itemsByType[dataType] = items
@@ -174,7 +178,7 @@ public enum HardwareInventory {
         if let extract = spec.facts { facts.merge(extract(itemsByType)) }
 
         return HardwareSection(
-            id: spec.id, title: spec.title, systemImage: spec.systemImage, root: root,
+            id: spec.id, title: t(spec.title), systemImage: spec.systemImage, root: root,
             note: notes.isEmpty ? nil : notes.joined(separator: "; "), facts: facts,
             captureSeconds: Date().timeIntervalSince(start))
     }
@@ -208,7 +212,7 @@ public enum HardwareInventory {
                     metal, key: "spdisplays_mtlgpufamilysupport")
             }
             for display in gpu["spdisplays_ndrvs"] as? [[String: Any]] ?? [] {
-                let name = display["_name"] as? String ?? "Display"
+                let name = display["_name"] as? String ?? t("Display")
                 let pixels = (display["_spdisplays_pixels"] as? String).flatMap(parseDimensions)
                 displays.append(
                     HardwareFacts.Display(
@@ -243,7 +247,7 @@ public enum HardwareInventory {
             let drive = volume["physical_drive"] as? [String: Any]
             volumes.append(
                 HardwareFacts.Volume(
-                    name: volume["_name"] as? String ?? "Volume",
+                    name: volume["_name"] as? String ?? t("Volume"),
                     mountPoint: volume["mount_point"] as? String, capacityBytes: capacity,
                     freeBytes: (volume["free_space_in_bytes"] as? NSNumber)?.uint64Value,
                     isInternal: (drive?["is_internal_disk"] as? String).map { $0 == "yes" }))
@@ -263,7 +267,7 @@ public enum HardwareInventory {
             }
         }
         let connected = (first["device_connected"] as? [[String: Any]])?.count ?? 0
-        parts.append("\(connected) connected")
+        parts.append(t("%@ connected", "\(connected)"))
         facts.bluetoothSummary = parts.joined(separator: ", ")
         return facts
     }

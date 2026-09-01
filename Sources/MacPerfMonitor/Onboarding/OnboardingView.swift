@@ -1,4 +1,5 @@
 import AppKit
+import MacPerfMonitorCore
 import SwiftUI
 
 /// The first-run education flow (PRD 8.9). Three short, skippable screens that
@@ -154,7 +155,7 @@ private struct OnboardingPageView: View {
             Spacer()
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(page.title). \(page.body)")
+        .accessibilityLabel(Text(page.title) + Text(". ") + Text(page.body))
     }
 }
 
@@ -184,38 +185,34 @@ struct OnboardingPage {
     let title: String
     let body: String
 
-    static let all: [OnboardingPage] = [
-        OnboardingPage(
-            symbol: "gauge.with.dots.needle.50percent",
-            tint: .green,
-            title: "Watch pressure, not free RAM",
-            body: """
-                On Apple silicon, almost no RAM is ever “free”, and that is normal. \
-                macOS keeps memory busy on purpose. What matters is memory pressure: \
-                how hard the system is working to keep up. \(AppInfo.displayName) puts that front \
-                and centre.
-                """),
-        OnboardingPage(
-            symbol: "externaldrive.badge.checkmark",
-            tint: .teal,
-            title: "Cached files are a good thing",
-            body: """
-                Much of your “used” memory is cached files: recently used data kept \
-                around to make things fast. macOS hands it back the instant something \
-                needs it. \(AppInfo.displayName) shows cached files in a calm colour so you know \
-                it is working for you, not against you.
-                """),
-        OnboardingPage(
-            symbol: "arrow.down.circle",
-            tint: .orange,
-            title: "Compression and swap are the real signals",
-            body: """
-                When pressure stays high, macOS compresses memory and then writes to \
-                swap. A little is fine; a lot, sustained, is the sign that something \
-                is asking for too much. \(AppInfo.displayName) watches these trends and points to \
-                the process responsible.
-                """),
-    ]
+    // A computed property (not `static let`) so a live interface-language switch
+    // followed by a menu replay of this flow re-resolves every `t(_:)` call
+    // against the new language, rather than caching the first language seen.
+    static var all: [OnboardingPage] {
+        [
+            OnboardingPage(
+                symbol: "gauge.with.dots.needle.50percent",
+                tint: .green,
+                title: "Watch pressure, not free RAM",
+                body:
+                    "On Apple silicon, almost no RAM is ever “free”, and that is normal. macOS keeps memory busy on purpose. What matters is memory pressure: how hard the system is working to keep up. \(AppInfo.displayName) puts that front and centre."
+            ),
+            OnboardingPage(
+                symbol: "externaldrive.badge.checkmark",
+                tint: .teal,
+                title: "Cached files are a good thing",
+                body:
+                    "Much of your “used” memory is cached files: recently used data kept around to make things fast. macOS hands it back the instant something needs it. \(AppInfo.displayName) shows cached files in a calm colour so you know it is working for you, not against you."
+            ),
+            OnboardingPage(
+                symbol: "arrow.down.circle",
+                tint: .orange,
+                title: "Compression and swap are the real signals",
+                body:
+                    "When pressure stays high, macOS compresses memory and then writes to swap. A little is fine; a lot, sustained, is the sign that something is asking for too much. \(AppInfo.displayName) watches these trends and points to the process responsible."
+            ),
+        ]
+    }
 }
 
 // MARK: - Setup steps
@@ -378,7 +375,7 @@ private struct OnboardingModeCard: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(mode.title). \(mode.summary)")
+        .accessibilityLabel(mode.title + ". " + mode.summary)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
@@ -489,7 +486,8 @@ private struct OnboardingMenuBarStep: View {
 
                 OnboardingToggleRow(
                     symbol: "dock.rectangle", title: "Dock icon",
-                    subtitle: "Also show \(AppInfo.displayName) in the Dock.", isOn: $showDockIcon)
+                    subtitle: "Also show \(AppInfo.displayName) in the Dock.",
+                    isOn: $showDockIcon)
 
                 HStack(spacing: 10) {
                     Image(systemName: "timer")
@@ -507,11 +505,7 @@ private struct OnboardingMenuBarStep: View {
                 }
 
                 Text(
-                    """
-                    \(AppInfo.displayName) lives in the menu bar: look for its read-out \
-                    near the clock. A crowded menu bar (or a MacBook's notch) can hide \
-                    it; quit another menu bar item to make room.
-                    """
+                    "\(AppInfo.displayName) lives in the menu bar: look for its read-out near the clock. A crowded menu bar (or a MacBook's notch) can hide it; quit another menu bar item to make room."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)

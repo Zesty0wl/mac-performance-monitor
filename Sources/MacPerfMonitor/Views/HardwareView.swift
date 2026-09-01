@@ -496,7 +496,7 @@ private struct HardwareFeatureCloud: View {
                 }
             }
             if !missing.isEmpty {
-                Text("Not supported: " + missing.map(\.label).joined(separator: ", "))
+                Text(t("Not supported: %@", missing.map(\.label).joined(separator: ", ")))
                     .font(.caption.monospaced())
                     .foregroundStyle(.tertiary)
                     .textSelection(.enabled)

@@ -68,6 +68,11 @@ struct MetricCardData: Identifiable {
 
     var id: String { label }
 
+    /// `label` and `help` are stored as `String` because `label` also serves as
+    /// `id`; these expose them as keys for the views that display them.
+    var labelKey: LocalizedStringKey { LocalizedStringKey(label) }
+    var helpKey: LocalizedStringKey? { help.map { LocalizedStringKey($0) } }
+
     /// The card's data with the feed's current figures, for the detail sheet.
     var snapshot: MetricCardData {
         guard let live else { return self }
@@ -114,9 +119,9 @@ struct MetricCard: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .help(data.help ?? "")
+        .help(data.helpKey ?? "")
         .accessibilityLabel(
-            "\(data.label): \(data.value ?? "unavailable")"
+            "\(t(data.label)): \(data.value ?? "unavailable")"
                 + (data.detail.map { ", \($0)" } ?? "")
         )
         .accessibilityHint(
@@ -781,9 +786,11 @@ enum CPUMetrics {
                 tint: CPULevel(fraction: cpu?.totalUsage ?? 0).color,
                 samples: usageSamples,
                 unit: .percent,
-                detail: cpu.map {
-                    "\(Int(($0.userFraction * 100).rounded()))% user · "
-                        + "\(Int(($0.systemFraction * 100).rounded()))% sys"
+                detail: cpu.map { cpu in
+                    t(
+                        "%1$@%% user · %2$@%% sys",
+                        String(Int((cpu.userFraction * 100).rounded())),
+                        String(Int((cpu.systemFraction * 100).rounded())))
                 },
                 help: "Share of total CPU capacity in use across every core. Click for details.",
                 explanation: MetricExplanation(

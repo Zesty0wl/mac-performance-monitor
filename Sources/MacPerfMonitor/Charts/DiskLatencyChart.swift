@@ -25,17 +25,20 @@ struct DiskLatencyChart: View {
     private var accessibilitySummary: String {
         let reads = readPoints
         let writes = writePoints
-        guard !reads.isEmpty || !writes.isEmpty else {
-            return "No disk activity with measurable latency in the shown window."
+        switch (reads.last, writes.last) {
+        case (nil, nil):
+            return t("No disk activity with measurable latency in the shown window.")
+        case (let read?, nil):
+            return t(
+                "Latest read %@ milliseconds per operation.", String(format: "%.2f", read.value))
+        case (nil, let write?):
+            return t(
+                "Latest write %@ milliseconds per operation.", String(format: "%.2f", write.value))
+        case (let read?, let write?):
+            return t(
+                "Latest read %1$@ milliseconds per operation, write %2$@ milliseconds per operation.",
+                String(format: "%.2f", read.value), String(format: "%.2f", write.value))
         }
-        var parts: [String] = []
-        if let read = reads.last {
-            parts.append(String(format: "read %.2f milliseconds per operation", read.value))
-        }
-        if let write = writes.last {
-            parts.append(String(format: "write %.2f milliseconds per operation", write.value))
-        }
-        return "Latest " + parts.joined(separator: ", ") + "."
     }
 
     var body: some View {

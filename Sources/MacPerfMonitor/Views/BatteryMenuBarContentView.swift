@@ -162,17 +162,19 @@ struct BatteryMenuBarContentView: View {
     }
 
     private func stateWord(_ battery: BatterySample) -> String {
-        if battery.isCharging { return "Charging" }
-        if battery.isOnAC { return battery.chargePercent >= 99 ? "Full" : "Plugged in" }
-        return "On battery"
+        if battery.isCharging { return t("Charging") }
+        if battery.isOnAC {
+            return battery.chargePercent >= 99 ? t("Battery full") : t("Plugged in")
+        }
+        return t("On battery")
     }
 
     private func timeRemaining(_ battery: BatterySample) -> String {
         if battery.isCharging, let m = battery.timeToFullMinutes, m > 0 {
-            return BatteryFormat.duration(minutes: m) + " to full"
+            return t("%@ to full", BatteryFormat.duration(minutes: m))
         }
         if !battery.isOnAC, let m = battery.timeToEmptyMinutes, m > 0 {
-            return BatteryFormat.duration(minutes: m) + " left"
+            return t("%@ left", BatteryFormat.duration(minutes: m))
         }
         return ""
     }
@@ -197,15 +199,17 @@ struct BatteryMenuBarContentView: View {
 
     private func powerLine(_ battery: BatterySample) -> String {
         if battery.isCharging {
-            var s = "+" + BatteryFormat.watts(battery.powerWatts) + " into battery"
-            if let w = battery.adapterWatts { s += " · \(w) W adapter" }
-            return s
+            let base = t("+%@ into battery", BatteryFormat.watts(battery.powerWatts))
+            if let w = battery.adapterWatts {
+                return [base, t("%@ W adapter", String(w))].joined(separator: " · ")
+            }
+            return base
         }
         if battery.isOnAC {
-            if let w = battery.adapterWatts { return "On \(w) W adapter" }
-            return "On power adapter"
+            if let w = battery.adapterWatts { return t("On %@ W adapter", String(w)) }
+            return t("On power adapter")
         }
-        return BatteryFormat.watts(battery.powerWatts) + " drawing from battery"
+        return t("%@ drawing from battery", BatteryFormat.watts(battery.powerWatts))
     }
 
     // MARK: - Top energy
@@ -261,11 +265,11 @@ struct BatteryMenuBarContentView: View {
     private func healthRow(_ battery: BatterySample) -> some View {
         HStack(spacing: 10) {
             if let health = battery.healthPercent {
-                Text("\(Int(health.rounded()))% health")
+                Text(t("%@%% health", String(Int(health.rounded()))))
                     .foregroundStyle(.secondary)
             }
             if let cycles = battery.cycleCount {
-                Text("\(cycles) cycles")
+                Text(t("%@ cycles", String(cycles)))
                     .foregroundStyle(.secondary)
             }
             if let temp = battery.temperatureCelsius {
@@ -284,14 +288,18 @@ struct BatteryMenuBarContentView: View {
             MenuActionButton(title: "Open Energy", systemImage: "bolt.fill") {
                 openBattery()
             }
-            MenuActionButton(title: "Settings\u{2026}", systemImage: "gearshape") {
+            MenuActionButton(title: "Settings…", systemImage: "gearshape") {
                 openSettings()
             }
-            MenuActionButton(title: "About \(AppInfo.displayName)", systemImage: "info.circle") {
+            MenuActionButton(
+                title: "About \(AppInfo.displayName)", systemImage: "info.circle"
+            ) {
                 dismiss()
                 showStandardAboutPanel()
             }
-            MenuActionButton(title: "Check for Updates\u{2026}", systemImage: "arrow.down.circle") {
+            MenuActionButton(
+                title: "Check for Updates…", systemImage: "arrow.down.circle"
+            ) {
                 checkForUpdates()
             }
             .disabled(!updateController.canCheckForUpdates)

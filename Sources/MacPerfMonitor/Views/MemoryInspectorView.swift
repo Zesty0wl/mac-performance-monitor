@@ -42,7 +42,7 @@ struct MemoryInspectorView: View {
             header
             Divider()
             Picker("View", selection: $mode) {
-                ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+                ForEach(Mode.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) }
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -52,7 +52,7 @@ struct MemoryInspectorView: View {
             content
         }
         .frame(minWidth: 580, minHeight: 460)
-        .navigationTitle("Memory · \(target.name)")
+        .navigationTitle(t("Memory · %@", target.name))
         .onAppear {
             // Auto-run the first snapshot when the user opens the window: they
             // clicked "Inspect Memory" precisely to see this. Guarded so a
@@ -108,7 +108,7 @@ struct MemoryInspectorView: View {
         }
     }
 
-    private func badge(_ text: String, _ symbol: String, _ color: Color) -> some View {
+    private func badge(_ text: LocalizedStringKey, _ symbol: String, _ color: Color) -> some View {
         Label(text, systemImage: symbol)
             .font(.caption.weight(.medium))
             .padding(.horizontal, 10)
@@ -165,7 +165,7 @@ struct MemoryInspectorView: View {
             if inspector.isLoadingSnapshot {
                 ProgressView()
                     .controlSize(.small)
-                Text("Sampling \(target.name)…")
+                Text(t("Sampling %@…", target.name))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else if let date = inspector.lastSnapshotDate {
@@ -180,7 +180,7 @@ struct MemoryInspectorView: View {
                 Label("Export…", systemImage: "square.and.arrow.down")
             }
             .disabled(!inspector.hasExportableSnapshot || inspector.isLoadingSnapshot)
-            .help("Save a full memory dump of \(target.name) to a file.")
+            .help(t("Save a full memory dump of %@ to a file.", target.name))
         }
     }
 
@@ -190,8 +190,8 @@ struct MemoryInspectorView: View {
     private func exportSnapshot() {
         guard let report = inspector.buildReport() else { return }
         let panel = NSSavePanel()
-        panel.title = "Export Memory Dump"
-        panel.message = "Save a full memory inspection report for \(target.name)."
+        panel.title = t("Export Memory Dump")
+        panel.message = t("Save a full memory inspection report for %@.", target.name)
         panel.nameFieldStringValue = inspector.suggestedReportFileName()
         panel.allowedContentTypes = [.plainText]
         panel.canCreateDirectories = true
@@ -373,7 +373,9 @@ struct MemoryInspectorView: View {
                 inspector.captureBaseline(helper: helper)
             } label: {
                 Label(
-                    inspector.baseline == nil ? "Capture Baseline" : "Re-capture Baseline",
+                    inspector.baseline == nil
+                        ? LocalizedStringKey("Capture Baseline")
+                        : LocalizedStringKey("Re-capture Baseline"),
                     systemImage: "camera.viewfinder")
             }
             .disabled(inspector.isCapturingBaseline || inspector.isComparing)
@@ -447,7 +449,9 @@ struct MemoryInspectorView: View {
             Text("Limited access")
                 .font(.title3.weight(.semibold))
             Text(
-                "\(target.name) is owned by another user (UID \(target.uid)), so its memory can't be read without elevated privileges. Enable Full Coverage in Settings to inspect system and other-user processes."
+                t(
+                    "%1$@ is owned by another user (UID %2$@), so its memory can't be read without elevated privileges. Enable Full Coverage in Settings to inspect system and other-user processes.",
+                    target.name, String(target.uid))
             )
             .font(.callout)
             .foregroundStyle(.secondary)
@@ -675,6 +679,10 @@ private struct DeltaDataRow: View {
 }
 
 /// A small inline note with a leading icon, tinted by kind.
+/// Takes a `String` rather than a `LocalizedStringKey` because two call sites pass
+/// a message the model has already localised. `LocalizedStringKey(_:)` at the
+/// render point looks up the literal call sites and passes an already-translated
+/// message through untouched, since it simply misses the table.
 private struct InfoNote: View {
     enum Kind { case info, success, warning }
     let text: String
@@ -684,7 +692,7 @@ private struct InfoNote: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: symbol)
                 .foregroundStyle(tint)
-            Text(text)
+            Text(LocalizedStringKey(text))
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

@@ -55,9 +55,9 @@ struct GPUMenuBarContentView: View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 1) {
                 Text("GPU").font(.caption).foregroundStyle(.secondary)
-                Text(gpu.name ?? "Graphics").font(.headline).lineLimit(1)
+                Text(gpu.name ?? t("Graphics")).font(.headline).lineLimit(1)
                 if let cores = gpu.coreCount {
-                    Text("\(cores)-core").font(.caption2).foregroundStyle(.secondary)
+                    Text(t("%@-core", String(cores))).font(.caption2).foregroundStyle(.secondary)
                 }
             }
             Spacer()
@@ -158,10 +158,12 @@ struct GPUMenuBarContentView: View {
                 .padding(.bottom, 2)
 
             if top.isEmpty {
-                Text(menuLists.gpuListScanned ? "Nothing is using the GPU" : "Sampling\u{2026}")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 8)
+                Text(
+                    menuLists.gpuListScanned ? t("Nothing is using the GPU") : t("Sampling\u{2026}")
+                )
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 8)
             } else {
                 ForEach(top) { process in
                     GPUMenuProcessRow(

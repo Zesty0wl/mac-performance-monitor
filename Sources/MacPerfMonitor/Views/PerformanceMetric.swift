@@ -22,24 +22,24 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .memory: return "Memory footprint"
-        case .cpu: return "CPU"
-        case .network: return "Network"
-        case .fileDescriptors: return "File descriptors"
-        case .diskIO: return "Disk I/O"
-        case .dieTemperature: return "Temperature"
+        case .memory: return t("Memory footprint")
+        case .cpu: return t("CPU")
+        case .network: return t("Network")
+        case .fileDescriptors: return t("File descriptors")
+        case .diskIO: return t("Disk I/O")
+        case .dieTemperature: return t("Temperature")
         }
     }
 
     /// Compact label for the segmented control.
     var shortLabel: String {
         switch self {
-        case .memory: return "Memory"
-        case .cpu: return "CPU"
-        case .network: return "Network"
-        case .fileDescriptors: return "Files"
-        case .diskIO: return "Disk"
-        case .dieTemperature: return "Temp"
+        case .memory: return t("Memory")
+        case .cpu: return t("CPU")
+        case .network: return t("Network")
+        case .fileDescriptors: return t("Files")
+        case .diskIO: return t("Disk")
+        case .dieTemperature: return t("Temp")
         }
     }
 
@@ -57,12 +57,12 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
     /// One-line description shown beside the chart title.
     var caption: String {
         switch self {
-        case .memory: return "phys_footprint, the headline \u{201C}Memory\u{201D} figure"
-        case .cpu: return "Percent of one core"
-        case .network: return "Download + upload throughput (per-app tracking required)"
-        case .fileDescriptors: return "Open files, sockets, and pipes"
-        case .diskIO: return "Read + write throughput between ticks"
-        case .dieTemperature: return "CPU and GPU die, hottest sensor (whole Mac)"
+        case .memory: return t("phys_footprint, the headline \u{201C}Memory\u{201D} figure")
+        case .cpu: return t("Percent of one core")
+        case .network: return t("Download + upload throughput (per-app tracking required)")
+        case .fileDescriptors: return t("Open files, sockets, and pipes")
+        case .diskIO: return t("Read + write throughput between ticks")
+        case .dieTemperature: return t("CPU and GPU die, hottest sensor (whole Mac)")
         }
     }
 

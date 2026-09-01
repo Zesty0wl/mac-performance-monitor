@@ -9,8 +9,13 @@ public struct HardwareProperty: Hashable, Sendable, Codable {
     public var value: String
     public var group: String?
 
+    /// `label` and `group` are always drawn from a small fixed vocabulary of
+    /// field names, never from device data, so translating them here catches
+    /// every call site in one place. `value` is left alone: it is usually the
+    /// device's own data (a serial number, a name, a path) and must never be
+    /// looked up against the translation table.
     public init(_ label: String, _ value: String, group: String? = nil) {
-        self.label = label
+        self.label = t(label)
         self.value = value
         self.group = group
     }

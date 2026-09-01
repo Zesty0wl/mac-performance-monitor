@@ -29,28 +29,30 @@ public enum TaxonomyCategory: String, Sendable, CaseIterable, Codable {
 
     public var name: String {
         switch self {
-        case .wired: return "Wired"
-        case .appMemory: return "App Memory"
-        case .compressed: return "Compressed"
-        case .cachedFiles: return "Cached Files"
-        case .free: return "Free & available"
+        case .wired: return t("Wired")
+        case .appMemory: return t("App Memory")
+        case .compressed: return t("Compressed")
+        case .cachedFiles: return t("Cached Files")
+        case .free: return t("Free & available")
         }
     }
 
     public var explanation: String {
         switch self {
         case .wired:
-            return "Memory that can't be moved or compressed. The system needs it where it is."
+            return t("Memory that can't be moved or compressed. The system needs it where it is.")
         case .appMemory:
-            return "Memory your apps are actively using that isn't a reclaimable file cache."
+            return t("Memory your apps are actively using that isn't a reclaimable file cache.")
         case .compressed:
-            return
+            return t(
                 "Memory the compressor has squeezed to fit more in RAM. A little is normal; a lot, and rising, is an early sign of pressure."
+            )
         case .cachedFiles:
-            return
+            return t(
                 "macOS is using free RAM to keep recently used files handy. This is not a problem and is released the moment anything needs the space."
+            )
         case .free:
-            return "RAM not currently in use and immediately available."
+            return t("RAM not currently in use and immediately available.")
         }
     }
 }

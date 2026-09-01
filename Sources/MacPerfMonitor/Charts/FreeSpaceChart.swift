@@ -20,16 +20,24 @@ struct FreeSpaceChart: View {
     }
 
     private var accessibilitySummary: String {
-        guard let latest = freePoints.last else { return "No free space history yet." }
-        var summary = "Currently \(ByteFormat.string(UInt64(max(0, latest.value)))) free"
-        if let total = totalBytes {
-            summary += " of \(ByteFormat.string(total))"
+        guard let latest = freePoints.last else { return t("No free space history yet.") }
+        let free = ByteFormat.string(UInt64(max(0, latest.value)))
+        let down: String? = {
+            guard let first = freePoints.first, first.value > latest.value else { return nil }
+            return ByteFormat.string(UInt64(first.value - latest.value))
+        }()
+        switch (totalBytes, down) {
+        case (nil, nil):
+            return t("Currently %@ free.", free)
+        case (let total?, nil):
+            return t("Currently %1$@ free of %2$@.", free, ByteFormat.string(total))
+        case (nil, let down?):
+            return t("Currently %1$@ free, down %2$@ over the window.", free, down)
+        case (let total?, let down?):
+            return t(
+                "Currently %1$@ free of %2$@, down %3$@ over the window.", free,
+                ByteFormat.string(total), down)
         }
-        if let first = freePoints.first, first.value > latest.value {
-            summary +=
-                ", down \(ByteFormat.string(UInt64(first.value - latest.value))) over the window"
-        }
-        return summary + "."
     }
 
     var body: some View {

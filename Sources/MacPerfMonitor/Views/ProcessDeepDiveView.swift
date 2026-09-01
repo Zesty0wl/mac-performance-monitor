@@ -61,7 +61,7 @@ struct ProcessDeepDiveView: View {
             }
         }
         .frame(minWidth: 540, minHeight: 580)
-        .navigationTitle("Deep Dive — \(target.name)")
+        .navigationTitle(t("Deep Dive — %@", target.name))
         .onAppear(perform: start)
     }
 
@@ -71,9 +71,9 @@ struct ProcessDeepDiveView: View {
         HStack(spacing: 6) {
             Image(systemName: catalog.source == .server ? "checkmark.seal.fill" : "shippingbox")
                 .foregroundStyle(catalog.source == .server ? Color.green : Color.secondary)
-            Text("\(catalog.checkCount) checks")
+            Text(t("%@ checks", String(catalog.checkCount)))
             Text("·").foregroundStyle(.tertiary)
-            Text("catalog v\(catalog.version)")
+            Text(t("catalog v%@", String(catalog.version)))
             Text("·").foregroundStyle(.tertiary)
             Text(catalog.source == .server ? "latest, from server" : "built-in")
             Spacer()
@@ -119,7 +119,7 @@ struct ProcessDeepDiveView: View {
 
     private var workingMessage: String {
         if case .working(let message) = model.state { return message }
-        return "Starting…"
+        return t("Starting…")
     }
 
     private func start() {
@@ -189,7 +189,7 @@ struct ProcessDeepDiveView: View {
     }
 
     private func metricCard(
-        _ title: String, value: String, trend: String, trail: [Double], tint: Color
+        _ title: LocalizedStringKey, value: String, trend: String, trail: [Double], tint: Color
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.caption).foregroundStyle(.secondary)

@@ -69,7 +69,9 @@ public enum CheckCatalog {
         let failed = holds(rule.when, p)
         let status: DiagnosticCheck.Status =
             failed ? (DiagnosticCheck.Status(rawValue: rule.severity) ?? .warning) : .ok
-        let summary = template(failed ? rule.failText : rule.passText, p)
+        // Translate before substituting: the {probe} tokens are identical in
+        // every language, so a translation carries them through unchanged.
+        let summary = template(t(failed ? rule.failText : rule.passText), p)
         let details = rule.detailsProbe.flatMap { p.lists[$0] } ?? []
         return DiagnosticCheck(
             id: rule.id, title: rule.title, status: status, summary: summary, details: details)

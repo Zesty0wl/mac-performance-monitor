@@ -112,12 +112,13 @@ struct TraceViewerView: View {
     private var provenanceLine: String {
         var parts: [String] = []
         let count = document.processes.count
-        parts.append("\(count) \(count == 1 ? "process" : "processes")")
+        parts.append(
+            count == 1 ? t("%@ process", String(count)) : t("%@ processes", String(count)))
         parts.append(
             Self.durationLabel(fullDomain.upperBound.timeIntervalSince(fullDomain.lowerBound)))
         parts.append(document.source.osVersion)
         if let model = document.source.machineModel { parts.append(model) }
-        parts.append("exported \(Self.exportedFormatter.string(from: document.exportedAt))")
+        parts.append(t("exported %@", Self.exportedFormatter.string(from: document.exportedAt)))
         return parts.joined(separator: " \u{00B7} ")
     }
 
@@ -321,7 +322,7 @@ struct TraceViewerView: View {
         let window = Self.durationLabel(
             zoom.visibleDomain.upperBound.timeIntervalSince(zoom.visibleDomain.lowerBound))
         return VStack(alignment: .leading, spacing: 5) {
-            Text("Statistics \u{00B7} \(window)")
+            Text(t("Statistics \u{00B7} %@", window))
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
             Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 3) {
@@ -379,7 +380,7 @@ struct TraceViewerView: View {
         guard zoom.isZoomed else { return visible }
         let full = Self.durationLabel(
             fullDomain.upperBound.timeIntervalSince(fullDomain.lowerBound))
-        return "viewing \(visible) of \(full)"
+        return t("viewing %1$@ of %2$@", visible, full)
     }
 
     private var emptyState: some View {
@@ -411,7 +412,7 @@ struct TraceViewerView: View {
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                 if identities.count > Self.maxActiveProcesses {
-                    Text("\(activeIdentities.count) shown")
+                    Text(t("%@ shown", String(activeIdentities.count)))
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
@@ -644,10 +645,10 @@ struct TraceViewerView: View {
 
     private static func durationLabel(_ seconds: TimeInterval) -> String {
         let s = Int(seconds.rounded())
-        if s < 120 { return "\(s) sec" }
-        if s < 2 * 3600 { return "\(s / 60) min" }
-        if s < 2 * 86_400 { return "\(s / 3600) hr" }
-        return "\(s / 86_400) days"
+        if s < 120 { return t("%@ sec", String(s)) }
+        if s < 2 * 3600 { return t("%@ min", String(s / 60)) }
+        if s < 2 * 86_400 { return t("%@ hr", String(s / 3600)) }
+        return t("%@ days", String(s / 86_400))
     }
 
     private static let exportedFormatter: DateFormatter = {

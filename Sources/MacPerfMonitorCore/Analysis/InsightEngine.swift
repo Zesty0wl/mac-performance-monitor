@@ -181,9 +181,10 @@ public enum InsightEngine {
                     id: "all-clear",
                     kind: .allClear,
                     severity: .allClear,
-                    headline: "Nothing needs your attention",
-                    detail:
+                    headline: t("Nothing needs your attention"),
+                    detail: t(
                         "No suspected leaks, pressure spikes, or sudden memory jumps in the last 2 hours. Memory is healthy."
+                    )
                 )
             ]
         }
@@ -211,11 +212,10 @@ public enum InsightEngine {
                 id: "thermal-drift",
                 kind: .thermalDrift,
                 severity: .advisory,
-                headline: "Fans are working harder than they used to",
-                detail:
-                    "At the same die temperature, the fans now run about \(percent)% faster "
-                    + "than \(finding.baselineWeeksAgo) weeks ago. Dust buildup in the vents "
-                    + "is the usual cause; cleaning them usually brings speeds back down.",
+                headline: t("Fans are working harder than they used to"),
+                detail: t(
+                    "At the same die temperature, the fans now run about %1$@%% faster than %2$@ weeks ago. Dust buildup in the vents is the usual cause; cleaning them usually brings speeds back down.",
+                    String(percent), String(finding.baselineWeeksAgo)),
                 metricText: "+\(percent)%"
             )
         ]
@@ -232,9 +232,10 @@ public enum InsightEngine {
                 id: "leak-\(entry.identity.pid)-\(entry.identity.startTime.timeIntervalSince1970)",
                 kind: .leak,
                 severity: critical ? .critical : .warning,
-                headline: "\(entry.displayName) looks like it's leaking",
-                detail:
-                    "Grew \(ByteFormat.string(finding.totalGrowth)) over \(minutes) min at a steady ~\(rate)/s, with no sign of levelling off.",
+                headline: t("%@ looks like it's leaking", entry.displayName),
+                detail: t(
+                    "Grew %1$@ over %2$@ min at a steady ~%3$@/s, with no sign of levelling off.",
+                    ByteFormat.string(finding.totalGrowth), String(minutes), rate),
                 metricText: "+\(ByteFormat.string(finding.totalGrowth))",
                 identity: entry.identity,
                 processName: entry.displayName,
@@ -255,21 +256,23 @@ public enum InsightEngine {
 
         let headline =
             inputs.events.count == 1
-            ? "Memory pressure rose to \(latest.level.label.lowercased())"
-            : "\(inputs.events.count) memory-pressure spikes in 2 hours"
+            ? t("Memory pressure rose to %@", latest.level.label.lowercased())
+            : t("%@ memory-pressure spikes in 2 hours", String(inputs.events.count))
 
         var sentences = [
-            "Most recent at \(Self.time(latest.date))."
+            t("Most recent at %@.", Self.time(latest.date))
         ]
         if let name = latest.dominantName {
             sentences.append(
-                "\(name) was the largest process at \(ByteFormat.string(latest.dominantFootprint))."
+                t(
+                    "%1$@ was the largest process at %2$@.", name,
+                    ByteFormat.string(latest.dominantFootprint))
             )
         }
         sentences.append(
             inputs.currentPressure == .normal
-                ? "Pressure is back to normal now."
-                : "Pressure is still \(inputs.currentPressure.label.lowercased())."
+                ? t("Pressure is back to normal now.")
+                : t("Pressure is still %@.", inputs.currentPressure.label.lowercased())
         )
 
         let peak = inputs.systemHistory.map(\.pressurePercent).max()
@@ -306,9 +309,10 @@ public enum InsightEngine {
                 id: "attribution-\(top.identity.pid)-\(event.date.timeIntervalSince1970)",
                 kind: .attribution,
                 severity: .warning,
-                headline: "\(consumer.displayName) likely triggered the spike",
-                detail:
-                    "It grew \(grown) in the \(Int(attributionWindow / 60)) minutes before pressure rose at \(Self.time(event.date)).",
+                headline: t("%@ likely triggered the spike", consumer.displayName),
+                detail: t(
+                    "It grew %1$@ in the %2$@ minutes before pressure rose at %3$@.",
+                    grown, String(Int(attributionWindow / 60)), Self.time(event.date)),
                 metricText: "+\(grown)",
                 identity: top.identity,
                 processName: consumer.displayName,
@@ -342,9 +346,11 @@ public enum InsightEngine {
                         "step-\(consumer.identity.pid)-\(step.at.timeIntervalSince1970)",
                     kind: .stepChange,
                     severity: step.deltaBytes >= largeStepBytes ? .warning : .advisory,
-                    headline: "\(consumer.displayName) jumped \(delta) suddenly",
-                    detail:
-                        "Footprint stepped from \(ByteFormat.string(step.beforeMean)) to \(ByteFormat.string(step.afterMean)) at \(Self.time(step.at)). A sharp one-off step usually means a heavy document or operation, not a leak.",
+                    headline: t("%@ jumped %@ suddenly", consumer.displayName, delta),
+                    detail: t(
+                        "Footprint stepped from %1$@ to %2$@ at %3$@. A sharp one-off step usually means a heavy document or operation, not a leak.",
+                        ByteFormat.string(step.beforeMean), ByteFormat.string(step.afterMean),
+                        Self.time(step.at)),
                     metricText: "+\(delta)",
                     identity: consumer.identity,
                     processName: consumer.displayName,
@@ -370,9 +376,11 @@ public enum InsightEngine {
                 id: "swap",
                 kind: .swap,
                 severity: inputs.currentPressure >= .warning ? .warning : .advisory,
-                headline: "Swap is climbing",
-                detail:
-                    "Swap grew \(ByteFormat.string(growth)) over the last \(minutes) min, from \(ByteFormat.string(first.swapUsed)) to \(ByteFormat.string(last.swapUsed)). A sustained climb means memory is oversubscribed.",
+                headline: t("Swap is climbing"),
+                detail: t(
+                    "Swap grew %1$@ over the last %2$@ min, from %3$@ to %4$@. A sustained climb means memory is oversubscribed.",
+                    ByteFormat.string(growth), String(minutes), ByteFormat.string(first.swapUsed),
+                    ByteFormat.string(last.swapUsed)),
                 metricText: "+\(ByteFormat.string(growth))"
             )
         ]
@@ -388,9 +396,19 @@ public enum InsightEngine {
                 id: "rosetta",
                 kind: .rosetta,
                 severity: heavy ? .advisory : .info,
-                headline: "Intel apps are using \(ByteFormat.string(cost.totalFootprint))",
-                detail:
-                    "\(cost.processCount) process\(cost.processCount == 1 ? " is" : "es are") running translated under Rosetta. Apple-silicon-native versions typically need less memory and CPU.",
+                headline: t("Intel apps are using %@", ByteFormat.string(cost.totalFootprint)),
+                // Two whole sentences rather than one template with the verb
+                // spliced in as an argument. English grammar fragments (" is" /
+                // "es are") cannot survive translation: substituted into the
+                // Chinese template they surfaced verbatim in the middle of the
+                // sentence. Anything that inflects has to live inside the key.
+                detail: cost.processCount == 1
+                    ? t(
+                        "One process is running translated under Rosetta. Apple-silicon-native versions typically need less memory and CPU."
+                    )
+                    : t(
+                        "%@ processes are running translated under Rosetta. Apple-silicon-native versions typically need less memory and CPU.",
+                        String(cost.processCount)),
                 metricText: ByteFormat.string(cost.totalFootprint)
             )
         ]
@@ -415,9 +433,10 @@ public enum InsightEngine {
                         id: "cpu-sustained",
                         kind: .cpu,
                         severity: average >= 0.9 ? .warning : .advisory,
-                        headline: "Your Mac has been working hard",
-                        detail:
-                            "Total CPU has averaged \(percent)% over the last \(minutes) min. Sustained high CPU is normal during real work, but it warms the machine and drains battery — the top CPU process is the place to look.",
+                        headline: t("Your Mac has been working hard"),
+                        detail: t(
+                            "Total CPU has averaged %1$@%% over the last %2$@ min. Sustained high CPU is normal during real work, but it warms the machine and drains battery — the top CPU process is the place to look.",
+                            String(percent), String(minutes)),
                         metricText: "\(percent)% avg"))
             }
         }
@@ -431,11 +450,12 @@ public enum InsightEngine {
                         "cpu-heavy-\(top.identity.pid)-\(top.identity.startTime.timeIntervalSince1970)",
                     kind: .cpu,
                     severity: top.averageCPU >= 300 ? .warning : .advisory,
-                    headline: "\(top.displayName) is using a lot of CPU",
-                    detail:
-                        "It has averaged \(percent)% of one core recently"
-                        + (top.averageCPU >= 100 ? " — more than a full core." : ".")
-                        + " If it is not doing work you expect, restarting it usually settles it.",
+                    headline: t("%@ is using a lot of CPU", top.displayName),
+                    detail: t(
+                        top.averageCPU >= 100
+                            ? "It has averaged %1$@%% of one core recently — more than a full core. If it is not doing work you expect, restarting it usually settles it."
+                            : "It has averaged %@%% of one core recently. If it is not doing work you expect, restarting it usually settles it.",
+                        String(percent)),
                     metricText: "\(percent)%",
                     identity: top.identity,
                     processName: top.displayName,
@@ -465,9 +485,10 @@ public enum InsightEngine {
                         id: "network-sustained",
                         kind: .network,
                         severity: .info,
-                        headline: "Steady network activity",
-                        detail:
-                            "Your Mac has moved an average of \(ByteFormat.rate(average)) over the last \(minutes) min, peaking at \(ByteFormat.rate(peak)). That usually means an ongoing download, upload, sync, or backup.",
+                        headline: t("Steady network activity"),
+                        detail: t(
+                            "Your Mac has moved an average of %1$@ over the last %2$@ min, peaking at %3$@. That usually means an ongoing download, upload, sync, or backup.",
+                            ByteFormat.rate(average), String(minutes), ByteFormat.rate(peak)),
                         metricText: ByteFormat.rate(average)))
             }
         }
@@ -480,9 +501,10 @@ public enum InsightEngine {
                         "network-heavy-\(top.identity.pid)-\(top.identity.startTime.timeIntervalSince1970)",
                     kind: .network,
                     severity: .info,
-                    headline: "\(top.displayName) is using the network heavily",
-                    detail:
-                        "It has averaged \(ByteFormat.rate(top.averageNetwork)) of network traffic recently. If that is not work you expect, it is worth a look.",
+                    headline: t("%@ is using the network heavily", top.displayName),
+                    detail: t(
+                        "It has averaged %@ of network traffic recently. If that is not work you expect, it is worth a look.",
+                        ByteFormat.rate(top.averageNetwork)),
                     metricText: ByteFormat.rate(top.averageNetwork),
                     identity: top.identity,
                     processName: top.displayName,

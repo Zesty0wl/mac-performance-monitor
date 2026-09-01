@@ -56,9 +56,15 @@ struct CoreGridView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: max(2, barHeight * core.usage))
             }
-            .help("Core \(core.index) · \(core.kind.label) · \(loadPercent(core.usage))%")
+            .help(
+                t(
+                    "Core %1$@ · %2$@ · %3$@%%", String(core.index), core.kind.label,
+                    String(loadPercent(core.usage)))
+            )
             .accessibilityLabel(
-                "Core \(core.index), \(core.kind.label), \(loadPercent(core.usage)) percent")
+                t(
+                    "Core %1$@, %2$@, %3$@ percent", String(core.index), core.kind.label,
+                    String(loadPercent(core.usage))))
     }
 
     // MARK: - Legend
@@ -69,22 +75,27 @@ struct CoreGridView: View {
         HStack(spacing: 14) {
             if efficiency.isEmpty {
                 // Single tier (Intel, or before the split is known).
-                legendItem(CoreKind.performance.accent, "Cores", performance)
+                legendItem(CoreKind.performance.accent, "Cores · %1$@ · %2$@%%", performance)
             } else {
-                legendItem(CoreKind.performance.accent, "Performance", performance)
-                legendItem(CoreKind.efficiency.accent, "Efficiency", efficiency)
+                legendItem(
+                    CoreKind.performance.accent, "Performance · %1$@ · %2$@%%", performance)
+                legendItem(CoreKind.efficiency.accent, "Efficiency · %1$@ · %2$@%%", efficiency)
             }
             Spacer(minLength: 0)
         }
     }
 
-    private func legendItem(_ color: Color, _ label: String, _ cores: [CoreUsage]) -> some View {
+    /// `template` carries the cluster name and both figures in a single key, so a
+    /// translation can reorder them or attach a measure word to the count. The
+    /// same three keys back the AppKit legend in `CoreGridSurface`, which keeps
+    /// the two surfaces reading identically.
+    private func legendItem(_ color: Color, _ template: String, _ cores: [CoreUsage]) -> some View {
         let average = cores.isEmpty ? 0 : cores.reduce(0.0) { $0 + $1.usage } / Double(cores.count)
         return HStack(spacing: 5) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(color)
                 .frame(width: 9, height: 9)
-            Text("\(label) · \(cores.count) · \(loadPercent(average))%")
+            Text(t(template, String(cores.count), String(loadPercent(average))))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }

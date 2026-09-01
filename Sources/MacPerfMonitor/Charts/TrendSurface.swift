@@ -240,8 +240,13 @@ final class TrendSurfaceView: LiveSurfaceView {
 
     private func feedDidPublish() {
         guard let model = feed?.model else { return }
-        setAccessibilityLabel(model.accessibilityLabel)
-        setAccessibilityValue(model.accessibilityValue)
+        // `t(_:)` looks the string up as a key; a value some other file has
+        // already fully interpolated (numbers baked in) simply falls back to
+        // itself, matching prior behaviour, while a plain literal like "Trend"
+        // timeline name or "No data yet." resolves against the shared table
+        // regardless of which caller (SwiftUI or AppKit-driven) set it.
+        setAccessibilityLabel(t(model.accessibilityLabel))
+        setAccessibilityValue(t(model.accessibilityValue))
         update()
     }
 
@@ -745,7 +750,7 @@ enum TrendRenderer {
             ctx.addLine(to: CGPoint(x: plot.maxX, y: yy))
             ctx.strokePath()
             ctx.setLineDash(phase: 0, lengths: [])
-            let label = labels.label(rule.label, style: .rule(color))
+            let label = labels.label(t(rule.label), style: .rule(color))
             label.draw(at: CGPoint(x: plot.minX + 3, y: yy - 7), in: ctx)
         }
 

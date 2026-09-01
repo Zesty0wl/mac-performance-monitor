@@ -47,12 +47,13 @@ struct CPUChart: View {
     private let scale: Double
 
     private var accessibilitySummary: String {
-        guard let latest = cpu.lastValue else { return "No data yet." }
+        guard let latest = cpu.lastValue else { return t("No data yet.") }
         let range = cpu.range ?? (latest, latest)
         let lo = Int((range.min * scale).rounded())
         let hi = Int((range.max * scale).rounded())
-        return
-            "Currently \(Int((latest * scale).rounded())) percent. Window range \(lo) to \(hi) percent."
+        return t(
+            "Currently %1$@ percent. Window range %2$@ to %3$@ percent.",
+            String(Int((latest * scale).rounded())), String(lo), String(hi))
     }
 
     var body: some View {

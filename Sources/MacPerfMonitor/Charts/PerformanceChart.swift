@@ -171,12 +171,12 @@ struct PerformanceChart: View, Equatable {
     }
 
     private var accessibilitySummary: String {
-        guard !series.isEmpty else { return "No processes added yet." }
+        guard !series.isEmpty else { return t("No processes added yet.") }
         let parts = series.compactMap { s -> String? in
             guard let latest = s.points.last?.value else { return nil }
             return "\(s.name) \(yFormat(latest))"
         }
-        return parts.isEmpty ? "Collecting data." : parts.joined(separator: ", ")
+        return parts.isEmpty ? t("Collecting data.") : parts.joined(separator: ", ")
     }
 
     var body: some View {
@@ -223,7 +223,7 @@ struct PerformanceChart: View, Equatable {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityTitle)
+        .accessibilityLabel(t(accessibilityTitle))
         .accessibilityValue(accessibilitySummary)
         .reducedMotionAware()
     }

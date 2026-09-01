@@ -134,8 +134,10 @@ struct GroupEditorView: View {
                 .foregroundStyle(draft.rule.hasCondition ? Color.secondary : Color.orange)
                 Text(
                     draft.rule.hasCondition
-                        ? "Caught now: \(matched.count) \(matched.count == 1 ? "process" : "processes")"
-                        : "No conditions yet — this group matches nothing"
+                        ? (matched.count == 1
+                            ? t("Caught now: %@ process", String(matched.count))
+                            : t("Caught now: %@ processes", String(matched.count)))
+                        : t("No conditions yet — this group matches nothing")
                 )
                 .font(.subheadline.weight(.medium))
                 Spacer()
@@ -240,7 +242,7 @@ private struct RuleNodeEditor: View {
 
             Picker("", selection: conditionBinding.field) {
                 ForEach(GroupCondition.Field.allCases, id: \.self) { f in
-                    Text(Self.fieldLabel(f)).tag(f)
+                    Text(t(Self.fieldLabel(f))).tag(f)
                 }
             }
             .labelsHidden()
@@ -249,7 +251,7 @@ private struct RuleNodeEditor: View {
             Picker("", selection: conditionBinding.op) {
                 ForEach(
                     GroupCondition.operators(for: conditionBinding.field.wrappedValue), id: \.self
-                ) { Text(Self.opLabel($0)).tag($0) }
+                ) { Text(t(Self.opLabel($0))).tag($0) }
             }
             .labelsHidden()
             .frame(width: 96)
@@ -269,7 +271,9 @@ private struct RuleNodeEditor: View {
         case .classification:
             Picker("", selection: conditionBinding.value) {
                 Text("choose…").tag("")
-                ForEach(Self.knownCategories, id: \.self) { Text($0).tag($0) }
+                ForEach(Self.knownCategories, id: \.self) { category in
+                    Text(t(Self.classificationLabel(category))).tag(category)
+                }
             }
             .labelsHidden()
             .frame(minWidth: 130)
@@ -367,7 +371,7 @@ private struct RuleNodeEditor: View {
                 .foregroundStyle(negated ? Color.white : Color.secondary)
         }
         .buttonStyle(.plain)
-        .help("Negate this \(Self.isGroup(node) ? "group" : "condition")")
+        .help(Self.isGroup(node) ? "Negate this group" : "Negate this condition")
     }
 
     @ViewBuilder
@@ -459,13 +463,13 @@ private struct RuleNodeEditor: View {
     private func teamIDStatus(_ rawValue: String) -> some View {
         let value = rawValue.trimmingCharacters(in: .whitespaces)
         if value.isEmpty {
-            statusLabel("Enter or pick a Team ID", icon: "questionmark.circle")
+            statusLabel(t("Enter or pick a Team ID"), icon: "questionmark.circle")
         } else if !teamIDsLoaded {
             EmptyView()
         } else if let entry = knownTeamID(value) {
             statusLabel(entry.label, icon: "checkmark.seal")
         } else {
-            statusLabel("Unrecognised Team ID", icon: "questionmark.circle")
+            statusLabel(t("Unrecognised Team ID"), icon: "questionmark.circle")
         }
     }
 
@@ -534,10 +538,25 @@ private struct RuleNodeEditor: View {
         }
     }
 
+    /// The picker's display text for a raw classification value. The raw value
+    /// itself (`cat`) stays untranslated: it is a data value matched against
+    /// glossary-derived classifications elsewhere, not just a label.
+    static func classificationLabel(_ raw: String) -> String {
+        switch raw {
+        case "security": return "Security"
+        case "developer": return "Developer"
+        case "system": return "System"
+        case "background": return "Background"
+        case "app": return "App"
+        case "helper": return "Helper"
+        default: return raw
+        }
+    }
+
     static func valuePlaceholder(_ f: GroupCondition.Field) -> String {
         switch f {
         case .bundleID: return "com.vendor.app"
-        case .name: return "process name"
+        case .name: return t("process name")
         case .path: return "/Library/…"
         case .teamID: return "ABCDE12345"
         case .vendor: return "Microsoft"

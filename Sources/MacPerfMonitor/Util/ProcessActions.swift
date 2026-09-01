@@ -347,14 +347,14 @@ struct ForceQuitConfirmation: ViewModifier {
     }
 
     private var targetName: String {
-        guard let target else { return "this process" }
+        guard let target else { return t("this process") }
         return model.currentSample(for: target)?.displayName ?? "PID \(target.pid)"
     }
 
     func body(content: Content) -> some View {
         content
             .confirmationDialog(
-                "Force quit \(targetName)?",
+                t("Force quit %@?", targetName),
                 isPresented: confirming,
                 titleVisibility: .visible
             ) {
@@ -362,9 +362,9 @@ struct ForceQuitConfirmation: ViewModifier {
                 Button("Cancel", role: .cancel) { target = nil }
             } message: {
                 Text(
-                    "This sends SIGKILL (kill -9). The process stops at once "
-                        + "without saving, so any unsaved work is lost."
-                )
+                    t(
+                        "This sends SIGKILL (kill -9). The process stops at once "
+                            + "without saving, so any unsaved work is lost."))
             }
             .alert("Couldn\u{2019}t force quit", isPresented: showingFailure) {
                 Button("OK", role: .cancel) {}
@@ -397,7 +397,7 @@ struct ForceQuitConfirmation: ViewModifier {
                 self.escalateKill(pid: pid, name: name, identity: identity, lastSample: lastSample)
             case .failed(let code):
                 self.failureMessage =
-                    "\u{201C}\(name)\u{201D} could not be stopped (error \(code))."
+                    t("\u{201C}%1$@\u{201D} could not be stopped (error %2$d).", name, code)
             }
         }
     }
@@ -410,9 +410,10 @@ struct ForceQuitConfirmation: ViewModifier {
     ) {
         guard helper.canEscalate else {
             failureMessage =
-                "macOS would not let \(AppInfo.displayName) stop \u{201C}\(name)\u{201D}. It is likely a "
-                + "system process or owned by another user. Turn on Full Coverage in "
-                + "Settings to stop processes as root."
+                t(
+                    "macOS would not let %1$@ stop \u{201C}%2$@\u{201D}. It is likely a "
+                        + "system process or owned by another user. Turn on Full Coverage in "
+                        + "Settings to stop processes as root.", AppInfo.displayName, name)
             return
         }
         helper.forceQuit(pid: pid) { outcome in
@@ -422,11 +423,12 @@ struct ForceQuitConfirmation: ViewModifier {
                 AppLog.ui.notice("force-quit pid \(pid, privacy: .public) via helper")
             case .notPermitted:
                 self.failureMessage =
-                    "Even with Full Coverage, macOS would not stop \u{201C}\(name)\u{201D}."
+                    t("Even with Full Coverage, macOS would not stop \u{201C}%@\u{201D}.", name)
             case .failed(let code):
                 self.failureMessage =
-                    "\u{201C}\(name)\u{201D} could not be stopped through the helper "
-                    + "(error \(code))."
+                    t(
+                        "\u{201C}%1$@\u{201D} could not be stopped through the helper "
+                            + "(error %2$d).", name, code)
             }
         }
     }

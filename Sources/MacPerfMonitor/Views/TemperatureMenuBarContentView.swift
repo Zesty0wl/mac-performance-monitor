@@ -43,7 +43,7 @@ struct TemperatureMenuBarContentView: View {
         return HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 1) {
                 Text("CPU die").font(.caption).foregroundStyle(.secondary)
-                Text(pressure.isThrottling ? "Throttling (\(pressure.label))" : pressure.label)
+                Text(pressure.isThrottling ? t("Throttling (%@)", pressure.label) : pressure.label)
                     .font(.headline)
                     .foregroundStyle(pressure.isThrottling ? pressure.color : .primary)
             }
@@ -95,7 +95,7 @@ struct TemperatureMenuBarContentView: View {
                 detail("Battery", "\(Int(system.batteryTemperatureCelsius.rounded()))°C")
             }
             if let fan = system.fanRPM {
-                detail("Fans", fan == 0 ? "Off" : "\(Int(fan.rounded())) rpm")
+                detail("Fans", fan == 0 ? t("Off") : t("%@ rpm", String(Int(fan.rounded()))))
             }
             detail("Thermal pressure", (system.thermalPressure ?? .nominal).label)
         }

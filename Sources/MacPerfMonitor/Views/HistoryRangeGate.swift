@@ -1,3 +1,4 @@
+import MacPerfMonitorCore
 import SwiftUI
 
 /// Gates a history time-range control behind the app's function mode.
@@ -40,7 +41,9 @@ private struct HistoryRangeGate: ViewModifier {
                 Button("Not Now", role: .cancel) {}
             } message: {
                 Text(
-                    "\(AppInfo.displayName) is in menu-bar-only mode and isn't recording history. Turn on logging to chart these ranges — it starts recording now, and history builds up from here."
+                    t(
+                        "%@ is in menu-bar-only mode and isn't recording history. Turn on logging to chart these ranges — it starts recording now, and history builds up from here.",
+                        AppInfo.displayName)
                 )
             }
         }

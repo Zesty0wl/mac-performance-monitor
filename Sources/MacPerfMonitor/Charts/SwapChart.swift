@@ -30,12 +30,12 @@ struct SwapChart: View {
     }
 
     private var accessibilitySummary: String {
-        guard let latest = swap.lastValue else { return "No data yet." }
+        guard let latest = swap.lastValue else { return t("No data yet.") }
         let peak = UInt64(max(swap.range?.max ?? latest, 0))
-        if peak == 0 { return "No swap in use over the shown window." }
-        return
-            "Currently \(ByteFormat.string(UInt64(max(latest, 0)))). "
-            + "Peak \(ByteFormat.string(peak)) over the shown window."
+        if peak == 0 { return t("No swap in use over the shown window.") }
+        return t(
+            "Currently %1$@. Peak %2$@ over the shown window.",
+            ByteFormat.string(UInt64(max(latest, 0))), ByteFormat.string(peak))
     }
 
     var body: some View {

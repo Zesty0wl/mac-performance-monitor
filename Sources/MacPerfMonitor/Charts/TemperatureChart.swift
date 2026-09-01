@@ -48,16 +48,17 @@ struct TemperatureChart: View {
 
     private var accessibilitySummary: String {
         guard let cpu = cpuPoints.last else {
-            return "No temperature samples in the shown window."
+            return t("No temperature samples in the shown window.")
         }
-        var parts = [String(format: "CPU die %.0f degrees", cpu.value)]
+        let peak = cpuPoints.map(\.value).max() ?? cpu.value
+        let cpuValue = String(format: "%.0f", cpu.value)
+        let peakValue = String(format: "%.0f", peak)
         if let gpu = gpuPoints.last {
-            parts.append(String(format: "GPU die %.0f degrees", gpu.value))
+            return t(
+                "Latest CPU die %1$@ degrees, GPU die %2$@ degrees, window peak %3$@ degrees.",
+                cpuValue, String(format: "%.0f", gpu.value), peakValue)
         }
-        if let peak = cpuPoints.map(\.value).max() {
-            parts.append(String(format: "window peak %.0f degrees", peak))
-        }
-        return "Latest " + parts.joined(separator: ", ") + "."
+        return t("Latest CPU die %1$@ degrees, window peak %2$@ degrees.", cpuValue, peakValue)
     }
 
     var body: some View {
@@ -103,10 +104,10 @@ struct FanChart: View {
 
     private var accessibilitySummary: String {
         guard let latest = fanPoints.last else {
-            return "No fan samples in the shown window."
+            return t("No fan samples in the shown window.")
         }
-        if latest.value == 0 { return "Fans currently off." }
-        return String(format: "Fans currently %.0f rpm.", latest.value)
+        if latest.value == 0 { return t("Fans currently off.") }
+        return t("Fans currently %@ rpm.", String(format: "%.0f", latest.value))
     }
 
     var body: some View {
@@ -115,7 +116,7 @@ struct FanChart: View {
                 TrendSeries(points: fanPoints, color: ThermalStyle.fan, filled: true)
             ],
             xDomain: xDomain,
-            yFormat: { String(format: "%.0f rpm", max($0, 0)) },
+            yFormat: { t("%@ rpm", String(format: "%.0f", max($0, 0))) },
             showsTimeAxis: showsTimeAxis,
             leftGutter: 56
         )

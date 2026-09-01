@@ -45,13 +45,13 @@ struct NetworkChart: View {
 
     private var accessibilitySummary: String {
         guard let latestIn = download.lastValue, let latestOut = upload.lastValue else {
-            return "No data yet."
+            return t("No data yet.")
         }
         let peak = max(download.range?.max ?? 0, upload.range?.max ?? 0)
-        if peak < 1 { return "No network traffic over the shown window." }
-        return
-            "Currently \(ByteFormat.rate(latestIn)) down, \(ByteFormat.rate(latestOut)) up. "
-            + "Peak \(ByteFormat.rate(peak)) over the shown window."
+        if peak < 1 { return t("No network traffic over the shown window.") }
+        return t(
+            "Currently %1$@ down, %2$@ up. Peak %3$@ over the shown window.",
+            ByteFormat.rate(latestIn), ByteFormat.rate(latestOut), ByteFormat.rate(peak))
     }
 
     var body: some View {

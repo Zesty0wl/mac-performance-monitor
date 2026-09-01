@@ -282,9 +282,10 @@ struct GPUView: View {
     }
 
     private var idleSummary: String {
-        if idleContexts == 0 { return "\(rows.count) processes with a Metal context." }
-        return
-            "\(rows.count) using the GPU · \(idleContexts) more hold an idle Metal context."
+        if idleContexts == 0 { return t("%@ processes with a Metal context.", String(rows.count)) }
+        return t(
+            "%1$@ using the GPU · %2$@ more hold an idle Metal context.",
+            String(rows.count), String(idleContexts))
     }
 
     // MARK: - Rail
@@ -453,7 +454,7 @@ private struct AIWorkloadRowView: View {
         var parts: [String] = []
         if let runtime = row.runtime { parts.append(runtime) }
         if let model = row.model { parts.append(model) }
-        if !row.active { parts.append("idle") }
+        if !row.active { parts.append(t("idle")) }
         return parts.isEmpty ? "GPU" : parts.joined(separator: " · ")
     }
 }
@@ -597,9 +598,10 @@ final class GPUTimelineStore: ObservableObject {
         utilization.yDomain = 0...100
         utilization.yTicks = [0, 25, 50, 75, 100]
         utilization.showsTimeAxis = true
-        utilization.accessibilityLabel = "GPU utilization timeline"
+        utilization.accessibilityLabel = t("GPU utilization timeline")
         utilization.accessibilityValue =
-            gpu.map { "Currently \(Int($0.utilization.rounded())) percent." } ?? "No data yet."
+            gpu.map { t("Currently %@ percent.", String(Int($0.utilization.rounded()))) }
+            ?? t("No data yet.")
         utilizationFeed.publish(utilization)
 
         var power = TrendModel()
@@ -615,9 +617,10 @@ final class GPUTimelineStore: ObservableObject {
         power.yFormat = { String(format: "%.1f W", $0) }
         power.showsTimeAxis = true
         power.leftGutter = 48
-        power.accessibilityLabel = "GPU and Neural Engine power timeline"
+        power.accessibilityLabel = t("GPU and Neural Engine power timeline")
         power.accessibilityValue =
-            gpu?.gpuPowerWatts.map { String(format: "GPU %.2f watts.", $0) } ?? "No data yet."
+            gpu?.gpuPowerWatts.map { t("GPU %@ watts.", String(format: "%.2f", $0)) }
+            ?? t("No data yet.")
         powerFeed.publish(power)
 
         // Cards.
@@ -653,20 +656,28 @@ final class GPUTimelineStore: ObservableObject {
         allocatedText.publish(gpu?.allocatedMemoryBytes.map { ByteFormat.string($0) } ?? "--")
         temperatureText.publish(
             gpu?.dieTemperatureC.map { "\(Int($0.rounded()))\u{00B0}C" } ?? "--")
-        fanText.publish(gpu?.fanRPM.map { $0 == 0 ? "Off" : "\($0) rpm" } ?? "--")
+        // Read-out *values* need translating as much as the labels beside them.
+        // "Thermal limit active" and "Power cap none" are disambiguating keys: a
+        // bare "Active"/"None" already label other things, and en.lproj renders
+        // these back to the short English words.
+        fanText.publish(gpu?.fanRPM.map { $0 == 0 ? t("Off") : t("%@ rpm", String($0)) } ?? "--")
         if let throttled = gpu?.throttled {
             throttleText.publish(
-                throttled ? "Active" : "None", color: throttled ? .systemOrange : nil)
+                throttled ? t("Thermal limit active") : t("Thermal limit none"),
+                color: throttled ? .systemOrange : nil)
         } else {
             throttleText.publish("--")
         }
         capText.publish(
-            gpu?.powerCapPercent.map { $0 >= 99.5 ? "None" : "\(Int($0.rounded()))% of max" }
-                ?? "--")
+            gpu?.powerCapPercent.map {
+                $0 >= 99.5 ? t("Power cap none") : t("%@%% of max", String(Int($0.rounded())))
+            } ?? "--")
         recoveryText.publish(gpu?.recoveryCount.map { "\($0)" } ?? "--")
         if let aneWatts {
             aneStatusText.publish(
-                aneWatts < 0.01 ? "Idle" : String(format: "Active · %.2f W", aneWatts),
+                aneWatts < 0.01
+                    ? t("Idle")
+                    : t("Active · %@ W", String(format: "%.2f", aneWatts)),
                 color: aneWatts < 0.01 ? nil : .systemPurple)
         } else {
             aneStatusText.publish("--")
@@ -675,10 +686,10 @@ final class GPUTimelineStore: ObservableObject {
 
         if !didDescribeDevice, let gpu {
             didDescribeDevice = true
-            chipName = gpu.name ?? "Apple silicon GPU"
+            chipName = gpu.name ?? t("Apple silicon GPU")
             var parts: [String] = []
-            if let cores = gpu.coreCount { parts.append("\(cores)-core GPU") }
-            parts.append("unified memory")
+            if let cores = gpu.coreCount { parts.append(t("%@-core GPU", String(cores))) }
+            parts.append(t("unified memory"))
             subtitle = parts.joined(separator: " · ")
             chipText.publish(gpu.name ?? "--")
             coresText.publish(gpu.coreCount.map { "\($0)" } ?? "--")
@@ -1079,13 +1090,18 @@ final class GPUShareSurfaceView: LiveSurfaceView {
             context.fillPath()
             labels.label(slice.name, style: .legendName).draw(at: CGPoint(x: 14, y: y), in: context)
             let share = total > 0 ? slice.percent / total * 100 : 0
+            // One key per grammatical number. The plural "es" used to be passed in
+            // as an argument, which cannot survive translation: it surfaced verbatim
+            // in the middle of the Chinese sentence.
             let text: String
             if slice.count == 0 {
-                text = "idle"
+                text = t("idle")
+            } else if slice.count == 1 {
+                text = t("%@%% of busy time · 1 process", String(format: "%.0f", share))
             } else {
-                text = String(
-                    format: "%.0f%% of busy time · %d process%@", share, slice.count,
-                    slice.count == 1 ? "" : "es")
+                text = t(
+                    "%1$@%% of busy time · %2$@ processes", String(format: "%.0f", share),
+                    String(slice.count))
             }
             let value = labels.label(text, style: .legend)
             value.draw(at: CGPoint(x: bounds.width - value.size.width, y: y + 1), in: context)

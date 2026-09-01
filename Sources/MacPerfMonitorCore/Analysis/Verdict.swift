@@ -38,24 +38,27 @@ public enum DashboardVerdict {
             if heavySwap, let topName {
                 return Verdict(
                     tone: .alert,
-                    headline: "Swapping heavily",
-                    detail:
-                        "Your Mac is moving memory to disk to cope. Consider quitting \(topName), the largest consumer."
+                    headline: t("Swapping heavily"),
+                    detail: t(
+                        "Your Mac is moving memory to disk to cope. Consider quitting %@, the largest consumer.",
+                        topName)
                 )
             }
             return Verdict(
                 tone: .alert,
-                headline: "Under heavy pressure",
-                detail: topName.map { "Memory is critically tight. \($0) is the largest consumer." }
-                    ?? "Memory is critically tight."
+                headline: t("Under heavy pressure"),
+                detail: topName.map {
+                    t("Memory is critically tight. %@ is the largest consumer.", $0)
+                }
+                    ?? t("Memory is critically tight.")
             )
 
         case .warning:
             return Verdict(
                 tone: .caution,
-                headline: "Under pressure",
-                detail: topName.map { "\($0) is the largest consumer right now." }
-                    ?? "Memory is getting tight."
+                headline: t("Under pressure"),
+                detail: topName.map { t("%@ is the largest consumer right now.", $0) }
+                    ?? t("Memory is getting tight.")
             )
 
         case .normal:
@@ -64,9 +67,10 @@ public enum DashboardVerdict {
             // the headline numbers and the swap trend for anyone who wants it.
             return Verdict(
                 tone: .good,
-                headline: "All good",
-                detail:
+                headline: t("All good"),
+                detail: t(
                     "Memory is comfortable. Cached files are reclaimable and nothing to worry about."
+                )
             )
         }
     }

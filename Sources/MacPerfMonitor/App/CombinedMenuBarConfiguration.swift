@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import MacPerfMonitorCore
 
 enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
     case pressure
@@ -14,13 +15,13 @@ enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
 
     var title: String {
         switch self {
-        case .pressure: return "Memory Pressure"
+        case .pressure: return t("Memory Pressure")
         case .cpu: return "CPU"
         case .gpu: return "GPU"
-        case .energy: return "Energy"
-        case .temperature: return "Temperature"
-        case .network: return "Network"
-        case .disk: return "Disk"
+        case .energy: return t("Energy")
+        case .temperature: return t("Temperature")
+        case .network: return t("Network")
+        case .disk: return t("Disk")
         }
     }
 
@@ -57,8 +58,8 @@ enum MenuBarPresentation: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .focus: return "Focus"
-        case .strip: return "Strip"
+        case .focus: return t("Focus")
+        case .strip: return t("Strip")
         }
     }
 }

@@ -7,15 +7,15 @@ struct DiskIOPSChart: View {
     var showsTimeAxis = false
 
     private var accessibilitySummary: String {
-        guard let latest = points.last else { return "No data yet." }
+        guard let latest = points.last else { return t("No data yet.") }
         let peak =
             points.map {
                 max($0.diskReadOperationsPerSec, $0.diskWriteOperationsPerSec)
             }.max() ?? 0
-        return
-            "Currently \(Int(latest.diskReadOperationsPerSec)) read and "
-            + "\(Int(latest.diskWriteOperationsPerSec)) write operations per second. "
-            + "Peak \(Int(peak)) over the shown window."
+        return t(
+            "Currently %1$@ read and %2$@ write operations per second. Peak %3$@ over the shown window.",
+            String(Int(latest.diskReadOperationsPerSec)),
+            String(Int(latest.diskWriteOperationsPerSec)), String(Int(peak)))
     }
 
     var body: some View {

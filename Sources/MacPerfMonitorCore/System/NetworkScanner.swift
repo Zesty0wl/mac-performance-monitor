@@ -54,15 +54,15 @@ public enum NetworkScanError: LocalizedError, Sendable, Equatable {
     public var errorDescription: String? {
         switch self {
         case .missingInterface:
-            return "Choose a network interface."
+            return t("Choose a network interface.")
         case .invalidAddress(let address):
-            return "\(address) is not a valid IPv4 address."
+            return t("%@ is not a valid IPv4 address.", address)
         case .reversedRange:
-            return "The first address must not come after the last address."
+            return t("The first address must not come after the last address.")
         case .rangeTooLarge(let count, let maximum):
-            return "The range contains \(count) addresses. Choose \(maximum) or fewer."
+            return t("The range contains %1$d addresses. Choose %2$d or fewer.", count, maximum)
         case .socketUnavailable:
-            return "The discovery socket could not be opened."
+            return t("The discovery socket could not be opened.")
         }
     }
 }

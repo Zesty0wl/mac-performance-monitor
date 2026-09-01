@@ -160,10 +160,10 @@ struct DashboardView: View {
                 liveStat("Total", timeline.cpuTotalFeed, .labelColor)
                 if hasClusters {
                     liveStat(
-                        "Performance", timeline.cpuPerformanceFeed,
+                        "Performance cores", timeline.cpuPerformanceFeed,
                         NSColor(CoreKind.performance.accent))
                     liveStat(
-                        "Efficiency", timeline.cpuEfficiencyFeed,
+                        "Efficiency cores", timeline.cpuEfficiencyFeed,
                         NSColor(CoreKind.efficiency.accent))
                 }
                 liveStat("Load avg", timeline.loadAverageFeed, .labelColor)
@@ -609,9 +609,10 @@ private final class DashboardTimelineStore: ObservableObject {
         model.accessibilityLabel = "Memory pressure timeline"
         if let latest = column.lastValue {
             let range = column.range ?? (latest, latest)
-            model.accessibilityValue =
-                "Currently \(level.label.lowercased()) at \(Int(latest.rounded())) percent. "
-                + "Window range \(Int(range.min.rounded())) to \(Int(range.max.rounded())) percent."
+            model.accessibilityValue = t(
+                "Currently %1$@ at %2$@ percent. Window range %3$@ to %4$@ percent.",
+                level.label.lowercased(), String(Int(latest.rounded())),
+                String(Int(range.min.rounded())), String(Int(range.max.rounded())))
         } else {
             model.accessibilityValue = "No data yet."
         }
@@ -637,9 +638,10 @@ private final class DashboardTimelineStore: ObservableObject {
         model.accessibilityLabel = "Total CPU timeline"
         if let latest = column.lastValue {
             let range = column.range ?? (latest, latest)
-            model.accessibilityValue =
-                "Currently \(Int((latest * 100).rounded())) percent. Window range "
-                + "\(Int((range.min * 100).rounded())) to \(Int((range.max * 100).rounded())) percent."
+            model.accessibilityValue = t(
+                "Currently %1$@ percent. Window range %2$@ to %3$@ percent.",
+                String(Int((latest * 100).rounded())), String(Int((range.min * 100).rounded())),
+                String(Int((range.max * 100).rounded())))
         } else {
             model.accessibilityValue = "No data yet."
         }
@@ -668,8 +670,9 @@ private final class DashboardTimelineStore: ObservableObject {
             model.accessibilityValue =
                 peak < 1
                 ? "No network traffic over the shown window."
-                : "Currently \(ByteFormat.rate(latestIn)) down, \(ByteFormat.rate(latestOut)) up. "
-                    + "Peak \(ByteFormat.rate(peak)) over the shown window."
+                : t(
+                    "Currently %1$@ down, %2$@ up. Peak %3$@ over the shown window.",
+                    ByteFormat.rate(latestIn), ByteFormat.rate(latestOut), ByteFormat.rate(peak))
         } else {
             model.accessibilityValue = "No data yet."
         }
@@ -698,8 +701,10 @@ private final class DashboardTimelineStore: ObservableObject {
             model.accessibilityValue =
                 peak < 1
                 ? "No physical disk activity over the shown window."
-                : "Currently \(ByteFormat.rate(latestRead)) read, \(ByteFormat.rate(latestWrite)) write. "
-                    + "Peak \(ByteFormat.rate(peak)) over the shown window."
+                : t(
+                    "Currently %1$@ read, %2$@ write. Peak %3$@ over the shown window.",
+                    ByteFormat.rate(latestRead), ByteFormat.rate(latestWrite),
+                    ByteFormat.rate(peak))
         } else {
             model.accessibilityValue = "No data yet."
         }
@@ -723,8 +728,9 @@ private final class DashboardTimelineStore: ObservableObject {
             model.accessibilityValue =
                 peak == 0
                 ? "No swap in use over the shown window."
-                : "Currently \(ByteFormat.string(UInt64(max(latest, 0)))). "
-                    + "Peak \(ByteFormat.string(peak)) over the shown window."
+                : t(
+                    "Currently %1$@. Peak %2$@ over the shown window.",
+                    ByteFormat.string(UInt64(max(latest, 0))), ByteFormat.string(peak))
         } else {
             model.accessibilityValue = "No data yet."
         }
