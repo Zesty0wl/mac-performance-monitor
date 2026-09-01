@@ -86,6 +86,7 @@ Scripts/bundle.sh "$CONFIG"
 
 APP="build/Mac Performance Monitor.app"
 HELPER="$APP/Contents/MacOS/MacPerfMonitorHelper"
+
 ENTITLEMENTS="Resources/MacPerfMonitor.entitlements"
 
 if [[ "$SIGN_MODE" == "identity" ]]; then
@@ -146,13 +147,41 @@ if [[ "$SIGN_MODE" == "identity" ]]; then
   fi
 else
   echo "==> Ad-hoc signing (helper coverage will NOT work; pass --developer-id to sign with your cert)"
-  # Inside out: sign the nested helper before the enclosing app.
+  # NO --options runtime on this path, deliberately. Hardened Runtime turns on
+  # library validation, which requires the app and every framework it loads to
+  # share a Team ID. An ad-hoc signature carries NO team, and macOS does not treat
+  # two teamless binaries as matching, so an ad-hoc Hardened-Runtime app cannot
+  # load the bundled Sparkle.framework at all: dyld refuses it with
+  #   code signature ... not valid for use in process: mapping process and mapped
+  #   file (non-platform) have different Team IDs
+  # and kills the process at launch ("Library not loaded: @rpath/Sparkle.framework").
+  # Re-signing Sparkle ad-hoc does not help, because the mismatch is teamless vs
+  # teamless. Hardened Runtime only exists to satisfy notarisation, which no ad-hoc
+  # build ever undergoes, so dropping it here is free and makes the certificate-less
+  # path, the fallback for every contributor without an Apple certificate, able to
+  # launch at all. The --developer-id path above keeps Hardened Runtime.
   if [[ -f "$HELPER" ]]; then
-    codesign --force --options runtime \
-      --identifier "uk.co.bzwrd.macperfmonitor.helper" \
-      --sign - "$HELPER"
+    codesign --force --identifier "uk.co.bzwrd.macperfmonitor.helper" --sign - "$HELPER"
   fi
-  codesign --force --options runtime --sign - "$APP"
+  # Still sign Sparkle inside-out: codesign rejects a bundle that contains
+  # unsigned nested code, and the vendored framework must match the app's
+  # (ad-hoc) signing to keep the bundle seal valid.
+  SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+  if [[ -d "$SPARKLE" ]]; then
+    echo "==> Ad-hoc signing Sparkle.framework (inside-out)"
+    SPARKLE_V="$SPARKLE/Versions/B"
+    for nested in \
+      "$SPARKLE_V/XPCServices/Downloader.xpc" \
+      "$SPARKLE_V/XPCServices/Installer.xpc" \
+      "$SPARKLE_V/Updater.app" \
+      "$SPARKLE_V/Autoupdate"; do
+      if [[ -e "$nested" ]]; then
+        codesign --force --sign - "$nested"
+      fi
+    done
+    codesign --force --sign - "$SPARKLE"
+  fi
+  codesign --force --identifier "uk.co.bzwrd.macperfmonitor" --sign - "$APP"
 fi
 
 echo "==> Launching"
