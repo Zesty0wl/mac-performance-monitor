@@ -4,15 +4,35 @@ Notable changes to Mac Performance Monitor. This project follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.7.0] - 2026-09-01
 
 ### Added
 
-- Simplified Chinese localization, contributed by @zbsdsb, with a language picker
-  in Settings (Follow System, English, or 简体中文). The Disk Map, its Full Disk
-  Access flow, and the advisor's guidance are fully translated, and the app
-  relaunches into the chosen language reliably.
-- A translations guide in CONTRIBUTING.md: adding a language is one pull request.
+- Simplified Chinese localization, and a language picker in Settings (Follow
+  System, English, or 简体中文). Contributed by @zbsdsb, who wrote the original
+  translation, and extended by @Maybe404 to cover the interface text that
+  reaches the screen as String values rather than as literals SwiftUI can
+  resolve on its own. The Disk Map, its Full Disk Access flow and the advisor's
+  guidance are all translated.
+- A translations guide in CONTRIBUTING.md. New languages are on hold for a
+  short while during a move to String Catalogs; existing translations carry
+  across unchanged.
+
+### Fixed
+
+- The setup wizard had no visible way to finish. The final step had outgrown
+  its window, so the step icon was clipped and the footer, including the
+  primary button, sat below the bottom edge. Step content now scrolls with the
+  footer pinned, and the flow ends on a closing card offering Close and Open
+  Dashboard.
+- Installing or updating through Homebrew failed with a checksum mismatch. The
+  cask recorded the checksum of a build made before notarization, and
+  stapling changes the file. deploy.sh now derives the checksum from the
+  installer it actually published.
+- Building without an Apple Developer certificate produced an app that was
+  killed at launch, because ad-hoc signing with Hardened Runtime cannot load
+  the bundled Sparkle framework. Contributed by @Maybe404. This affected
+  contributors, not released builds.
 
 ## [1.6.0] - 2026-08-31
 
@@ -636,6 +656,7 @@ processes behind them.
   builds, tests, and lints on every push and pull request.
 
 [Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.5.0.198...HEAD
+[1.7.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.6.0.204...v1.7.0.205
 [1.6.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.5.0.198...v1.6.0.204
 [1.5.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.4.0.197...v1.5.0.198
 [1.4.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.3.8.189...v1.4.0.197
