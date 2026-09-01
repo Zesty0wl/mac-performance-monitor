@@ -475,8 +475,14 @@ private struct HardwareFeatureCloud: View {
     let query: String
 
     var body: some View {
-        let supported = properties.filter { $0.value == "Supported" }
-        let missing = properties.filter { $0.value != "Supported" }
+        // Compare against the same translated word the reader sees, not the
+        // English literal. HardwareNativeReaders sets this value with
+        // t("Supported"), so on a Chinese system it is "支持" and an English
+        // comparison matches nothing: every ISA feature would be reported as
+        // unsupported.
+        let supportedValue = t("Supported")
+        let supported = properties.filter { $0.value == supportedValue }
+        let missing = properties.filter { $0.value != supportedValue }
         VStack(alignment: .leading, spacing: 12) {
             Text("\(supported.count) supported")
                 .font(.caption)
