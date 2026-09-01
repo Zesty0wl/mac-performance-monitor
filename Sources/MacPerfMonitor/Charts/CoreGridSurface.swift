@@ -165,18 +165,24 @@ final class CoreGridSurfaceView: LiveSurfaceView {
             items.append(
                 (
                     NSColor(CoreKind.performance.accent),
-                    t("Cores · %1$@ · %2$@%%", String(performance.count), String(average(performance)))
+                    t(
+                        "Cores · %1$@ · %2$@%%", String(performance.count),
+                        String(average(performance)))
                 ))
         } else {
             items.append(
                 (
                     NSColor(CoreKind.performance.accent),
-                    t("Performance · %1$@ · %2$@%%", String(performance.count), String(average(performance)))
+                    t(
+                        "Performance · %1$@ · %2$@%%", String(performance.count),
+                        String(average(performance)))
                 ))
             items.append(
                 (
                     NSColor(CoreKind.efficiency.accent),
-                    t("Efficiency · %1$@ · %2$@%%", String(efficiency.count), String(average(efficiency)))
+                    t(
+                        "Efficiency · %1$@ · %2$@%%", String(efficiency.count),
+                        String(average(efficiency)))
                 ))
         }
         var x: CGFloat = 0

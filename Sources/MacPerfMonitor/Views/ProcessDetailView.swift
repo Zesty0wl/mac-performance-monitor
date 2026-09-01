@@ -400,7 +400,8 @@ private struct ProcessDetailCharts: View {
         let confidence = Int((finding.confidence * 100).rounded())
         return t(
             "This process grew %1$@ over %2$d min (~%3$@/s, %4$d%% confidence). "
-                + "If it keeps climbing, consider restarting it.", growth, minutes, rate, confidence)
+                + "If it keeps climbing, consider restarting it.", growth, minutes, rate, confidence
+        )
     }
 
     @ViewBuilder

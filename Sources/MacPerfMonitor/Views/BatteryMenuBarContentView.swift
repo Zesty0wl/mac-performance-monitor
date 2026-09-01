@@ -163,7 +163,9 @@ struct BatteryMenuBarContentView: View {
 
     private func stateWord(_ battery: BatterySample) -> String {
         if battery.isCharging { return t("Charging") }
-        if battery.isOnAC { return battery.chargePercent >= 99 ? t("Battery full") : t("Plugged in") }
+        if battery.isOnAC {
+            return battery.chargePercent >= 99 ? t("Battery full") : t("Plugged in")
+        }
         return t("On battery")
     }
 

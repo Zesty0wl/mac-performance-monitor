@@ -117,12 +117,12 @@
 "Every process is logged at this resolution for the most recent window. Finer and longer means more detail, and a larger database. At 1 s the per-process scan also runs every second even with the window closed, which is the app's main idle CPU cost; 2 s or slower is noticeably lighter." = "在最近的时间窗口内按此分辨率记录每个进程。更精细且时间更长意味着更多细节和更大的数据库。在 1 秒时,即使窗口关闭,按进程的扫描也会每秒运行一次,这是应用空闲时的主要 CPU 开销;2 秒或更慢则明显更轻量。";
 "Older data is aggregated to this coarser resolution. Its age is additive: detailed history spans the high-resolution age plus this (e.g. 24h + 7d = 8 days), with about 90 days of hourly history kept beneath it." = "较旧的数据会聚合到这种较粗的分辨率。其时长是累加的:详细历史记录涵盖高分辨率时长加上此时长(例如 24 小时 + 7 天 = 8 天),其下方保留约 90 天的按小时历史记录。";
 "When the database reaches this size, the oldest high-resolution samples are dropped first, keeping the long low-resolution trend." = "当数据库达到此大小时,最旧的高分辨率样本将首先被丢弃,保留长期的低分辨率趋势。";
-"These settings need about %@, more than your %@ size limit. The oldest high-resolution samples will be dropped early to fit: raise the size limit or reduce resolution to keep it all." = "这些设置需要约 %@,超过了您的 %@ 大小上限。最旧的高分辨率样本将被提前丢弃以适应上限 , 提高大小上限或降低分辨率以保留全部。";
+"These settings need about %@, more than your %@ size limit. The oldest high-resolution samples will be dropped early to fit: raise the size limit or reduce resolution to keep it all." = "这些设置需要约 %@，超过了您的 %@ 大小上限。最旧的高分辨率样本将被提前丢弃以适应上限：提高大小上限或降低分辨率以保留全部。";
 "You're near the %@-sample limit above which the app slows down, so retention is capped at what fits. To keep more history, choose a coarser frequency." = "您已接近 %@ 个样本的上限,超过此上限应用会变慢,因此保留时间受限于所能容纳的量。若要保留更多历史记录,请选择较粗的频率。";
 "100 MB" = "100 MB";
 "5 GB" = "5 GB";
 "Open System Settings\u{2026}" = "打开系统设置…";
-"Notify when total CPU stays above the chosen level for a sustained period. Off by default: high CPU is normal during real work." = "当总 CPU 持续一段时间高于所选水平时通知。默认关闭 , 实际工作期间的高 CPU 占用属正常现象。";
+"Notify when total CPU stays above the chosen level for a sustained period. Off by default: high CPU is normal during real work." = "当总 CPU 持续一段时间高于所选水平时通知。默认关闭：实际工作期间的高 CPU 占用属正常现象。";
 "%@ can install a small privileged helper so it can read the memory of system and other-user processes (such as WindowServer) that it otherwise cannot see. The helper runs only to read memory statistics and sends nothing off your Mac." = "%@ 可以安装一个小型特权辅助程序,以便读取原本无法查看的系统和其他用户进程(如 WindowServer)的内存。该辅助程序仅用于读取内存统计信息,绝不会向您的 Mac 之外发送任何数据。";
 "1 min" = "1 分钟";
 "%d min" = "%d 分钟";
@@ -223,10 +223,10 @@
 "Compression and swap are the real signals" = "压缩与交换内存才是真正的信号";
 "When pressure stays high, macOS compresses memory and then writes to swap. A little is fine; a lot, sustained, is the sign that something is asking for too much. %@ watches these trends and points to the process responsible." = "当内存压力持续偏高时,macOS 会先压缩内存,然后写入交换文件。少量压缩完全正常;但大量且持续的压缩与交换,才表明某些程序索取了过多资源。%@ 持续监测这些趋势并指出责任进程。";
 "Choose how it runs" = "选择运行方式";
-"You can switch anytime: in Settings or from the menu bar." = "您可以随时切换 , 在设置中或从菜单栏。";
+"You can switch anytime: in Settings or from the menu bar." = "您可以随时切换：在设置中或从菜单栏。";
 "Menu bar & refresh" = "菜单栏与刷新";
 "Choose what the single compact menu bar item shows." = "选择单个紧凑菜单栏项目显示的内容。";
-"Full coverage is on: even system processes are visible." = "完整覆盖已开启 , 甚至系统进程也可见。";
+"Full coverage is on: even system processes are visible." = "完整覆盖已开启：甚至系统进程也可见。";
 "Set up access" = "设置访问权限";
 "Both are optional and can be changed later in Settings." = "两者都是可选的,之后可在设置中更改。";
 "Start in the menu bar and keep history unbroken from the moment you sign in." = "从菜单栏启动,并在您登录后保持历史记录不间断。";
@@ -639,7 +639,7 @@
 "Average" = "平均值";
 "Edit" = "编辑";
 "What does this score mean?" = "这个得分意味着什么？";
-"Energy impact" = "能耗影响";
+"Energy (metric)" = "能耗影响";
 "Over time" = "历史趋势";
 "Aggregation" = "聚合方式";
 "Metric" = "指标";
@@ -2100,3 +2100,4 @@
 "%@ h" = "%@ 小时";
 "%@ d" = "%@ 天";
 "Throttling (%@)" = "正在降频（%@）";
+"Energy impact" = "能耗影响";

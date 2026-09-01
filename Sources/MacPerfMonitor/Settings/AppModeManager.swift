@@ -32,7 +32,7 @@ enum AppMode: String, CaseIterable, Codable, Sendable {
         switch self {
         case .full:
             return t(
-                "Menu bar read-outs plus a local history database — you get the dashboard's history ranges, the leak board, and pressure events."
+                "Menu bar read-outs plus a local history database: you get the dashboard's history ranges, the leak board, and pressure events."
             )
         case .menuBarOnly:
             return t(

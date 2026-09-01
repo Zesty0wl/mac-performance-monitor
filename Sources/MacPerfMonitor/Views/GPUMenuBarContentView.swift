@@ -158,10 +158,12 @@ struct GPUMenuBarContentView: View {
                 .padding(.bottom, 2)
 
             if top.isEmpty {
-                Text(menuLists.gpuListScanned ? t("Nothing is using the GPU") : t("Sampling\u{2026}"))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 8)
+                Text(
+                    menuLists.gpuListScanned ? t("Nothing is using the GPU") : t("Sampling\u{2026}")
+                )
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 8)
             } else {
                 ForEach(top) { process in
                     GPUMenuProcessRow(

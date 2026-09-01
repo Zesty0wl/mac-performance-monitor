@@ -194,17 +194,23 @@ struct OnboardingPage {
                 symbol: "gauge.with.dots.needle.50percent",
                 tint: .green,
                 title: "Watch pressure, not free RAM",
-                body: "On Apple silicon, almost no RAM is ever “free”, and that is normal. macOS keeps memory busy on purpose. What matters is memory pressure: how hard the system is working to keep up. \(AppInfo.displayName) puts that front and centre."),
+                body:
+                    "On Apple silicon, almost no RAM is ever “free”, and that is normal. macOS keeps memory busy on purpose. What matters is memory pressure: how hard the system is working to keep up. \(AppInfo.displayName) puts that front and centre."
+            ),
             OnboardingPage(
                 symbol: "externaldrive.badge.checkmark",
                 tint: .teal,
                 title: "Cached files are a good thing",
-                body: "Much of your “used” memory is cached files: recently used data kept around to make things fast. macOS hands it back the instant something needs it. \(AppInfo.displayName) shows cached files in a calm colour so you know it is working for you, not against you."),
+                body:
+                    "Much of your “used” memory is cached files: recently used data kept around to make things fast. macOS hands it back the instant something needs it. \(AppInfo.displayName) shows cached files in a calm colour so you know it is working for you, not against you."
+            ),
             OnboardingPage(
                 symbol: "arrow.down.circle",
                 tint: .orange,
                 title: "Compression and swap are the real signals",
-                body: "When pressure stays high, macOS compresses memory and then writes to swap. A little is fine; a lot, sustained, is the sign that something is asking for too much. \(AppInfo.displayName) watches these trends and points to the process responsible."),
+                body:
+                    "When pressure stays high, macOS compresses memory and then writes to swap. A little is fine; a lot, sustained, is the sign that something is asking for too much. \(AppInfo.displayName) watches these trends and points to the process responsible."
+            ),
         ]
     }
 }
@@ -440,9 +446,10 @@ private struct OnboardingPermissionsStep: View {
         case .requiresApproval:
             return "Approve the helper in System Settings to finish enabling it."
         case .enabled:
-            return "Full coverage is on — even system processes are visible."
+            return "Full coverage is on: even system processes are visible."
         default:
-            return "Install a small privileged helper so \(AppInfo.displayName) can read system and other-user processes."
+            return
+                "Install a small privileged helper so \(AppInfo.displayName) can read system and other-user processes."
         }
     }
 }

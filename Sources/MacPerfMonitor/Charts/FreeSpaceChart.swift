@@ -29,11 +29,11 @@ struct FreeSpaceChart: View {
         switch (totalBytes, down) {
         case (nil, nil):
             return t("Currently %@ free.", free)
-        case let (total?, nil):
+        case (let total?, nil):
             return t("Currently %1$@ free of %2$@.", free, ByteFormat.string(total))
-        case let (nil, down?):
+        case (nil, let down?):
             return t("Currently %1$@ free, down %2$@ over the window.", free, down)
-        case let (total?, down?):
+        case (let total?, let down?):
             return t(
                 "Currently %1$@ free of %2$@, down %3$@ over the window.", free,
                 ByteFormat.string(total), down)

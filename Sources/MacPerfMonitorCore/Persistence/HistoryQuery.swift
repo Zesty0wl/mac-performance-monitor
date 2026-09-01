@@ -77,10 +77,11 @@ public enum ConsumerMetric: String, Sendable, CaseIterable, Identifiable {
         case .averageFootprint: return t("Average")
         case .peakFootprint: return t("Peak")
         case .averageCPU: return t("CPU")
-        // "Energy impact" rather than "Energy": the tab and the Energy page own
-        // the plain key, and they mean the battery, not a per-process score.
-        // en.lproj renders this one as "Energy" all the same.
-        case .averageEnergy: return t("Energy impact")
+        // "Energy (metric)" rather than "Energy": the tab and the Energy page
+        // own the plain key, and they mean the battery, not a per-process score.
+        // "Energy impact" is taken too, by the group detail row that really does
+        // display those words. en.lproj renders this key back to "Energy".
+        case .averageEnergy: return t("Energy (metric)")
         case .averageNetwork: return t("Network")
         case .averageDisk: return t("Disk")
         }

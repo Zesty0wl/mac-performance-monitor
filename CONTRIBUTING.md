@@ -75,6 +75,15 @@ copy and docs; ordinary code comments are exempt.
 
 ## Translations
 
+> **Adding a new language? Please hold for now.** The localization system is
+> being restructured onto Apple String Catalogs (`.xcstrings`) with semantic
+> keys, which changes how translations are authored and will re-key the existing
+> tables. Existing translations carry across automatically, but a new language
+> started today would be re-keyed underneath you. Open an issue to register
+> interest and we will ping you the moment the new workflow lands. Corrections
+> and fixes to the existing English and Simplified Chinese are welcome as normal.
+
+
 MacPerfMonitor is localized by its community. English strings live in
 `Sources/MacPerfMonitor/Resources/en.lproj/Localizable.strings` with one folder per
 language beside it. Simplified Chinese arrived as a community pull request: thank you!

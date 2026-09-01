@@ -349,7 +349,8 @@ public enum InsightEngine {
                     headline: t("%@ jumped %@ suddenly", consumer.displayName, delta),
                     detail: t(
                         "Footprint stepped from %1$@ to %2$@ at %3$@. A sharp one-off step usually means a heavy document or operation, not a leak.",
-                        ByteFormat.string(step.beforeMean), ByteFormat.string(step.afterMean), Self.time(step.at)),
+                        ByteFormat.string(step.beforeMean), ByteFormat.string(step.afterMean),
+                        Self.time(step.at)),
                     metricText: "+\(delta)",
                     identity: consumer.identity,
                     processName: consumer.displayName,
@@ -378,7 +379,8 @@ public enum InsightEngine {
                 headline: t("Swap is climbing"),
                 detail: t(
                     "Swap grew %1$@ over the last %2$@ min, from %3$@ to %4$@. A sustained climb means memory is oversubscribed.",
-                    ByteFormat.string(growth), String(minutes), ByteFormat.string(first.swapUsed), ByteFormat.string(last.swapUsed)),
+                    ByteFormat.string(growth), String(minutes), ByteFormat.string(first.swapUsed),
+                    ByteFormat.string(last.swapUsed)),
                 metricText: "+\(ByteFormat.string(growth))"
             )
         ]

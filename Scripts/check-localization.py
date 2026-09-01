@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit the interface localisation tables.
+r"""Audit the interface localisation tables.
 
 Four classes of problem have all shipped at least once, and none of them is
 visible in a diff:
@@ -287,6 +287,23 @@ def main():
                         f"{os.path.relpath(path, ROOT)}:{number}: placeholders differ "
                         f"between key and translation for {key!r}"
                     )
+
+    # Table parity. English literals are the keys, so a key absent from en.lproj
+    # still renders: it falls back to itself. That is correct for the many keys
+    # whose English display IS the key, and silently WRONG for a disambiguating
+    # key like "Low Power Mode on", whose English must read "On". Eight of those
+    # shipped as English regressions before this check existed, so the tables are
+    # kept as mirrors and any key present in one and not the other is an error.
+    en_keys = {unescape(k) for k in tables.get("en", {})}
+    zh_only = {unescape(k) for k in tables.get("zh-Hans", {})} - en_keys
+    en_only = en_keys - {unescape(k) for k in tables.get("zh-Hans", {})}
+    for key in sorted(zh_only):
+        errors.append(
+            f"en.lproj: no entry for {key!r}. Add the English rendering; if the key "
+            f"is already the English text, add the identity entry."
+        )
+    for key in sorted(en_only):
+        errors.append(f"zh-Hans.lproj: no entry for {key!r}")
 
     used = scan_sources()
     literals = scan_all_literals()

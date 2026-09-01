@@ -375,15 +375,18 @@ enum HardwareNativeReaders {
                 HardwareProperty("Ray tracing", device.supportsRaytracing ? t("Yes") : t("No")))
             properties.append(
                 HardwareProperty(
-                    "Ray tracing from render", device.supportsRaytracingFromRender ? t("Yes") : t("No")))
+                    "Ray tracing from render",
+                    device.supportsRaytracingFromRender ? t("Yes") : t("No")))
             properties.append(
                 HardwareProperty("32-bit MSAA", device.supports32BitMSAA ? t("Yes") : t("No")))
             properties.append(
                 HardwareProperty(
-                    "32-bit float filtering", device.supports32BitFloatFiltering ? t("Yes") : t("No")))
+                    "32-bit float filtering",
+                    device.supports32BitFloatFiltering ? t("Yes") : t("No")))
             properties.append(
                 HardwareProperty(
-                    "BC texture compression", device.supportsBCTextureCompression ? t("Yes") : t("No")))
+                    "BC texture compression",
+                    device.supportsBCTextureCompression ? t("Yes") : t("No")))
             properties.append(
                 HardwareProperty(
                     "Dynamic libraries", device.supportsDynamicLibraries ? t("Yes") : t("No")))
@@ -391,7 +394,8 @@ enum HardwareNativeReaders {
                 HardwareProperty(
                     "Function pointers", device.supportsFunctionPointers ? t("Yes") : t("No")))
             properties.append(
-                HardwareProperty("Query texture LOD", device.supportsQueryTextureLOD ? t("Yes") : t("No"))
+                HardwareProperty(
+                    "Query texture LOD", device.supportsQueryTextureLOD ? t("Yes") : t("No"))
             )
             properties.append(
                 HardwareProperty(
@@ -404,7 +408,8 @@ enum HardwareNativeReaders {
             properties.append(HardwareProperty("Registry ID", "\(device.registryID)"))
             properties.append(HardwareProperty("Location", location(device)))
             properties.append(HardwareProperty("Low power", device.isLowPower ? t("Yes") : t("No")))
-            properties.append(HardwareProperty("Removable", device.isRemovable ? t("Yes") : t("No")))
+            properties.append(
+                HardwareProperty("Removable", device.isRemovable ? t("Yes") : t("No")))
             properties.append(HardwareProperty("Headless", device.isHeadless ? t("Yes") : t("No")))
             if let pluginName { properties.append(HardwareProperty("Metal plug-in", pluginName)) }
             if let driverBundle { properties.append(HardwareProperty("Driver", driverBundle)) }

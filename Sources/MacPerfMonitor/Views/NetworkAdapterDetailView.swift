@@ -216,7 +216,9 @@ struct NetworkAdapterDetailView: View {
         }
     }
 
-    private func row(_ label: LocalizedStringKey, _ value: String, secondary: Bool = false)
+    private func row(
+        _ label: LocalizedStringKey, _ value: String, secondary: Bool = false
+    )
         -> some View
     {
         HStack(alignment: .firstTextBaseline) {

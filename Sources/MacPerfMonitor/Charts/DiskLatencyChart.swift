@@ -28,13 +28,13 @@ struct DiskLatencyChart: View {
         switch (reads.last, writes.last) {
         case (nil, nil):
             return t("No disk activity with measurable latency in the shown window.")
-        case let (read?, nil):
+        case (let read?, nil):
             return t(
                 "Latest read %@ milliseconds per operation.", String(format: "%.2f", read.value))
-        case let (nil, write?):
+        case (nil, let write?):
             return t(
                 "Latest write %@ milliseconds per operation.", String(format: "%.2f", write.value))
-        case let (read?, write?):
+        case (let read?, let write?):
             return t(
                 "Latest read %1$@ milliseconds per operation, write %2$@ milliseconds per operation.",
                 String(format: "%.2f", read.value), String(format: "%.2f", write.value))

@@ -223,7 +223,8 @@ struct NetworkView: View {
                 Text(
                     t(
                         "This session: %1$@ downloaded · %2$@ uploaded",
-                        ByteFormat.string(net.sessionInBytes), ByteFormat.string(net.sessionOutBytes))
+                        ByteFormat.string(net.sessionInBytes),
+                        ByteFormat.string(net.sessionOutBytes))
                 )
                 .font(.caption).foregroundStyle(.secondary)
             }
