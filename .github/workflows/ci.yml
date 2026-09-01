@@ -46,3 +46,14 @@ jobs:
 
       - name: Check localization
         run: Scripts/check-localization.py
+
+      # Compile the String Catalog with Apple's own tool. check-localization.py
+      # validates the JSON we care about, but only xcstringstool will reject a
+      # malformed plural variation or an unusable language code, and a
+      # translator's pull request should fail here rather than at release time.
+      - name: Compile the String Catalog
+        run: |
+          xcrun xcstringstool compile Localizations/Localizable.xcstrings \
+            --output-directory "$RUNNER_TEMP/lproj"
+          ls -1 "$RUNNER_TEMP/lproj"
+
