@@ -92,6 +92,39 @@ match its key.
 Compiled `.lproj` directories are build output produced by `Scripts/bundle.sh`.
 They are not in the repository and must not be committed.
 
+### Changing English copy
+
+English source text doubles as the localization key, which keeps call sites
+readable and makes anything untranslated fall back to correct English. The cost
+is that editing a string would normally orphan every translation attached to the
+old wording. Use the rename tool instead of editing the literal by hand:
+
+```sh
+Scripts/rename-localization-key.py "Refresh interval" "Update interval"
+```
+
+It renames the key in the catalog, carries every language across untouched, and
+rewrites the matching Swift literals so the sources and the catalog stay in
+step. Pass `--dry-run` first to see what it would touch. A reworded string
+sometimes needs its translations revisited, which the tool cannot judge, so it
+leaves their state alone for you to decide.
+
+### Strings that need a key of their own
+
+Some keys are longer than the text they display, because English reuses one word
+where another language needs two. `"Low Power Mode on"` displays "On". Reach for
+this whenever a short generic word (`Free`, `Other`, `System`, `Scan`) would
+otherwise have to carry two different meanings, and give the catalog an explicit
+English value. `check-localization.py` fails the build if a key has no
+source-language value, which is what stops the key itself leaking to the screen.
+
+### Crowdin
+
+`crowdin.yml` configures the project's Crowdin integration. Crowdin reads and
+writes the catalog directly and opens a pull request on an `l10n_` branch; it
+never commits to the default branch. `multilingual: true` is load-bearing:
+without it Crowdin splits the catalog into one file per language.
+
 ## Submitting changes
 
 1. Fork the repository and create a topic branch.

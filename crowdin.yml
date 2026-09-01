@@ -1,0 +1,22 @@
+# Crowdin configuration.
+#
+# The project is on Crowdin's free open-source plan. Crowdin reads and writes
+# the String Catalog directly, so translators work in a web editor and Crowdin
+# opens a pull request on an `l10n_` branch. It never commits to main.
+#
+# `multilingual: true` is the important line: without it Crowdin splits the
+# catalog into one file per language, which is exactly the per-language sprawl
+# the catalog exists to avoid.
+#
+# Source strings are uploaded from this file; translations come back into the
+# same file. Nothing else in the repository is touched.
+
+project_id_env: CROWDIN_PROJECT_ID
+api_token_env: CROWDIN_PERSONAL_TOKEN
+
+preserve_hierarchy: true
+
+files:
+  - source: /Localizations/Localizable.xcstrings
+    translation: /Localizations/Localizable.xcstrings
+    multilingual: true
