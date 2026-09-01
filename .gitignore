@@ -43,3 +43,4 @@ Scripts/deploy.env
 # and their .sig files are committed and served to clients from raw.githubusercontent.com
 # (see Scripts/publishChecks.sh, Scripts/publishGlossary.sh). The private signing key
 # (catalog-signing.pem, above) is never committed.
+docs/reddit-post-macosapps.md
