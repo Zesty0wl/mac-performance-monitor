@@ -27,11 +27,6 @@
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>uk.co.bzwrd.macperfmonitor</string>
-	<key>CFBundleLocalizations</key>
-	<array>
-		<string>en</string>
-		<string>zh-Hans</string>
-	</array>
 	<key>CFBundleName</key>
 	<string>Mac Performance Monitor</string>
 	<key>CFBundlePackageType</key>

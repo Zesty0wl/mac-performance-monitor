@@ -44,3 +44,6 @@ Scripts/deploy.env
 # (see Scripts/publishChecks.sh, Scripts/publishGlossary.sh). The private signing key
 # (catalog-signing.pem, above) is never committed.
 docs/reddit-post-macosapps.md
+
+# Compiled localization output (built from Localizations/Localizable.xcstrings)
+*.lproj/

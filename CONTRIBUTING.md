@@ -75,33 +75,22 @@ copy and docs; ordinary code comments are exempt.
 
 ## Translations
 
-> **Adding a new language? Please hold for now.** The localization system is
-> being restructured onto Apple String Catalogs (`.xcstrings`) with semantic
-> keys, which changes how translations are authored and will re-key the existing
-> tables. Existing translations carry across automatically, but a new language
-> started today would be re-keyed underneath you. Open an issue to register
-> interest and we will ping you the moment the new workflow lands. Corrections
-> and fixes to the existing English and Simplified Chinese are welcome as normal.
+Every language lives in one String Catalog, `Localizations/Localizable.xcstrings`.
+Adding a language is one file plus a single Swift `case` for the Settings picker,
+and partial translations are welcome: anything untranslated falls back to English.
 
+See **[TRANSLATING.md](TRANSLATING.md)** for the full guide, including how
+plurals work (your language's own CLDR categories, not English's two), how to
+keep format specifiers correct, and how to find hardcoded English with
+`Scripts/pseudolocalize.sh`.
 
-MacPerfMonitor is localized by its community. English strings live in
-`Sources/MacPerfMonitor/Resources/en.lproj/Localizable.strings` with one folder per
-language beside it. Simplified Chinese arrived as a community pull request: thank you!
+`Scripts/check-localization.py` runs in CI and is the same check you can run
+locally. It fails the build on a missing source value, a missing translation in
+a language declared complete, and any translation whose format specifiers do not
+match its key.
 
-To add a language:
-
-1. Copy `en.lproj` to your locale's folder, for example `fr.lproj`, and translate the
-   right-hand values. The left-hand side stays in English; it is the lookup key.
-2. Add a case to `AppLanguage` in
-   `Sources/MacPerfMonitor/Settings/AppLanguageManager.swift` so the language appears
-   in the Settings language picker.
-3. Build with `Scripts/run.sh`, switch the language in Settings, and click through the
-   app looking for untranslated or overflowing text.
-4. Open a pull request. Partial translations are fine to start with; any key missing
-   from your file falls back to English.
-
-Keep format specifiers (`%@`, `%lld`) exactly as they appear in the English value and
-in the same order, unless your language needs reordering (then use `%1$@`, `%2$@`).
+Compiled `.lproj` directories are build output produced by `Scripts/bundle.sh`.
+They are not in the repository and must not be committed.
 
 ## Submitting changes
 

@@ -25,15 +25,19 @@ Usage:  Scripts/check-localization.py [--list-missing] [--list-stale]
 """
 
 import os
+import json
 import re
 import sys
 from collections import defaultdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TABLES = {
-    "zh-Hans": os.path.join(ROOT, "Sources/MacPerfMonitor/Resources/zh-Hans.lproj/Localizable.strings"),
-    "en": os.path.join(ROOT, "Sources/MacPerfMonitor/Resources/en.lproj/Localizable.strings"),
-}
+CATALOG = os.path.join(ROOT, "Localizations/Localizable.xcstrings")
+# The source language, and every language the catalog is expected to carry in
+# full. A language listed here is checked for parity with the source; any other
+# language in the catalog is treated as a translation in progress and only
+# checked for placeholder correctness.
+SOURCE_LANGUAGE = "en"
+COMPLETE_LANGUAGES = ["en", "zh-Hans"]
 SOURCES = os.path.join(ROOT, "Sources")
 
 ENTRY = re.compile(r'^"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"\s*;\s*$')
@@ -54,23 +58,42 @@ KEEP_IN_ENGLISH = {
 }
 
 
-def parse(path):
-    """Return (entries, errors) where entries maps key -> [(line, value)]."""
+def load_catalog():
+    """Return (catalog dict, errors)."""
+    if not os.path.exists(CATALOG):
+        return None, [f"{os.path.relpath(CATALOG, ROOT)}: missing"]
+    try:
+        with open(CATALOG, encoding="utf-8") as handle:
+            return json.load(handle), []
+    except json.JSONDecodeError as error:
+        return None, [f"{os.path.relpath(CATALOG, ROOT)}: not valid JSON: {error}"]
+
+
+def parse(catalog, language):
+    """Return entries mapping key -> [(line, value)] for one language.
+
+    The line number is always 0: a String Catalog is one JSON document, so
+    there is no per-entry line to report. The shape is kept so the checks
+    below read the same as they did against the old .strings tables.
+    """
     entries = defaultdict(list)
-    errors = []
-    if not os.path.exists(path):
-        return entries, [f"{path}: missing"]
-    for number, line in enumerate(open(path, encoding="utf-8"), 1):
-        stripped = line.strip()
-        if not stripped or stripped.startswith("/*") or stripped.startswith("*"):
-            continue
-        if stripped.startswith('"'):
-            match = ENTRY.match(line.rstrip("\n"))
-            if not match:
-                errors.append(f"{path}:{number}: unparseable entry")
-                continue
-            entries[match.group(1)].append((number, match.group(2)))
-    return entries, errors
+    for key, entry in catalog.get("strings", {}).items():
+        unit = (
+            entry.get("localizations", {})
+            .get(language, {})
+            .get("stringUnit", {})
+        )
+        # A plural or device variation has no single stringUnit; its
+        # placeholder correctness is checked per variation further down.
+        if "value" in unit:
+            entries[key].append((0, unit["value"]))
+        elif "variations" in entry.get("localizations", {}).get(language, {}):
+            for kind in entry["localizations"][language]["variations"].values():
+                for case in kind.values():
+                    value = case.get("stringUnit", {}).get("value")
+                    if value is not None:
+                        entries[key].append((0, value))
+    return entries
 
 
 def specifiers(text):
@@ -266,26 +289,31 @@ def main():
     errors = []
     warnings = []
 
-    tables = {}
-    for language, path in TABLES.items():
-        entries, parse_errors = parse(path)
-        errors.extend(parse_errors)
-        tables[language] = entries
+    catalog, catalog_errors = load_catalog()
+    errors.extend(catalog_errors)
+    if catalog is None:
+        for line in errors:
+            print(f"error: {line}")
+        return 1
 
+    # A String Catalog cannot hold a duplicate key: it is a JSON object, so the
+    # duplicate check the old .strings tables needed is gone by construction.
+    # Placeholders still have to agree between the key and every translation of
+    # it, in every language the catalog carries.
+    tables = {}
+    languages = sorted(
+        {lang for entry in catalog.get("strings", {}).values()
+         for lang in entry.get("localizations", {})}
+    )
+    for language in languages:
+        entries = parse(catalog, language)
+        tables[language] = entries
         for key, occurrences in entries.items():
-            if len(occurrences) > 1:
-                lines = ", ".join(str(n) for n, _ in occurrences)
-                values = {v for _, v in occurrences}
-                detail = "same value" if len(values) == 1 else "DIFFERENT values"
-                errors.append(
-                    f"{os.path.relpath(path, ROOT)}: duplicate key {key!r} "
-                    f"on lines {lines} ({detail}); the last one silently wins"
-                )
-            for number, value in occurrences:
+            for _, value in occurrences:
                 if specifiers(unescape(key)) != specifiers(unescape(value)):
                     errors.append(
-                        f"{os.path.relpath(path, ROOT)}:{number}: placeholders differ "
-                        f"between key and translation for {key!r}"
+                        f"{language}: placeholders differ between the key and its "
+                        f"translation for {key!r}"
                     )
 
     # Table parity. English literals are the keys, so a key absent from en.lproj
@@ -294,16 +322,19 @@ def main():
     # key like "Low Power Mode on", whose English must read "On". Eight of those
     # shipped as English regressions before this check existed, so the tables are
     # kept as mirrors and any key present in one and not the other is an error.
-    en_keys = {unescape(k) for k in tables.get("en", {})}
-    zh_only = {unescape(k) for k in tables.get("zh-Hans", {})} - en_keys
-    en_only = en_keys - {unescape(k) for k in tables.get("zh-Hans", {})}
-    for key in sorted(zh_only):
+    source_keys = {unescape(k) for k in tables.get(SOURCE_LANGUAGE, {})}
+    all_keys = {unescape(k) for k in catalog.get("strings", {})}
+    for key in sorted(all_keys - source_keys):
         errors.append(
-            f"en.lproj: no entry for {key!r}. Add the English rendering; if the key "
-            f"is already the English text, add the identity entry."
+            f"{SOURCE_LANGUAGE}: no value for {key!r}. Every key needs its source-"
+            f"language wording, including keys that read the same as the key itself."
         )
-    for key in sorted(en_only):
-        errors.append(f"zh-Hans.lproj: no entry for {key!r}")
+    for language in COMPLETE_LANGUAGES:
+        if language == SOURCE_LANGUAGE:
+            continue
+        missing = source_keys - {unescape(k) for k in tables.get(language, {})}
+        for key in sorted(missing):
+            errors.append(f"{language}: no translation for {key!r}")
 
     used = scan_sources()
     literals = scan_all_literals()
