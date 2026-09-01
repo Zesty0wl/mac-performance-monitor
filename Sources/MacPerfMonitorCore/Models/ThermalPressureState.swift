@@ -23,10 +23,10 @@ public enum ThermalPressureState: Int, Sendable, Codable, Comparable, CaseIterab
 
     public var label: String {
         switch self {
-        case .nominal: return "Nominal"
-        case .fair: return "Fair"
-        case .serious: return "Serious"
-        case .critical: return "Critical"
+        case .nominal: return t("Nominal")
+        case .fair: return t("Fair")
+        case .serious: return t("Serious")
+        case .critical: return t("Critical")
         }
     }
 

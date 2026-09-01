@@ -30,12 +30,12 @@ public enum HistoryWindow: String, Sendable, CaseIterable, Identifiable {
     /// Short label for the window picker.
     public var label: String {
         switch self {
-        case .fiveMinutes: return "5 min"
-        case .thirtyMinutes: return "30 min"
-        case .oneHour: return "1 hr"
-        case .sixHours: return "6 hr"
-        case .oneDay: return "24 hr"
-        case .sevenDays: return "7 day"
+        case .fiveMinutes: return t("5 min")
+        case .thirtyMinutes: return t("30 min")
+        case .oneHour: return t("1 hr")
+        case .sixHours: return t("6 hr")
+        case .oneDay: return t("24 hr")
+        case .sevenDays: return t("7 day")
         }
     }
 
@@ -74,12 +74,15 @@ public enum ConsumerMetric: String, Sendable, CaseIterable, Identifiable {
 
     public var label: String {
         switch self {
-        case .averageFootprint: return "Average"
-        case .peakFootprint: return "Peak"
-        case .averageCPU: return "CPU"
-        case .averageEnergy: return "Energy"
-        case .averageNetwork: return "Network"
-        case .averageDisk: return "Disk"
+        case .averageFootprint: return t("Average")
+        case .peakFootprint: return t("Peak")
+        case .averageCPU: return t("CPU")
+        // "Energy impact" rather than "Energy": the tab and the Energy page own
+        // the plain key, and they mean the battery, not a per-process score.
+        // en.lproj renders this one as "Energy" all the same.
+        case .averageEnergy: return t("Energy impact")
+        case .averageNetwork: return t("Network")
+        case .averageDisk: return t("Disk")
         }
     }
 

@@ -10,7 +10,13 @@ public enum HardwareLabel {
     // MARK: - Keys
 
     public static func label(forKey key: String) -> String {
-        if let known = keyOverrides[key] { return known }
+        // `keyOverrides` holds the canonical English label; translating here
+        // catches every call site across the native readers and the
+        // system_profiler walk without wrapping each one. The fallback below is
+        // deliberately left untranslated: it only fires for a key this table has
+        // never seen, so there is no bounded set of strings to translate, and
+        // degrading to readable English beats showing a raw key.
+        if let known = keyOverrides[key] { return t(known) }
         var stem = key
         while stem.hasPrefix("_") { stem.removeFirst() }
         var stripped = false

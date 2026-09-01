@@ -8,6 +8,12 @@ public enum Architecture: String, Codable, Sendable, CaseIterable {
     case unknown
 
     /// Display label suitable for badges.
+    ///
+    /// NOT localised, and must never be: `TraceExport` serialises this exact
+    /// string into the `architecture` field of an exported `.mpmtrace`, so
+    /// translating it would write locale-dependent values into a portable file
+    /// format and break traces shared between machines. These are also the
+    /// architecture's real names, which read the same in every language.
     public var label: String {
         switch self {
         case .arm64: return "arm64"
@@ -40,9 +46,9 @@ public enum PressureLevel: Int, Codable, Sendable, CaseIterable, Comparable {
 
     public var label: String {
         switch self {
-        case .normal: return "Normal"
-        case .warning: return "Warning"
-        case .critical: return "Critical"
+        case .normal: return t("Normal")
+        case .warning: return t("Warning")
+        case .critical: return t("Critical")
         }
     }
 }

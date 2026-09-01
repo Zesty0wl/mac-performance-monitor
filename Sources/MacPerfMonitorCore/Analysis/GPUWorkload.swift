@@ -15,10 +15,10 @@ public enum GPUWorkloadCategory: String, Sendable, Codable, CaseIterable, Equata
 
     public var label: String {
         switch self {
-        case .aiML: return "AI and ML"
-        case .displayUI: return "Display and UI"
-        case .media: return "Media"
-        case .other: return "Other"
+        case .aiML: return t("AI and ML")
+        case .displayUI: return t("Display and UI")
+        case .media: return t("Media")
+        case .other: return t("Other")
         }
     }
 }
