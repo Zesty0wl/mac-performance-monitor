@@ -66,7 +66,7 @@ struct ProcessOutlineTable: NSViewRepresentable {
 
         for spec in columns {
             let column = NSTableColumn(identifier: spec.identifier.identifier)
-            column.title = spec.title
+            column.title = t(spec.title)
             column.minWidth = spec.minWidth
             column.width = spec.idealWidth
             column.sortDescriptorPrototype = NSSortDescriptor(
@@ -133,6 +133,11 @@ struct ProcessOutlineTable: NSViewRepresentable {
         if let outline = coordinator.outlineView {
             let wanted = Self.sortDescriptors(for: sortOrder)
             if outline.sortDescriptors != wanted { outline.sortDescriptors = wanted }
+            // Update column titles for language switching
+            for (index, column) in outline.tableColumns.enumerated() where index < columns.count {
+                let newTitle = t(columns[index].title)
+                if column.title != newTitle { column.title = newTitle }
+            }
         }
     }
 
@@ -607,12 +612,12 @@ struct ProcessOutlineTable: NSViewRepresentable {
             switch column {
             case .process:
                 if !leakingIDs.contains(item.id), hasLeakingDescendant(item) {
-                    return "A process started by this one looks like it's leaking memory."
+                    return t("A process started by this one looks like it's leaking memory.")
                 }
                 return item.node.process.displayName
             case .memory:
                 return item.node.process.footprintReadable
-                    ? "" : "Footprint not readable at the user level for this process."
+                    ? "" : t("Footprint not readable at the user level for this process.")
             default:
                 return ""
             }
@@ -652,7 +657,7 @@ final class ProcessCellView: NSTableCellView {
 
     private static let warningImage: NSImage? = NSImage(
         systemSymbolName: "exclamationmark.triangle.fill",
-        accessibilityDescription: "Possible memory leak"
+        accessibilityDescription: t("Possible memory leak")
     )?.withSymbolConfiguration(.init(pointSize: 11, weight: .semibold))
     private static let nameFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
     private static let badgeFont = NSFont.systemFont(
@@ -751,14 +756,14 @@ final class ProcessCellView: NSTableCellView {
         warning.isHidden = !style.warning
         if isTerminated {
             badge.isHidden = false
-            badge.stringValue = " Stopped "
+            badge.stringValue = " \(t("Stopped")) "
             badge.textColor = .secondaryLabelColor
             badge.layer?.backgroundColor =
                 NSColor.secondaryLabelColor.withAlphaComponent(0.18)
                 .cgColor
         } else if process.isTranslated {
             badge.isHidden = false
-            badge.stringValue = " Rosetta "
+            badge.stringValue = " \(t("Rosetta")) "
             badge.textColor = .systemOrange
             badge.layer?.backgroundColor = NSColor.systemOrange.withAlphaComponent(0.2).cgColor
         } else {
@@ -806,13 +811,13 @@ final class ValueCellView: NSTableCellView {
     /// "now", "12 s", "3 m", "2 h", or "never" for the GPU table's last-active
     /// column, coarse enough not to churn at the dial rate.
     static func idleText(_ last: Date?) -> String {
-        guard let last else { return "never" }
+        guard let last else { return t("never") }
         let seconds = max(0, Date().timeIntervalSince(last))
-        if seconds < 2 { return "now" }
-        if seconds < 60 { return "\(Int(seconds)) s" }
-        if seconds < 3600 { return "\(Int(seconds / 60)) m" }
-        if seconds < 86_400 { return "\(Int(seconds / 3600)) h" }
-        return "\(Int(seconds / 86_400)) d"
+        if seconds < 2 { return t("now") }
+        if seconds < 60 { return t("%@ s", String(Int(seconds))) }
+        if seconds < 3600 { return t("%@ m", String(Int(seconds / 60))) }
+        if seconds < 86_400 { return t("%@ h", String(Int(seconds / 3600))) }
+        return t("%@ d", String(Int(seconds / 86_400)))
     }
 
     func configure(

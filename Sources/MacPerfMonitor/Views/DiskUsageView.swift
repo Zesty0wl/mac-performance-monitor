@@ -138,17 +138,22 @@ struct DiskUsageView: View {
     }
 
     private var primaryDiskTitle: String {
-        primaryDevice?.model ?? "Disk"
+        primaryDevice?.model ?? t("Disk")
     }
 
     private var primaryDiskSubtitle: String {
-        guard let device = primaryDevice else { return "Waiting for the first disk sample" }
+        guard let device = primaryDevice else { return t("Waiting for the first disk sample") }
         var parts: [String] = []
         if let size = device.sizeBytes { parts.append(ByteFormat.string(size)) }
         if let name = device.protocolName { parts.append(name) }
-        parts.append(device.isInternal == true ? "internal" : "external")
+        parts.append(device.isInternal == true ? t("internal") : t("external"))
         let others = (model.latestDisk?.devices.count ?? 1) - 1
-        if others > 0 { parts.append("+\(others) more disk\(others == 1 ? "" : "s")") }
+        if others > 0 {
+            parts.append(
+                others == 1
+                    ? t("+%@ more disk", String(others))
+                    : t("+%@ more disks", String(others)))
+        }
         return parts.joined(separator: ", ")
     }
 
@@ -160,23 +165,23 @@ struct DiskUsageView: View {
         return MetricCardsRow(
             cards: [
                 MetricCardData(
-                    label: "Read",
+                    label: t("Read"),
                     value: rates.map { ByteFormat.rate($0.readBytesPerSec) },
                     tint: DiskStyle.read,
                     samples: points.map {
                         MetricSample(date: $0.date, value: $0.diskReadBytesPerSec)
                     },
-                    help: "Physical read throughput, smoothed over about 5 seconds."),
+                    help: t("Physical read throughput, smoothed over about 5 seconds.")),
                 MetricCardData(
-                    label: "Write",
+                    label: t("Write"),
                     value: rates.map { ByteFormat.rate($0.writeBytesPerSec) },
                     tint: DiskStyle.write,
                     samples: points.map {
                         MetricSample(date: $0.date, value: $0.diskWriteBytesPerSec)
                     },
-                    help: "Physical write throughput, smoothed over about 5 seconds."),
+                    help: t("Physical write throughput, smoothed over about 5 seconds.")),
                 MetricCardData(
-                    label: "IOPS",
+                    label: t("IOPS"),
                     value: disk.map {
                         "\(Int(($0.readOperationsPerSec + $0.writeOperationsPerSec).rounded()))"
                     },
@@ -186,7 +191,7 @@ struct DiskUsageView: View {
                             value: $0.diskReadOperationsPerSec + $0.diskWriteOperationsPerSec)
                     },
                     unit: .percent,
-                    help: "Read plus write operations per second across all disks."),
+                    help: t("Read plus write operations per second across all disks.")),
                 bootFreeCard,
             ],
             xDomain: chartDomain,
@@ -204,14 +209,15 @@ struct DiskUsageView: View {
             ?? model.latest?.system.bootVolumeFreeBytes
         let total = root?.totalBytes ?? model.latest?.system.bootVolumeTotalBytes
         return MetricCardData(
-            label: "Free space",
+            label: t("Free space"),
             value: free.map { ByteFormat.string($0) },
             samples: points.compactMap { point in
                 point.bootFreeBytes.map { MetricSample(date: point.date, value: Double($0)) }
             },
-            detail: total.map { "of \(ByteFormat.string($0))" },
-            help: "Space the system could make available on the boot volume, "
-                + "including purgeable content.")
+            detail: total.map { t("of %@", ByteFormat.string($0)) },
+            help: t(
+                "Space the system could make available on the boot volume, "
+                    + "including purgeable content."))
     }
 
     // MARK: - Main column panels
@@ -231,11 +237,11 @@ struct DiskUsageView: View {
         DiskPanel("Operations and latency", systemImage: "waveform.path.ecg") {
             HStack(spacing: 24) {
                 diskStat(
-                    "Read latency",
+                    t("Read latency"),
                     model.latestDisk?.readLatencyMs.map { String(format: "%.2f ms", $0) },
                     DiskStyle.read)
                 diskStat(
-                    "Write latency",
+                    t("Write latency"),
                     model.latestDisk?.writeLatencyMs.map { String(format: "%.2f ms", $0) },
                     DiskStyle.write)
                 utilizationStat
@@ -305,7 +311,7 @@ struct DiskUsageView: View {
                 ForEach(standalone) { volume in
                     CapacityBarSection(
                         title: volume.name,
-                        subtitle: "\(volume.fsTypeName) at \(volume.mountPoint)",
+                        subtitle: t("%1$@ at %2$@", volume.fsTypeName, volume.mountPoint),
                         slices: DiskCapacityBreakdown.slices(standaloneVolume: volume))
                 }
                 footnote(
@@ -332,7 +338,9 @@ struct DiskUsageView: View {
 
     private func containerTitle(_ container: APFSContainerInfo, volumes: [VolumeInfo]) -> String {
         let isBoot = volumes.contains { $0.isRoot && $0.containerBSDName == container.bsdName }
-        return isBoot ? "Boot container (\(container.bsdName))" : "Container \(container.bsdName)"
+        return isBoot
+            ? t("Boot container (%@)", container.bsdName)
+            : t("Container %@", container.bsdName)
     }
 
     private func containerSubtitle(_ container: APFSContainerInfo) -> String {
@@ -341,9 +349,9 @@ struct DiskUsageView: View {
             parts.append(ByteFormat.string(capacity))
         }
         if !container.physicalStoreBSDNames.isEmpty {
-            parts.append("on \(container.physicalStoreBSDNames.joined(separator: ", "))")
+            parts.append(t("on %@", container.physicalStoreBSDNames.joined(separator: ", ")))
         }
-        parts.append("\(container.volumeBSDNames.count) volumes")
+        parts.append(t("%@ volumes", String(container.volumeBSDNames.count)))
         return parts.joined(separator: ", ")
     }
 
@@ -355,8 +363,9 @@ struct DiskUsageView: View {
                 smartSection(device: device, smart: smart)
             } else {
                 Text(
-                    "SMART data is not available for this disk. External and USB enclosures "
-                        + "usually do not expose it."
+                    LocalizedStringKey(
+                        "SMART data is not available for this disk. External and USB enclosures "
+                            + "usually do not expose it.")
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -391,7 +400,9 @@ struct DiskUsageView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "SMART status \(smart.isHealthy ? "verified" : "failing") for \(device.bsdName)")
+            t(
+                "SMART status %1$@ for %2$@",
+                smart.isHealthy ? t("verified") : t("failing"), device.bsdName))
 
         VStack(alignment: .leading, spacing: 5) {
             if let temperature = smart.temperatureCelsius {
@@ -400,8 +411,10 @@ struct DiskUsageView: View {
             wearRow(smart)
             infoRow(
                 "Available spare",
-                "\(smart.availableSparePercent)% (threshold \(smart.spareThresholdPercent)%)")
-            infoRow("Power-on time", "\(smart.powerOnHours) hours")
+                t(
+                    "%1$@%% (threshold %2$@%%)",
+                    String(smart.availableSparePercent), String(smart.spareThresholdPercent)))
+            infoRow("Power-on time", t("%@ hours", String(smart.powerOnHours)))
             infoRow("Power cycles", "\(smart.powerCycles)")
             infoRow("Unsafe shutdowns", "\(smart.unsafeShutdowns)")
             infoRow("Media errors", "\(smart.mediaErrors)", dimZero: true)
@@ -426,7 +439,7 @@ struct DiskUsageView: View {
                 .font(.caption.monospacedDigit())
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Drive life used \(smart.percentageUsed) percent")
+        .accessibilityLabel(t("Drive life used %@ percent", String(smart.percentageUsed)))
     }
 
     @ViewBuilder private var errorCountsSection: some View {
@@ -436,9 +449,11 @@ struct DiskUsageView: View {
             VStack(alignment: .leading, spacing: 5) {
                 ForEach(devices) { device in
                     infoRow(
-                        device.bsdName,
-                        "\(device.readErrors + device.writeErrors) errors, "
-                            + "\(device.readRetries + device.writeRetries) retries",
+                        LocalizedStringKey(device.bsdName),
+                        [
+                            t("%@ errors", String(device.readErrors + device.writeErrors)),
+                            t("%@ retries", String(device.readRetries + device.writeRetries)),
+                        ].joined(separator: ", "),
                         dimZero: device.readErrors + device.writeErrors
                             + device.readRetries + device.writeRetries == 0)
                 }
@@ -640,28 +655,30 @@ private struct DeviceCard: View {
 
     private var facts: [(String, String)] {
         var rows: [(String, String)] = []
-        if let name = device.protocolName { rows.append(("Protocol", name)) }
+        if let name = device.protocolName { rows.append((t("Protocol"), name)) }
         if let hardware {
-            if let vendor = hardware.vendorName { rows.append(("Vendor", vendor)) }
-            if let revision = hardware.productRevision { rows.append(("Revision", revision)) }
+            if let vendor = hardware.vendorName { rows.append((t("Vendor"), vendor)) }
+            if let revision = hardware.productRevision { rows.append((t("Revision"), revision)) }
             if let firmware = hardware.firmwareRevision, firmware != hardware.productRevision {
-                rows.append(("Firmware", firmware))
+                rows.append((t("Firmware"), firmware))
             }
-            if let serial = hardware.serialNumber { rows.append(("Serial", serial)) }
+            if let serial = hardware.serialNumber { rows.append((t("Serial"), serial)) }
             if let interconnect = hardware.interconnect {
                 let location = hardware.interconnectLocation.map { " (\($0))" } ?? ""
-                rows.append(("Interconnect", interconnect + location))
+                rows.append((t("Interconnect"), interconnect + location))
             }
             if let solidState = hardware.isSolidState {
-                rows.append(("Medium", solidState ? "Solid state" : "Rotational"))
+                rows.append((t("Medium"), solidState ? t("Solid state") : t("Rotational")))
             }
             if let blockSize = hardware.physicalBlockSizeBytes {
-                rows.append(("Block size", "\(blockSize) bytes"))
+                rows.append((t("Block size"), t("%@ bytes", String(blockSize))))
             }
-            if let nand = hardware.nandStatus { rows.append(("NAND status", nand)) }
-            if let revision = hardware.nvmeRevision { rows.append(("NVMe revision", revision)) }
+            if let nand = hardware.nandStatus { rows.append((t("NAND status"), nand)) }
+            if let revision = hardware.nvmeRevision {
+                rows.append((t("NVMe revision"), revision))
+            }
             if let controller = hardware.controllerClass {
-                rows.append(("Controller", controller))
+                rows.append((t("Controller"), controller))
             }
         }
         return rows
@@ -695,14 +712,14 @@ private struct DeviceCard: View {
                 "\(Int((device.readOperationsPerSec + device.writeOperationsPerSec).rounded()))",
                 .primary)
             if let readTime = device.averageReadTimeMilliseconds {
-                liveValue("R lat", String(format: "%.2f ms", readTime), .secondary)
+                liveValue(t("R lat"), String(format: "%.2f ms", readTime), .secondary)
             }
             if let writeTime = device.averageWriteTimeMilliseconds {
-                liveValue("W lat", String(format: "%.2f ms", writeTime), .secondary)
+                liveValue(t("W lat"), String(format: "%.2f ms", writeTime), .secondary)
             }
             if let utilization = device.utilizationPercent {
                 liveValue(
-                    "Busy", "\(Int(utilization.rounded()))%",
+                    t("Busy"), "\(Int(utilization.rounded()))%",
                     DiskStyle.utilization(utilization))
             }
             Spacer(minLength: 0)
@@ -720,7 +737,7 @@ private struct DeviceCard: View {
         }
     }
 
-    private func badge(_ text: String) -> some View {
+    private func badge(_ text: LocalizedStringKey) -> some View {
         Text(text)
             .font(.caption2)
             .padding(.horizontal, 5)
@@ -756,7 +773,7 @@ private struct CapacityBarSection: View {
             bar
                 .frame(height: 14)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(title) capacity")
+                .accessibilityLabel(t("%@ capacity", title))
                 .accessibilityValue(accessibilitySummary)
             legend
         }
@@ -792,7 +809,7 @@ private struct CapacityBarSection: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     if let role = slice.role {
-                        Text(role.label)
+                        Text(t(role.label))
                             .font(.caption2)
                             .padding(.horizontal, 4)
                             .background(Capsule().fill(.quaternary))
@@ -827,7 +844,7 @@ private struct CapacityBarSection: View {
 
     private func legendLabel(_ slice: DiskCapacitySlice) -> String {
         if case .otherVolumes(let count) = slice.kind {
-            return "Other volumes (\(count))"
+            return t("Other volumes (%@)", String(count))
         }
         return slice.label
     }

@@ -120,6 +120,14 @@ struct InsightsView: View {
 // MARK: - Section container
 
 /// A titled card used by each History section, matching the app's panel style.
+/// A titled card for one Insights section.
+///
+/// `title` and `subtitle` are `LocalizedStringKey`, not `String`: `Label(_:systemImage:)`
+/// and `Text(_:)` only look a string up in the `.strings` table when it arrives
+/// as a key, and taking `String` here silently rendered every section heading on
+/// this page in English no matter what the table said. Keeping the key type all
+/// the way to the call site also means SwiftUI re-reads the heading when the
+/// interface language changes, which a `t(_:)` lookup inside the body would not.
 private struct HistorySection<Content: View>: View {
     let title: LocalizedStringKey
     let systemImage: String
@@ -156,7 +164,7 @@ private struct HistorySection<Content: View>: View {
 }
 
 private struct EmptyRow: View {
-    let text: String
+    let text: LocalizedStringKey
     var body: some View {
         Text(text)
             .font(.callout)
@@ -422,7 +430,7 @@ private struct PressureEventRow: View {
                 .frame(width: 20)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Pressure rose to \(event.level.label)")
+                Text(t("Pressure rose to %@", event.level.label))
                     .font(.body.weight(.medium))
                 Text(driverLine)
                     .font(.caption)
@@ -496,7 +504,7 @@ private struct LeakCard: View {
                     .truncationMode(.middle)
                 if entry.isTranslated { RosettaBadge() }
                 Spacer(minLength: 8)
-                Text("\(Int((entry.finding.confidence * 100).rounded()))% confident")
+                Text(t("%@%% confident", String(Int((entry.finding.confidence * 100).rounded()))))
                     .font(.caption2.weight(.medium))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)

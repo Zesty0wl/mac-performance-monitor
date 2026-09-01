@@ -256,15 +256,15 @@ struct CombinedMenuBarContentView: View {
         }
     }
 
-    private var openTitle: String {
+    private var openTitle: LocalizedStringKey {
         switch openDestination {
-        case .processes: return String(localized: "Open Processes")
-        case .battery: return String(localized: "Open Energy")
-        case .network: return String(localized: "Open Network")
-        case .diskUsage: return String(localized: "Open Disk")
-        case .gpu: return String(localized: "Open GPU")
-        case .dashboard: return String(localized: "Open Dashboard")
-        default: return String(localized: "Open")
+        case .processes: return "Open Processes"
+        case .battery: return "Open Energy"
+        case .network: return "Open Network"
+        case .diskUsage: return "Open Disk"
+        case .gpu: return "Open GPU"
+        case .dashboard: return "Open Dashboard"
+        default: return "Open"
         }
     }
 }

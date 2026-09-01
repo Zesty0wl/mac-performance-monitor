@@ -153,7 +153,7 @@ struct NetworkView: View {
         let rates = model.smoothedNetworkRates
         return HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(info.hostName ?? "This Mac")
+                Text(info.hostName ?? t("This Mac"))
                     .font(.headline)
                 Text(subtitle)
                     .font(.caption)
@@ -187,16 +187,16 @@ struct NetworkView: View {
     private var subtitle: String {
         var parts: [String] = []
         if let primary = info.primaryAdapter {
-            parts.append("Primary: \(primary.displayName)")
+            parts.append(t("Primary: %@", primary.displayName))
         } else if let p = info.primaryInterface {
-            parts.append("Primary: \(p)")
+            parts.append(t("Primary: %@", p))
         }
-        if let router = info.router { parts.append("Router \(router)") }
-        return parts.isEmpty ? "Network" : parts.joined(separator: " · ")
+        if let router = info.router { parts.append(t("Router %@", router)) }
+        return parts.isEmpty ? t("Network") : parts.joined(separator: " · ")
     }
 
     private func rateStat(
-        _ label: String, _ value: Double?, _ tint: Color, _ symbol: String
+        _ label: LocalizedStringKey, _ value: Double?, _ tint: Color, _ symbol: String
     )
         -> some View
     {
@@ -205,7 +205,8 @@ struct NetworkView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(value.map { ByteFormat.rate($0) } ?? "—")
                     .font(.title3.monospacedDigit().weight(.semibold))
-                Text(label.uppercased())
+                Text(label)
+                    .textCase(.uppercase)
                     .font(.caption2.weight(.semibold)).tracking(0.5)
                     .foregroundStyle(.secondary)
             }
@@ -220,8 +221,9 @@ struct NetworkView: View {
                 .frame(height: 150)
             if let net = model.latestNetwork {
                 Text(
-                    "This session: \(ByteFormat.string(net.sessionInBytes)) downloaded · "
-                        + "\(ByteFormat.string(net.sessionOutBytes)) uploaded"
+                    t(
+                        "This session: %1$@ downloaded · %2$@ uploaded",
+                        ByteFormat.string(net.sessionInBytes), ByteFormat.string(net.sessionOutBytes))
                 )
                 .font(.caption).foregroundStyle(.secondary)
             }
@@ -311,7 +313,10 @@ struct NetworkView: View {
         NetworkPanel("Per-app usage", systemImage: "list.bullet") {
             Toggle("Track per-app network usage", isOn: $trackPerApp)
             Text(
-                "Attribute traffic to individual apps. Off by default because it runs the system's \u{201C}nettop\u{201D} tool in the background, so it uses a little more CPU. The totals above work without it."
+                LocalizedStringKey(
+                    "Attribute traffic to individual apps. Off by default because it runs the system's "
+                        + "“nettop” tool in the background, so it uses a little more CPU. The totals above "
+                        + "work without it.")
             )
             .font(.caption).foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
@@ -430,7 +435,9 @@ private struct AdapterRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel(
-            "\(adapter.displayName) adapter, \(adapter.isActive ? "connected" : "inactive")"
+            t(
+                "%1$@ adapter, %2$@", adapter.displayName,
+                adapter.isActive ? t("connected") : t("inactive"))
         )
         .accessibilityHint("Opens full adapter detail")
     }
@@ -458,7 +465,7 @@ private struct AdapterRow: View {
         }
     }
 
-    private func badge(_ text: String, _ color: Color) -> some View {
+    private func badge(_ text: LocalizedStringKey, _ color: Color) -> some View {
         Text(text)
             .font(.caption2.weight(.medium))
             .padding(.horizontal, 5).padding(.vertical, 1)

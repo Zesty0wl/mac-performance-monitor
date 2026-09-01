@@ -87,7 +87,7 @@ struct BatteryView: View {
     /// battery-only metrics shown as dashes.
     private var desktopEnergyContent: some View {
         MainRailLayout {
-            pageHeader(subtitle: "on power adapter")
+            pageHeader(subtitle: t("on power adapter"))
             desktopEnergyFlowPanel
             thermalPanel
             topEnergyPanel
@@ -127,10 +127,11 @@ struct BatteryView: View {
     private var desktopFlowStatus: String {
         let watts = desktopSample.systemPowerWatts
         if watts > 0 {
-            return
-                "Drawing \(BatteryFormat.watts(watts)) from the wall · energy impact ranks which apps work the Mac hardest."
+            return t(
+                "Drawing %@ from the wall · energy impact ranks which apps work the Mac hardest.",
+                BatteryFormat.watts(watts))
         }
-        return "On power adapter (AC) · energy impact ranks which apps work the Mac hardest."
+        return t("On power adapter (AC) · energy impact ranks which apps work the Mac hardest.")
     }
 
     /// The desktop power panel: the real measured system power up top, then the
@@ -140,9 +141,9 @@ struct BatteryView: View {
         return BatteryPanel("Power", systemImage: "bolt.fill") {
             detailRow(
                 "System power", watts > 0 ? BatteryFormat.watts(watts) : "—", valueColor: .yellow)
-            detailRow("Power source", "Power adapter (AC)")
+            detailRow("Power source", t("Power adapter (AC)"))
             if desktopSample.isLowPowerMode {
-                detailRow("Low Power Mode", "On", valueColor: .orange)
+                detailRow("Low Power Mode", t("Low Power Mode on"), valueColor: .orange)
             }
             Divider().opacity(0.5)
             detailRow("Charge", "—")
@@ -203,11 +204,11 @@ struct BatteryView: View {
     /// "523 cycles · 92% health · on battery", omitting parts that aren't known.
     private func headerSubtitle(_ battery: BatterySample) -> String {
         var parts: [String] = []
-        if let cycles = battery.cycleCount { parts.append("\(cycles) cycles") }
+        if let cycles = battery.cycleCount { parts.append(t("%@ cycles", String(cycles))) }
         if let health = battery.healthPercent {
-            parts.append("\(Int(health.rounded()))% health")
+            parts.append(t("%@%% health", String(Int(health.rounded()))))
         }
-        parts.append(battery.isOnAC ? "on power adapter" : "on battery")
+        parts.append(battery.isOnAC ? t("on power adapter") : t("on battery"))
         return parts.joined(separator: " · ")
     }
 
@@ -227,20 +228,20 @@ struct BatteryView: View {
         }
         var cards: [MetricCardData] = [
             MetricCardData(
-                label: "Charge",
+                label: t("Charge"),
                 value: BatteryFormat.percent(battery.chargePercent),
                 tint: level.color,
                 samples: samples { $0.batteryCharge },
                 unit: .percent,
-                detail: battery.isCharging ? "charging" : nil),
+                detail: battery.isCharging ? t("charging") : nil),
             MetricCardData(
-                label: "Power",
+                label: t("Power"),
                 value: BatteryFormat.watts(battery.powerWatts),
                 tint: .yellow,
                 samples: samples { $0.batteryPowerWatts },
-                detail: battery.isCharging ? "in" : "out"),
+                detail: battery.isCharging ? t("in") : t("out")),
             MetricCardData(
-                label: "Health",
+                label: t("Health"),
                 value: battery.healthPercent.map { BatteryFormat.percent($0) } ?? "—",
                 tint: healthColor(battery.healthPercent),
                 // Health is a slow wear metric, so show a capacity gauge (with the
@@ -250,14 +251,16 @@ struct BatteryView: View {
                 },
                 unit: .percent,
                 help:
-                    "Today's full-charge capacity vs the original design. Apple suggests service below 80% (the tick)."
+                    t(
+                        "Today's full-charge capacity vs the original design. Apple suggests service below 80% (the tick)."
+                    )
             ),
             MetricCardData(
-                label: "Time remaining",
+                label: t("Time remaining"),
                 value: timeRemainingValue(battery),
                 tint: .primary),
             MetricCardData(
-                label: "Cycles",
+                label: t("Cycles"),
                 value: battery.cycleCount.map { "\($0)" } ?? "—",
                 tint: cycleColor(battery.cycleCount),
                 // Apple silicon batteries are rated for 1,000 cycles, so read the
@@ -265,15 +268,19 @@ struct BatteryView: View {
                 gauge: battery.cycleCount.map {
                     MetricGauge(fraction: Double($0) / Double(Self.ratedCycleCount))
                 },
-                detail: battery.cycleCount.map { _ in "of \(Self.ratedCycleCount.formatted())" },
+                detail: battery.cycleCount.map { _ in
+                    t("of %@", Self.ratedCycleCount.formatted())
+                },
                 help:
-                    "Charge cycles used of the \(Self.ratedCycleCount.formatted()) this battery is rated for."
+                    t(
+                        "Charge cycles used of the %@ this battery is rated for.",
+                        Self.ratedCycleCount.formatted())
             ),
         ]
         if let temp = battery.temperatureCelsius {
             cards.append(
                 MetricCardData(
-                    label: "Temperature",
+                    label: t("Temperature"),
                     value: BatteryFormat.celsius(temp),
                     tint: .teal,
                     samples: samples { $0.batteryTemperatureCelsius }))
@@ -285,7 +292,7 @@ struct BatteryView: View {
         if battery.isCharging {
             return BatteryFormat.duration(minutes: battery.timeToFullMinutes)
         }
-        if battery.isOnAC { return "On adapter" }
+        if battery.isOnAC { return t("On adapter") }
         return BatteryFormat.duration(minutes: battery.timeToEmptyMinutes)
     }
 
@@ -355,7 +362,7 @@ struct BatteryView: View {
         if let gpu = system.gpuDieC { parts.append("GPU \(Int(gpu.rounded()))°C") }
         if let ssd = system.ssdTemperatureC { parts.append("SSD \(Int(ssd.rounded()))°C") }
         if let fan = system.fanRPM {
-            parts.append(fan == 0 ? "Fans off" : "Fans \(Int(fan.rounded())) rpm")
+            parts.append(fan == 0 ? t("Fans off") : t("Fans %@ rpm", String(Int(fan.rounded()))))
         }
         guard !parts.isEmpty else { return nil }
         if let pressure = system.thermalPressure {
@@ -375,19 +382,19 @@ struct BatteryView: View {
     private func flowStatus(_ battery: BatterySample) -> String {
         var parts: [String] = []
         if battery.isCharging {
-            parts.append("Charging")
-            parts.append("+" + BatteryFormat.watts(battery.powerWatts) + " into battery")
+            parts.append(t("Charging"))
+            parts.append(t("+%@ into battery", BatteryFormat.watts(battery.powerWatts)))
             if let m = battery.timeToFullMinutes, m > 0 {
-                parts.append(BatteryFormat.duration(minutes: m) + " to full")
+                parts.append(t("%@ to full", BatteryFormat.duration(minutes: m)))
             }
         } else if battery.isOnAC {
-            parts.append("On power adapter")
-            parts.append(battery.chargePercent >= 99 ? "battery full" : "battery holding")
+            parts.append(t("On power adapter"))
+            parts.append(battery.chargePercent >= 99 ? t("battery full") : t("battery holding"))
         } else {
-            parts.append("On battery")
-            parts.append(BatteryFormat.watts(battery.powerWatts) + " out")
+            parts.append(t("On battery"))
+            parts.append(t("%@ out", BatteryFormat.watts(battery.powerWatts)))
             if let m = battery.timeToEmptyMinutes, m > 0 {
-                parts.append(BatteryFormat.duration(minutes: m) + " remaining")
+                parts.append(t("%@ remaining", BatteryFormat.duration(minutes: m)))
             }
         }
         return parts.joined(separator: " · ")
@@ -421,7 +428,7 @@ struct BatteryView: View {
             Divider().opacity(0.5)
             detailRow("Cycle count", battery.cycleCount.map { "\($0)" } ?? "—")
             detailRow(
-                "Condition", battery.isHealthyCondition ? "Normal" : "Service",
+                "Condition", battery.isHealthyCondition ? t("Normal") : t("Service"),
                 valueColor: battery.isHealthyCondition ? .green : .orange)
             if let manufacturer = battery.manufacturer {
                 detailRow("Manufacturer", manufacturer)
@@ -515,12 +522,12 @@ struct BatteryView: View {
 
     private func adapterPanel(_ battery: BatterySample) -> some View {
         BatteryPanel("Adapter & power mode", systemImage: "powerplug") {
-            detailRow("Power source", battery.isOnAC ? "Power adapter (AC)" : "Battery")
+            detailRow("Power source", battery.isOnAC ? t("Power adapter (AC)") : t("Battery"))
             if let watts = battery.adapterWatts {
                 let name = battery.adapterName.map { "\($0) · " } ?? ""
                 detailRow("Adapter", "\(name)\(watts) W")
             } else {
-                detailRow("Adapter", battery.isOnAC ? "Connected" : "Not connected")
+                detailRow("Adapter", battery.isOnAC ? t("Connected") : t("Not connected"))
             }
             if let v = battery.adapterVoltageMilliVolts, let a = battery.adapterAmperageMilliAmps {
                 detailRow(
@@ -537,7 +544,7 @@ struct BatteryView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 8)
-                Text(battery.isLowPowerMode ? "On" : "Off")
+                Text(battery.isLowPowerMode ? t("Low Power Mode on") : t("Low Power Mode off"))
                     .font(.callout.weight(.medium))
                     .foregroundStyle(battery.isLowPowerMode ? .orange : .primary)
             }
@@ -691,7 +698,7 @@ private struct ThermalEventRow: View {
                 .frame(width: 20)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Throttling began (\(event.state.label.lowercased()))")
+                Text(t("Throttling began (%@)", event.state.label.lowercased()))
                     .font(.body.weight(.medium))
                 Text(driverLine)
                     .font(.caption)
@@ -713,14 +720,18 @@ private struct ThermalEventRow: View {
 
     private var driverLine: String {
         if let name = event.dominantName {
-            return "Top CPU: \(name) (\(Int(event.dominantCPUPercent.rounded()))%)"
+            return t(
+                "Top CPU: %1$@ (%2$@%%)", name, String(Int(event.dominantCPUPercent.rounded())))
         }
-        return "No dominant process recorded"
+        return t("No dominant process recorded")
     }
 }
 
 /// A titled, bordered content card — the Battery tab's structural unit, matching
 /// the Dashboard's panels so the two tabs share the same weight and chrome.
+/// `title` is a `LocalizedStringKey`, not a `String`: `Text(_:)` only consults the
+/// `.strings` table when the title arrives as a key, so taking `String` here left
+/// every panel heading on the Energy page in English however the table read.
 private struct BatteryPanel<Content: View>: View {
     let title: LocalizedStringKey
     let systemImage: String

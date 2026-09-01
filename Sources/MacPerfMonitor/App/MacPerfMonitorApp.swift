@@ -933,7 +933,7 @@ enum BatteryMenuBarImage {
             return last.image
         }
         let image = MenuBarReadoutImage.captionedValue(
-            caption: "Battery", captionColor: MenuBarReadoutImage.captionColor(isDark: isDark),
+            caption: t("Battery"), captionColor: MenuBarReadoutImage.captionColor(isDark: isDark),
             value: percent.map { "\($0)%" } ?? "\u{2013}\u{2013}",
             valueColor: NSColor(level.color), widthSample: "100%")
         lastRender = (percent, level, isDark, image)
@@ -956,7 +956,7 @@ enum EnergyWattsMenuBarImage {
             return last.image
         }
         let image = MenuBarReadoutImage.captionedValue(
-            caption: "Energy", captionColor: MenuBarReadoutImage.captionColor(isDark: isDark),
+            caption: t("Energy"), captionColor: MenuBarReadoutImage.captionColor(isDark: isDark),
             value: "\(rounded) W", valueColor: NSColor(BatteryStyle.consumer), widthSample: "199 W")
         lastRender = (rounded, isDark, image)
         return image

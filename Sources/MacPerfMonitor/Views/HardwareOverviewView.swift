@@ -74,7 +74,7 @@ struct HardwareOverviewView: View {
     private var macCard: some View {
         HardwarePanel("This Mac", systemImage: "macbook", action: { model.selectedID = "mac" }) {
             VStack(alignment: .leading, spacing: 10) {
-                Text(facts.productName ?? facts.modelIdentifier ?? "Mac")
+                Text(facts.productName ?? facts.modelIdentifier ?? t("Mac"))
                     .font(.title3.weight(.semibold))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -157,7 +157,7 @@ struct HardwareOverviewView: View {
                             )
                             .frame(height: 8)
                             if let free = volume.freeBytes {
-                                Text("\(ByteFormat.string(free, fractionDigits: 1)) free")
+                                Text(t("%@ free", ByteFormat.string(free, fractionDigits: 1)))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -224,7 +224,7 @@ struct HardwareOverviewView: View {
                         .frame(width: 72, height: 72)
                     VStack(alignment: .leading, spacing: 4) {
                         if let health = battery.healthPercent {
-                            Text("\(Int(health.rounded()))% maximum capacity")
+                            Text(t("%@%% maximum capacity", "\(Int(health.rounded()))"))
                                 .font(.callout.weight(.medium))
                         }
                         HardwareFactRows(rows: [
@@ -234,7 +234,9 @@ struct HardwareOverviewView: View {
                             (
                                 "Capacity",
                                 battery.maxCapacitymAh.flatMap { full in
-                                    battery.designCapacitymAh.map { "\(full) of \($0) mAh" }
+                                    battery.designCapacitymAh.map {
+                                        t("%1$@ of %2$@ mAh", "\(full)", "\($0)")
+                                    }
                                 }
                             ),
                         ])
@@ -260,7 +262,8 @@ struct HardwareOverviewView: View {
             HardwareFactRows(rows: [
                 (
                     "Wi-Fi",
-                    facts.wifiSummary ?? (model.section("wifi") != nil ? "No Wi-Fi interface" : nil)
+                    facts.wifiSummary
+                        ?? (model.section("wifi") != nil ? t("No Wi-Fi interface") : nil)
                 ),
                 ("Bluetooth", facts.bluetoothSummary),
                 ("USB devices", facts.usbDeviceCount.map { "\($0)" }),
@@ -316,8 +319,13 @@ struct HardwareOverviewView: View {
                         alignment: .leading, spacing: 14
                     ) {
                         ForEach(groups, id: \.name) { group in
+                            // `group.name` stays the raw English domain name
+                            // everywhere else (it is a dictionary key into
+                            // `sensorLive.samples` and is matched against the
+                            // literals in `sensorSymbol`); only the on-screen
+                            // title is translated.
                             SensorChartBlock(
-                                title: group.name,
+                                title: t(group.name),
                                 systemImage: Self.sensorSymbol(group.name),
                                 value: "\(Int((group.readings.first ?? 0).rounded()))\u{00B0}C",
                                 tint: SensorHeat.color(group.readings.first ?? 0, in: colorScheme),
@@ -329,9 +337,10 @@ struct HardwareOverviewView: View {
                         }
                         if !fans.isEmpty {
                             SensorChartBlock(
-                                title: "Fans",
+                                title: t("Fans"),
                                 systemImage: "fanblades",
-                                value: (fans.max() ?? 0) == 0 ? "Off" : "\(fans.max() ?? 0) rpm",
+                                value: (fans.max() ?? 0) == 0
+                                    ? t("Off") : t("%@ rpm", "\(fans.max() ?? 0)"),
                                 tint: (fans.max() ?? 0) == 0 ? .secondary : .teal,
                                 samples: sensorLive.samples[SensorLiveStore.fansKey] ?? [],
                                 minTop: 2000,
@@ -344,9 +353,10 @@ struct HardwareOverviewView: View {
                         }
                     }
                     Text(
-                        "Each chart is the hottest sensor of its domain over the last five "
-                            + "minutes, live at the refresh cycle. Click a chart to watch "
-                            + "every sensor behind it; Details lists the raw keys."
+                        LocalizedStringKey(
+                            "Each chart is the hottest sensor of its domain over the last five "
+                                + "minutes, live at the refresh cycle. Click a chart to watch "
+                                + "every sensor behind it; Details lists the raw keys.")
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -548,7 +558,7 @@ private struct SensorChartBlock: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("Watch every \(title) sensor live")
+        .help(t("Watch every %@ sensor live", title))
     }
 }
 
@@ -563,7 +573,7 @@ private struct SensorDetailSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Label(groupName, systemImage: "thermometer.medium")
+                Label(t(groupName), systemImage: "thermometer.medium")
                     .font(.headline)
                 Spacer()
                 Text(subtitle)
@@ -585,10 +595,11 @@ private struct SensorDetailSheet: View {
 
     private var subtitle: String {
         if groupName == SensorLiveStore.fansKey {
-            return store.fans.count == 1 ? "1 fan, live" : "\(store.fans.count) fans, live"
+            return store.fans.count == 1
+                ? t("1 fan, live") : t("%@ fans, live", "\(store.fans.count)")
         }
         let count = store.sensorsByGroup[groupName]?.count ?? 0
-        return count == 1 ? "1 sensor, live" : "\(count) sensors, live"
+        return count == 1 ? t("1 sensor, live") : t("%@ sensors, live", "\(count)")
     }
 
     private var sensorRows: some View {
@@ -627,10 +638,10 @@ private struct SensorDetailSheet: View {
             Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 7) {
                 ForEach(Array(store.fans.enumerated()), id: \.offset) { index, rpm in
                     GridRow {
-                        Text("Fan \(index + 1)")
+                        Text(t("Fan %@", "\(index + 1)"))
                             .font(.callout)
                             .gridColumnAlignment(.leading)
-                        Text(rpm == 0 ? "Off" : "\(rpm) rpm")
+                        Text(rpm == 0 ? t("Off") : t("%@ rpm", "\(rpm)"))
                             .font(.callout.monospacedDigit())
                             .gridColumnAlignment(.trailing)
                     }
@@ -643,6 +654,10 @@ private struct SensorDetailSheet: View {
 
 /// Label/value rows for a card, skipping facts that are not known yet.
 private struct HardwareFactRows: View {
+    // The label half of each row is always a literal at the call site (a
+    // LocalizedStringKey), so it re-resolves against the translation table
+    // itself; the value half is the device's own data (a String) and is
+    // rendered verbatim.
     let rows: [(LocalizedStringKey, String?)]
 
     var body: some View {
@@ -703,10 +718,10 @@ private struct SoCDiagram: View {
         SoCBlock(title: "CPU", subtitle: cpuSubtitle) {
             VStack(alignment: .leading, spacing: 8) {
                 if let p = facts.performanceCores {
-                    CoreGrid(count: p, color: .orange, label: "\(p) performance")
+                    CoreGrid(count: p, color: .orange, label: t("%@ performance", "\(p)"))
                 }
                 if let e = facts.efficiencyCores {
-                    CoreGrid(count: e, color: .teal, label: "\(e) efficiency")
+                    CoreGrid(count: e, color: .teal, label: t("%@ efficiency", "\(e)"))
                 }
                 if facts.performanceCores == nil, facts.efficiencyCores == nil {
                     Text("Reading\u{2026}").font(.caption).foregroundStyle(.secondary)
@@ -717,11 +732,12 @@ private struct SoCDiagram: View {
 
     private var cpuSubtitle: String {
         let total = (facts.performanceCores ?? 0) + (facts.efficiencyCores ?? 0)
-        return total > 0 ? "\(total) cores" : ""
+        guard total > 0 else { return "" }
+        return total == 1 ? t("1 core") : t("%@ cores", "\(total)")
     }
 
     private var gpuBlock: some View {
-        SoCBlock(title: "GPU", subtitle: facts.gpuCores.map { "\($0) cores" } ?? "") {
+        SoCBlock(title: "GPU", subtitle: coreCountSubtitle(facts.gpuCores)) {
             if let cores = facts.gpuCores {
                 // Seven across: 14-core and 28-core parts fill their rows.
                 CoreGrid(
@@ -732,9 +748,15 @@ private struct SoCDiagram: View {
         }
     }
 
+    /// "1 core" / "%@ cores", or empty while the count is still unknown.
+    private func coreCountSubtitle(_ count: Int?) -> String {
+        guard let count else { return "" }
+        return count == 1 ? t("1 core") : t("%@ cores", "\(count)")
+    }
+
     private var aneBlock: some View {
         SoCBlock(
-            title: "Neural Engine", subtitle: facts.neuralEngineCores.map { "\($0) cores" } ?? ""
+            title: "Neural Engine", subtitle: coreCountSubtitle(facts.neuralEngineCores)
         ) {
             VStack(spacing: 6) {
                 Image(systemName: "brain")
@@ -807,7 +829,9 @@ private struct SoCDiagram: View {
 }
 
 private struct SoCBlock<Content: View>: View {
-    let title: String
+    // Always a literal at the call site; subtitle stays String because it is
+    // built at runtime (a translated "%@ cores" or similar).
+    let title: LocalizedStringKey
     let subtitle: String
     @ViewBuilder let content: () -> Content
 

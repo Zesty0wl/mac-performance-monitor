@@ -101,14 +101,14 @@ struct DiskMenuBarContentView: View {
                             }
                             if device.readErrors + device.writeErrors > 0 {
                                 Label(
-                                    "\(device.readErrors + device.writeErrors) errors",
+                                    t("%@ errors", String(device.readErrors + device.writeErrors)),
                                     systemImage: "exclamationmark.triangle.fill"
                                 )
                                 .foregroundStyle(.red)
                             }
                             let retries = device.readRetries + device.writeRetries
                             if retries > 0 {
-                                Text("\(retries) retries")
+                                Text(t("%@ retries", String(retries)))
                                     .foregroundStyle(.orange)
                             }
                             Spacer()
@@ -187,7 +187,7 @@ private struct DiskReadWriteChart: View {
             centre.addLine(to: CGPoint(x: plot.maxX, y: mid))
             context.stroke(centre, with: .color(MenuChart.gridColor), lineWidth: 0.5)
             context.draw(
-                Text("\(ByteFormat.rate(peak)) peak").font(MenuChart.labelFont)
+                Text(t("%@ peak", ByteFormat.rate(peak))).font(MenuChart.labelFont)
                     .foregroundColor(MenuChart.labelColor),
                 at: CGPoint(x: plot.minX, y: plot.minY + 4), anchor: .topLeading)
 

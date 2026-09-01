@@ -206,9 +206,13 @@ private struct ProcessDetailHeader: View {
                             .foregroundStyle(.orange)
                     }
                 }
-                Text(live == nil ? "Exited · PID \(identity.pid)" : "PID \(identity.pid)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    live == nil
+                        ? t("Exited · PID %@", String(identity.pid))
+                        : t("PID %@", String(identity.pid))
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
         }
@@ -394,9 +398,9 @@ private struct ProcessDetailCharts: View {
         let minutes = Int((finding.durationSeconds / 60).rounded())
         let rate = ByteFormat.string(UInt64(max(finding.slopeBytesPerSecond, 0)))
         let confidence = Int((finding.confidence * 100).rounded())
-        return
-            "This process grew \(growth) over \(minutes) min (~\(rate)/s, \(confidence)% confidence). "
-            + "If it keeps climbing, consider restarting it."
+        return t(
+            "This process grew %1$@ over %2$d min (~%3$@/s, %4$d%% confidence). "
+                + "If it keeps climbing, consider restarting it.", growth, minutes, rate, confidence)
     }
 
     @ViewBuilder
@@ -413,7 +417,7 @@ private struct ProcessDetailCharts: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                Label(title, systemImage: systemImage)
+                Label(t(title), systemImage: systemImage)
                     .font(.subheadline.weight(.semibold))
                 if isLeaking {
                     LeakIndicator()
@@ -448,7 +452,7 @@ private struct ProcessDetailCharts: View {
                     ProgressView().controlSize(.small)
                 }
             }
-            Text(leakDetail ?? caption)
+            Text(leakDetail ?? t(caption))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
