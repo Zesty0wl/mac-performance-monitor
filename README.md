@@ -137,8 +137,8 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and the
 [SECURITY.md](SECURITY.md).
 
 Translations are community-contributed: the app ships in English and Simplified
-Chinese, and adding your language is a single pull request. See the
-[Translations](CONTRIBUTING.md#translations) section of the contributing guide.
+Chinese, and adding your language means editing one file. See
+[TRANSLATING.md](TRANSLATING.md).
 
 ## License
 

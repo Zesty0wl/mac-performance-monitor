@@ -69,10 +69,13 @@ let package = Package(
                 "MacPerfMonitorCore",
                 "MacPerfMonitorIPC",
                 "Sparkle",
-            ],
-            resources: [
-                .process("Resources")
             ]
+            // No `resources:` for localization. The String Catalog lives at
+            // Localizations/Localizable.xcstrings, outside any target, because
+            // SwiftPM's native build system copies an .xcstrings verbatim
+            // instead of compiling it, and Foundation cannot read a catalog at
+            // runtime. Scripts/bundle.sh compiles it into the .app with
+            // xcstringstool, which is where the shipped app reads it from.
         ),
 
         // In-app auto-update for the directly-distributed (non-App-Store) build.

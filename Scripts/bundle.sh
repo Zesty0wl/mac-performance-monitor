@@ -125,17 +125,28 @@ else
 fi
 
 # --- Localization tables ----------------------------------------------------
-# Copy every <lang>.lproj from the SPM source tree into the bundle's Resources
-# directory. SwiftPM's .process("Resources") stage merges them into the built
-# binary's module bundle, but the .app assembled here ships only the SPM
-# binary, so the merge is repeated at bundle time. macOS resolves the user's
-# preferred language against these directories at runtime.
-LPROJ_SRC="Sources/MacPerfMonitor/Resources"
-if compgen -G "$LPROJ_SRC/*.lproj" > /dev/null; then
-  for lproj in "$LPROJ_SRC"/*.lproj; do
-    cp -R "$lproj" "$APP/Contents/Resources/"
-    echo "==> Bundled localization $(basename "$lproj")"
-  done
+# Compile the String Catalog into the per-language .lproj directories macOS
+# resolves at runtime. The catalog is the single source of truth for every
+# language; the .lproj files are build output and are not in the repository.
+#
+# SwiftPM's native build system copies an .xcstrings verbatim rather than
+# compiling it (Foundation cannot read a catalog at runtime), so the compile
+# has to happen here. xcstringstool ships inside Xcode, not the Command Line
+# Tools, so a contributor with only the CLT gets a warning and an
+# English-only build rather than a hard failure: every key is its own English
+# text, so untranslated lookups fall back to correct English.
+CATALOG="Localizations/Localizable.xcstrings"
+if [[ -f "$CATALOG" ]]; then
+  if xcrun --find xcstringstool > /dev/null 2>&1; then
+    xcrun xcstringstool compile "$CATALOG" --output-directory "$APP/Contents/Resources"
+    for lproj in "$APP/Contents/Resources"/*.lproj; do
+      [[ -d "$lproj" ]] && echo "==> Bundled localization $(basename "$lproj")"
+    done
+  else
+    echo "warning: xcstringstool not found, so $CATALOG was not compiled." >&2
+    echo "         The app will run in English. Install Xcode (not just the" >&2
+    echo "         Command Line Tools) and re-run to include translations." >&2
+  fi
 fi
 
 echo "Bundled $APP"
