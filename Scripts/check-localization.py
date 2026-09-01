@@ -203,16 +203,52 @@ def scan_all_literals():
 # `"\(count) selected"`: the runtime key varies, so the lookup never hits and the
 # translation is never seen. This turns the key back into a pattern and looks for
 # the interpolated form.
+# Calls whose argument is a LocalizedStringKey. A literal *with interpolation*
+# written here is not a bug: SwiftUI builds the key by replacing each
+# interpolation with its format specifier, so `Text("\(count) open")` looks up
+# "%lld open" and finds it. The same literal assigned to a String first, or
+# handed to a String parameter, renders verbatim and never reaches the table.
+# Whether a literal reaches the table depends on the type of the expression it
+# sits in, and that is not knowable from the text: `return "..."` may return a
+# LocalizedStringKey, an argument may bind to one, a ternary of literals resolves
+# to one. Guessing produced more false alarms than findings, so this reports only
+# the one shape that was verified against the compiler to be broken.
+#
+# Measured with a Probe type carrying SwiftUI's own overload pair (the
+# StringProtocol one marked @_disfavoredOverload):
+#
+#   Probe("plain")                  -> LocalizedStringKey   looked up
+#   Probe(c ? "one" : "many")       -> LocalizedStringKey   looked up
+#   Probe(c ? "one" : "\(n) many")  -> LocalizedStringKey   looked up
+#   Probe("\(n) entries")           -> LocalizedStringKey   looked up
+#   Probe(c ? "one" : someString)   -> String               NOT looked up
+#
+# Only the last one is reported: one branch being a String variable types the
+# whole ternary as String, so every literal in it renders verbatim.
+MIXED_TERNARY = re.compile(
+    r'\?\s*"(?:[^"\\]|\\.)*"\s*:\s*[A-Za-z_][\w.]*(?![\w.]*\s*\()'
+    r'|\?\s*[A-Za-z_][\w.]*\s*:\s*"(?:[^"\\]|\\.)*"'
+)
+
+
 def interpolation_sites(key, sources):
-    parts = re.split(r"%(?:\d+\$)?@", key)
+    """Sites where this key's literal sits in a ternary typed as String.
+
+    Returns (live, dead) to keep the caller unchanged: `live` is every other
+    occurrence, which this no longer tries to judge, and `dead` is the shape
+    above, which is provably not looked up.
+    """
+    parts = re.split(r"%(?:\d+\$)?(?:@|lld|ld|d|lf|f)", key)
     if len(parts) == 1:
-        return []
+        return [], []
     pattern = re.compile('"' + r"\\\([^)]*\)".join(re.escape(part) for part in parts) + '"')
-    hits = []
+    live, dead = [], []
     for path, text in sources.items():
         for match in pattern.finditer(text):
-            hits.append(f"{path}:{text.count(chr(10), 0, match.start()) + 1}")
-    return hits
+            where = f"{path}:{text.count(chr(10), 0, match.start()) + 1}"
+            window = text[max(0, match.start() - 80):match.end() + 80]
+            (dead if MIXED_TERNARY.search(window) else live).append(where)
+    return live, dead
 
 
 def read_sources():
@@ -267,6 +303,20 @@ def main():
     # panel title threaded through a helper), so `used` alone would condemn them.
     stale = sorted(key for key in zh_keys if key not in used and key not in literals)
 
+    # A key written as an interpolated literal inside a LocalizedStringKey call
+    # is in use: SwiftUI builds exactly this key from it. Those are neither
+    # stale nor dead, and they are the bulk of what a literal-only scan misses.
+    texts = read_sources()
+    dead = {}
+    live_interpolated = set()
+    for key in stale:
+        live, dead_sites = interpolation_sites(key, texts)
+        if live:
+            live_interpolated.add(key)
+        elif dead_sites:
+            dead[key] = dead_sites[0]
+    stale = [key for key in stale if key not in live_interpolated]
+
     print(f"zh-Hans entries:      {len(zh)}")
     print(f"lookups in Sources:   {len(used)}")
     print(f"missing translation:  {len(missing)}")
@@ -281,15 +331,12 @@ def main():
         for key in stale:
             print(f"  {key}")
 
-    texts = read_sources()
-    dead = {}
-    for key in stale:
-        sites = interpolation_sites(key, texts)
-        if sites:
-            dead[key] = sites[0]
     if dead:
         print()
-        print(f"dead translations ({len(dead)}): the source interpolates instead of calling t()")
+        print(
+            f"dead translations ({len(dead)}): the source builds the string before "
+            "anything can look it up"
+        )
         for key, where in sorted(dead.items(), key=lambda item: item[1]):
             print(f"  {where}\t{key[:80]}")
 

@@ -107,9 +107,13 @@ struct CombinedMenuBarContentView: View {
                 }
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
+                // Built with t() rather than interpolated: `metric.title` is a
+                // String, so the ternary types as String and the interpolated
+                // literal would never be looked up, leaving ", shown in the menu
+                // bar" in English beside an already-translated title.
                 .help(
                     configuration.isSelected(metric)
-                        ? "\(metric.title), shown in the menu bar"
+                        ? t("%@, shown in the menu bar", metric.title)
                         : metric.title
                 )
                 .accessibilityLabel(metric.title)
