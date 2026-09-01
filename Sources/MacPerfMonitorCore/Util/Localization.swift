@@ -40,7 +40,7 @@ public func t(_ key: String) -> String {
 /// live inside the key rather than arrive as an argument: splicing an English
 /// fragment (" is" / "es are") into a sentence cannot survive translation.
 public func t(_ key: String, _ arguments: CVarArg...) -> String {
-    String(format: t(key), arguments: arguments)
+    String(format: t(key), locale: LocalizationTable.currentLocale, arguments: arguments)
 }
 
 /// The `.lproj` bundle `t(_:)` reads, cached until the language changes.
@@ -51,9 +51,27 @@ public func t(_ key: String, _ arguments: CVarArg...) -> String {
 /// System": it already honours the Mac's preferred-language list, and after the
 /// launch preflight re-executes with `-AppleLanguages` it resolves to the chosen
 /// language on its own.
-private enum LocalizationTable {
+enum LocalizationTable {
     private static let lock = NSLock()
     private static var cached: (language: String, bundle: Bundle)?
+
+    /// The locale that matches the chosen language.
+    ///
+    /// This has to be passed to every `String(format:)` explicitly. Without it
+    /// the format uses the POSIX locale, which gets two things wrong outside
+    /// English: numbers print with the wrong decimal separator ("1.4 GB" where
+    /// a German reader expects "1,4 GB"), and, more seriously, a `.stringsdict`
+    /// plural is resolved with the WRONG LANGUAGE'S rules. The plural engine
+    /// keys off the locale handed to the format, not the bundle the string came
+    /// out of, so looking a Russian string up in `ru.lproj` while formatting
+    /// with a non-Russian locale selects English categories: 5 renders as
+    /// "5 ядра" (few) instead of "5 ядер" (many). Simplified Chinese cannot
+    /// expose this, because it has a single plural form, so any rule picks the
+    /// same string.
+    static var currentLocale: Locale {
+        let choice = UserDefaults.standard.string(forKey: appLanguageDefaultsKey) ?? "system"
+        return choice == "system" ? .autoupdatingCurrent : Locale(identifier: choice)
+    }
 
     static var current: Bundle {
         let choice = UserDefaults.standard.string(forKey: appLanguageDefaultsKey) ?? "system"
