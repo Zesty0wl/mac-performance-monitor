@@ -1,6 +1,12 @@
 import Foundation
 
 /// Human-readable byte formatting shared across the CLI and UI.
+///
+/// Every numeric format passes `locale: .current` deliberately. `String(format:)`
+/// without a locale formats in the POSIX locale, so "1.4 GB" stays "1.4 GB" for
+/// a reader whose language writes "1,4 GB". Simplified Chinese uses the same
+/// decimal separator as English, so this was invisible until the second
+/// language; German, French, Spanish and Russian all show it.
 public enum ByteFormat {
     /// Format a byte count using binary units (KiB/MiB/GiB), e.g. "1.4 GB".
     /// Uses the conventional macOS labels (GB) while computing on 1024 bases,
@@ -16,12 +22,13 @@ public enum ByteFormat {
         if unitIndex == 0 {
             return "\(bytes) bytes"
         }
-        return String(format: "%.\(fractionDigits)f %@", value, units[unitIndex])
+        return String(
+            format: "%.\(fractionDigits)f %@", locale: .current, value, units[unitIndex])
     }
 
     /// Format a fraction (0...1) as a percentage string, e.g. "42%".
     public static func percent(_ fraction: Double, fractionDigits: Int = 0) -> String {
-        String(format: "%.\(fractionDigits)f%%", fraction * 100)
+        String(format: "%.\(fractionDigits)f%%", locale: .current, fraction * 100)
     }
 
     /// Format a throughput (bytes per second) for charts, menus, and tooltips,
@@ -36,7 +43,8 @@ public enum ByteFormat {
             unitIndex += 1
         }
         if unitIndex == 0 { return "\(Int(value.rounded())) B/s" }
-        return String(format: "%.\(fractionDigits)f %@", value, units[unitIndex])
+        return String(
+            format: "%.\(fractionDigits)f %@", locale: .current, value, units[unitIndex])
     }
 
     /// A very compact throughput for the cramped menu bar read-out: number plus a
@@ -52,7 +60,9 @@ public enum ByteFormat {
             unitIndex += 1
         }
         if unitIndex == 0 { return "\(Int(value.rounded()))" }
-        if value < 10 { return String(format: "%.1f%@", value, units[unitIndex]) }
-        return String(format: "%.0f%@", value, units[unitIndex])
+        if value < 10 {
+            return String(format: "%.1f%@", locale: .current, value, units[unitIndex])
+        }
+        return String(format: "%.0f%@", locale: .current, value, units[unitIndex])
     }
 }
