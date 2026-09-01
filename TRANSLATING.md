@@ -133,6 +133,14 @@ Localizations/Localizable.xcstrings          the only thing you edit
 Compiled `.lproj` files are generated. Do not commit them, and do not edit them:
 your change would be overwritten on the next build.
 
+## If the English changes
+
+You may see a key's English wording change between releases. Translations are
+carried across automatically when that happens, using
+`Scripts/rename-localization-key.py`, so your work is not lost and you will not
+be asked to redo it. If a rewording makes a translation wrong, the string is
+worth revisiting, and flagging it in an issue is welcome.
+
 ## Credit
 
 Translators are credited in the release notes and in
