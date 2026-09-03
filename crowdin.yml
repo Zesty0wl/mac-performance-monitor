@@ -14,6 +14,18 @@
 project_id_env: CROWDIN_PROJECT_ID
 api_token_env: CROWDIN_PERSONAL_TOKEN
 
+# Crowdin's default commit message ends in "[ci skip]", which GitHub Actions
+# honours, so the localization check and the catalog compile would never run
+# on a Crowdin pull request. Replacing the message (append_commit_message:
+# false) drops that tag. These PRs are the one place a broken plural or a
+# mismatched format specifier can arrive from outside the repository, so CI
+# must run on them.
+commit_message: "Update translations from Crowdin"
+append_commit_message: false
+pull_request_title: "Translations from Crowdin"
+pull_request_labels:
+  - "translations"
+
 preserve_hierarchy: true
 
 files:
