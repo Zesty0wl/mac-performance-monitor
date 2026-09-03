@@ -4,6 +4,38 @@ Notable changes to Mac Performance Monitor. This project follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/).
 
+## [1.7.1] - 2026-09-03
+
+### Fixed
+
+- In Simplified Chinese, the Hardware tab listed every CPU instruction-set
+  feature as unsupported. The check compared the translated value against the
+  English word "Supported", so nothing ever matched. The compiler-driven
+  coverage check that found this now lives in
+  `Scripts/check-string-coverage.py`.
+- Two labels, the core count in the system header and the "N supported" count
+  in Hardware, stayed English in Chinese. SwiftUI looks up an integer
+  interpolation as `%lld`, and the catalog only carried the `%@` form those
+  labels never used.
+- Sizes and plural forms now follow the display language rather than English
+  conventions. A German or French reader sees "1,4 GB", and languages with more
+  than two plural forms (Russian, Arabic, Polish) get the right form for each
+  count, which the previous lookup path could not do.
+
+### Changed
+
+- Localization moved to an Apple String Catalog: one file,
+  `Localizations/Localizable.xcstrings`, holding every language, compiled into
+  the app at build time. Translators can edit the file directly or work in the
+  browser at https://crowdin.com/project/mac-performance-monitor with no git or
+  Xcode; see TRANSLATING.md. CI now rejects a missing translation in a complete
+  language, a mismatched format specifier and a malformed plural, so a
+  translation pull request cannot break the build for the languages it does
+  not touch. Existing translations carried across unchanged.
+- Homebrew: the app is in the main homebrew-cask repository, so
+  `brew install --cask mac-performance-monitor` works without a tap, and
+  Homebrew's bot picks up each release on its own.
+
 ## [1.7.0] - 2026-09-01
 
 ### Added
