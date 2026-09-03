@@ -1,10 +1,12 @@
 # Homebrew submission
 
-How Mac Performance Monitor gets into Homebrew, and how the cask stays current
-afterwards. The canonical cask lives in this repository at
-`Casks/mac-performance-monitor.rb`; the copy submitted to
-[Homebrew/homebrew-cask](https://github.com/Homebrew/homebrew-cask) is
-identical.
+How Mac Performance Monitor got into Homebrew, and how the cask stays current
+afterwards. The cask was accepted into
+[Homebrew/homebrew-cask](https://github.com/Homebrew/homebrew-cask) on
+2026-09-03 ([PR #283646](https://github.com/Homebrew/homebrew-cask/pull/283646)),
+so `brew install --cask mac-performance-monitor` works without a tap. The
+canonical cask still lives in this repository at
+`Casks/mac-performance-monitor.rb`; the homebrew-cask copy is identical.
 
 ## Why a cask (not a formula)
 
@@ -85,20 +87,29 @@ brew untap local/test
 ## After acceptance
 
 - Users install with `brew install --cask mac-performance-monitor`.
-- Homebrew's autobump bot uses the `livecheck` block to open version-bump
-  PRs automatically when a new GitHub release appears, so a normal
-  `Scripts/deploy.sh` release needs no manual Homebrew work. If a bump is
-  ever needed by hand:
+- Homebrew's bump bot (BrewTestBot) follows the GitHub release URL and opens
+  version-bump PRs on its own when a new release appears. No `livecheck`
+  block is needed: the bot bumped 1.5.0.198 to 1.7.0.205 about five hours
+  after the new cask merged. A normal `Scripts/deploy.sh` release therefore
+  needs no manual Homebrew work. If a bump is ever needed by hand:
   `brew bump-cask-pr mac-performance-monitor --version <X.Y.Z.B>`.
 - Keep `Casks/mac-performance-monitor.rb` in this repo in sync when the
   stanzas change (new uninstall paths, changed minimum macOS), and mirror
   such changes into homebrew-cask with a PR.
 
-## Until the PR is merged
+## The tap in this repository
 
-The cask in this repository is directly installable today:
+The cask here is still installable through the tap, and `Scripts/deploy.sh`
+rewrites its version and checksum on every release, so it is always the
+first place a new build appears:
 
 ```sh
 brew tap zesty0wl/mac-performance-monitor https://github.com/Zesty0wl/mac-performance-monitor
 brew install --cask zesty0wl/mac-performance-monitor/mac-performance-monitor
 ```
+
+People who installed from the tap before the homebrew-cask merge need do
+nothing. Homebrew resolves a bare cask name to homebrew-cask first and never
+treats it as ambiguous with a third-party tap (`Cask::CaskLoader::FromNameLoader`),
+and `auto_updates true` means Sparkle keeps existing installs current
+regardless of which tap they came from.
