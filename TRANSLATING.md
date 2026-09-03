@@ -8,12 +8,36 @@ Localizations/Localizable.xcstrings
 
 That is an Apple **String Catalog**: a JSON document holding every key, the
 English source text, and one entry per language. There are no per-language
-folders to keep in sync, and adding a language does not touch any Swift code.
+folders to keep in sync, and adding a language touches one line of Swift, for
+the Settings picker, which we are happy to do for you.
 
 You do not need Xcode to translate. You do need it to build the app, because
 the catalog is compiled by `xcstringstool`, which ships inside Xcode.
 
-## Adding a language
+## The easy way: Crowdin
+
+You can translate in a web editor with no git, no JSON and no Xcode:
+
+**https://crowdin.com/project/mac-performance-monitor**
+
+Sign in (a GitHub account works), pick your language, and start. The editor
+shows the English, a note on where the string appears in the app, protected
+placeholders for the format specifiers, and one box per plural form your
+language needs. About once an hour Crowdin opens a pull request here with
+whatever changed; we review it like any other, and your strings ship in the
+next release.
+
+If your language is not listed, open an issue asking for it. Only the
+maintainers can add a target language, and we will do it the same day. We also
+add the Settings picker entry when the first strings for a new language land,
+so on Crowdin you never touch code.
+
+Pick one route per language. If a language is being translated on Crowdin,
+send corrections there rather than as catalog pull requests, so the two do not
+overwrite each other. Everything below describes the GitHub route, and the
+rules further down apply either way.
+
+## Adding a language on GitHub
 
 1. Open `Localizations/Localizable.xcstrings`. If you have Xcode, double-click
    it for a table view with a language picker and a progress bar. If not, it is

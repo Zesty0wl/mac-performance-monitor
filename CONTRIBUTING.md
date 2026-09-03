@@ -120,10 +120,24 @@ source-language value, which is what stops the key itself leaking to the screen.
 
 ### Crowdin
 
-`crowdin.yml` configures the project's Crowdin integration. Crowdin reads and
-writes the catalog directly and opens a pull request on an `l10n_` branch; it
-never commits to the default branch. `multilingual: true` is load-bearing:
-without it Crowdin splits the catalog into one file per language.
+Translators can work at https://crowdin.com/project/mac-performance-monitor instead of
+editing the catalog. `crowdin.yml` configures the integration: Crowdin reads
+and writes the catalog directly and opens a pull request titled "Translations
+from Crowdin" on the `l10n_main` branch, about once an hour when something has
+changed. It never commits to the default branch. Two lines there are
+load-bearing. `multilingual: true` stops Crowdin splitting the catalog into one
+file per language, and `append_commit_message: false` removes the CI-skip tag
+Crowdin adds to commits by default, so CI runs on its pull requests.
+
+Maintainer notes for the Crowdin project settings: the GitHub integration has
+"Always import new translations from the repository" and "Allow target
+translation to match source" switched on. The second matters because Crowdin
+otherwise skips translations identical to the English (CPU, USB, Wi-Fi and the
+like) and reports the language as incomplete. When someone asks for a new
+language, add it as a target language in the Crowdin project, add its `case` to
+`AppLanguage` in `Sources/MacPerfMonitor/Settings/AppLanguageManager.swift`,
+and once it is complete add it to `COMPLETE_LANGUAGES` in
+`Scripts/check-localization.py`.
 
 ## Submitting changes
 

@@ -137,8 +137,9 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and the
 [SECURITY.md](SECURITY.md).
 
 Translations are community-contributed: the app ships in English and Simplified
-Chinese, and adding your language means editing one file. See
-[TRANSLATING.md](TRANSLATING.md).
+Chinese. Translate in your browser on
+[Crowdin](https://crowdin.com/project/mac-performance-monitor), or edit one file and open a
+pull request. See [TRANSLATING.md](TRANSLATING.md).
 
 ## License
 
