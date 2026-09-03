@@ -99,9 +99,18 @@ def main():
         return 0
 
     strings[args.new] = strings.pop(args.old)
+    # Xcode and Crowdin both write the catalog with a space on either side of
+    # the colon and no trailing newline. Matching that byte for byte keeps a
+    # rename from showing up as a whole-file rewrite in the diff.
     with open(CATALOG, "w", encoding="utf-8") as handle:
-        json.dump(catalog, handle, ensure_ascii=False, indent=2, sort_keys=True)
-        handle.write("\n")
+        json.dump(
+            catalog,
+            handle,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+            separators=(",", " : "),
+        )
     for path, _, updated in edits:
         with open(path, "w", encoding="utf-8") as handle:
             handle.write(updated)
