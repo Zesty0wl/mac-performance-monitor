@@ -6,6 +6,29 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Changed
+
+- **The app comes first now, and the menu bar item is optional.** Requested in
+  #21 and #67. Until now the menu bar read-out was the app: it could not be
+  turned off, it was the only thing that could open a window, and it held the
+  only Quit command. Three things change together.
+  - **Show in the menu bar** is a switch in Settings. Turn it off and
+    monitoring, recording and alerts carry on exactly as before. Open the window
+    again from the Dock, Spotlight or Launchpad.
+  - **Record history** is now its own switch rather than half of a Mode picker,
+    so recording and the menu bar item are independent. The old Mode setting
+    carries over: menu-bar-only becomes recording off, and everything else
+    becomes recording on, with the item left on either way.
+  - **The Dock icon follows the window.** Mac Performance Monitor appears in the
+    Dock whenever one of its windows is open, which is also what gives it the
+    standard menus and Command-Q, and drops out of the Dock when the last window
+    closes. A preference keeps it there permanently, replacing the old "show
+    icon in the Dock" toggle, which it inherits.
+- Launching the app now opens its window, rather than appearing to do nothing.
+  Opening at login stays quiet, with no window and no Dock icon.
+- Closing the last window quits the app when neither the menu bar item nor
+  recording is switched on. With either on, it keeps running as before.
+
 ### Security
 
 - Sparkle, the updater framework, moved from 2.9.3 to 2.9.6. That picks up two
@@ -29,6 +52,17 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Fixed
 
+- **Alerts could be silent.** Alert evaluation runs inside the per-process scan,
+  and that scan only ran while recording was on, a window was open, or a menu
+  bar panel was up. With recording paused and nothing on screen, no alert was
+  ever evaluated, critical memory pressure included: a kernel pressure event
+  forced a tick, but the tick returned before evaluating anything. Alerts are
+  now a reason to sample in their own right. The pressure, swap, thermal, CPU
+  and GPU alerts are evaluated from the cheap system tick, and the two that need
+  the process list, the per-process ceiling and the runaway-process alert, run a
+  scan once a minute when nothing else calls for one.
+- With no menu bar item, no window and no panel open, the sampler no longer
+  publishes to the main thread every second for nobody to read.
 - 99 interface strings were never in the catalog, so they stayed English in
   every language whatever you chose. They are SwiftUI literals that the
   source-scanning check cannot see, from the battery detail panels, the network

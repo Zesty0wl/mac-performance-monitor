@@ -14,10 +14,13 @@
 [![Crowdin](https://img.shields.io/badge/Crowdin-translate-2E3340?logo=crowdin&logoColor=white)](https://crowdin.com/project/mac-performance-monitor)
 [![License](https://img.shields.io/github/license/Zesty0wl/mac-performance-monitor?label=license)](LICENSE)
 
-A native macOS **performance analyzer and logger** that lives in your menu bar. It
-continuously records CPU, memory pressure, GPU, network, disk, battery, and per-process
-usage to a local database, then helps you make sense of it: trends, leaks, pressure
-events, and on-device diagnostics.
+A native macOS **performance analyzer and logger**. It continuously records CPU, memory
+pressure, GPU, network, disk, battery, and per-process usage to a local database, then
+helps you make sense of it: trends, leaks, pressure events, and on-device diagnostics.
+
+Run it however suits you. The menu bar read-out and the background recorder are separate
+switches, so it can be a live read-out near the clock, a quiet recorder with no menu bar
+item at all, or a plain window you open when you need it.
 
 Free and open source. No telemetry. Every sample stays on your Mac.
 

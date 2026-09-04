@@ -1,6 +1,8 @@
 # App presence: window, menu bar item, and logger as independent components
 
-Design note for issue #21. Status: agreed, not yet implemented.
+Design note for issue #21. Status: built for 2.0.0 on the `2.0.0` branch. See
+"What was actually built" at the end for the two places the work departed from
+the plan.
 
 ## What this is about
 
@@ -269,3 +271,34 @@ Four things follow from working on a branch:
   (`Sources/MacPerfMonitor/Views/MenuBarContentView.swift:136-145`). Being
   regular while a window is open should remove that class of problem rather than
   add to it.
+
+## What was actually built
+
+Phases 1 to 5 landed as pull requests #85, #86, #87, #88 and this one. Two
+departures from the plan above, both deliberate:
+
+- **The read-out selection keeps its "at least one" rule.** The plan said to
+  allow zero read-outs as the way to hide the item. Once the item has its own
+  switch that is a worse way to say the same thing, and it leaves several code
+  paths reading the first selected metric. So the switch hides the item and the
+  selection still needs one read-out. The index reads were hardened anyway.
+- **Alerts do not simply become another scan consumer.** Doing only that would
+  have run the expensive per-process scan at the usual cadence for an app with
+  nothing on screen, which is the cost the menu-bar-only mode existed to avoid.
+  The alerts that need the process list run a scan once a minute when nothing
+  else calls for one; the rest are evaluated from the cheap system tick.
+
+Two things were found while building rather than while planning, both fixed in
+the phase that hit them:
+
+- Asking for the main window once at launch does not work. The scene tree does
+  not exist while the delegate is finishing launch, and the request is dropped
+  rather than queued, so the ask repeats until a window exists.
+- A window can be created without ever becoming key, so the window
+  notifications alone never notice it. With the Dock pin off, the app opened its
+  window and stayed an accessory with no menus. Every window-opening path now
+  runs through `WindowOpenBridge`, which tells the presence controller.
+
+Not verified before release, because the Mac was at its lock screen throughout
+the build: anything that needs to be seen on screen. The interactive checks in
+"Verification" above are for the first person to run the build.
