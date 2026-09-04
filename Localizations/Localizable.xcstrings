@@ -290,7 +290,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%1$@ est géré par une app ; la méthode recommandée est : %2$@ "
+            "value" : "%1$@ est géré par une app ; la méthode recommandée est : %2$@ "
           }
         },
         "zh-Hans" : {
@@ -638,7 +638,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%1$@ · %2$.1f %% CPU · Speicher %3$.1f %%"
+            "value" : "%1$@ · %2$.1f %% CPU · Speicher %3$.1f %%"
           }
         },
         "en" : {
@@ -650,7 +650,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%1$@ · %2$.1f %% CPU · empreinte %3$.1f %%"
+            "value" : "%1$@ · %2$.1f %% CPU · empreinte %3$.1f %%"
           }
         },
         "zh-Hans" : {
@@ -668,7 +668,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%1$@ · max. %2$@ °C"
+            "value" : "%1$@ · max. %2$@ °C"
           }
         },
         "en" : {
@@ -680,7 +680,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%1$@ · max. %2$@ °C"
+            "value" : "%1$@ · max. %2$@ °C"
           }
         },
         "zh-Hans" : {
@@ -728,7 +728,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%1$@ %% (Schwellenwert %2$@ %%)"
+            "value" : "%1$@ %% (Schwellenwert %2$@ %%)"
           }
         },
         "en" : {
@@ -740,7 +740,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%1$@ %% (seuil %2$@ %%)"
+            "value" : "%1$@ %% (seuil %2$@ %%)"
           }
         },
         "zh-Hans" : {
@@ -758,7 +758,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%1$@ %% Kapazität, %2$@"
+            "value" : "%1$@ %% Kapazität, %2$@"
           }
         },
         "en" : {
@@ -770,7 +770,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%1$@ %% de capacité, %2$@"
+            "value" : "%1$@ %% de capacité, %2$@"
           }
         },
         "zh-Hans" : {
@@ -788,7 +788,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%1$@ %% der aktiven Zeit · %2$@ Prozesse"
+            "value" : "%1$@ %% der aktiven Zeit · %2$@ Prozesse"
           }
         },
         "en" : {
@@ -800,7 +800,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%1$@ %% du temps d'activité · %2$@ processus"
+            "value" : "%1$@ %% du temps d'activité · %2$@ processus"
           }
         },
         "zh-Hans" : {
@@ -818,7 +818,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%1$@ %% Benutzer · %2$@ %% System"
+            "value" : "%1$@ %% Benutzer · %2$@ %% System"
           }
         },
         "en" : {
@@ -830,7 +830,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%1$@ %% utilisateur · %2$@ %% système"
+            "value" : "%1$@ %% utilisateur · %2$@ %% système"
           }
         },
         "zh-Hans" : {
@@ -1610,7 +1610,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%@ est en mode barre des menus uniquement et n'enregistre pas l'historique. Activez la journalisation pour tracer ces plages : l'enregistrement commence maintenant, et l'historique se constitue à partir de là."
+            "value" : "%@ est en mode barre des menus uniquement et n'enregistre pas l'historique. Activez la journalisation pour tracer ces plages : l'enregistrement commence maintenant, et l'historique se constitue à partir de là."
           }
         },
         "zh-Hans" : {
@@ -3128,7 +3128,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%@ %% Konfidenz"
+            "value" : "%@ %% Konfidenz"
           }
         },
         "en" : {
@@ -3140,7 +3140,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%@ %% de confiance"
+            "value" : "%@ %% de confiance"
           }
         },
         "zh-Hans" : {
@@ -3158,7 +3158,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%@ %% Zustand"
+            "value" : "%@ %% Zustand"
           }
         },
         "en" : {
@@ -3170,7 +3170,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "État %@ %%"
+            "value" : "État %@ %%"
           }
         },
         "zh-Hans" : {
@@ -3188,7 +3188,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%@ %% maximale Kapazität"
+            "value" : "%@ %% maximale Kapazität"
           }
         },
         "en" : {
@@ -3200,7 +3200,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%@ %% de capacité maximale"
+            "value" : "%@ %% de capacité maximale"
           }
         },
         "zh-Hans" : {
@@ -3218,7 +3218,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%@ %% der aktiven Zeit · 1 Prozess"
+            "value" : "%@ %% der aktiven Zeit · 1 Prozess"
           }
         },
         "en" : {
@@ -3230,7 +3230,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%@ %% du temps d'activité · 1 processus"
+            "value" : "%@ %% du temps d'activité · 1 processus"
           }
         },
         "zh-Hans" : {
@@ -3248,7 +3248,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%@ %% der Designkapazität"
+            "value" : "%@ %% der Designkapazität"
           }
         },
         "en" : {
@@ -3260,7 +3260,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%@ %% de la capacité nominale"
+            "value" : "%@ %% de la capacité nominale"
           }
         },
         "zh-Hans" : {
@@ -3278,7 +3278,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%@ %% des Maximums"
+            "value" : "%@ %% des Maximums"
           }
         },
         "en" : {
@@ -3290,7 +3290,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%@ %% du maximum"
+            "value" : "%@ %% du maximum"
           }
         },
         "zh-Hans" : {
@@ -3470,7 +3470,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%@ : %@ utilisés"
+            "value" : "%@ : %@ utilisés"
           }
         },
         "zh-Hans" : {
@@ -3818,7 +3818,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%d %% Konfidenz"
+            "value" : "%d %% Konfidenz"
           }
         },
         "en" : {
@@ -3830,7 +3830,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%d %% de confiance"
+            "value" : "%d %% de confiance"
           }
         },
         "zh-Hans" : {
@@ -3848,7 +3848,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%d %% Verlust"
+            "value" : "%d %% Verlust"
           }
         },
         "en" : {
@@ -3860,7 +3860,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%d %% de perte"
+            "value" : "%d %% de perte"
           }
         },
         "zh-Hans" : {
@@ -3878,7 +3878,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%d %% Benutzer / %d %% System (kumuliert)"
+            "value" : "%d %% Benutzer / %d %% System (kumuliert)"
           }
         },
         "en" : {
@@ -3890,7 +3890,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%d %% utilisateur / %d %% système (cumulé)"
+            "value" : "%d %% utilisateur / %d %% système (cumulé)"
           }
         },
         "zh-Hans" : {
@@ -7280,7 +7280,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Afficher aussi %@ dans le Dock pendant son exécution, comme second moyen de l'ouvrir : pratique si votre barre des menus est trop encombrée pour en voir les éléments. Dans tous les cas, l'app continue de fonctionner depuis la barre des menus."
+            "value" : "Afficher aussi %@ dans le Dock pendant son exécution, comme second moyen de l'ouvrir : pratique si votre barre des menus est trop encombrée pour en voir les éléments. Dans tous les cas, l'app continue de fonctionner depuis la barre des menus."
           }
         },
         "zh-Hans" : {
@@ -8090,7 +8090,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "À température de puce égale, les ventilateurs tournent maintenant environ %1$@%% plus vite qu'il y a %2$@ semaines. L'accumulation de poussière dans les ouvertures d'aération en est la cause habituelle ; les nettoyer ramène généralement la vitesse à la normale."
+            "value" : "À température de puce égale, les ventilateurs tournent maintenant environ %1$@%% plus vite qu'il y a %2$@ semaines. L'accumulation de poussière dans les ouvertures d'aération en est la cause habituelle ; les nettoyer ramène généralement la vitesse à la normale."
           }
         },
         "zh-Hans" : {
@@ -11270,7 +11270,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Détecté maintenant : %@ processus"
+            "value" : "Détecté maintenant : %@ processus"
           }
         },
         "zh-Hans" : {
@@ -11300,7 +11300,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Détectés maintenant : %@ processus"
+            "value" : "Détectés maintenant : %@ processus"
           }
         },
         "zh-Hans" : {
@@ -12470,7 +12470,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Clones : %@ de plus"
+            "value" : "Clones : %@ de plus"
           }
         },
         "zh-Hans" : {
@@ -14090,7 +14090,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Copier \\u{201C}%@ : %@\\u{201D}"
+            "value" : "Copier \\u{201C}%@ : %@\\u{201D}"
           }
         },
         "zh-Hans" : {
@@ -16040,7 +16040,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Analyse approfondie : %@"
+            "value" : "Analyse approfondie : %@"
           }
         },
         "zh-Hans" : {
@@ -17210,7 +17210,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Appareils détectés : %@"
+            "value" : "Appareils détectés : %@"
           }
         },
         "zh-Hans" : {
@@ -18140,7 +18140,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Voulez-vous forcer %@ (PID %d) à quitter ?"
+            "value" : "Voulez-vous forcer %@ (PID %d) à quitter ?"
           }
         },
         "zh-Hans" : {
@@ -20060,7 +20060,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Même avec la couverture complète, macOS n'a pas voulu arrêter « %@ »."
+            "value" : "Même avec la couverture complète, macOS n'a pas voulu arrêter « %@ »."
           }
         },
         "zh-Hans" : {
@@ -22430,7 +22430,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Forcer %@ à quitter ?"
+            "value" : "Forcer %@ à quitter ?"
           }
         },
         "zh-Hans" : {
@@ -27620,7 +27620,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Il est conçu pour dimensionner le matériel. Le même ensemble d'outils de sécurité et informatiques pèse davantage sur une machine plus petite : une empreinte de 10 % fait perdre bien plus de marge sur un portable de 8 Go que sur un de 16 Go. Vous voyez ainsi si vos outils vous poussent vers des Mac plus chers pour garder les utilisateurs satisfaits."
+            "value" : "Il est conçu pour dimensionner le matériel. Le même ensemble d'outils de sécurité et informatiques pèse davantage sur une machine plus petite : une empreinte de 10 % fait perdre bien plus de marge sur un portable de 8 Go que sur un de 16 Go. Vous voyez ainsi si vos outils vous poussent vers des Mac plus chers pour garder les utilisateurs satisfaits."
           }
         },
         "zh-Hans" : {
@@ -28430,7 +28430,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Plus gros consommateur : %@ (%@)"
+            "value" : "Plus gros consommateur : %@ (%@)"
           }
         },
         "zh-Hans" : {
@@ -28520,7 +28520,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Dernière erreur : %@"
+            "value" : "Dernière erreur : %@"
           }
         },
         "zh-Hans" : {
@@ -28580,7 +28580,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Dernière valeur : puce CPU %1$@ degrés, puce GPU %2$@ degrés, pic sur la période %3$@ degrés."
+            "value" : "Dernière valeur : puce CPU %1$@ degrés, puce GPU %2$@ degrés, pic sur la période %3$@ degrés."
           }
         },
         "zh-Hans" : {
@@ -28610,7 +28610,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Dernière valeur : puce CPU %1$@ degrés, pic sur la période %2$@ degrés."
+            "value" : "Dernière valeur : puce CPU %1$@ degrés, pic sur la période %2$@ degrés."
           }
         },
         "zh-Hans" : {
@@ -28640,7 +28640,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Dernière valeur : lecture %1$@ millisecondes par opération, écriture %2$@ millisecondes par opération."
+            "value" : "Dernière valeur : lecture %1$@ millisecondes par opération, écriture %2$@ millisecondes par opération."
           }
         },
         "zh-Hans" : {
@@ -28670,7 +28670,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Dernière valeur : lecture %@ millisecondes par opération."
+            "value" : "Dernière valeur : lecture %@ millisecondes par opération."
           }
         },
         "zh-Hans" : {
@@ -28700,7 +28700,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Dernière valeur : écriture %@ millisecondes par opération."
+            "value" : "Dernière valeur : écriture %@ millisecondes par opération."
           }
         },
         "zh-Hans" : {
@@ -31820,7 +31820,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Taxonomie mémoire : %@"
+            "value" : "Taxonomie mémoire : %@"
           }
         },
         "zh-Hans" : {
@@ -33140,7 +33140,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Placer « %@ » dans la corbeille ?"
+            "value" : "Placer « %@ » dans la corbeille ?"
           }
         },
         "zh-Hans" : {
@@ -33230,7 +33230,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Une grande partie de votre mémoire « utilisée » est constituée de fichiers en cache : des données récemment utilisées, conservées pour que tout reste rapide. macOS les rend dès que quelque chose en a besoin. %@ affiche les fichiers en cache dans une couleur apaisante pour que vous sachiez qu'ils travaillent pour vous, pas contre vous."
+            "value" : "Une grande partie de votre mémoire « utilisée » est constituée de fichiers en cache : des données récemment utilisées, conservées pour que tout reste rapide. macOS les rend dès que quelque chose en a besoin. %@ affiche les fichiers en cache dans une couleur apaisante pour que vous sachiez qu'ils travaillent pour vous, pas contre vous."
           }
         },
         "zh-Hans" : {
@@ -35870,7 +35870,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Non pris en charge : %@"
+            "value" : "Non pris en charge : %@"
           }
         },
         "zh-Hans" : {
@@ -36020,7 +36020,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Aucun élément dont le nom ressemble à « %@ » dans cette analyse."
+            "value" : "Aucun élément dont le nom ressemble à « %@ » dans cette analyse."
           }
         },
         "zh-Hans" : {
@@ -36890,7 +36890,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Sur Apple Silicon, presque aucune RAM n'est jamais « libre », et c'est normal. macOS occupe volontairement la mémoire. Ce qui compte, c'est la pression mémoire : l'effort que fournit le système pour suivre. %@ la met au premier plan."
+            "value" : "Sur Apple Silicon, presque aucune RAM n'est jamais « libre », et c'est normal. macOS occupe volontairement la mémoire. Ce qui compte, c'est la pression mémoire : l'effort que fournit le système pour suivre. %@ la met au premier plan."
           }
         },
         "zh-Hans" : {
@@ -41360,7 +41360,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Principal : %@"
+            "value" : "Principal : %@"
           }
         },
         "zh-Hans" : {
@@ -47510,7 +47510,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Partagé : %@"
+            "value" : "Partagé : %@"
           }
         },
         "zh-Hans" : {
@@ -50330,7 +50330,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Le swap a dépassé %@. Un swap soutenu sous pression peut ralentir le système : pensez à libérer de la mémoire."
+            "value" : "Le swap a dépassé %@. Un swap soutenu sous pression peut ralentir le système : pensez à libérer de la mémoire."
           }
         },
         "zh-Hans" : {
@@ -51410,7 +51410,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Disk Map analyse votre disque pour montrer ce qui occupe de l'espace. Avec l'accès complet au disque, il peut voir les données de Mail, Messages, Safari, Time Machine et d'autres apps ; sans lui, elles restent masquées et macOS demande séparément l'accès au Bureau, aux Documents et aux Téléchargements. L'autorisation prend effet une fois %@ relancé."
+            "value" : "Disk Map analyse votre disque pour montrer ce qui occupe de l'espace. Avec l'accès complet au disque, il peut voir les données de Mail, Messages, Safari, Time Machine et d'autres apps ; sans lui, elles restent masquées et macOS demande séparément l'accès au Bureau, aux Documents et aux Téléchargements. L'autorisation prend effet une fois %@ relancé."
           }
         },
         "zh-Hans" : {
@@ -52040,7 +52040,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "La longueur de la file d'exécution (en gros, combien de processus se disputent le CPU), en moyenne sur la dernière minute, avec les valeurs à 5 et 15 minutes à côté. Une charge proche de votre nombre de cœurs (%@) signifie que le CPU est pleinement sollicité ; bien au-dessus, le travail fait la queue."
+            "value" : "La longueur de la file d'exécution (en gros, combien de processus se disputent le CPU), en moyenne sur la dernière minute, avec les valeurs à 5 et 15 minutes à côté. Une charge proche de votre nombre de cœurs (%@) signifie que le CPU est pleinement sollicité ; bien au-dessus, le travail fait la queue."
           }
         },
         "zh-Hans" : {
@@ -52490,7 +52490,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Ces réglages nécessitent environ %@, plus que votre limite de taille de %@. Les échantillons haute résolution les plus anciens seront supprimés plus tôt pour tenir : augmentez la limite de taille ou réduisez la résolution pour tout conserver."
+            "value" : "Ces réglages nécessitent environ %@, plus que votre limite de taille de %@. Les échantillons haute résolution les plus anciens seront supprimés plus tôt pour tenir : augmentez la limite de taille ou réduisez la résolution pour tout conserver."
           }
         },
         "zh-Hans" : {
@@ -52658,7 +52658,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Dieser Prozess ist in %2$d Min. um %1$@ gewachsen (~%3$@/s, %4$d %% Konfidenz). Wenn er weiter wächst, solltest du einen Neustart erwägen."
+            "value" : "Dieser Prozess ist in %2$d Min. um %1$@ gewachsen (~%3$@/s, %4$d %% Konfidenz). Wenn er weiter wächst, solltest du einen Neustart erwägen."
           }
         },
         "en" : {
@@ -52670,7 +52670,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Ce processus a grossi de %1$@ en %2$d min (~%3$@/s, confiance de %4$d %%). S'il continue de grimper, envisagez de le redémarrer."
+            "value" : "Ce processus a grossi de %1$@ en %2$d min (~%3$@/s, confiance de %4$d %%). S'il continue de grimper, envisagez de le redémarrer."
           }
         },
         "zh-Hans" : {
@@ -52790,7 +52790,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Cette session : %1$@ téléchargés · %2$@ envoyés"
+            "value" : "Cette session : %1$@ téléchargés · %2$@ envoyés"
           }
         },
         "zh-Hans" : {
@@ -53468,7 +53468,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Top CPU: %1$@ (%2$@ %%)"
+            "value" : "Top CPU: %1$@ (%2$@ %%)"
           }
         },
         "en" : {
@@ -53480,7 +53480,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Top CPU : %1$@ (%2$@ %%)"
+            "value" : "Top CPU : %1$@ (%2$@ %%)"
           }
         },
         "zh-Hans" : {
@@ -53768,7 +53768,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Die gesamte CPU-Auslastung lag in den letzten %2$@ Min. im Schnitt bei %1$@ %%. Anhaltend hohe CPU-Last ist bei echter Arbeit normal, erwärmt aber das Gerät und leert die Batterie: Sieh dir zuerst den Prozess mit der höchsten CPU-Last an."
+            "value" : "Die gesamte CPU-Auslastung lag in den letzten %2$@ Min. im Schnitt bei %1$@ %%. Anhaltend hohe CPU-Last ist bei echter Arbeit normal, erwärmt aber das Gerät und leert die Batterie: Sieh dir zuerst den Prozess mit der höchsten CPU-Last an."
           }
         },
         "en" : {
@@ -53780,7 +53780,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Le CPU total a atteint %1$@ %% en moyenne sur les %2$@ dernières minutes. Un CPU élevé et soutenu est normal pendant un vrai travail, mais il chauffe la machine et vide la batterie : commencez par le processus le plus gourmand en CPU."
+            "value" : "Le CPU total a atteint %1$@ %% en moyenne sur les %2$@ dernières minutes. Un CPU élevé et soutenu est normal pendant un vrai travail, mais il chauffe la machine et vide la batterie : commencez par le processus le plus gourmand en CPU."
           }
         },
         "zh-Hans" : {
@@ -53798,7 +53798,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Die gesamte CPU-Auslastung liegt seit längerer Zeit über %@ %%. Falls das unerwartet ist, sieh dir zuerst den Prozess mit der höchsten CPU-Last an."
+            "value" : "Die gesamte CPU-Auslastung liegt seit längerer Zeit über %@ %%. Falls das unerwartet ist, sieh dir zuerst den Prozess mit der höchsten CPU-Last an."
           }
         },
         "en" : {
@@ -53810,7 +53810,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Le CPU total est resté au-dessus de %@ %% pendant une période prolongée. Si c'est inattendu, commencez par le processus le plus gourmand en CPU."
+            "value" : "Le CPU total est resté au-dessus de %@ %% pendant une période prolongée. Si c'est inattendu, commencez par le processus le plus gourmand en CPU."
           }
         },
         "zh-Hans" : {
@@ -56960,7 +56960,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Quand la pression reste élevée, macOS compresse la mémoire puis écrit dans le swap. Un peu, c'est normal ; beaucoup, de façon soutenue, c'est le signe que quelque chose en demande trop. %@ surveille ces tendances et désigne le processus responsable."
+            "value" : "Quand la pression reste élevée, macOS compresse la mémoire puis écrit dans le swap. Un peu, c'est normal ; beaucoup, de façon soutenue, c'est le signe que quelque chose en demande trop. %@ surveille ces tendances et désigne le processus responsable."
           }
         },
         "zh-Hans" : {
@@ -59240,7 +59240,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "macOS n'a pas laissé %1$@ arrêter « %2$@ ». Il s'agit probablement d'un processus système ou d'un processus appartenant à un autre utilisateur. Activez « Couverture complète » dans les Réglages pour arrêter des processus en tant que root."
+            "value" : "macOS n'a pas laissé %1$@ arrêter « %2$@ ». Il s'agit probablement d'un processus système ou d'un processus appartenant à un autre utilisateur. Activez « Couverture complète » dans les Réglages pour arrêter des processus en tant que root."
           }
         },
         "zh-Hans" : {
@@ -60950,7 +60950,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "« %1$@ » n'a pas pu être arrêté (erreur %2$d)."
+            "value" : "« %1$@ » n'a pas pu être arrêté (erreur %2$d)."
           }
         },
         "zh-Hans" : {
@@ -60980,7 +60980,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "« %1$@ » n'a pas pu être arrêté via l'outil d'assistance (erreur %2$d)."
+            "value" : "« %1$@ » n'a pas pu être arrêté via l'outil d'assistance (erreur %2$d)."
           }
         },
         "zh-Hans" : {
