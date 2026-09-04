@@ -60,10 +60,12 @@ native speaker has been through a whole language, a maintainer removes it from
 away. Native-speaker review of these two languages is one of the most useful
 contributions the project can receive right now.
 
-One Crowdin quirk to know: in strings that contain a format specifier (`%@`,
-`%lld`, `%%`), Crowdin's export replaces no-break spaces with plain spaces. Use
-a plain space there, and keep the no-break space (French `:` `;` `?` `!`) in
-strings without specifiers, where it survives the round trip.
+One Crowdin quirk to know: when Crowdin imports translations from the
+repository it can replace a no-break space with a plain space, and its next
+pull request then carries that back here. French typographic spaces before
+`:` `;` `?` `!` are therefore best entered or corrected in Crowdin's editor,
+where they are kept as typed. Do not fight a whitespace-only change in a
+Crowdin pull request; merge it and fix the string on Crowdin.
 
 ## Adding a language on GitHub
 
