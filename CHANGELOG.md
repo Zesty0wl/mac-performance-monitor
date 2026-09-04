@@ -27,6 +27,33 @@ Notable changes to Mac Performance Monitor. This project follows
   corrections are welcome at https://crowdin.com/project/mac-performance-monitor.
   A language leaves the notice once a native speaker has been through it.
 
+### Fixed
+
+- 99 interface strings were never in the catalog, so they stayed English in
+  every language whatever you chose. They are SwiftUI literals that the
+  source-scanning check cannot see, from the battery detail panels, the network
+  adapter and scan views, the hardware overview, the memory inspector, the menu
+  bar panels, the chart accessibility labels, and a set of messages and hints.
+  All are now translated into Simplified Chinese, German and French. Reported
+  in #60.
+- Six more strings had translations that could never be found, because the
+  catalog stored the key in a form the app never looks up: five carried a
+  literal escape sequence such as `\u{2026}`, which Swift resolves to a
+  character before any lookup happens, and one used three full stops where the
+  app writes an ellipsis. They include the Login Items notice, the Settings
+  explanation of per-app network attribution, two onboarding cards about
+  memory, and the Check for Updates menu item, all of which showed English on
+  an otherwise translated screen. Fourteen further escaped keys duplicated
+  entries that were already correct and have been removed.
+
+### Changed
+
+- `Scripts/check-string-coverage.py` now fails when the compiler emits an
+  interface string the catalog does not carry, and runs in CI, so a new string
+  cannot ship untranslated. Keys that read the same in every language, such as
+  separators, units and text field placeholder samples, sit in a documented
+  allowlist in that script.
+
 ## [1.7.1] - 2026-09-03
 
 ### Fixed

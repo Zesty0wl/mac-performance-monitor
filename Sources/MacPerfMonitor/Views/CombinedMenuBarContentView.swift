@@ -227,7 +227,7 @@ struct CombinedMenuBarContentView: View {
                     dismiss()
                     showStandardAboutPanel()
                 }
-                Button("Check for Updates...", systemImage: "arrow.down.circle") {
+                Button("Check for Updates\u{2026}", systemImage: "arrow.down.circle") {
                     dismiss()
                     NSApp.activate(ignoringOtherApps: true)
                     updateController.checkForUpdates()

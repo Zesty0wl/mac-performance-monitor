@@ -57,3 +57,12 @@ jobs:
             --output-directory "$RUNNER_TEMP/lproj"
           ls -1 "$RUNNER_TEMP/lproj"
 
+      # Ask the compiler which keys the interface actually looks up, and fail
+      # when one of them is not in the catalog. check-localization.py scans
+      # source text, which cannot see the key SwiftUI builds from an
+      # interpolated literal: Text("\(count) inside") looks up "%lld inside".
+      # This rebuilds with -emit-localized-strings, so it is the slow check and
+      # runs last.
+      - name: Check string coverage
+        run: Scripts/check-string-coverage.py
+
