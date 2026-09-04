@@ -140,7 +140,7 @@ private struct MenuBarDockSettingsView: View {
     @EnvironmentObject private var menuBar: CombinedMenuBarConfiguration
     /// Shared with `DockIconController`, so toggling shows or hides the Dock icon
     /// live. Off by default — the app is menubar-first.
-    @AppStorage(DockIconController.defaultsKey) private var showDockIcon = false
+    @AppStorage(PresenceController.pinDefaultsKey) private var pinDockIcon = false
 
     var body: some View {
         Form {
@@ -198,9 +198,9 @@ private struct MenuBarDockSettingsView: View {
             }
 
             Section {
-                Toggle("Show icon in the Dock", isOn: $showDockIcon)
+                Toggle("Keep in the Dock in the background", isOn: $pinDockIcon)
                 caption(
-                    "Also show \(AppInfo.displayName) in the Dock while it's running, as a second way to open it: handy if your menu bar is too crowded to see the menu bar items. It still runs from the menu bar either way."
+                    "\(AppInfo.displayName) appears in the Dock whenever one of its windows is open, which is also what gives it the usual menus. Turn this on to keep it in the Dock while it runs in the background with no window open."
                 )
             } header: {
                 Text("Dock")

@@ -1021,6 +1021,36 @@
         }
       }
     },
+    "%@ appears in the Dock whenever one of its windows is open, which is also what gives it the usual menus. Turn this on to keep it in the Dock while it runs in the background with no window open." : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ erscheint im Dock, sobald eines seiner Fenster geöffnet ist; das ist auch der Grund, warum es dann die üblichen Menüs hat. Aktiviere dies, um es im Dock zu behalten, während es ohne geöffnetes Fenster im Hintergrund läuft."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ appears in the Dock whenever one of its windows is open, which is also what gives it the usual menus. Turn this on to keep it in the Dock while it runs in the background with no window open."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ apparaît dans le Dock dès qu’une de ses fenêtres est ouverte, ce qui lui donne aussi les menus habituels. Activez cette option pour le garder dans le Dock pendant qu’il fonctionne en arrière-plan sans fenêtre ouverte."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只要 %@ 的任一窗口处于打开状态，它就会出现在程序坞中，这也是它拥有常规菜单的原因。开启此项可让它在后台无窗口运行时仍保留在程序坞中。"
+          }
+        }
+      }
+    },
     "%@ bytes" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -7797,66 +7827,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已在“分析”标签页中显示。"
-          }
-        }
-      }
-    },
-    "Also show %@ in the Dock while it's running, as a second way to open it: handy if your menu bar is too crowded to see the menu bar items. It still runs from the menu bar either way." : {
-      "comment" : "SettingsView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ auch im Dock anzeigen, solange es läuft, als zweiten Weg zum Öffnen: praktisch, wenn deine Menüleiste zu voll ist, um die Menüleisten-Symbole zu sehen. Es läuft so oder so weiter aus der Menüleiste."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Also show %@ in the Dock while it's running, as a second way to open it: handy if your menu bar is too crowded to see the menu bar items. It still runs from the menu bar either way."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Afficher aussi %@ dans le Dock pendant son exécution, comme second moyen de l'ouvrir : pratique si votre barre des menus est trop encombrée pour en voir les éléments. Dans tous les cas, l'app continue de fonctionner depuis la barre des menus."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "运行时也在程序坞中显示 %@,作为打开它的第二种方式。如果您的菜单栏过于拥挤而看不到菜单栏项目,这会很方便。无论哪种方式,它仍然从菜单栏运行。"
-          }
-        }
-      }
-    },
-    "Also show %@ in the Dock." : {
-      "comment" : "OnboardingView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ auch im Dock anzeigen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Also show %@ in the Dock."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Afficher aussi %@ dans le Dock."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "也在程序坞中显示 %@。"
           }
         }
       }
@@ -29341,6 +29311,36 @@
         }
       }
     },
+    "Keep %@ in the Dock even with no window open." : {
+      "comment" : "OnboardingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ auch dann im Dock behalten, wenn kein Fenster geöffnet ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep %@ in the Dock even with no window open."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Garder %@ dans le Dock même quand aucune fenêtre n’est ouverte."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即使没有打开窗口，也在程序坞中保留 %@。"
+          }
+        }
+      }
+    },
     "Keep archives of versions still in use; delete the rest in the Organizer." : {
       "comment" : "Disk Map (1.6.0)",
       "extractionState" : "manual",
@@ -29397,6 +29397,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "保留时长"
+          }
+        }
+      }
+    },
+    "Keep in the Dock in the background" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Hintergrund im Dock behalten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep in the Dock in the background"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Garder dans le Dock en arrière-plan"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在后台时保留在程序坞中"
           }
         }
       }
@@ -49917,36 +49947,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "显示所有进程"
-          }
-        }
-      }
-    },
-    "Show icon in the Dock" : {
-      "comment" : "SettingsView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Symbol im Dock anzeigen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show icon in the Dock"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Afficher l’icône dans le Dock"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在程序坞中显示图标"
           }
         }
       }

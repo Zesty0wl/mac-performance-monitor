@@ -526,7 +526,7 @@ private struct OnboardingPermissionsStep: View {
 /// refresh interval.
 private struct OnboardingMenuBarStep: View {
     @EnvironmentObject private var menuBar: CombinedMenuBarConfiguration
-    @AppStorage(DockIconController.defaultsKey) private var showDockIcon = false
+    @AppStorage(PresenceController.pinDefaultsKey) private var pinDockIcon = false
     @AppStorage(SamplerModel.tableIntervalKey) private var tableInterval =
         SamplerModel.defaultTableInterval
 
@@ -554,8 +554,8 @@ private struct OnboardingMenuBarStep: View {
 
                 OnboardingToggleRow(
                     symbol: "dock.rectangle", title: "Dock icon",
-                    subtitle: "Also show \(AppInfo.displayName) in the Dock.",
-                    isOn: $showDockIcon)
+                    subtitle: "Keep \(AppInfo.displayName) in the Dock even with no window open.",
+                    isOn: $pinDockIcon)
 
                 HStack(spacing: 10) {
                     Image(systemName: "timer")
