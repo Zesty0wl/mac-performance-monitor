@@ -378,9 +378,10 @@ private struct OnboardingActionRow: View {
     }
 }
 
-/// Step 1: choose the function mode (full history vs menu-bar-only).
+/// Step 1: which optional components run. The window is always there; the menu
+/// bar read-out and the history recorder are independent switches.
 private struct OnboardingModeStep: View {
-    @EnvironmentObject private var appMode: AppModeManager
+    @EnvironmentObject private var components: AppComponentsManager
 
     var body: some View {
         OnboardingStepScaffold(
@@ -389,62 +390,18 @@ private struct OnboardingModeStep: View {
             subtitle: "You can switch anytime: in Settings or from the menu bar."
         ) {
             VStack(spacing: 10) {
-                ForEach(AppMode.allCases, id: \.self) { mode in
-                    OnboardingModeCard(mode: mode, isSelected: appMode.mode == mode) {
-                        appMode.mode = mode
-                    }
-                }
+                OnboardingToggleRow(
+                    symbol: "menubar.rectangle", title: "Show in the menu bar",
+                    subtitle: "A live read-out near the clock, with a panel behind it.",
+                    isOn: $components.menuBarItem)
+                OnboardingToggleRow(
+                    symbol: "internaldrive", title: "Record history",
+                    subtitle:
+                        "Keep a local history so the charts can look back, and the leak board and pressure events work.",
+                    isOn: $components.historyLogging)
             }
             .padding(.top, 4)
         }
-    }
-}
-
-/// A single selectable mode card.
-private struct OnboardingModeCard: View {
-    let mode: AppMode
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: mode.symbol)
-                    .font(.title3)
-                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-                    .frame(width: 28)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(mode.title).font(.headline)
-                    Text(mode.summary)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 8)
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(
-                        isSelected ? Color.accentColor : Color(nsColor: .tertiaryLabelColor))
-            }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(
-                        isSelected
-                            ? Color.accentColor.opacity(0.12)
-                            : Color(nsColor: .controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(
-                        isSelected ? Color.accentColor : Color(nsColor: .separatorColor),
-                        lineWidth: isSelected ? 1.5 : 1)
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(mode.title + ". " + mode.summary)
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
 

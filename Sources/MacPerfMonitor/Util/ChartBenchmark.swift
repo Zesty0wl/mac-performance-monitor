@@ -372,7 +372,7 @@ enum ChartBenchmark {
             .environmentObject(store.monitor)
             .environmentObject(store.groupStore)
             .environmentObject(store.helper)
-            .environmentObject(store.appMode)
+            .environmentObject(store.components)
         }
     }
 
@@ -400,7 +400,7 @@ enum ChartBenchmark {
         let monitor = MonitorSelection()
         let groupStore = ProcessGroupStore()
         let helper = HelperManager()
-        let appMode = AppModeManager()
+        let components = AppComponentsManager()
         private var generator = Generator()
         private var processes: [ProcessSample] = []
         private let base: Sampler.Snapshot
@@ -554,7 +554,7 @@ enum ChartBenchmark {
                 .environmentObject(store.monitor)
                 .environmentObject(store.groupStore)
                 .environmentObject(store.helper)
-                .environmentObject(store.appMode)
+                .environmentObject(store.components)
         }
     }
 
@@ -572,7 +572,7 @@ enum ChartBenchmark {
                 .environmentObject(store.monitor)
                 .environmentObject(store.groupStore)
                 .environmentObject(store.helper)
-                .environmentObject(store.appMode)
+                .environmentObject(store.components)
         }
     }
 
@@ -600,7 +600,7 @@ enum ChartBenchmark {
                     .environmentObject(store.monitor)
                     .environmentObject(store.groupStore)
                     .environmentObject(store.helper)
-                    .environmentObject(store.appMode))
+                    .environmentObject(store.components))
             let environment = ProcessInfo.processInfo.environment
             return Scenario(
                 view: view,
@@ -647,7 +647,7 @@ enum ChartBenchmark {
                     .environmentObject(store.monitor)
                     .environmentObject(store.groupStore)
                     .environmentObject(store.helper)
-                    .environmentObject(store.appMode)
+                    .environmentObject(store.components)
                     .environmentObject(fullDiskAccess))
             let environment = ProcessInfo.processInfo.environment
             var tickIndex = 0
@@ -727,7 +727,7 @@ enum ChartBenchmark {
                 .environmentObject(store.monitor)
                 .environmentObject(store.groupStore)
                 .environmentObject(store.helper)
-                .environmentObject(store.appMode)
+                .environmentObject(store.components)
         }
     }
 

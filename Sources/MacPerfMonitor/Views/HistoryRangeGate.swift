@@ -10,12 +10,12 @@ import SwiftUI
 /// there). Apply with `.historyRangeGate()` as the outermost modifier on a
 /// `HistoryWindow` range picker.
 private struct HistoryRangeGate: ViewModifier {
-    @EnvironmentObject private var appMode: AppModeManager
+    @EnvironmentObject private var components: AppComponentsManager
     @State private var showEnablePrompt = false
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if appMode.mode.logsHistory {
+        if components.historyLogging {
             content
         } else {
             // Dim the picker for the greyed-out look and turn off its hit testing
@@ -37,7 +37,7 @@ private struct HistoryRangeGate: ViewModifier {
                 isPresented: $showEnablePrompt,
                 titleVisibility: .visible
             ) {
-                Button("Enable Logging") { appMode.mode = .full }
+                Button("Enable Logging") { components.historyLogging = true }
                 Button("Not Now", role: .cancel) {}
             } message: {
                 Text(

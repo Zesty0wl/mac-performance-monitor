@@ -480,7 +480,7 @@ final class SamplerModel: ObservableObject {
 
     init(
         interval: TimeInterval? = nil, historyCapacity: Int = 900, store: SampleStore? = nil,
-        persistenceEnabled: Bool = AppModeManager.loggingEnabledFromDefaults()
+        persistenceEnabled: Bool = AppComponentsManager.loggingEnabledFromDefaults()
     ) {
         let tableInterval = Self.configuredTableInterval()
         let baseInterval = interval ?? LiveRefreshCadence.baseInterval(for: tableInterval)

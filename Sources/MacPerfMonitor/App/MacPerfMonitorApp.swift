@@ -138,7 +138,7 @@ struct MacPerfMonitorApp: App {
                     .environmentObject(appDelegate.loginItemManager)
                     .environmentObject(appDelegate.monitorSelection)
                     .environmentObject(appDelegate.groupStore)
-                    .environmentObject(appDelegate.appModeManager)
+                    .environmentObject(appDelegate.components)
             }
         }
         .defaultSize(width: 980, height: 640)
@@ -180,7 +180,7 @@ struct MacPerfMonitorApp: App {
                     .environmentObject(appDelegate.helperManager)
                     .environmentObject(appDelegate.fullDiskAccessManager)
                     .environmentObject(appDelegate.loginItemManager)
-                    .environmentObject(appDelegate.appModeManager)
+                    .environmentObject(appDelegate.components)
                     .environmentObject(appDelegate.menuBarConfiguration)
             }
         }
@@ -189,7 +189,7 @@ struct MacPerfMonitorApp: App {
             LocaleRootView(languageManager: appDelegate.languageManager) {
                 OnboardingView()
                     .environmentObject(appDelegate.onboarding)
-                    .environmentObject(appDelegate.appModeManager)
+                    .environmentObject(appDelegate.components)
                     .environmentObject(appDelegate.loginItemManager)
                     .environmentObject(appDelegate.helperManager)
                     .environmentObject(appDelegate.fullDiskAccessManager)
@@ -382,7 +382,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     @preconcurrency UNUserNotificationCenterDelegate
 {
     let model = SamplerModel()
-    let appModeManager = AppModeManager()
+    let components = AppComponentsManager()
     let languageManager = AppLanguageManager()
     let alertSettings = AlertSettings()
     let alertCenter = AlertCenter()
@@ -430,7 +430,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         let combinedStatusItem = CombinedStatusItemController(
             model: model, appState: appState, helperManager: helperManager,
             updateController: updateController,
-            appModeManager: appModeManager, languageManager: languageManager,
+            components: components, languageManager: languageManager,
             configuration: menuBarConfiguration,
             notchDisplay: notchDisplayController)
         combinedStatusItem.start()
@@ -508,9 +508,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         // writes. The explicit apply matches the store the model already opened at
         // launch (a no-op), and later changes — from Settings, the menu-bar
         // toggle, or the startup wizard — open or close it live.
-        model.setPersistenceEnabled(appModeManager.isLoggingEnabled)
-        appModeManager.$mode
-            .sink { [weak model] mode in model?.setPersistenceEnabled(mode.logsHistory) }
+        model.setPersistenceEnabled(components.historyLogging)
+        components.$state
+            .sink { [weak model] state in model?.setPersistenceEnabled(state.historyLogging) }
+            .store(in: &cancellables)
+        // Switching everything off while no window is open is a way of asking
+        // the app to stop, so honour it rather than sitting there invisible.
+        components.$state
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                MainActor.assumeIsolated { self?.terminateIfNothingLeftToDo() }
+            }
             .store(in: &cancellables)
 
         // Wire the privileged helper: read its current status, install the
@@ -609,10 +617,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     }
 
     /// Whether the app has any reason to keep running once its last window has
-    /// closed: a menu bar item to show, or history to record. Phase 3 makes the
-    /// item optional, at which point this starts returning false.
+    /// closed: a menu bar item to show, or history to record.
     private var hasBackgroundReasonToRun: Bool {
-        combinedStatusItem != nil || appModeManager.isLoggingEnabled
+        components.state.keepsRunningWithoutWindows
     }
 
     /// Quit when the last window closes and there is nothing left to do. An app

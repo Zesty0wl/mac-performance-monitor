@@ -93,7 +93,7 @@ enum CombinedMenuBarImage {
         let image =
             switch presentation {
             case .focus:
-                focusImage(readout: readouts[0])
+                readouts.first.map(focusImage(readout:)) ?? NSImage(size: .zero)
             case .strip:
                 stripImage(readouts: readouts)
             }
