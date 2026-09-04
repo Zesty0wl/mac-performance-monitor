@@ -1831,6 +1831,66 @@
         }
       }
     },
+    "%@ is ready. It is not recording and has no menu bar read-out, so it will close when you close its window." : {
+      "comment" : "OnboardingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ist bereit. Es zeichnet nicht auf und hat keine Menüleisten-Anzeige, also wird es beendet, wenn du sein Fenster schließt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is ready. It is not recording and has no menu bar read-out, so it will close when you close its window."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ est prêt. Il n’enregistre pas et n’a pas de relevé dans la barre des menus, il se fermera donc quand vous fermerez sa fenêtre."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 已就绪。它当前不记录数据，也没有菜单栏读数，因此关闭窗口时它会退出。"
+          }
+        }
+      }
+    },
+    "%@ is recording now, quietly in the background. Open it again whenever you want to look." : {
+      "comment" : "OnboardingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ zeichnet jetzt auf, unauffällig im Hintergrund. Öffne es einfach wieder, wenn du nachsehen möchtest."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is recording now, quietly in the background. Open it again whenever you want to look."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ enregistre désormais, discrètement en arrière-plan. Rouvrez-le quand vous voulez y jeter un œil."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 正在后台安静地记录。想查看时随时重新打开它即可。"
+          }
+        }
+      }
+    },
     "%@ is recording now. Its read-out lives in the menu bar, near the clock." : {
       "comment" : "Onboarding: the closing card (1.7.0)",
       "extractionState" : "manual",
@@ -1977,6 +2037,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ 正在大量占用网络"
+          }
+        }
+      }
+    },
+    "%@ is watching now. Its read-out lives in the menu bar, near the clock." : {
+      "comment" : "OnboardingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ beobachtet jetzt. Die Anzeige sitzt in der Menüleiste, in der Nähe der Uhr."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is watching now. Its read-out lives in the menu bar, near the clock."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ surveille désormais. Son relevé se trouve dans la barre des menus, près de l’horloge."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 已开始监测。它的读数显示在菜单栏中，就在时钟附近。"
           }
         }
       }
@@ -54177,6 +54267,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "主线程正在处理它的 run loop，响应正常。"
+          }
+        }
+      }
+    },
+    "The menu bar read-out is off, so there is nothing to arrange here." : {
+      "comment" : "OnboardingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Menüleisten-Anzeige ist aus, hier gibt es also nichts einzurichten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The menu bar read-out is off, so there is nothing to arrange here."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le relevé de la barre des menus est désactivé, il n’y a donc rien à régler ici."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "菜单栏读数已关闭，因此这里没有可设置的内容。"
           }
         }
       }
