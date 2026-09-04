@@ -142,6 +142,16 @@ into `AppLanguage.machineTranslated` with its strings in state `needs_review`,
 which drives the Settings notice; take it out again once a native speaker has
 reviewed the language.
 
+Crowdin's pull request conflicts whenever a commit on `main` touches the
+catalog while that pull request is open, because both sides rewrite the same
+regions of one JSON file. Resolve it by taking Crowdin's copy whole: check out
+`l10n_main`, merge `main` into it, keep `--ours` for
+`Localizations/Localizable.xcstrings`, push, and merge the pull request once CI
+passes. Crowdin holds the translations, so its file is the one to keep. Before
+merging, confirm the diff against `main` is only what Crowdin is entitled to
+change: the same set of keys, English and any language nobody edited untouched,
+and per-string differences limited to the `state` field and whitespace.
+
 ## Submitting changes
 
 1. Fork the repository and create a topic branch.
