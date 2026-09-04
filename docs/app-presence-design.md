@@ -136,7 +136,9 @@ Dock icon and the standard menus.
 
 ## Phases
 
-Each phase is one pull request, CI green, squash merged.
+Each phase is one pull request into the `2.0.0` branch, CI green, squash
+merged. Nothing lands on `main` until the whole shape is finished and
+released. See "Branch and release" below.
 
 ### Phase 1: make window opening independent of the menu bar
 
@@ -201,6 +203,32 @@ No user-visible change. Everything else depends on this.
 - CHANGELOG, glossary entries for the new switches, README wording.
 - A short note in this document recording what was actually built.
 - Screenshots for the new Settings tab.
+
+## Branch and release
+
+This ships as **2.0.0**, on a long-lived `2.0.0` branch, because it changes what
+the app is rather than adding to it. An existing user's app gains a Dock icon
+while its window is open, shows its window on a manual launch instead of
+appearing to do nothing, and can now quit itself when everything is switched
+off. That is a major version by any reading.
+
+Four things follow from working on a branch:
+
+- **CI runs on pull requests into `2.0.0`** as it does for `main`, and the
+  workflow's push trigger includes the branch so the integration branch itself
+  is checked after every merge.
+- **Merge `main` into `2.0.0` regularly**, at least whenever `main` moves. The
+  file that will conflict is `Localizations/Localizable.xcstrings`, exactly as
+  Crowdin's pull requests do, and the resolution rules in CONTRIBUTING.md apply
+  the same way.
+- **New strings reach Crowdin only after the merge to `main`**, since the
+  integration syncs the default branch. Translations for the new Settings copy
+  therefore have to be written in-branch, which is what CI requires anyway, and
+  Crowdin picks them up at release.
+- **The version bump is the last commit before the release**, following the
+  usual flow in `Scripts/deploy.sh`. The release notes need to lead with the
+  three visible changes above, because they arrive through Sparkle on machines
+  whose owners chose a menu bar app.
 
 ## Verification
 
