@@ -1509,6 +1509,16 @@ final class SamplerModel: ObservableObject {
     /// popovers that want a 1 Hz read-out (memory used, pressure) read this. O(1).
     var liveSystem: SystemSample? { systemHistory.last }
 
+    /// The newest CPU sample, exactly as measured, with no smoothing.
+    ///
+    /// `smoothedCPU` is a five second rolling mean, which is what a menu bar
+    /// read-out needs: an unsmoothed percentage jitters too much to read at a
+    /// glance. It is the wrong thing for the per-core bars, where a core that
+    /// pins for half a second and drops back is the movement you are looking
+    /// for, and the mean flattens it to nearly nothing. So the core grids read
+    /// this instead.
+    var liveCPU: CPUSample? { recentCPUSamples.last }
+
     /// The most recent battery sample, refreshed every fast tick (~1 Hz) — the
     /// battery analogue of `liveSystem`/`latestNetwork`, so the battery menubar
     /// read-outs stay live at 1 Hz instead of the slower heavy `latest` cadence.

@@ -85,7 +85,7 @@ struct DashboardView: View {
         .onReceive(liveTicks) { _ in
             guard appState.mainWindowVisible, let model else { return }
             timeline.append(
-                model.liveSystem, cpu: model.smoothedCPU,
+                model.liveSystem, cpu: model.smoothedCPU, liveCPU: model.liveCPU,
                 networkRates: model.smoothedNetworkRates, diskRates: model.smoothedDiskRates,
                 disk: model.latestDisk)
             appendThermalPoint(model)
@@ -395,6 +395,7 @@ struct DashboardView: View {
             guard self.range == requested else { return }
             self.timeline.replace(
                 pts, span: requested.seconds, live: model.liveSystem, cpu: model.smoothedCPU,
+                liveCPU: model.liveCPU,
                 totalRAM: model.liveSystem?.totalRAM ?? model.latest?.system.totalRAM ?? 0)
             self.thermalPoints = pts
             self.loadedRange = requested
@@ -488,7 +489,7 @@ private final class DashboardTimelineStore: ObservableObject {
 
     func replace(
         _ loaded: [SystemHistoryPoint], span: TimeInterval, live: SystemSample?, cpu: CPUSample?,
-        totalRAM: UInt64
+        liveCPU: CPUSample?, totalRAM: UInt64
     ) {
         window.replace(loaded, span: span)
         if let live {
@@ -508,13 +509,14 @@ private final class DashboardTimelineStore: ObservableObject {
                 return template
             }
         publishCharts()
-        publishReadouts(cpu: cpu, networkRates: nil, diskRates: nil, disk: nil)
+        publishReadouts(
+            cpu: cpu, liveCPU: liveCPU, networkRates: nil, diskRates: nil, disk: nil)
         if window.count >= 2, !hasEnoughHistory { hasEnoughHistory = true }
         rangeVersion &+= 1
     }
 
     func append(
-        _ system: SystemSample?, cpu: CPUSample?,
+        _ system: SystemSample?, cpu: CPUSample?, liveCPU: CPUSample?,
         networkRates: (inBytesPerSec: Double, outBytesPerSec: Double)?,
         diskRates: (readBytesPerSec: Double, writeBytesPerSec: Double)?, disk: DiskSample?
     ) {
@@ -525,7 +527,9 @@ private final class DashboardTimelineStore: ObservableObject {
         if totalRAM == 0, system.totalRAM > 0 { totalRAM = system.totalRAM }
         refreshAutoDomains()
         publishCharts()
-        publishReadouts(cpu: cpu, networkRates: networkRates, diskRates: diskRates, disk: disk)
+        publishReadouts(
+            cpu: cpu, liveCPU: liveCPU, networkRates: networkRates, diskRates: diskRates,
+            disk: disk)
         if window.count >= 2, !hasEnoughHistory { hasEnoughHistory = true }
     }
 
@@ -564,7 +568,8 @@ private final class DashboardTimelineStore: ObservableObject {
     /// The figures around the charts: processor, network and disk read-outs,
     /// the core grid, and the memory composition.
     private func publishReadouts(
-        cpu: CPUSample?, networkRates: (inBytesPerSec: Double, outBytesPerSec: Double)?,
+        cpu: CPUSample?, liveCPU: CPUSample?,
+        networkRates: (inBytesPerSec: Double, outBytesPerSec: Double)?,
         diskRates: (readBytesPerSec: Double, writeBytesPerSec: Double)?, disk: DiskSample?
     ) {
         cpuTotalFeed.publish(
@@ -572,7 +577,10 @@ private final class DashboardTimelineStore: ObservableObject {
         cpuPerformanceFeed.publish(cpu.map { percent($0.performanceUsage) } ?? "—")
         cpuEfficiencyFeed.publish(cpu.map { percent($0.efficiencyUsage) } ?? "—")
         loadAverageFeed.publish(cpu.map { String(format: "%.2f", $0.loadAverage1) } ?? "—")
-        coreFeed.publish(cpu?.cores ?? [])
+        // The bars show the sample as measured; the percentages around them
+        // stay smoothed, because a jittering number is unreadable and a still
+        // core grid is uninformative.
+        coreFeed.publish((liveCPU ?? cpu)?.cores ?? [])
         if let networkRates {
             downloadFeed.publish(ByteFormat.rate(networkRates.inBytesPerSec))
             uploadFeed.publish(ByteFormat.rate(networkRates.outBytesPerSec))
