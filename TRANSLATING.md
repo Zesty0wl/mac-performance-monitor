@@ -37,6 +37,29 @@ send corrections there rather than as catalog pull requests, so the two do not
 overwrite each other. Everything below describes the GitHub route, and the
 rules further down apply either way.
 
+## AI-generated languages
+
+German and French were generated on 2026-09-03 by Claude Fable 5.1, Anthropic's
+AI model, working from the English source text and the glossary in this file's
+spirit (Apple's own macOS terminology, informal "du" in German, "vous" in
+French). No native speaker has reviewed them yet. We say so openly:
+
+- Every generated string carries the catalog state `needs_review`, so Xcode
+  and Crowdin both show it as unreviewed, and it is exported unapproved to
+  Crowdin.
+- Settings shows a notice under the language picker while a machine-translated
+  language is active, naming the model and pointing here.
+- Strings identical to the English (product names, units) are marked
+  `translated`, since there is nothing to review.
+
+To improve one: fix it on Crowdin, or send a catalog pull request. Approving a
+string in Crowdin, or setting its state to `translated` in the catalog, marks it
+reviewed. When a native speaker has been through a whole language, a maintainer
+removes it from `AppLanguage.machineTranslated` in
+`Sources/MacPerfMonitor/Settings/AppLanguageManager.swift` and the notice goes
+away. Native-speaker review of these two languages is one of the most useful
+contributions the project can receive right now.
+
 ## Adding a language on GitHub
 
 1. Open `Localizations/Localizable.xcstrings`. If you have Xcode, double-click
