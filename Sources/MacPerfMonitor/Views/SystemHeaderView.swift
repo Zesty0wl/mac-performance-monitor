@@ -64,13 +64,15 @@ struct SystemHeaderView: View {
         // for it (the feeds repaint their AppKit surfaces).
         .onReceive(model.liveTick) {
             guard appState.mainWindowVisible else { return }
-            live.append(model.liveSystem, cpu: model.smoothedCPU)
+            live.append(model.liveSystem, cpu: model.smoothedCPU, liveCPU: model.liveCPU)
         }
     }
 
     private func reload() {
         model.loadRecentSystemHistory(seconds: 2 * 3600) { points in
-            live.replace(points, live: model.liveSystem, cpu: model.smoothedCPU)
+            live.replace(
+                points, live: model.liveSystem, cpu: model.smoothedCPU,
+                liveCPU: model.liveCPU)
         }
     }
 
@@ -199,18 +201,21 @@ final class ProcessHeaderStore: ObservableObject {
     /// grows the fourth card on machines that actually report one.
     @Published private(set) var hasTemperature = false
 
-    func replace(_ points: [SystemHistoryPoint], live: SystemSample?, cpu: CPUSample?) {
+    func replace(
+        _ points: [SystemHistoryPoint], live: SystemSample?, cpu: CPUSample?,
+        liveCPU: CPUSample?
+    ) {
         window.replace(points)
         if let live { window.append(Self.point(from: live)) }
-        publish(cpu, system: live)
+        publish(cpu, system: live, liveCPU: liveCPU)
     }
 
-    func append(_ system: SystemSample?, cpu: CPUSample?) {
+    func append(_ system: SystemSample?, cpu: CPUSample?, liveCPU: CPUSample?) {
         if let system { window.append(Self.point(from: system)) }
-        publish(cpu, system: system)
+        publish(cpu, system: system, liveCPU: liveCPU)
     }
 
-    private func publish(_ cpu: CPUSample?, system: SystemSample?) {
+    private func publish(_ cpu: CPUSample?, system: SystemSample?, liveCPU: CPUSample?) {
         let level = CPULevel(fraction: cpu?.totalUsage ?? 0)
         usageFeed.publish(
             value: cpu.map { "\(Int(($0.totalUsage * 100).rounded()))%" },
@@ -219,7 +224,10 @@ final class ProcessHeaderStore: ObservableObject {
         loadFeed.publish(
             value: cpu.map { String(format: "%.2f", $0.loadAverage1) }, tint: .labelColor,
             column: nil, xDomain: nil, yDomain: nil)
-        coreFeed.publish(cpu?.cores ?? [])
+        // The bars show the sample as measured. The cards above them stay
+        // smoothed: a jittering percentage is unreadable, a still core grid is
+        // uninformative.
+        coreFeed.publish((liveCPU ?? cpu)?.cores ?? [])
         // The temperature card: hottest die sensor, tinted by macOS's own
         // thermal pressure verdict (green means "hot but working as designed").
         let die = system?.cpuDieC ?? window.peakLatestCPUDie
