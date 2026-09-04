@@ -35,7 +35,6 @@ final class CombinedStatusItemController: NSObject {
 
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
-    private var router: NSHostingView<MenuBarWindowRouter>?
     private var cancellables = Set<AnyCancellable>()
     private var shownSignature: String?
     private var activeConsumer: MenuListKind?
@@ -100,12 +99,6 @@ final class CombinedStatusItemController: NSObject {
         item.button?.target = self
         item.button?.action = #selector(togglePopover(_:))
         item.button?.imagePosition = .imageOnly
-        if let button = item.button {
-            let host = NSHostingView(rootView: MenuBarWindowRouter())
-            host.frame = NSRect(x: 0, y: 0, width: 1, height: 1)
-            button.addSubview(host)
-            router = host
-        }
         statusItem = item
         refreshImage()
     }
@@ -114,8 +107,6 @@ final class CombinedStatusItemController: NSObject {
         menuClock.close()
         popover?.performClose(nil)
         popover = nil
-        router?.removeFromSuperview()
-        router = nil
         if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
         statusItem = nil
         model.setGPUSamplingEnabled(false)
