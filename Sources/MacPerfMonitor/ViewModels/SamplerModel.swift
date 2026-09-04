@@ -632,6 +632,12 @@ final class SamplerModel: ObservableObject {
         }
     }
 
+    /// Whether any popover that consumes the process scan is open. Read on the
+    /// sampler queue.
+    private var popoverOpenForUI: Bool {
+        popoverKindConsumers.contains { $0.value > 0 }
+    }
+
     /// Push the latest alert preferences onto the sampler queue, where the
     /// engine reads them. Called from settings whenever the config changes.
     func setAlertConfig(_ config: AlertConfig) {
@@ -781,7 +787,14 @@ final class SamplerModel: ObservableObject {
     func setTableInterval(_ seconds: Double) {
         let s = Self.tableIntervalChoices.contains(seconds) ? seconds : Self.defaultTableInterval
         queue.async { [weak self] in
-            guard let self else { return }
+            // Only act on a real change. This is called from a
+            // `UserDefaults.didChangeNotification` sink, which fires for every
+            // defaults write in the process, including the window frame AppKit
+            // stores when a window opens or moves. Recomputing the cadence
+            // resets the tick counters, so without this guard opening the window
+            // wiped the "publish now" state `addProcessConsumer` had just set,
+            // and the process table sat empty for a full table interval.
+            guard let self, s != self.tableIntervalSeconds else { return }
             self.tableIntervalSeconds = s
             let baseInterval = LiveRefreshCadence.baseInterval(for: s)
             let intervalChanged = baseInterval != self.interval
@@ -800,7 +813,9 @@ final class SamplerModel: ObservableObject {
         let s =
             Self.highResIntervalChoices.contains(seconds) ? seconds : Self.defaultHighResInterval
         queue.async { [weak self] in
-            guard let self else { return }
+            // Same guard as `setTableInterval`: an unrelated defaults write must
+            // not reset the cadence counters.
+            guard let self, s != self.highResIntervalSeconds else { return }
             self.highResIntervalSeconds = s
             self.recomputeScanCadence()
         }
@@ -839,9 +854,13 @@ final class SamplerModel: ObservableObject {
         cpuSmoothingTicks = LiveRefreshCadence.tickCount(for: 5, baseInterval: interval)
         processSmoothingPoints = max(2, Int((5.0 / scan).rounded()))
         persistMinInterval = max(1.0, highResIntervalSeconds)
-        heavyTickCounter = 0
-        tableTickCounter = 0
-        popoverTickCounter = 0
+        // Restart the rhythm, but never cancel a counter that is already due:
+        // a surface that has just registered forces its counters past the
+        // threshold precisely so the next tick serves it, and a dial change
+        // arriving in between must not swallow that.
+        heavyTickCounter = heavyTickCounter >= heavyEveryTicks ? heavyEveryTicks : 0
+        tableTickCounter = tableTickCounter >= tableEveryTicks ? tableEveryTicks : 0
+        popoverTickCounter = popoverTickCounter >= popoverEveryTicks ? popoverEveryTicks : 0
     }
 
     /// Schedule or reschedule the single sampler timer at the selected base rate.
@@ -1271,7 +1290,12 @@ final class SamplerModel: ObservableObject {
             evaluateAlerts(
                 system: snapshot.system, processes: snapshot.processes, cpu: snapshot.cpu)
         }
-        guard job.uiWantsProcesses else { return }
+        // Whether anything wants these rows is decided again here, not just when
+        // the scan was dispatched. A window that opened while the scan was
+        // running would otherwise have to wait for the whole next one, which at
+        // launch is the difference between the process table appearing in about
+        // a second and in nearly two.
+        guard job.uiWantsProcesses || processConsumers > 0 || popoverOpenForUI else { return }
 
         // Trails freeze while nothing consumes the scan (full-mode recording
         // keeps running regardless); after a real gap the frozen points would
