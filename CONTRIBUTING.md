@@ -89,6 +89,16 @@ locally. It fails the build on a missing source value, a missing translation in
 a language declared complete, and any translation whose format specifiers do not
 match its key.
 
+`Scripts/check-string-coverage.py` runs in CI too and answers a question source
+text cannot. It builds with the compiler's own string extraction and compares
+the keys the compiler emits against the catalog, which is the only way to see
+the key SwiftUI builds from an interpolated literal: `Text("\(count) inside")`
+looks up `%lld inside`, so a translation filed under `%@ inside` never matches.
+A key it reports has to go in the catalog, or into the script's `NOT_TRANSLATED`
+allowlist when no language would render it differently: a separator, a unit, a
+sample value in a text field, a Swift Charts axis identifier. Put the reason
+next to the entry.
+
 Compiled `.lproj` directories are build output produced by `Scripts/bundle.sh`.
 They are not in the repository and must not be committed.
 
