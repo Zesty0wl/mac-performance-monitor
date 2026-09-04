@@ -55,9 +55,17 @@ private enum SingleInstanceGuard {
             .first { $0.processIdentifier != myPID && !$0.isTerminated }
         guard let existing else { return }
         NSLog(
-            "MacPerfMonitor: another instance (pid \(existing.processIdentifier)) is already running — activating it and exiting"
+            "MacPerfMonitor: another instance (pid \(existing.processIdentifier)) is already running: activating it and exiting"
         )
         existing.activate()
+        // Activating alone only raises whatever is already on screen, and this
+        // app usually has nothing on screen. Tell the surviving instance to open
+        // its window, so launching the app again is always a way back in, even
+        // when it has no menu bar item and no Dock icon. Delivered immediately
+        // because this process is about to exit.
+        DistributedNotificationCenter.default().postNotificationName(
+            .macperfmonitorShowMainWindowFromLaunch, object: nil, userInfo: nil,
+            deliverImmediately: true)
         exit(0)
     }
 }
@@ -339,6 +347,13 @@ extension Notification.Name {
     static let macperfmonitorShowMainWindow = Notification.Name(
         "uk.co.bzwrd.macperfmonitor.showMainWindow")
 
+    /// Posted between processes by a second copy that found this one already
+    /// running, before it exits. The running instance opens its main window, so
+    /// launching the app again surfaces it even with no menu bar item and no
+    /// Dock icon. Distributed, because the two are separate processes.
+    static let macperfmonitorShowMainWindowFromLaunch = Notification.Name(
+        "uk.co.bzwrd.macperfmonitor.showMainWindowFromLaunch")
+
     /// Posted to surface the first-run education flow (on first launch, or from
     /// the menu's "How MacPerfMonitor works…" action).
     static let macperfmonitorShowOnboarding = Notification.Name(
@@ -380,6 +395,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     /// Owns the menu's "Hide Notch" toggle: whether the built-in display runs in
     /// its notch-free mode, so status items get the whole menu bar width.
     let notchDisplayController = NotchDisplayController()
+    /// Carries SwiftUI's window-opening actions in a window of its own, so that
+    /// opening a window never depends on the menu bar item existing.
+    private let windowRouterHost = WindowRouterHost()
     /// The app's single AppKit-managed menu bar item and combined metric panel.
     private var combinedStatusItem: CombinedStatusItemController?
     /// Shows/hides the optional Dock icon, in sync with the Settings toggle.
@@ -393,6 +411,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         // default; a registered default makes the launch read below (and @AppStorage
         // toggles) see ON unless the user has explicitly turned it off.
         UserDefaults.standard.register(defaults: [SamplerModel.perAppNetworkDefaultsKey: true])
+
+        // Mount the window router before anything can ask for a window, so the
+        // bridge drains at once rather than queueing. It lives in its own
+        // off-screen window rather than in the status item's button, so the menu
+        // bar item can be turned off without stranding every window-opening path.
+        windowRouterHost.start()
+        DistributedNotificationCenter.default().addObserver(
+            self, selector: #selector(showMainWindowFromLaunch(_:)),
+            name: .macperfmonitorShowMainWindowFromLaunch, object: nil)
 
         // Install one combined AppKit status item. It owns the shared popover,
         // compact read-out strip, sampling gates, and window-opening router.
@@ -534,6 +561,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         NSWorkspace.shared.notificationCenter.addObserver(
             self, selector: #selector(systemDidWake(_:)),
             name: NSWorkspace.didWakeNotification, object: nil)
+    }
+
+    /// A second copy of the app was launched and handed off to us. Surface the
+    /// main window, which is what the person who launched it was asking for.
+    @objc private func showMainWindowFromLaunch(_ note: Notification) {
+        MainActor.assumeIsolated {
+            WindowOpenBridge.shared.open(id: WindowID.main)
+        }
     }
 
     /// The Mac woke from sleep: run a silent update check (no UI unless an update
@@ -678,10 +713,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     func applicationShouldHandleReopen(
         _ sender: NSApplication, hasVisibleWindows flag: Bool
     ) -> Bool {
-        if !flag {
-            // Through the bridge, not a notification: a reopen that arrives
-            // before (or without) a mounted router view queues instead of
-            // vanishing, so `open`-ing the running app always ends in a window.
+        // `flag` counts every visible window, including the router host, so ask
+        // our own question instead: is there a window the user can actually see?
+        // Through the bridge, not a notification: a reopen that arrives before a
+        // router view has mounted queues instead of vanishing, so `open`-ing the
+        // running app always ends in a window.
+        if !NSApp.windows.contains(where: { $0.isRealAppWindow }) {
             WindowOpenBridge.shared.open(id: WindowID.main)
         }
         return true
@@ -773,12 +810,12 @@ struct MainWindowGate: View {
     }
 }
 
-/// An invisible, always-mounted SwiftUI view that carries the menu-bar app's
+/// An invisible, always-mounted SwiftUI view that carries the app's
 /// window-opening plumbing.
 ///
-/// The primary menubar item is now an AppKit `NSStatusItem` with no SwiftUI label
-/// (see `MemoryStatusItemController`), so the `openWindow`/`openSettings` actions
-/// that used to live on the `MenuBarExtra` label need another always-present home.
+/// The menu bar item is an AppKit `NSStatusItem` with no SwiftUI label, so the
+/// `openWindow`/`openSettings` actions that used to live on the `MenuBarExtra`
+/// label need another always-present home. That home is `WindowRouterHost`.
 /// Bridges AppKit-side window-open requests (the app delegate) to SwiftUI's
 /// `openWindow` action, which only exists inside a mounted view. A request that
 /// arrives before any `MenuBarWindowRouter` has registered is queued and flushed
@@ -811,9 +848,10 @@ final class WindowOpenBridge {
     }
 }
 
-/// `MemoryStatusItemController` hosts one of these inside its status item button
-/// (whose window is live), so the notifications posted by the popovers, the
-/// process actions, notification clicks, and reopen keep opening the right window.
+/// `WindowRouterHost` mounts one of these in a window of its own, so the
+/// notifications posted by the popovers, the process actions, notification
+/// clicks, and reopen keep opening the right window whether or not there is a
+/// menu bar item.
 struct MenuBarWindowRouter: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
@@ -848,7 +886,7 @@ struct MenuBarWindowRouter: View {
 }
 
 /// Rasterises the primary "Pressure" menubar read-out to an `NSImage` for the
-/// AppKit-managed status item (`MemoryStatusItemController`). Mirrors
+/// AppKit-managed status item. Mirrors
 /// `CPUMenuBarImage`/`BatteryMenuBarImage` — a "Pressure" caption over the current
 /// pressure percentage, tinted green/orange/red by level — with the same
 /// once-per-change caching so an unchanged tick re-renders nothing. Non-template
@@ -874,7 +912,7 @@ enum MemoryMenuBarImage {
 }
 
 /// Rasterises the CPU menubar read-out to an `NSImage` for the AppKit-managed
-/// status item (`CPUStatusItemController`). Mirrors `MemoryMenuBarImage`'s
+/// status item. Mirrors `MemoryMenuBarImage`'s
 /// rendering and the same once-per-change caching, kept separate so the two items
 /// never invalidate each other.
 @MainActor
