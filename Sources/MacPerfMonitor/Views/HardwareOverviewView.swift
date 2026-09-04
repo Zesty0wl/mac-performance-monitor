@@ -21,7 +21,9 @@ struct HardwareOverviewView: View {
         ScrollView {
             // Two columns whose rows share a height (every card stretches to
             // its row) and sit top-aligned, so the page reads as a neat grid.
-            // One column when the pane is too narrow for two.
+            // One column when the pane is too narrow for two. The grid takes the
+            // whole pane, as every other tab does: it used to stop at 1240
+            // points, which left a gutter down the right of a wide window.
             ViewThatFits(in: .horizontal) {
                 Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 16) {
                     GridRow {
@@ -45,7 +47,7 @@ struct HardwareOverviewView: View {
                             .gridCellColumns(2)
                     }
                 }
-                .frame(maxWidth: 1240, alignment: .leading)
+
                 VStack(alignment: .leading, spacing: 16) {
                     macCard
                     socCard
