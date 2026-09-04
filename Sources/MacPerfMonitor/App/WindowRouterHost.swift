@@ -64,6 +64,9 @@ extension NSWindow {
     /// is the discriminator: every scene window in this app can become main, and
     /// none of the infrastructure windows can.
     var isRealAppWindow: Bool {
-        isVisible && canBecomeMain
+        // Miniaturized windows report `isVisible == false`, but they are still
+        // open, and the Dock icon is where the user goes to get them back. So
+        // they count.
+        (isVisible || isMiniaturized) && canBecomeMain
     }
 }

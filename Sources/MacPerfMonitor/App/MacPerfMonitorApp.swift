@@ -100,10 +100,13 @@ private enum ServiceUninstaller {
 
 /// The MacPerfMonitor SwiftUI app.
 ///
-/// The app is menubar-first (`LSUIElement` true, so no Dock icon). Sampling runs
-/// from launch in the app delegate, independent of any window, so the menubar
-/// stays live and within budget while the main window is closed. The window and
-/// settings are opened from the menu.
+/// The window is the app's primary surface; the menu bar item and the history
+/// logger are optional components alongside it (see
+/// `docs/app-presence-design.md`). The bundle declares `LSUIElement` so the
+/// process starts quiet, and `PresenceController` promotes it to a regular
+/// application whenever a window is open. Sampling runs from launch in the app
+/// delegate, independent of any window, so the menu bar item stays live and
+/// within budget while no window is up.
 struct MacPerfMonitorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
@@ -400,8 +403,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     private let windowRouterHost = WindowRouterHost()
     /// The app's single AppKit-managed menu bar item and combined metric panel.
     private var combinedStatusItem: CombinedStatusItemController?
-    /// Shows/hides the optional Dock icon, in sync with the Settings toggle.
-    private var dockIconController: DockIconController?
+    /// Owns the activation policy: regular while a window is open, accessory
+    /// otherwise, pinned regular if the user asked for a permanent Dock icon.
+    private let presenceController = PresenceController()
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -462,12 +466,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
             }
             .store(in: &cancellables)
 
-        // Optional Dock icon (off by default). Opt-in for users whose menu bar is
-        // too crowded to see our items. Reads its own state from UserDefaults and
-        // stays in sync with the Settings toggle, applying live.
-        let dockIconController = DockIconController()
-        dockIconController.start()
-        self.dockIconController = dockIconController
+        // Follow the windows: regular application while one is open, background
+        // agent when the last one closes, unless the user pinned the Dock icon.
+        presenceController.start()
+        WindowOpenBridge.shared.onWindowRequested = { [presenceController] in
+            presenceController.scheduleApply()
+        }
 
         // Wire alerting: ask permission once, route fired alerts to notifications,
         // and keep the sampler's alert config in sync with the user's settings.
@@ -548,6 +552,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         if !onboarding.hasCompletedSetup {
             onboarding.autoConfigOnly = onboarding.hasCompleted
             WindowOpenBridge.shared.open(id: WindowID.onboarding)
+        } else if isUserLaunch(notification) {
+            // The window is the app now, so a launch shows it. A launch the
+            // person did not ask for does not: opening at login must stay quiet,
+            // or the app puts a window in their face every morning.
+            presentMainWindowAtLaunch()
         }
 
         // Check for updates on every cold start (silent unless one is available),
@@ -569,6 +578,59 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         MainActor.assumeIsolated {
             WindowOpenBridge.shared.open(id: WindowID.main)
         }
+    }
+
+    /// Whether this launch was the user asking for the app, as opposed to the
+    /// system starting it as a login item, to open a file, or to perform a
+    /// service. AppKit reports it in the launch notification; treat an absent
+    /// key as a user launch, which is what a plain double-click looks like.
+    private func isUserLaunch(_ notification: Notification) -> Bool {
+        notification.userInfo?[NSApplication.launchIsDefaultUserInfoKey] as? Bool ?? true
+    }
+
+    /// Ask for the main window shortly after launch, and keep asking until one
+    /// exists or the attempts run out.
+    ///
+    /// The scene tree is not built while the delegate is still finishing launch,
+    /// and a request made too early is dropped on the floor rather than queued,
+    /// so a single attempt is not reliable. Each retry is cheap, they stop the
+    /// moment a window exists, and the last one logs rather than failing
+    /// silently, which is what a launch that shows nothing would otherwise do.
+    private func presentMainWindowAtLaunch(attempt: Int = 0) {
+        if NSApp.windows.contains(where: { $0.isRealAppWindow }) { return }
+        guard attempt < 6 else {
+            AppLog.ui.error("no window on screen after launch; giving up asking")
+            return
+        }
+        WindowOpenBridge.shared.open(id: WindowID.main)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            MainActor.assumeIsolated { self?.presentMainWindowAtLaunch(attempt: attempt + 1) }
+        }
+    }
+
+    /// Whether the app has any reason to keep running once its last window has
+    /// closed: a menu bar item to show, or history to record. Phase 3 makes the
+    /// item optional, at which point this starts returning false.
+    private var hasBackgroundReasonToRun: Bool {
+        combinedStatusItem != nil || appModeManager.isLoggingEnabled
+    }
+
+    /// Quit when the last window closes and there is nothing left to do. An app
+    /// with no window, no menu bar item and no logging is running invisibly and
+    /// achieving nothing, which is worse than closing.
+    private func terminateIfNothingLeftToDo() {
+        guard !NSApp.windows.contains(where: { $0.isRealAppWindow }) else { return }
+        guard !hasBackgroundReasonToRun else { return }
+        AppLog.ui.notice("last window closed with nothing left to do: quitting")
+        NSApp.terminate(nil)
+    }
+
+    /// Never let AppKit make this decision. Closing the last window usually
+    /// leaves the app running on purpose, to keep the menu bar item live and the
+    /// logger recording; the one case where it should quit is handled by
+    /// `terminateIfNothingLeftToDo`, which knows about both.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 
     /// The Mac woke from sleep: run a silent update check (no UI unless an update
@@ -703,6 +765,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
             // Help doesn't leave a footprint bump behind.
             MainActor.assumeIsolated { MemoryReclaim.runAfterWindowClose() }
         }
+        // Any window closing might have been the last one. Decide on the next
+        // turn of the run loop, once this window has left `NSApp.windows`.
+        DispatchQueue.main.async { [weak self] in
+            MainActor.assumeIsolated { self?.terminateIfNothingLeftToDo() }
+        }
     }
 
     /// "Reopening" (relaunching from Finder/Spotlight/`open`, or clicking the
@@ -828,6 +895,12 @@ final class WindowOpenBridge {
     private var openAction: ((String) -> Void)?
     private var pending: [String] = []
 
+    /// Called whenever a window is asked for, including a request that is only
+    /// queued. `PresenceController` uses it to re-evaluate the activation
+    /// policy: a window can be created without ever becoming key, so the window
+    /// notifications alone are not enough to notice that one now exists.
+    var onWindowRequested: (() -> Void)?
+
     /// Called from `MenuBarWindowRouter.onAppear`; replays anything queued while
     /// no router was mounted. Last registration wins, which is fine: every
     /// router drives the same scene ids.
@@ -843,8 +916,16 @@ final class WindowOpenBridge {
         if let openAction {
             openAction(id)
         } else {
+            AppLog.ui.notice("open window \(id, privacy: .public): queued until a router mounts")
             pending.append(id)
         }
+        onWindowRequested?()
+    }
+
+    /// Note that a window was opened by some path other than `open(id:)`, such
+    /// as Settings, so the policy is re-evaluated for it too.
+    func noteWindowRequested() {
+        onWindowRequested?()
     }
 }
 
@@ -869,18 +950,17 @@ struct MenuBarWindowRouter: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .macperfmonitorShowMainWindow)) {
                 _ in
-                openWindow(id: WindowID.main)
-                NSApp.activate(ignoringOtherApps: true)
+                WindowOpenBridge.shared.open(id: WindowID.main)
             }
             .onReceive(NotificationCenter.default.publisher(for: .macperfmonitorShowOnboarding)) {
                 _ in
-                openWindow(id: WindowID.onboarding)
-                NSApp.activate(ignoringOtherApps: true)
+                WindowOpenBridge.shared.open(id: WindowID.onboarding)
             }
             .onReceive(NotificationCenter.default.publisher(for: .macperfmonitorShowSettings)) {
                 _ in
                 openSettings()
                 NSApp.activate(ignoringOtherApps: true)
+                WindowOpenBridge.shared.noteWindowRequested()
             }
     }
 }
