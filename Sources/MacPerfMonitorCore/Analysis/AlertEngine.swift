@@ -26,6 +26,14 @@ public struct AlertConfig: Sendable, Equatable, Codable {
     /// Off by default: fanless Macs throttle routinely under real work.
     public var thermalEnabled: Bool
 
+    /// Whether any alert at all is switched on. When nothing is, there is no
+    /// reason to evaluate, which is what lets the sampler skip the work on a
+    /// tick that has nothing else to do.
+    public var anyEnabled: Bool {
+        criticalPressureEnabled || swapEnabled || processCeilingEnabled || leakEnabled
+            || highCPUEnabled || highGPUEnabled || thermalEnabled
+    }
+
     public init(
         criticalPressureEnabled: Bool = true,
         swapEnabled: Bool = false,

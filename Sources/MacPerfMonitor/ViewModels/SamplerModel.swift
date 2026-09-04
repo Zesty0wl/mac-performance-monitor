@@ -133,6 +133,19 @@ final class SamplerModel: ObservableObject {
     /// 2–4 Hz. This prevents a popover from bypassing the process-scan floor.
     private var popoverEveryTicks = 1
     private var popoverTickCounter = 0
+    /// The scan cadence to use when a per-process alert is the only thing that
+    /// wants one: with nothing recording and nothing on screen, a leak or
+    /// ceiling alert within the minute is soon enough, and the scan is the
+    /// expensive part of a tick.
+    static let alertOnlyScanInterval: TimeInterval = 60
+    private var alertScanEveryTicks = 60
+    private var alertScanTickCounter = 0
+    /// Whether a menu bar item is currently installed. Set by the app delegate
+    /// from the components switch. Together with the window and popover
+    /// consumers it answers "is anything reading what we publish", which is
+    /// what lets an app with no surfaces skip the per-tick hop to the main
+    /// thread entirely.
+    private var menuBarItemVisible = true
     /// The visible-surface cadence: `liveTick` (charts, the menu-bar image)
     /// and the on-screen row re-reads follow the refresh dial, while the 1 Hz
     /// system heartbeat keeps running underneath for logging and smoothing.
@@ -504,6 +517,8 @@ final class SamplerModel: ObservableObject {
         // heavy ticks, so they key off this same scan cadence.
         let processInterval = LiveRefreshCadence.processInterval(for: tableInterval)
         let scan = persistenceEnabled ? min(processInterval, highRes) : processInterval
+        self.alertScanEveryTicks = LiveRefreshCadence.tickCount(
+            for: Self.alertOnlyScanInterval, baseInterval: baseInterval)
         self.heavyEveryTicks = LiveRefreshCadence.tickCount(
             for: scan, baseInterval: baseInterval)
         self.tableEveryTicks = LiveRefreshCadence.tickCount(
@@ -621,6 +636,12 @@ final class SamplerModel: ObservableObject {
     /// engine reads them. Called from settings whenever the config changes.
     func setAlertConfig(_ config: AlertConfig) {
         queue.async { self.alertConfig = config }
+    }
+
+    /// Tell the sampler whether a menu bar item is on screen reading its
+    /// published values. See `menuBarItemVisible`.
+    func setMenuBarItemVisible(_ visible: Bool) {
+        queue.async { self.menuBarItemVisible = visible }
     }
 
     /// Install (or clear) the privileged helper-backed reader on the sampler.
@@ -795,6 +816,8 @@ final class SamplerModel: ObservableObject {
             persistenceEnabled
             ? min(processInterval, highResIntervalSeconds) : processInterval
         heavyEveryTicks = LiveRefreshCadence.tickCount(for: scan, baseInterval: interval)
+        alertScanEveryTicks = LiveRefreshCadence.tickCount(
+            for: Self.alertOnlyScanInterval, baseInterval: interval)
         // Broad process UI publication (the re-sort, `latest`, alerts) follows
         // the dial with a 5 s floor; the rows on screen are re-read at the dial
         // rate in between (`refreshProcesses`), and the system-only heartbeat
@@ -1022,7 +1045,21 @@ final class SamplerModel: ObservableObject {
         } else {
             popoverTickCounter = 0
         }
-        let needProcesses = persistenceEnabled || processConsumers > 0 || popoverOpen
+        // Alerts are a consumer of the scan in their own right. Without this,
+        // with logging off and nothing on screen, no alert is ever evaluated:
+        // evaluation lives inside the scan, and the scan had no reason to run.
+        // Only the per-process alerts need the scan; the rest are evaluated
+        // below from the cheap tick.
+        let processAlerts = alertConfig.processCeilingEnabled || alertConfig.leakEnabled
+        let interactive = processConsumers > 0 || popoverOpen
+        let needProcesses = persistenceEnabled || interactive || processAlerts
+        // When alerts are the *only* reason to scan, do it on a slow cadence:
+        // the scan is the expensive part of a tick, and a leak or ceiling alert
+        // that arrives within the minute is soon enough. Recording or anything
+        // on screen goes back to the usual cadences.
+        alertScanTickCounter += 1
+        let alertsAreTheOnlyReason = !persistenceEnabled && !interactive && processAlerts
+        let alertScanDue = alertScanTickCounter >= alertScanEveryTicks
         // Two cadences: the fine SCAN (feeds persistence + trails + popover) runs at
         // `heavyEveryTicks`; the main-window UI publish/alerts run at the coarser
         // `tableEveryTicks` (the global Refresh dial), so 1 s logging never forces
@@ -1040,7 +1077,10 @@ final class SamplerModel: ObservableObject {
         let popoverDue =
             popoverOpen
             && (force || !hasProcessSnapshot || popoverTickCounter >= popoverEveryTicks)
-        let runScan = needProcesses && (popoverDue || scanDue || tableDue)
+        let runScan =
+            needProcesses && (popoverDue || scanDue || tableDue)
+            && (!alertsAreTheOnlyReason || alertScanDue)
+        if runScan { alertScanTickCounter = 0 }
         // The dial gate for everything visible. An open popover pins it to
         // every tick (its live strips are the point of opening one), and an
         // immediate-tick request publishes once without waiting out the dial.
@@ -1053,38 +1093,53 @@ final class SamplerModel: ObservableObject {
         }
 
         // Publish the fresh system sample every tick, independent of any scan:
-        // the full-rate heartbeat the menu bar and the live charts read.
+        // the full-rate heartbeat the menu bar and the live charts read. With
+        // no menu bar item, no window and no popover, nothing reads it, so the
+        // hop to the main thread is pure cost: skip it. The rings it fills are
+        // live-chart state, and a chart that is not on screen has no history to
+        // lose; recorded history comes from the database.
         let diagnostics = self.diagnostics
-        DispatchQueue.main.async {
-            let publishStart = TickDiagnostics.now()
-            self.systemHistory.append(system)
-            self.appendRecentCPU(cpu)
-            self.appendRecentNetwork(network)
-            self.appendRecentDisk(disk)
-            self.recentBattery = battery
-            // GPU is sampled only while the menubar GPU item is on; smooth it like
-            // CPU so the icon figure settles, and drop the history when it goes off.
-            if let gpu {
-                self.recentGPUSamples.append(gpu)
-                if self.recentGPUSamples.count > self.cpuSmoothingTicks {
-                    self.recentGPUSamples.removeFirst(
-                        self.recentGPUSamples.count - self.cpuSmoothingTicks)
+        let anythingWatching = menuBarItemVisible || interactive
+        if anythingWatching {
+            DispatchQueue.main.async {
+                let publishStart = TickDiagnostics.now()
+                self.systemHistory.append(system)
+                self.appendRecentCPU(cpu)
+                self.appendRecentNetwork(network)
+                self.appendRecentDisk(disk)
+                self.recentBattery = battery
+                // GPU is sampled only while the menubar GPU item is on; smooth it like
+                // CPU so the icon figure settles, and drop the history when it goes off.
+                if let gpu {
+                    self.recentGPUSamples.append(gpu)
+                    if self.recentGPUSamples.count > self.cpuSmoothingTicks {
+                        self.recentGPUSamples.removeFirst(
+                            self.recentGPUSamples.count - self.cpuSmoothingTicks)
+                    }
+                    self.gpuHistoryRing.append(gpu.utilization)
+                    if self.gpuHistoryRing.count > Self.gpuHistoryCapacity {
+                        self.gpuHistoryRing.removeFirst(
+                            self.gpuHistoryRing.count - Self.gpuHistoryCapacity)
+                    }
+                } else if !self.recentGPUSamples.isEmpty {
+                    self.recentGPUSamples = []
+                    self.gpuHistoryRing = []
                 }
-                self.gpuHistoryRing.append(gpu.utilization)
-                if self.gpuHistoryRing.count > Self.gpuHistoryCapacity {
-                    self.gpuHistoryRing.removeFirst(
-                        self.gpuHistoryRing.count - Self.gpuHistoryCapacity)
-                }
-            } else if !self.recentGPUSamples.isEmpty {
-                self.recentGPUSamples = []
-                self.gpuHistoryRing = []
+                // The visible heartbeat. The rings above append on every tick so
+                // charts keep full 1 s resolution, but the redraw signal honours
+                // the refresh dial: at 10 s the menu-bar image and every live
+                // chart advance ten seconds of data at a time.
+                if uiDue { self.liveTick.send() }
+                diagnostics.recordPublish(duration: TickDiagnostics.now() - publishStart)
             }
-            // The visible heartbeat. The rings above append on every tick so
-            // charts keep full 1 s resolution, but the redraw signal honours
-            // the refresh dial: at 10 s the menu-bar image and every live
-            // chart advance ten seconds of data at a time.
-            if uiDue { self.liveTick.send() }
-            diagnostics.recordPublish(duration: TickDiagnostics.now() - publishStart)
+        }
+
+        // System-level alerts (pressure, swap, thermal, CPU, GPU) have all they
+        // need from the cheap tick. Evaluate them here when no scan ran, so a
+        // pressure alert still fires with the app recording nothing and showing
+        // nothing. The per-process list is whatever the last scan left.
+        if alertsDue, !runScan, alertConfig.anyEnabled {
+            evaluateAlerts(system: system, processes: carriedProcesses, cpu: cpu)
         }
 
         // Between table publishes, re-read just the rows on screen so their
@@ -1212,7 +1267,10 @@ final class SamplerModel: ObservableObject {
         // retention cadences count scan-due ticks here. Alert evaluation
         // follows the table cadence.
         if job.scanDue { runPersistenceMaintenance(snapshot) }
-        if job.alertsDue { evaluateAlerts(snapshot) }
+        if job.alertsDue {
+            evaluateAlerts(
+                system: snapshot.system, processes: snapshot.processes, cpu: snapshot.cpu)
+        }
         guard job.uiWantsProcesses else { return }
 
         // Trails freeze while nothing consumes the scan (full-mode recording
@@ -1615,13 +1673,13 @@ final class SamplerModel: ObservableObject {
     /// Run the alert engine over the full snapshot (all processes, so the
     /// per-process ceiling sees everything) and forward any newly-fired alerts
     /// to the main-thread sink. Runs on `queue`.
-    private func evaluateAlerts(_ snapshot: Sampler.Snapshot) {
+    private func evaluateAlerts(system: SystemSample, processes: [ProcessSample], cpu: CPUSample) {
         let alerts = alertEngine.evaluate(
-            system: snapshot.system,
-            processes: snapshot.processes,
+            system: system,
+            processes: processes,
             leakingProcesses: leakingIDs,
             config: alertConfig,
-            cpu: snapshot.cpu,
+            cpu: cpu,
             gpu: lastSystemTick?.gpu)
         let activeKinds = alertEngine.activeKinds
         let sink = onAlertsFired

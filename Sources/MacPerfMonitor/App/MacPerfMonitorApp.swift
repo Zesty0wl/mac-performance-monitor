@@ -509,8 +509,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         // launch (a no-op), and later changes — from Settings, the menu-bar
         // toggle, or the startup wizard — open or close it live.
         model.setPersistenceEnabled(components.historyLogging)
+        model.setMenuBarItemVisible(components.menuBarItem)
         components.$state
-            .sink { [weak model] state in model?.setPersistenceEnabled(state.historyLogging) }
+            .sink { [weak model] state in
+                model?.setPersistenceEnabled(state.historyLogging)
+                model?.setMenuBarItemVisible(state.menuBarItem)
+            }
             .store(in: &cancellables)
         // Switching everything off while no window is open is a way of asking
         // the app to stop, so honour it rather than sitting there invisible.

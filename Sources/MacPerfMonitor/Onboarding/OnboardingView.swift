@@ -273,19 +273,46 @@ private struct OnboardingStepScaffold<Content: View>: View {
 ///
 /// The flow used to end on the menu bar settings, which reads as one more pane
 /// of switches rather than a finish line. This gives the wizard a visible end
-/// and makes handing the user the dashboard the primary action.
+/// and makes handing the user the dashboard the primary action. What it claims
+/// follows the switches the user just set: with no menu bar item there is no
+/// read-out to look for, and with recording off nothing is being recorded.
 private struct OnboardingDoneStep: View {
+    @EnvironmentObject private var components: AppComponentsManager
+
+    /// Only claim what is actually switched on.
+    private var subtitle: String {
+        switch (components.menuBarItem, components.historyLogging) {
+        case (true, true):
+            return t(
+                "%@ is recording now. Its read-out lives in the menu bar, near the clock.",
+                AppInfo.displayName)
+        case (true, false):
+            return t(
+                "%@ is watching now. Its read-out lives in the menu bar, near the clock.",
+                AppInfo.displayName)
+        case (false, true):
+            return t(
+                "%@ is recording now, quietly in the background. Open it again whenever you want to look.",
+                AppInfo.displayName)
+        case (false, false):
+            return t(
+                "%@ is ready. It is not recording and has no menu bar read-out, so it will close when you close its window.",
+                AppInfo.displayName)
+        }
+    }
+
     var body: some View {
         OnboardingStepScaffold(
             symbol: "checkmark.circle.fill", tint: .green,
             title: "You are all set",
-            subtitle:
-                "\(AppInfo.displayName) is recording now. Its read-out lives in the menu bar, near the clock."
+            subtitle: LocalizedStringKey(subtitle)
         ) {
             VStack(alignment: .leading, spacing: 12) {
-                OnboardingDoneRow(
-                    symbol: "menubar.rectangle",
-                    text: "Click the menu bar read-out for a quick look at any metric.")
+                if components.menuBarItem {
+                    OnboardingDoneRow(
+                        symbol: "menubar.rectangle",
+                        text: "Click the menu bar read-out for a quick look at any metric.")
+                }
                 OnboardingDoneRow(
                     symbol: "square.grid.2x2",
                     text: "Open the dashboard for history, charts and per-process detail.")
@@ -483,6 +510,7 @@ private struct OnboardingPermissionsStep: View {
 /// refresh interval.
 private struct OnboardingMenuBarStep: View {
     @EnvironmentObject private var menuBar: CombinedMenuBarConfiguration
+    @EnvironmentObject private var components: AppComponentsManager
     @AppStorage(PresenceController.pinDefaultsKey) private var pinDockIcon = false
     @AppStorage(SamplerModel.tableIntervalKey) private var tableInterval =
         SamplerModel.defaultTableInterval
@@ -491,7 +519,9 @@ private struct OnboardingMenuBarStep: View {
         OnboardingStepScaffold(
             symbol: "menubar.rectangle", tint: .orange,
             title: "Menu bar & refresh",
-            subtitle: "Choose what the single compact menu bar item shows."
+            subtitle: components.menuBarItem
+                ? "Choose what the single compact menu bar item shows."
+                : "The menu bar read-out is off, so there is nothing to arrange here."
         ) {
             VStack(spacing: 12) {
                 Picker("Presentation", selection: presentationBinding) {
@@ -506,7 +536,6 @@ private struct OnboardingMenuBarStep: View {
                         symbol: metric.symbolName, title: LocalizedStringKey(metric.title),
                         subtitle: metricSubtitle(metric), isOn: selectionBinding(metric)
                     )
-                    .disabled(menuBar.isSelected(metric) && menuBar.selectedMetrics.count == 1)
                 }
 
                 OnboardingToggleRow(
