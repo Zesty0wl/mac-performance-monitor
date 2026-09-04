@@ -44,21 +44,26 @@ AI model, working from the English source text and the glossary in this file's
 spirit (Apple's own macOS terminology, informal "du" in German, "vous" in
 French). No native speaker has reviewed them yet. We say so openly:
 
-- Every generated string carries the catalog state `needs_review`, so Xcode
-  and Crowdin both show it as unreviewed, and it is exported unapproved to
-  Crowdin.
+- On Crowdin every generated string is unapproved. Approving it is how a
+  native speaker marks it reviewed, and the per-language approval figure is
+  the honest measure of how much has been checked.
 - Settings shows a notice under the language picker while a machine-translated
   language is active, naming the model and pointing here.
-- Strings identical to the English (product names, units) are marked
-  `translated`, since there is nothing to review.
+- The catalog's per-string `state` field is written by Crowdin on each sync
+  (`translated` for anything with a translation), so it does not track review;
+  the approval status on Crowdin does.
 
-To improve one: fix it on Crowdin, or send a catalog pull request. Approving a
-string in Crowdin, or setting its state to `translated` in the catalog, marks it
-reviewed. When a native speaker has been through a whole language, a maintainer
-removes it from `AppLanguage.machineTranslated` in
+To improve one: fix it on Crowdin, or send a catalog pull request. When a
+native speaker has been through a whole language, a maintainer removes it from
+`AppLanguage.machineTranslated` in
 `Sources/MacPerfMonitor/Settings/AppLanguageManager.swift` and the notice goes
 away. Native-speaker review of these two languages is one of the most useful
 contributions the project can receive right now.
+
+One Crowdin quirk to know: in strings that contain a format specifier (`%@`,
+`%lld`, `%%`), Crowdin's export replaces no-break spaces with plain spaces. Use
+a plain space there, and keep the no-break space (French `:` `;` `?` `!`) in
+strings without specifiers, where it survives the round trip.
 
 ## Adding a language on GitHub
 
