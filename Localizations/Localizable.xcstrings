@@ -290,7 +290,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ est géré par une app ; la méthode recommandée est : %2$@ "
+            "value" : "%1$@ est géré par une app ; la méthode recommandée est : %2$@ "
           }
         },
         "zh-Hans" : {
@@ -638,7 +638,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · %2$.1f %% CPU · Speicher %3$.1f %%"
+            "value" : "%1$@ · %2$.1f %% CPU · Speicher %3$.1f %%"
           }
         },
         "en" : {
@@ -650,7 +650,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · %2$.1f %% CPU · empreinte %3$.1f %%"
+            "value" : "%1$@ · %2$.1f %% CPU · empreinte %3$.1f %%"
           }
         },
         "zh-Hans" : {
@@ -668,7 +668,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · max. %2$@ °C"
+            "value" : "%1$@ · max. %2$@ °C"
           }
         },
         "en" : {
@@ -680,7 +680,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · max. %2$@ °C"
+            "value" : "%1$@ · max. %2$@ °C"
           }
         },
         "zh-Hans" : {
@@ -728,7 +728,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ %% (Schwellenwert %2$@ %%)"
+            "value" : "%1$@ %% (Schwellenwert %2$@ %%)"
           }
         },
         "en" : {
@@ -740,7 +740,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ %% (seuil %2$@ %%)"
+            "value" : "%1$@ %% (seuil %2$@ %%)"
           }
         },
         "zh-Hans" : {
@@ -758,7 +758,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ %% Kapazität, %2$@"
+            "value" : "%1$@ %% Kapazität, %2$@"
           }
         },
         "en" : {
@@ -770,7 +770,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ %% de capacité, %2$@"
+            "value" : "%1$@ %% de capacité, %2$@"
           }
         },
         "zh-Hans" : {
@@ -788,7 +788,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ %% der aktiven Zeit · %2$@ Prozesse"
+            "value" : "%1$@ %% der aktiven Zeit · %2$@ Prozesse"
           }
         },
         "en" : {
@@ -800,7 +800,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ %% du temps d'activité · %2$@ processus"
+            "value" : "%1$@ %% du temps d'activité · %2$@ processus"
           }
         },
         "zh-Hans" : {
@@ -818,7 +818,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ %% Benutzer · %2$@ %% System"
+            "value" : "%1$@ %% Benutzer · %2$@ %% System"
           }
         },
         "en" : {
@@ -830,7 +830,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ %% utilisateur · %2$@ %% système"
+            "value" : "%1$@ %% utilisateur · %2$@ %% système"
           }
         },
         "zh-Hans" : {
@@ -877,7 +877,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@ CPU"
           }
         },
@@ -889,7 +889,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@ CPU"
           }
         },
@@ -1189,7 +1189,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@ cycles"
           }
         },
@@ -1459,7 +1459,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@ h"
           }
         },
@@ -1610,7 +1610,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ est en mode barre des menus uniquement et n'enregistre pas l'historique. Activez la journalisation pour tracer ces plages : l'enregistrement commence maintenant, et l'historique se constitue à partir de là."
+            "value" : "%@ est en mode barre des menus uniquement et n'enregistre pas l'historique. Activez la journalisation pour tracer ces plages : l'enregistrement commence maintenant, et l'historique se constitue à partir de là."
           }
         },
         "zh-Hans" : {
@@ -2179,7 +2179,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@ min"
           }
         },
@@ -2209,7 +2209,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@ minutes"
           }
         },
@@ -2419,7 +2419,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@ performance"
           }
         },
@@ -2647,7 +2647,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@ rpm"
           }
         },
@@ -2659,7 +2659,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@ rpm"
           }
         },
@@ -2689,7 +2689,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@ s"
           }
         },
@@ -3049,7 +3049,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@ volumes"
           }
         },
@@ -3128,7 +3128,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ %% Konfidenz"
+            "value" : "%@ %% Konfidenz"
           }
         },
         "en" : {
@@ -3140,7 +3140,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ %% de confiance"
+            "value" : "%@ %% de confiance"
           }
         },
         "zh-Hans" : {
@@ -3158,7 +3158,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ %% Zustand"
+            "value" : "%@ %% Zustand"
           }
         },
         "en" : {
@@ -3170,7 +3170,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "État %@ %%"
+            "value" : "État %@ %%"
           }
         },
         "zh-Hans" : {
@@ -3188,7 +3188,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ %% maximale Kapazität"
+            "value" : "%@ %% maximale Kapazität"
           }
         },
         "en" : {
@@ -3200,7 +3200,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ %% de capacité maximale"
+            "value" : "%@ %% de capacité maximale"
           }
         },
         "zh-Hans" : {
@@ -3218,7 +3218,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ %% der aktiven Zeit · 1 Prozess"
+            "value" : "%@ %% der aktiven Zeit · 1 Prozess"
           }
         },
         "en" : {
@@ -3230,7 +3230,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ %% du temps d'activité · 1 processus"
+            "value" : "%@ %% du temps d'activité · 1 processus"
           }
         },
         "zh-Hans" : {
@@ -3248,7 +3248,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ %% der Designkapazität"
+            "value" : "%@ %% der Designkapazität"
           }
         },
         "en" : {
@@ -3260,7 +3260,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ %% de la capacité nominale"
+            "value" : "%@ %% de la capacité nominale"
           }
         },
         "zh-Hans" : {
@@ -3278,7 +3278,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ %% des Maximums"
+            "value" : "%@ %% des Maximums"
           }
         },
         "en" : {
@@ -3290,7 +3290,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ %% du maximum"
+            "value" : "%@ %% du maximum"
           }
         },
         "zh-Hans" : {
@@ -3397,7 +3397,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@. %@"
           }
         },
@@ -3409,7 +3409,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@. %@"
           }
         },
@@ -3427,7 +3427,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@/s"
           }
         },
@@ -3439,7 +3439,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@/s"
           }
         },
@@ -3470,7 +3470,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ : %@ utilisés"
+            "value" : "%@ : %@ utilisés"
           }
         },
         "zh-Hans" : {
@@ -3679,7 +3679,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%d min"
           }
         },
@@ -3818,7 +3818,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%d %% Konfidenz"
+            "value" : "%d %% Konfidenz"
           }
         },
         "en" : {
@@ -3830,7 +3830,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%d %% de confiance"
+            "value" : "%d %% de confiance"
           }
         },
         "zh-Hans" : {
@@ -3848,7 +3848,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%d %% Verlust"
+            "value" : "%d %% Verlust"
           }
         },
         "en" : {
@@ -3860,7 +3860,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%d %% de perte"
+            "value" : "%d %% de perte"
           }
         },
         "zh-Hans" : {
@@ -3878,7 +3878,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%d %% Benutzer / %d %% System (kumuliert)"
+            "value" : "%d %% Benutzer / %d %% System (kumuliert)"
           }
         },
         "en" : {
@@ -3890,7 +3890,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%d %% utilisateur / %d %% système (cumulé)"
+            "value" : "%d %% utilisateur / %d %% système (cumulé)"
           }
         },
         "zh-Hans" : {
@@ -4219,7 +4219,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "(maximum %@ rpm)"
           }
         },
@@ -4729,7 +4729,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "1 min"
           }
         },
@@ -4759,7 +4759,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "1 minute"
           }
         },
@@ -4987,7 +4987,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "100 MB"
           }
         },
@@ -4999,7 +4999,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "100 MB"
           }
         },
@@ -5209,7 +5209,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "30 min"
           }
         },
@@ -5287,7 +5287,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "4K UHD"
           }
         },
@@ -5299,7 +5299,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "4K UHD"
           }
         },
@@ -5317,7 +5317,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "5 GB"
           }
         },
@@ -5329,7 +5329,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "5 GB"
           }
         },
@@ -5359,7 +5359,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "5 min"
           }
         },
@@ -5497,7 +5497,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "8K UHD"
           }
         },
@@ -5509,7 +5509,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "8K UHD"
           }
         },
@@ -5660,7 +5660,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Un coffre de données : seuls les logiciels d'Apple peuvent le lire, quel que soit l'accès accordé."
+            "value" : "Un coffre de données : seuls les logiciels d'Apple peuvent le lire, quel que soit l'accès accordé."
           }
         },
         "zh-Hans" : {
@@ -5720,7 +5720,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Une image de firmware utilisée pour restaurer un appareil ; retéléchargeable."
+            "value" : "Une image de firmware utilisée pour restaurer un appareil ; retéléchargeable."
           }
         },
         "zh-Hans" : {
@@ -5780,7 +5780,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Un chiffre unique indiquant quelle part de **la capacité de ce Mac** un groupe de processus utilise, en mélange à parts égales de deux proportions :"
+            "value" : "Un chiffre unique indiquant quelle part de **la capacité de ce Mac** un groupe de processus utilise, en mélange à parts égales de deux proportions :"
           }
         },
         "zh-Hans" : {
@@ -5810,7 +5810,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Un volume est monté ici ; son contenu appartient à ce volume-là, pas à celui-ci."
+            "value" : "Un volume est monté ici ; son contenu appartient à ce volume-là, pas à celui-ci."
           }
         },
         "zh-Hans" : {
@@ -5977,7 +5977,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "AMD"
           }
         },
@@ -5989,7 +5989,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "AMD"
           }
         },
@@ -6157,7 +6157,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "AVB"
           }
         },
@@ -6169,7 +6169,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "AVB"
           }
         },
@@ -6469,7 +6469,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Ad hoc (IBSS)"
           }
         },
@@ -6487,7 +6487,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Ad-hoc"
           }
         },
@@ -6907,7 +6907,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Aggregation"
           }
         },
@@ -6937,7 +6937,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "AirPlay"
           }
         },
@@ -6949,7 +6949,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "AirPlay"
           }
         },
@@ -7027,7 +7027,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Alias"
           }
         },
@@ -7039,7 +7039,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Alias"
           }
         },
@@ -7280,7 +7280,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Afficher aussi %@ dans le Dock pendant son exécution, comme second moyen de l'ouvrir : pratique si votre barre des menus est trop encombrée pour en voir les éléments. Dans tous les cas, l'app continue de fonctionner depuis la barre des menus."
+            "value" : "Afficher aussi %@ dans le Dock pendant son exécution, comme second moyen de l'ouvrir : pratique si votre barre des menus est trop encombrée pour en voir les éléments. Dans tous les cas, l'app continue de fonctionner depuis la barre des menus."
           }
         },
         "zh-Hans" : {
@@ -7430,7 +7430,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Analyses : limite atteinte"
+            "value" : "Analyses : limite atteinte"
           }
         },
         "zh-Hans" : {
@@ -7460,7 +7460,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mémoire anonyme allouée par les apps, moins la part que le système peut libérer à la demande : app = max(interne moins purgeable, 0), lue dans les statistiques de mémoire virtuelle du noyau et multipliée par la taille de page."
+            "value" : "Mémoire anonyme allouée par les apps, moins la part que le système peut libérer à la demande : app = max(interne moins purgeable, 0), lue dans les statistiques de mémoire virtuelle du noyau et multipliée par la taille de page."
           }
         },
         "zh-Hans" : {
@@ -7597,7 +7597,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "App"
           }
         },
@@ -7717,7 +7717,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Apple"
           }
         },
@@ -7729,7 +7729,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Apple"
           }
         },
@@ -7747,7 +7747,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Apple Fabric"
           }
         },
@@ -7759,7 +7759,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Apple Fabric"
           }
         },
@@ -7879,7 +7879,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Applications"
           }
         },
@@ -7957,7 +7957,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Arch"
           }
         },
@@ -7969,7 +7969,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Arch"
           }
         },
@@ -7999,7 +7999,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Architecture"
           }
         },
@@ -8090,7 +8090,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "À température de puce égale, les ventilateurs tournent maintenant environ %1$@%% plus vite qu'il y a %2$@ semaines. L'accumulation de poussière dans les ouvertures d'aération en est la cause habituelle ; les nettoyer ramène généralement la vitesse à la normale."
+            "value" : "À température de puce égale, les ventilateurs tournent maintenant environ %1$@%% plus vite qu'il y a %2$@ semaines. L'accumulation de poussière dans les ouvertures d'aération en est la cause habituelle ; les nettoyer ramène généralement la vitesse à la normale."
           }
         },
         "zh-Hans" : {
@@ -8180,7 +8180,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Attribue le trafic réseau à chaque app, afin que l'onglet « Analyse » et le menu Réseau puissent indiquer quelles apps utilisent le réseau. L'outil système \\u{201C}nettop\\u{201D} est échantillonné brièvement à chaque actualisation ; les débits globaux de téléchargement et d'envoi sont toujours affichés dans tous les cas."
+            "value" : "Attribue le trafic réseau à chaque app, afin que l'onglet « Analyse » et le menu Réseau puissent indiquer quelles apps utilisent le réseau. L'outil système \\u{201C}nettop\\u{201D} est échantillonné brièvement à chaque actualisation ; les débits globaux de téléchargement et d'envoi sont toujours affichés dans tous les cas."
           }
         },
         "zh-Hans" : {
@@ -8240,7 +8240,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Attribue le trafic à chaque app. Désactivé par défaut, car l'outil système « nettop » s'exécute alors en arrière-plan et consomme un peu plus de CPU. Les totaux ci-dessus fonctionnent sans."
+            "value" : "Attribue le trafic à chaque app. Désactivé par défaut, car l'outil système « nettop » s'exécute alors en arrière-plan et consomme un peu plus de CPU. Les totaux ci-dessus fonctionnent sans."
           }
         },
         "zh-Hans" : {
@@ -8257,7 +8257,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Audio"
           }
         },
@@ -8269,7 +8269,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Audio"
           }
         },
@@ -8600,7 +8600,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "« Moyenne » lisse les pics sur la période ; « Pic » indique la valeur la plus élevée atteinte par le groupe."
+            "value" : "« Moyenne » lisse les pics sur la période ; « Pic » indique la valeur la plus élevée atteinte par le groupe."
           }
         },
         "zh-Hans" : {
@@ -8618,7 +8618,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Im Durchschnitt ~{cpu.sustainedPercent} % CPU in der letzten Stunde. So viel CPU über so lange Zeit deutet meist auf eine hängende Aufgabe, eine Endlosschleife oder außer Kontrolle geratene Hintergrundarbeit hin, auch wenn der Wert unter der Schwelle für kurzzeitige Spitzen bleibt."
+            "value" : "Im Durchschnitt ~{cpu.sustainedPercent} % CPU in der letzten Stunde. So viel CPU über so lange Zeit deutet meist auf eine hängende Aufgabe, eine Endlosschleife oder außer Kontrolle geratene Hintergrundarbeit hin, auch wenn der Wert unter der Schwelle für kurzzeitige Spitzen bleibt."
           }
         },
         "en" : {
@@ -8630,7 +8630,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CPU à ~{cpu.sustainedPercent} % en moyenne sur la dernière heure. Maintenir une telle charge aussi longtemps traduit généralement une tâche bloquée, une boucle active ou un travail d'arrière-plan hors de contrôle, même si le niveau reste sous celui d'un pic instantané."
+            "value" : "CPU à ~{cpu.sustainedPercent} % en moyenne sur la dernière heure. Maintenir une telle charge aussi longtemps traduit généralement une tâche bloquée, une boucle active ou un travail d'arrière-plan hors de contrôle, même si le niveau reste sous celui d'un pic instantané."
           }
         },
         "zh-Hans" : {
@@ -8737,7 +8737,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "BSSID"
           }
         },
@@ -8749,7 +8749,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "BSSID"
           }
         },
@@ -8887,7 +8887,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Band"
           }
         },
@@ -9187,7 +9187,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Bluetooth"
           }
         },
@@ -9199,7 +9199,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Bluetooth"
           }
         },
@@ -9217,7 +9217,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Bluetooth LE"
           }
         },
@@ -9229,7 +9229,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Bluetooth LE"
           }
         },
@@ -9247,7 +9247,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Bluetooth LE Audio"
           }
         },
@@ -9259,7 +9259,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Bluetooth LE Audio"
           }
         },
@@ -9517,7 +9517,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Bridge"
           }
         },
@@ -9577,7 +9577,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Build"
           }
         },
@@ -9589,7 +9589,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Build"
           }
         },
@@ -9620,7 +9620,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Produits de compilation et index ; Xcode les régénère à la prochaine compilation."
+            "value" : "Produits de compilation et index ; Xcode les régénère à la prochaine compilation."
           }
         },
         "zh-Hans" : {
@@ -9889,7 +9889,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Bundle ID"
           }
         },
@@ -9907,7 +9907,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Bus"
           }
         },
@@ -9919,7 +9919,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Bus"
           }
         },
@@ -10057,7 +10057,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Bytes"
           }
         },
@@ -10117,7 +10117,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "CDHash"
           }
         },
@@ -10129,7 +10129,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "CDHash"
           }
         },
@@ -10207,7 +10207,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "CPU"
           }
         },
@@ -10219,7 +10219,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "CPU"
           }
         },
@@ -10237,7 +10237,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "CPU %d°"
           }
         },
@@ -10249,7 +10249,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "CPU %d°"
           }
         },
@@ -10478,7 +10478,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CPU ist normal ({cpu.percent} %)."
+            "value" : "CPU ist normal ({cpu.percent} %)."
           }
         },
         "en" : {
@@ -10490,7 +10490,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le CPU est normal ({cpu.percent} %)."
+            "value" : "Le CPU est normal ({cpu.percent} %)."
           }
         },
         "zh-Hans" : {
@@ -10970,7 +10970,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Caches partagés par tous les utilisateurs ; reconstruits à la demande."
+            "value" : "Caches partagés par tous les utilisateurs ; reconstruits à la demande."
           }
         },
         "zh-Hans" : {
@@ -11270,7 +11270,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Détecté maintenant : %@ processus"
+            "value" : "Détecté maintenant : %@ processus"
           }
         },
         "zh-Hans" : {
@@ -11300,7 +11300,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Détectés maintenant : %@ processus"
+            "value" : "Détectés maintenant : %@ processus"
           }
         },
         "zh-Hans" : {
@@ -11509,7 +11509,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Charge"
           }
         },
@@ -11797,7 +11797,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Chip"
           }
         },
@@ -11930,7 +11930,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choisissez « Analyser » pour découvrir les appareils du sous-réseau sélectionné."
+            "value" : "Choisissez « Analyser » pour découvrir les appareils du sous-réseau sélectionné."
           }
         },
         "zh-Hans" : {
@@ -12230,7 +12230,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Classes ayant gagné des instances : suspects de fuite classés, les plus rapides à croître en premier."
+            "value" : "Classes ayant gagné des instances : suspects de fuite classés, les plus rapides à croître en premier."
           }
         },
         "zh-Hans" : {
@@ -12409,7 +12409,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Clone"
           }
         },
@@ -12440,7 +12440,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Les fichiers clonés sont comptés à leur taille complète ; l'analyse dépasse donc l'espace utilisé du volume de la taille de leurs blocs partagés."
+            "value" : "Les fichiers clonés sont comptés à leur taille complète ; l'analyse dépasse donc l'espace utilisé du volume de la taille de leurs blocs partagés."
           }
         },
         "zh-Hans" : {
@@ -12470,7 +12470,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Clones : %@ de plus"
+            "value" : "Clones : %@ de plus"
           }
         },
         "zh-Hans" : {
@@ -13040,7 +13040,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couleur selon la sûreté de la suppression : caches en vert, vos fichiers en bleu, gérés par les apps en orange, macOS en gris."
+            "value" : "Couleur selon la sûreté de la suppression : caches en vert, vos fichiers en bleu, gérés par les apps en orange, macOS en gris."
           }
         },
         "zh-Hans" : {
@@ -13070,7 +13070,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couleur selon la nature du fichier : vidéo, images, code, archives, etc."
+            "value" : "Couleur selon la nature du fichier : vidéo, images, code, archives, etc."
           }
         },
         "zh-Hans" : {
@@ -13249,7 +13249,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Compatible"
           }
         },
@@ -13399,7 +13399,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Configuration"
           }
         },
@@ -13657,7 +13657,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Container %@"
           }
         },
@@ -13747,7 +13747,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Controller"
           }
         },
@@ -14090,7 +14090,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copier \\u{201C}%@ : %@\\u{201D}"
+            "value" : "Copier \\u{201C}%@ : %@\\u{201D}"
           }
         },
         "zh-Hans" : {
@@ -14810,7 +14810,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Créez un groupe avec le bouton « Nouveau groupe » ou depuis le menu contextuel d'un processus dans la liste « Processus »."
+            "value" : "Créez un groupe avec le bouton « Nouveau groupe » ou depuis le menu contextuel d'un processus dans la liste « Processus »."
           }
         },
         "zh-Hans" : {
@@ -15559,7 +15559,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Cycles"
           }
         },
@@ -15667,7 +15667,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "DVI"
           }
         },
@@ -15679,7 +15679,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "DVI"
           }
         },
@@ -15757,7 +15757,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Dashboard"
           }
         },
@@ -15920,7 +15920,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Données que le système a déplacées sur le disque parce que la RAM était pleine. C'est distinct de la compression. Une ligne plate à zéro est l'idéal ; une montée soutenue sous pression est le vrai signal d'alerte."
+            "value" : "Données que le système a déplacées sur le disque parce que la RAM était pleine. C'est distinct de la compression. Une ligne plate à zéro est l'idéal ; une montée soutenue sous pression est le vrai signal d'alerte."
           }
         },
         "zh-Hans" : {
@@ -15980,7 +15980,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Coffres de données que seuls les logiciels d'Apple peuvent lire ; aucun réglage ne change cela."
+            "value" : "Coffres de données que seuls les logiciels d'Apple peuvent lire ; aucun réglage ne change cela."
           }
         },
         "zh-Hans" : {
@@ -16040,7 +16040,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Analyse approfondie : %@"
+            "value" : "Analyse approfondie : %@"
           }
         },
         "zh-Hans" : {
@@ -16430,7 +16430,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Supprimez des photos dans Photos, puis videz l'album « Supprimés récemment », ou activez « Optimiser le stockage du Mac »."
+            "value" : "Supprimez des photos dans Photos, puis videz l'album « Supprimés récemment », ou activez « Optimiser le stockage du Mac »."
           }
         },
         "zh-Hans" : {
@@ -16537,7 +16537,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "DerivedData"
           }
         },
@@ -16549,7 +16549,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "DerivedData"
           }
         },
@@ -16567,7 +16567,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Design"
           }
         },
@@ -16627,7 +16627,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Designated Requirement"
           }
         },
@@ -16639,7 +16639,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Designated Requirement"
           }
         },
@@ -16699,7 +16699,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Destination"
           }
         },
@@ -16777,7 +16777,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Details"
           }
         },
@@ -16837,7 +16837,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Deutsch"
           }
         },
@@ -16849,7 +16849,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Deutsch"
           }
         },
@@ -17090,7 +17090,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L'utilisation du périphérique est la part de l'intervalle pendant laquelle le GPU était occupé par une tâche quelconque. Les valeurs du renderer et du tiler sont les deux moitiés du pipeline ; la valeur « actif » indique quelle part de l'intervalle le GPU a passée sous tension et cadencé."
+            "value" : "L'utilisation du périphérique est la part de l'intervalle pendant laquelle le GPU était occupé par une tâche quelconque. Les valeurs du renderer et du tiler sont les deux moitiés du pipeline ; la valeur « actif » indique quelle part de l'intervalle le GPU a passée sous tension et cadencé."
           }
         },
         "zh-Hans" : {
@@ -17210,7 +17210,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Appareils détectés : %@"
+            "value" : "Appareils détectés : %@"
           }
         },
         "zh-Hans" : {
@@ -17240,7 +17240,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Journaux de diagnostic ; de nouveaux sont écrits au besoin."
+            "value" : "Journaux de diagnostic ; de nouveaux sont écrits au besoin."
           }
         },
         "zh-Hans" : {
@@ -17269,7 +17269,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Diagnostics"
           }
         },
@@ -17360,7 +17360,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mémoire « dirty » par catégorie : les plus gros consommateurs de RAM physique."
+            "value" : "Mémoire « dirty » par catégorie : les plus gros consommateurs de RAM physique."
           }
         },
         "zh-Hans" : {
@@ -17617,7 +17617,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Disk Map"
           }
         },
@@ -17629,7 +17629,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Disk Map"
           }
         },
@@ -17857,7 +17857,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Display"
           }
         },
@@ -18067,7 +18067,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "DisplayPort"
           }
         },
@@ -18079,7 +18079,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "DisplayPort"
           }
         },
@@ -18097,7 +18097,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Displays"
           }
         },
@@ -18140,7 +18140,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voulez-vous forcer %@ (PID %d) à quitter ?"
+            "value" : "Voulez-vous forcer %@ (PID %d) à quitter ?"
           }
         },
         "zh-Hans" : {
@@ -18157,7 +18157,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Dock"
           }
         },
@@ -18169,7 +18169,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Dock"
           }
         },
@@ -18289,7 +18289,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Documents"
           }
         },
@@ -18307,7 +18307,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Domain"
           }
         },
@@ -18457,7 +18457,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Download"
           }
         },
@@ -18817,7 +18817,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Downloads"
           }
         },
@@ -19147,7 +19147,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "ECC"
           }
         },
@@ -19159,7 +19159,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "ECC"
           }
         },
@@ -19190,7 +19190,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chaque graphique montre le capteur le plus chaud de son domaine sur les cinq dernières minutes, en direct au rythme de l'actualisation. Cliquez sur un graphique pour suivre tous les capteurs qui le composent ; « Détails » liste les clés brutes."
+            "value" : "Chaque graphique montre le capteur le plus chaud de son domaine sur les cinq dernières minutes, en direct au rythme de l'actualisation. Cliquez sur un graphique pour suivre tous les capteurs qui le composent ; « Détails » liste les clés brutes."
           }
         },
         "zh-Hans" : {
@@ -19220,7 +19220,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chaque ligne est le capteur le plus chaud de son domaine : la puce CPU en orange, la puce GPU en rouge. Des valeurs élevées sous charge sont normales ; l'onglet Énergie conserve l'historique thermique à long terme et le journal de limitation."
+            "value" : "Chaque ligne est le capteur le plus chaud de son domaine : la puce CPU en orange, la puce GPU en rouge. Des valeurs élevées sous charge sont normales ; l'onglet Énergie conserve l'historique thermique à long terme et le journal de limitation."
           }
         },
         "zh-Hans" : {
@@ -19250,7 +19250,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chaque ligne est le capteur le plus chaud de son domaine : la puce CPU en orange, la puce GPU en rouge. Les plages plus longues conservent les pics, pas la moyenne, pour que les pointes restent visibles. L'état suit le verdict de pression thermique de macOS lui-même, le signal que le système ralentit réellement le travail."
+            "value" : "Chaque ligne est le capteur le plus chaud de son domaine : la puce CPU en orange, la puce GPU en rouge. Les plages plus longues conservent les pics, pas la moyenne, pour que les pointes restent visibles. L'état suit le verdict de pression thermique de macOS lui-même, le signal que le système ralentit réellement le travail."
           }
         },
         "zh-Hans" : {
@@ -19280,7 +19280,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La part GPU de chaque processus, groupée par nature : runtimes IA et ML, affichage et interface des apps, médias, et tout le reste. Les parts peuvent se chevaucher sur le GPU, la barre représente donc la répartition du temps d'activité, pas de l'ensemble du périphérique."
+            "value" : "La part GPU de chaque processus, groupée par nature : runtimes IA et ML, affichage et interface des apps, médias, et tout le reste. Les parts peuvent se chevaucher sur le GPU, la barre représente donc la répartition du temps d'activité, pas de l'ensemble du périphérique."
           }
         },
         "zh-Hans" : {
@@ -19790,7 +19790,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L'impact énergétique est une mesure relative, comme l'onglet Énergie du Moniteur d'activité : il combine l'utilisation CPU de chaque processus et la fréquence à laquelle il réveille le CPU. Plus il est élevé, plus la batterie se décharge."
+            "value" : "L'impact énergétique est une mesure relative, comme l'onglet Énergie du Moniteur d'activité : il combine l'utilisation CPU de chaque processus et la fréquence à laquelle il réveille le CPU. Plus il est élevé, plus la batterie se décharge."
           }
         },
         "zh-Hans" : {
@@ -19837,7 +19837,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "English"
           }
         },
@@ -19849,7 +19849,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "English"
           }
         },
@@ -19880,7 +19880,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saisissez un chemin et cliquez sur « Inspecter »."
+            "value" : "Saisissez un chemin et cliquez sur « Inspecter »."
           }
         },
         "zh-Hans" : {
@@ -19957,7 +19957,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Enterprise"
           }
         },
@@ -20017,7 +20017,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Ethernet"
           }
         },
@@ -20029,7 +20029,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Ethernet"
           }
         },
@@ -20060,7 +20060,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Même avec la couverture complète, macOS n'a pas voulu arrêter « %@ »."
+            "value" : "Même avec la couverture complète, macOS n'a pas voulu arrêter « %@ »."
           }
         },
         "zh-Hans" : {
@@ -20120,7 +20120,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chaque processus est enregistré à cette résolution sur la fenêtre la plus récente. Plus fin et plus long signifie plus de détails, et une base de données plus grosse. À 1 s, l'analyse par processus tourne aussi chaque seconde même fenêtre fermée, ce qui est le principal coût CPU de l'app au repos ; 2 s ou plus lent est nettement plus léger."
+            "value" : "Chaque processus est enregistré à cette résolution sur la fenêtre la plus récente. Plus fin et plus long signifie plus de détails, et une base de données plus grosse. À 1 s, l'analyse par processus tourne aussi chaque seconde même fenêtre fermée, ce qui est le principal coût CPU de l'app au repos ; 2 s ou plus lent est nettement plus léger."
           }
         },
         "zh-Hans" : {
@@ -20179,7 +20179,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Excellent"
           }
         },
@@ -20209,7 +20209,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Exceptions"
           }
         },
@@ -20737,7 +20737,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "FDs"
           }
         },
@@ -21320,7 +21320,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pages adossées à des fichiers plus pages purgeables, multipliées par la taille de page : en cache = (externes plus purgeables) fois la taille de page, d'après les statistiques VM du noyau."
+            "value" : "Pages adossées à des fichiers plus pages purgeables, multipliées par la taille de page : en cache = (externes plus purgeables) fois la taille de page, d'après les statistiques VM du noyau."
           }
         },
         "zh-Hans" : {
@@ -21440,7 +21440,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fichiers synchronisés par un fournisseur cloud ; les supprimer ici les supprime partout."
+            "value" : "Fichiers synchronisés par un fournisseur cloud ; les supprimer ici les supprime partout."
           }
         },
         "zh-Hans" : {
@@ -21560,7 +21560,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Finder > l'appareil > « Gérer les sauvegardes » pour supprimer les anciennes en toute sécurité."
+            "value" : "Finder > l'appareil > « Gérer les sauvegardes » pour supprimer les anciennes en toute sécurité."
           }
         },
         "zh-Hans" : {
@@ -21607,7 +21607,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "FireWire"
           }
         },
@@ -21619,7 +21619,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "FireWire"
           }
         },
@@ -21637,7 +21637,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Firmware"
           }
         },
@@ -21757,7 +21757,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Flags"
           }
         },
@@ -21799,7 +21799,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Focus"
           }
         },
@@ -22117,7 +22117,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Footprint"
           }
         },
@@ -22430,7 +22430,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Forcer %@ à quitter ?"
+            "value" : "Forcer %@ à quitter ?"
           }
         },
         "zh-Hans" : {
@@ -22447,7 +22447,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Format"
           }
         },
@@ -22459,7 +22459,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Format"
           }
         },
@@ -22477,7 +22477,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Français"
           }
         },
@@ -22489,7 +22489,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Français"
           }
         },
@@ -22670,7 +22670,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Issu des compteurs d'énergie de la puce (la même source que powermetrics), moyenné sur chaque intervalle. La puissance du Neural Engine est le signal qu'un modèle Core ML est en cours d'exécution : elle est nulle quand l'ANE est inactif."
+            "value" : "Issu des compteurs d'énergie de la puce (la même source que powermetrics), moyenné sur chaque intervalle. La puissance du Neural Engine est le signal qu'un modèle Core ML est en cours d'exécution : elle est nulle quand l'ANE est inactif."
           }
         },
         "zh-Hans" : {
@@ -22850,7 +22850,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La couverture complète est activée : même les processus système sont visibles."
+            "value" : "La couverture complète est activée : même les processus système sont visibles."
           }
         },
         "zh-Hans" : {
@@ -22927,7 +22927,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "GPU"
           }
         },
@@ -22939,7 +22939,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "GPU"
           }
         },
@@ -22969,7 +22969,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "GPU %@ watts."
           }
         },
@@ -22987,7 +22987,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "GPU %d°"
           }
         },
@@ -22999,7 +22999,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "GPU %d°"
           }
         },
@@ -23210,7 +23210,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "GPU est la part d'un GPU utilisée par le processus au cours des dernières secondes (la valeur que le Moniteur d'activité appelle « % GPU ») ; GPU ms/s est la même chose exprimée en millisecondes de temps GPU par seconde. Les navigateurs, les apps Electron et Safari effectuent leur travail GPU dans des processus auxiliaires, qui apparaissent sous leur propre nom."
+            "value" : "GPU est la part d'un GPU utilisée par le processus au cours des dernières secondes (la valeur que le Moniteur d'activité appelle « % GPU ») ; GPU ms/s est la même chose exprimée en millisecondes de temps GPU par seconde. Les navigateurs, les apps Electron et Safari effectuent leur travail GPU dans des processus auxiliaires, qui apparaissent sous leur propre nom."
           }
         },
         "zh-Hans" : {
@@ -23257,7 +23257,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "GPU ms/s"
           }
         },
@@ -23269,7 +23269,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "GPU ms/s"
           }
         },
@@ -24007,7 +24007,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "HDD"
           }
         },
@@ -24019,7 +24019,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "HDD"
           }
         },
@@ -24037,7 +24037,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "HDMI"
           }
         },
@@ -24049,7 +24049,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "HDMI"
           }
         },
@@ -24217,7 +24217,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Hardware"
           }
         },
@@ -24517,7 +24517,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Heap"
           }
         },
@@ -24529,7 +24529,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Heap"
           }
         },
@@ -25340,7 +25340,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stockage de l'historique indisponible ; seules les données en direct sont affichées."
+            "value" : "Stockage de l'historique indisponible ; seules les données en direct sont affichées."
           }
         },
         "zh-Hans" : {
