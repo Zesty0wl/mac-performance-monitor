@@ -37,7 +37,7 @@ CATALOG = os.path.join(ROOT, "Localizations/Localizable.xcstrings")
 # language in the catalog is treated as a translation in progress and only
 # checked for placeholder correctness.
 SOURCE_LANGUAGE = "en"
-COMPLETE_LANGUAGES = ["en", "zh-Hans"]
+COMPLETE_LANGUAGES = ["en", "zh-Hans", "de", "fr"]
 SOURCES = os.path.join(ROOT, "Sources")
 
 ENTRY = re.compile(r'^"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"\s*;\s*$')
