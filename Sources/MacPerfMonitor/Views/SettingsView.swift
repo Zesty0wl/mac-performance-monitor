@@ -30,11 +30,12 @@ struct SettingsView: View {
 
 // MARK: - General
 
-/// Launch-at-login, function mode, language, and the privacy/about footnotes.
+/// Launch-at-login, history recording, language, and the privacy/about
+/// footnotes.
 private struct GeneralSettingsView: View {
     @EnvironmentObject private var loginItem: LoginItemManager
     @EnvironmentObject private var model: SamplerModel
-    @EnvironmentObject private var appMode: AppModeManager
+    @EnvironmentObject private var components: AppComponentsManager
     @EnvironmentObject private var languageManager: AppLanguageManager
     /// The process-table, chart, and live sampler refresh interval.
     @AppStorage(SamplerModel.tableIntervalKey) private var tableInterval =
@@ -71,15 +72,12 @@ private struct GeneralSettingsView: View {
             }
 
             Section {
-                Picker("Mode", selection: $appMode.mode) {
-                    ForEach(AppMode.allCases, id: \.self) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                caption(LocalizedStringKey(appMode.mode.summary))
+                Toggle("Record history", isOn: $components.historyLogging)
+                caption(
+                    "Samples are written to a local database, which is what the dashboard's history ranges, the leak board and the pressure events read. With it off nothing is written to disk and those ranges stay unavailable until you turn it back on."
+                )
             } header: {
-                Text("Mode")
+                Text("History")
             }
 
             Section {
@@ -138,12 +136,27 @@ private struct GeneralSettingsView: View {
 private struct MenuBarDockSettingsView: View {
     @EnvironmentObject private var model: SamplerModel
     @EnvironmentObject private var menuBar: CombinedMenuBarConfiguration
-    /// Shared with `DockIconController`, so toggling shows or hides the Dock icon
-    /// live. Off by default — the app is menubar-first.
+    @EnvironmentObject private var components: AppComponentsManager
+    /// Shared with `PresenceController`. Off by default: the Dock icon comes and
+    /// goes with the windows unless the user asks for it to stay.
     @AppStorage(PresenceController.pinDefaultsKey) private var pinDockIcon = false
 
     var body: some View {
         Form {
+            Section {
+                Toggle("Show in the menu bar", isOn: $components.menuBarItem)
+                caption(
+                    "The read-out sits near the clock, and clicking it opens the panel. With it off, \(AppInfo.displayName) keeps monitoring and recording; open its window again from the Dock, Spotlight or Launchpad."
+                )
+                if !components.menuBarItem && !components.historyLogging {
+                    caption(
+                        "With the menu bar item and history recording both off, closing the window quits \(AppInfo.displayName)."
+                    )
+                }
+            } header: {
+                Text("Menu bar")
+            }
+
             Section {
                 Picker("Presentation", selection: presentationBinding) {
                     ForEach(MenuBarPresentation.allCases) { presentation in
@@ -182,6 +195,7 @@ private struct MenuBarDockSettingsView: View {
                     "Read-outs follow the menu bar appearance. Active alarms add a red warning marker."
                 )
             }
+            .disabled(!components.menuBarItem)
 
             Section {
                 ForEach(menuBar.selectedMetrics) { metric in
@@ -193,9 +207,9 @@ private struct MenuBarDockSettingsView: View {
             } header: {
                 Text("Read-outs")
             } footer: {
-                Text(
-                    "Choose any combination and order. At least one read-out must remain selected.")
+                Text("Choose any combination and order.")
             }
+            .disabled(!components.menuBarItem)
 
             Section {
                 Toggle("Keep in the Dock in the background", isOn: $pinDockIcon)

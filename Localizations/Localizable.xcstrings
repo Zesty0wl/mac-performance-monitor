@@ -6151,6 +6151,36 @@
         }
       }
     },
+    "A live read-out near the clock, with a panel behind it." : {
+      "comment" : "OnboardingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Live-Anzeige in der Nähe der Uhr, mit einem Panel dahinter."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A live read-out near the clock, with a panel behind it."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un relevé en direct près de l’horloge, avec un panneau derrière."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时钟附近的实时读数，点击可展开面板。"
+          }
+        }
+      }
+    },
     "A process started by this one looks like it's leaking memory." : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -12661,32 +12691,32 @@
         }
       }
     },
-    "Choose any combination and order. At least one read-out must remain selected." : {
+    "Choose any combination and order." : {
       "comment" : "SettingsView",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wähle eine beliebige Kombination und Reihenfolge. Mindestens eine Anzeige muss ausgewählt bleiben."
+            "value" : "Wähle eine beliebige Kombination und Reihenfolge."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose any combination and order. At least one read-out must remain selected."
+            "value" : "Choose any combination and order."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choisissez n'importe quelle combinaison et n'importe quel ordre. Au moins un indicateur doit rester sélectionné."
+            "value" : "Choisissez la combinaison et l’ordre que vous voulez."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可选择任意组合和顺序。至少必须保留一个读数。"
+            "value" : "可任意选择组合与顺序。"
           }
         }
       }
@@ -23911,36 +23941,6 @@
         }
       }
     },
-    "Full" : {
-      "comment" : "SettingsView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vollständig"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Full"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Complet"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完整模式"
-          }
-        }
-      }
-    },
     "Full Coverage" : {
       "comment" : "SettingsView",
       "extractionState" : "manual",
@@ -26577,6 +26577,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "所选窗口内平均网络吞吐量最高的用户。"
+          }
+        }
+      }
+    },
+    "History" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verlauf"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historique"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "历史数据"
           }
         }
       }
@@ -29281,36 +29311,6 @@
         }
       }
     },
-    "Just the live menu bar read-outs. Nothing is written to disk, so the app stays as light as possible; history is unavailable until you turn logging back on." : {
-      "comment" : "SettingsView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nur die Live-Anzeigen in der Menüleiste. Es wird nichts auf die Festplatte geschrieben, damit die App so leicht wie möglich bleibt; der Verlauf ist nicht verfügbar, bis du die Protokollierung wieder einschaltest."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Just the live menu bar read-outs. Nothing is written to disk, so the app stays as light as possible; history is unavailable until you turn logging back on."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Uniquement les valeurs en direct de la barre des menus. Rien n'est écrit sur le disque, l'app reste donc aussi légère que possible ; l'historique est indisponible jusqu'à ce que vous réactiviez la journalisation."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "仅实时菜单栏读数。不向磁盘写入任何数据,因此应用尽可能轻量;在您重新开启记录之前,历史记录不可用。"
-          }
-        }
-      }
-    },
     "Keep %@ in the Dock even with no window open." : {
       "comment" : "OnboardingView",
       "extractionState" : "manual",
@@ -29337,6 +29337,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "即使没有打开窗口，也在程序坞中保留 %@。"
+          }
+        }
+      }
+    },
+    "Keep a local history so the charts can look back, and the leak board and pressure events work." : {
+      "comment" : "OnboardingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einen lokalen Verlauf führen, damit die Diagramme zurückblicken können und das Leak-Board sowie die Druckereignisse funktionieren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep a local history so the charts can look back, and the leak board and pressure events work."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conserver un historique local pour que les graphiques puissent remonter dans le temps, et que le tableau des fuites et les événements de pression fonctionnent."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留本地历史数据，让图表可以回看，并使泄漏榜与压力事件正常工作。"
           }
         }
       }
@@ -33751,6 +33781,36 @@
         }
       }
     },
+    "Menu bar" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menüleiste"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menu bar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barre des menus"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "菜单栏"
+          }
+        }
+      }
+    },
     "Menu bar & refresh" : {
       "comment" : "OnboardingView",
       "extractionState" : "manual",
@@ -33781,36 +33841,6 @@
         }
       }
     },
-    "Menu bar only" : {
-      "comment" : "SettingsView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nur Menüleiste"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Menu bar only"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Barre des menus uniquement"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "仅菜单栏"
-          }
-        }
-      }
-    },
     "Menu bar preview" : {
       "comment" : "SettingsView",
       "extractionState" : "manual",
@@ -33837,66 +33867,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "菜单栏预览"
-          }
-        }
-      }
-    },
-    "Menu bar read-outs plus a local history database — you get the dashboard's history ranges, the leak board, and pressure events." : {
-      "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Anzeigen in der Menüleiste plus eine lokale Verlaufsdatenbank: Du bekommst die Verlaufsbereiche des Dashboards, die Leck-Übersicht und Druckereignisse."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Menu bar read-outs plus a local history database — you get the dashboard's history ranges, the leak board, and pressure events."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les relevés de la barre des menus plus une base de données d'historique locale : vous obtenez les plages d'historique du tableau de bord, le tableau des fuites et les événements de pression."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "菜单栏读数，外加一个本地历史数据库。总览页的历史区间、泄漏榜和内存压力事件都可用。"
-          }
-        }
-      }
-    },
-    "Menu bar read-outs plus a local history database: you get the dashboard's history ranges, the leak board, and pressure events." : {
-      "comment" : "SettingsView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Anzeigen in der Menüleiste plus eine lokale Verlaufsdatenbank: Du bekommst die Verlaufsbereiche des Dashboards, die Leck-Übersicht und Druckereignisse."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Menu bar read-outs plus a local history database: you get the dashboard's history ranges, the leak board, and pressure events."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les relevés de la barre des menus plus une base de données d'historique locale : vous obtenez les plages d'historique du tableau de bord, le tableau des fuites et les événements de pression."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "菜单栏读数加上本地历史数据库,让您获得仪表盘的历史范围、泄漏面板和压力事件。"
           }
         }
       }
@@ -34232,7 +34202,7 @@
       }
     },
     "Mode" : {
-      "comment" : "SettingsView",
+      "comment" : "Network & Network Scan View",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -45841,6 +45811,36 @@
         }
       }
     },
+    "Record history" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verlauf aufzeichnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record history"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer l’historique"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记录历史数据"
+          }
+        }
+      }
+    },
     "Recorded · not running" : {
       "comment" : "Process Explorer & Tables",
       "extractionState" : "manual",
@@ -47637,6 +47637,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "采样率"
+          }
+        }
+      }
+    },
+    "Samples are written to a local database, which is what the dashboard's history ranges, the leak board and the pressure events read. With it off nothing is written to disk and those ranges stay unavailable until you turn it back on." : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Messwerte werden in eine lokale Datenbank geschrieben, aus der die Verlaufszeiträume des Dashboards, das Leak-Board und die Druckereignisse lesen. Ist dies aus, wird nichts auf die Festplatte geschrieben und diese Zeiträume bleiben nicht verfügbar, bis du es wieder einschaltest."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Samples are written to a local database, which is what the dashboard's history ranges, the leak board and the pressure events read. With it off nothing is written to disk and those ranges stay unavailable until you turn it back on."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les échantillons sont écrits dans une base de données locale, celle que lisent les plages d’historique du tableau de bord, le tableau des fuites et les événements de pression. Désactivée, rien n’est écrit sur le disque et ces plages restent indisponibles jusqu’à ce que vous la réactiviez."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "样本会写入本地数据库，仪表盘的历史时间范围、泄漏榜和压力事件都读取该数据库。关闭后不会向磁盘写入任何内容，这些时间范围在重新开启前将不可用。"
           }
         }
       }
@@ -50007,6 +50037,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在地图中显示"
+          }
+        }
+      }
+    },
+    "Show in the menu bar" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In der Menüleiste anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show in the menu bar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher dans la barre des menus"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在菜单栏中显示"
           }
         }
       }
@@ -54237,6 +54297,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "该范围包含 %1$d 个地址，请选择 %2$d 个或更少。"
+          }
+        }
+      }
+    },
+    "The read-out sits near the clock, and clicking it opens the panel. With it off, %@ keeps monitoring and recording; open its window again from the Dock, Spotlight or Launchpad." : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Anzeige sitzt in der Nähe der Uhr, ein Klick öffnet das Panel. Ist sie aus, überwacht und zeichnet %@ weiter auf; öffne das Fenster wieder über das Dock, Spotlight oder das Launchpad."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The read-out sits near the clock, and clicking it opens the panel. With it off, %@ keeps monitoring and recording; open its window again from the Dock, Spotlight or Launchpad."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le relevé se place près de l’horloge, et un clic ouvre le panneau. Désactivé, %@ continue de surveiller et d’enregistrer ; rouvrez sa fenêtre depuis le Dock, Spotlight ou le Launchpad."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读数显示在时钟附近，点按即可打开面板。关闭后 %@ 仍会继续监控和记录；可从程序坞、聚焦搜索或启动台重新打开它的窗口。"
           }
         }
       }
@@ -59817,6 +59907,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "联动内存"
+          }
+        }
+      }
+    },
+    "With the menu bar item and history recording both off, closing the window quits %@." : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn sowohl das Menüleistenobjekt als auch die Verlaufsaufzeichnung aus sind, beendet das Schließen des Fensters %@."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With the menu bar item and history recording both off, closing the window quits %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quand l’élément de la barre des menus et l’enregistrement de l’historique sont tous deux désactivés, fermer la fenêtre quitte %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当菜单栏项目与历史记录都关闭时，关闭窗口即会退出 %@。"
           }
         }
       }

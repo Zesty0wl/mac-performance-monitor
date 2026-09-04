@@ -28,7 +28,7 @@ final class CombinedStatusItemController: NSObject {
     private let appState: AppState
     private let helperManager: HelperManager
     private let updateController: UpdateController
-    private let appModeManager: AppModeManager
+    private let components: AppComponentsManager
     private let languageManager: AppLanguageManager
     private let configuration: CombinedMenuBarConfiguration
     private let notchDisplay: NotchDisplayController
@@ -52,7 +52,7 @@ final class CombinedStatusItemController: NSObject {
 
     init(
         model: SamplerModel, appState: AppState, helperManager: HelperManager,
-        updateController: UpdateController, appModeManager: AppModeManager,
+        updateController: UpdateController, components: AppComponentsManager,
         languageManager: AppLanguageManager,
         configuration: CombinedMenuBarConfiguration, notchDisplay: NotchDisplayController
     ) {
@@ -60,7 +60,7 @@ final class CombinedStatusItemController: NSObject {
         self.appState = appState
         self.helperManager = helperManager
         self.updateController = updateController
-        self.appModeManager = appModeManager
+        self.components = components
         self.languageManager = languageManager
         self.configuration = configuration
         self.notchDisplay = notchDisplay
@@ -89,8 +89,30 @@ final class CombinedStatusItemController: NSObject {
                 }
             }
             .store(in: &cancellables)
-        installItem()
+        components.$state
+            .receive(on: RunLoop.main)
+            .sink { [weak self] state in self?.applyVisibility(state.menuBarItem) }
+            .store(in: &cancellables)
+        applyVisibility(components.menuBarItem)
         reconcileGPUSampling()
+    }
+
+    /// Install or remove the status item to match the switch. Removing it is the
+    /// same deregistration the quit path uses, so macOS records a deliberate
+    /// removal rather than a vanished item.
+    private func applyVisibility(_ shouldShow: Bool) {
+        if shouldShow {
+            if statusItem == nil { AppLog.ui.notice("menu bar item shown") }
+            installItem()
+        } else if statusItem != nil {
+            AppLog.ui.notice("menu bar item hidden by preference")
+            menuClock.close()
+            popover?.performClose(nil)
+            popover = nil
+            if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
+            statusItem = nil
+            shownSignature = nil
+        }
     }
 
     private func installItem() {
@@ -118,8 +140,10 @@ final class CombinedStatusItemController: NSObject {
     }
 
     private func configurationChanged() {
-        if !configuration.selectedMetrics.contains(configuration.focusedMetric) {
-            configuration.focusedMetric = configuration.selectedMetrics[0]
+        if !configuration.selectedMetrics.contains(configuration.focusedMetric),
+            let first = configuration.selectedMetrics.first
+        {
+            configuration.focusedMetric = first
         }
         shownSignature = nil
         refreshImage()
@@ -212,7 +236,7 @@ final class CombinedStatusItemController: NSObject {
             .environmentObject(self.helperManager)
             .environmentObject(self.updateController)
             .environmentObject(self.menuClock)
-            .environmentObject(self.appModeManager)
+            .environmentObject(self.components)
             .environmentObject(self.configuration)
             .environmentObject(self.notchDisplay)
         }

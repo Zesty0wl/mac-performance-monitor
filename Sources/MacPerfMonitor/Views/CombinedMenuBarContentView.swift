@@ -17,7 +17,7 @@ struct CombinedMenuBarContentView: View {
     @EnvironmentObject private var configuration: CombinedMenuBarConfiguration
     @EnvironmentObject private var updateController: UpdateController
     @EnvironmentObject private var menuClock: MenuClock
-    @EnvironmentObject private var appMode: AppModeManager
+    @EnvironmentObject private var components: AppComponentsManager
     @EnvironmentObject private var notchDisplay: NotchDisplayController
 
     @ObservedObject var selection: CombinedMenuBarPanelSelection
@@ -199,10 +199,11 @@ struct CombinedMenuBarContentView: View {
             Menu {
                 Button(
                     LocalizedStringKey(
-                        appMode.mode == .full ? "Pause history logging" : "Resume history logging"),
-                    systemImage: appMode.mode == .full ? "pause.circle" : "record.circle"
+                        components.historyLogging
+                            ? "Pause history logging" : "Resume history logging"),
+                    systemImage: components.historyLogging ? "pause.circle" : "record.circle"
                 ) {
-                    appMode.mode = appMode.mode == .full ? .menuBarOnly : .full
+                    components.historyLogging.toggle()
                 }
                 // Only on Macs that have a notch to hide. Status items are confined
                 // to the menu bar right of it, so on a crowded bar this is what
