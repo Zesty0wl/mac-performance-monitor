@@ -1,6 +1,18 @@
 # Mac Performance Monitor
 
-[![CI](https://github.com/Zesty0wl/mac-performance-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/Zesty0wl/mac-performance-monitor/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/Zesty0wl/mac-performance-monitor/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white)](https://github.com/Zesty0wl/mac-performance-monitor/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/Zesty0wl/mac-performance-monitor?logo=github&label=release)](https://github.com/Zesty0wl/mac-performance-monitor/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Zesty0wl/mac-performance-monitor/total?logo=github&label=downloads)](https://github.com/Zesty0wl/mac-performance-monitor/releases)
+[![Homebrew cask](https://img.shields.io/homebrew/cask/v/mac-performance-monitor?logo=homebrew&logoColor=white&label=homebrew)](https://formulae.brew.sh/cask/mac-performance-monitor)
+[![Stars](https://img.shields.io/github/stars/Zesty0wl/mac-performance-monitor?logo=github&label=stars)](https://github.com/Zesty0wl/mac-performance-monitor/stargazers)
+[![License](https://img.shields.io/github/license/Zesty0wl/mac-performance-monitor?label=license)](LICENSE)
+
+[![macOS 15+](https://img.shields.io/badge/macOS-15%2B-000000?logo=apple&logoColor=white)](#install)
+[![Apple silicon](https://img.shields.io/badge/Apple%20silicon-arm64-000000?logo=apple&logoColor=white)](#install)
+[![Swift 6](https://img.shields.io/badge/Swift-6.0-F05138?logo=swift&logoColor=white)](Package.swift)
+[![Notarized](https://img.shields.io/badge/notarized-by%20Apple-000000?logo=apple&logoColor=white)](#install)
+[![No telemetry](https://img.shields.io/badge/telemetry-none-2ea44f)](#privacy)
+[![Crowdin](https://img.shields.io/badge/Crowdin-translate-2E3340?logo=crowdin&logoColor=white)](https://crowdin.com/project/mac-performance-monitor)
 
 A native macOS **performance analyzer and logger** that lives in your menu bar. It
 continuously records CPU, memory pressure, GPU, network, disk, battery, and per-process
