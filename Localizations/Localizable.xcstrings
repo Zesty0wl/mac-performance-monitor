@@ -901,6 +901,66 @@
         }
       }
     },
+    "%@ R" : {
+      "comment" : "Menu Bar Panels",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ L"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ R"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ L"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 读"
+          }
+        }
+      }
+    },
+    "%@ W" : {
+      "comment" : "Menu Bar Panels",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ S"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ W"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ É"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 写"
+          }
+        }
+      }
+    },
     "%@ W adapter" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -1591,6 +1651,66 @@
         }
       }
     },
+    "%@ installed" : {
+      "comment" : "Metric Cards & Explanations",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ installiert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ installed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ installés"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已安装 %@"
+          }
+        }
+      }
+    },
+    "%@ installed RAM" : {
+      "comment" : "Metric Cards & Explanations",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ installiertes RAM"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ installed RAM"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ de RAM installée"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已安装 %@ 内存"
+          }
+        }
+      }
+    },
     "%@ is in menu-bar-only mode and isn't recording history. Turn on logging to chart these ranges — it starts recording now, and history builds up from here." : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -2037,6 +2157,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ 常驻菜单栏，持续记录你 Mac 的内存、CPU 和电池历史。开机自动启动可以让这份记录不中断，从你登录那一刻就开始。你随时可以在设置里更改。"
+          }
+        }
+      }
+    },
+    "%@ lives in the menu bar: look for its read-out near the clock. A crowded menu bar (or a MacBook's notch) can hide it; quit another menu bar item to make room." : {
+      "comment" : "OnboardingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ wohnt in der Menüleiste: Achte auf die Anzeige in der Nähe der Uhr. Eine volle Menüleiste (oder die Notch eines MacBook) kann sie verdecken; beende ein anderes Menüleistenobjekt, um Platz zu schaffen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ lives in the menu bar: look for its read-out near the clock. A crowded menu bar (or a MacBook's notch) can hide it; quit another menu bar item to make room."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ vit dans la barre des menus : cherchez son relevé près de l’horloge. Une barre des menus encombrée (ou l’encoche d’un MacBook) peut le masquer ; quittez un autre élément de la barre des menus pour faire de la place."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 位于菜单栏中：请在时钟附近查找它的读数。菜单栏过于拥挤（或 MacBook 的刘海）可能会遮挡它；退出另一个菜单栏项目即可腾出空间。"
           }
         }
       }
@@ -3001,6 +3151,36 @@
         }
       }
     },
+    "%@ total" : {
+      "comment" : "Menu Bar Panels",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ gesamt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ total"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ au total"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "共 %@"
+          }
+        }
+      }
+    },
     "%@ unified memory" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -3027,6 +3207,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ 统一内存"
+          }
+        }
+      }
+    },
+    "%@ used" : {
+      "comment" : "Menu Bar Panels",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ belegt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ used"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ utilisés"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已用 %@"
           }
         }
       }
@@ -3297,6 +3507,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最高值的 %@%%"
+          }
+        }
+      }
+    },
+    "%@, %@ CPU" : {
+      "comment" : "Menu Bar Panels",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@, %@ CPU"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, %@ CPU"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@, %@ CPU"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@，%@ CPU"
           }
         }
       }
@@ -3991,6 +4231,36 @@
         }
       }
     },
+    "%lld inside" : {
+      "comment" : "Hardware View & Overview",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld enthalten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld inside"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld éléments"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内含 %lld 项"
+          }
+        }
+      }
+    },
     "%lld items" : {
       "comment" : "Disk Map (1.6.0)",
       "extractionState" : "manual",
@@ -4201,6 +4471,66 @@
         }
       }
     },
+    "%lld x %lld pixels" : {
+      "comment" : "Hardware View & Overview",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld x %lld Pixel"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld x %lld pixels"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%lld x %lld pixels"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld x %lld 像素"
+          }
+        }
+      }
+    },
+    "%lld°C" : {
+      "comment" : "Menu Bar Panels",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld °C"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld°C"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld °C"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%lld°C"
+          }
+        }
+      }
+    },
     "(maximum %@ rpm)" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -4227,6 +4557,66 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "（最高 %@ 转/分）"
+          }
+        }
+      }
+    },
+    "+ %@ more growing classes" : {
+      "comment" : "Memory Inspector & Open Files",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+ %@ weitere wachsende Klassen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+ %@ more growing classes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+ %@ autres classes en croissance"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "另有 %@ 个增长中的类"
+          }
+        }
+      }
+    },
+    "+ %@ smaller classes" : {
+      "comment" : "Memory Inspector & Open Files",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+ %@ kleinere Klassen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+ %@ smaller classes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+ %@ classes plus petites"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "另有 %@ 个较小的类"
           }
         }
       }
@@ -6511,6 +6901,126 @@
         }
       }
     },
+    "Adapter" : {
+      "comment" : "Battery & Energy View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netzteil"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adapter"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptateur"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电源适配器"
+          }
+        }
+      }
+    },
+    "Adapter & power mode" : {
+      "comment" : "Battery & Energy View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netzteil & Energiemodus"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adapter & power mode"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptateur et mode d’alimentation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适配器与电源模式"
+          }
+        }
+      }
+    },
+    "Adapter output" : {
+      "comment" : "Battery & Energy View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netzteilausgang"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adapter output"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sortie de l’adaptateur"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适配器输出"
+          }
+        }
+      }
+    },
+    "Adapter unavailable" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adapter nicht verfügbar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adapter unavailable"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptateur indisponible"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适配器不可用"
+          }
+        }
+      }
+    },
     "Adapters" : {
       "comment" : "Network & Network Scan View",
       "extractionState" : "manual",
@@ -7257,6 +7767,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "进程无法再访问的已分配内存。"
+          }
+        }
+      }
+    },
+    "Already shown on the Analytics tab." : {
+      "comment" : "Process Explorer & Tables",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird bereits im Tab „Analyse“ angezeigt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Already shown on the Analytics tab."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déjà affiché dans l’onglet « Analyse »."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已在“分析”标签页中显示。"
           }
         }
       }
@@ -8161,62 +8701,32 @@
         }
       }
     },
-    "Attribute network traffic to individual apps, so the Analytics tab and the network menu can show which apps are using the network. It samples the system's \\u{201C}nettop\\u{201D} tool briefly each refresh; the overall download and upload rates are always shown regardless." : {
+    "Attribute network traffic to individual apps, so the Analytics tab and the network menu can show which apps are using the network. It samples the system's “nettop” tool briefly each refresh; the overall download and upload rates are always shown regardless." : {
       "comment" : "SettingsView",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ordnet den Netzwerkverkehr einzelnen Apps zu, damit der Tab „Analyse“ und das Netzwerkmenü zeigen können, welche Apps das Netzwerk nutzen. Dazu wird bei jeder Aktualisierung kurz das Systemtool \\u{201C}nettop\\u{201D} abgefragt; die gesamten Download- und Upload-Raten werden unabhängig davon immer angezeigt."
+            "value" : "Ordnet den Netzwerkverkehr einzelnen Apps zu, damit der Tab „Analyse“ und das Netzwerkmenü zeigen können, welche Apps das Netzwerk nutzen. Dazu wird bei jeder Aktualisierung kurz das Systemtool “nettop” abgefragt; die gesamten Download- und Upload-Raten werden unabhängig davon immer angezeigt."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Attribute network traffic to individual apps, so the Analytics tab and the network menu can show which apps are using the network. It samples the system's \\u{201C}nettop\\u{201D} tool briefly each refresh; the overall download and upload rates are always shown regardless."
+            "value" : "Attribute network traffic to individual apps, so the Analytics tab and the network menu can show which apps are using the network. It samples the system's “nettop” tool briefly each refresh; the overall download and upload rates are always shown regardless."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Attribue le trafic réseau à chaque app, afin que l'onglet « Analyse » et le menu Réseau puissent indiquer quelles apps utilisent le réseau. L'outil système \\u{201C}nettop\\u{201D} est échantillonné brièvement à chaque actualisation ; les débits globaux de téléchargement et d'envoi sont toujours affichés dans tous les cas."
+            "value" : "Attribue le trafic réseau à chaque app, afin que l'onglet « Analyse » et le menu Réseau puissent indiquer quelles apps utilisent le réseau. L'outil système “nettop” est échantillonné brièvement à chaque actualisation ; les débits globaux de téléchargement et d'envoi sont toujours affichés dans tous les cas."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "将网络流量归因到各个应用,以便分析标签页和网络菜单显示哪些应用正在使用网络。每次刷新时会简要对系统的“nettop”工具采样;无论如何总会显示总下载和上传速率。"
-          }
-        }
-      }
-    },
-    "Attribute traffic to individual apps. Off by default because it runs the system's \\u{201C}nettop\\u{201D} tool in the background, so it uses a little more CPU. The totals above work without it." : {
-      "comment" : "Network & Network Scan View",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ordnet den Datenverkehr einzelnen Apps zu. Standardmäßig aus, weil dafür das Systemtool \\u{201C}nettop\\u{201D} im Hintergrund läuft und etwas mehr CPU verbraucht. Die Gesamtwerte oben funktionieren auch ohne."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Attribute traffic to individual apps. Off by default because it runs the system's \\u{201C}nettop\\u{201D} tool in the background, so it uses a little more CPU. The totals above work without it."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Attribue le trafic à chaque app. Désactivé par défaut, car l'outil système \\u{201C}nettop\\u{201D} s'exécute alors en arrière-plan et consomme un peu plus de CPU. Les totaux ci-dessus fonctionnent sans."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "将流量归因于各个应用。默认关闭，因为这会在后台运行系统的“nettop”工具从而消耗稍多 CPU。即使关闭，上方的总计仍可正常工作。"
           }
         }
       }
@@ -8911,6 +9421,36 @@
         }
       }
     },
+    "Baseline at %@ · %@ nodes · %@" : {
+      "comment" : "Memory Inspector & Open Files",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baseline bei %@ · %@ Knoten · %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baseline at %@ · %@ nodes · %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Référence à %@ · %@ nœuds · %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基准快照 %@ · %@ 个节点 · %@"
+          }
+        }
+      }
+    },
     "Battery" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -9027,6 +9567,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "电量（右）"
+          }
+        }
+      }
+    },
+    "Battery charge timeline" : {
+      "comment" : "Battery & Energy View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeitleiste des Batteriestands"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battery charge timeline"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chronologie de la charge de la batterie"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电池电量时间线"
           }
         }
       }
@@ -9481,6 +10051,36 @@
         }
       }
     },
+    "Boot volume free space trend" : {
+      "comment" : "Accessibility strings (charts)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trend des freien Speicherplatzes auf dem Startvolume"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boot volume free space trend"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tendance de l’espace libre du volume de démarrage"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启动宗卷可用空间趋势"
+          }
+        }
+      }
+    },
     "Both are optional and can be changed later in Settings." : {
       "comment" : "OnboardingView",
       "extractionState" : "manual",
@@ -9537,6 +10137,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "桥接"
+          }
+        }
+      }
+    },
+    "Broadcast" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Broadcast"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Broadcast"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diffusion"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "广播地址"
           }
         }
       }
@@ -9657,36 +10287,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在为当前范围构建历史记录…"
-          }
-        }
-      }
-    },
-    "Building history\\u{2026}" : {
-      "comment" : "Battery & Energy View",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verlauf wird erstellt \\u{2026}"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Building history\\u{2026}"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Construction de l'historique\\u{2026}"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在构建历史记录…"
           }
         }
       }
@@ -11671,6 +12271,36 @@
         }
       }
     },
+    "Charging at" : {
+      "comment" : "Battery & Energy View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lädt mit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charging at"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge à"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充电电流"
+          }
+        }
+      }
+    },
     "Charging current" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -11701,32 +12331,62 @@
         }
       }
     },
-    "Check for Updates..." : {
+    "Check for Updates…" : {
       "comment" : "CombinedMenuBarContentView",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nach Updates suchen ..."
+            "value" : "Nach Updates suchen …"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Check for Updates..."
+            "value" : "Check for Updates…"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rechercher des mises à jour..."
+            "value" : "Rechercher des mises à jour…"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "检查更新..."
+            "value" : "检查更新…"
+          }
+        }
+      }
+    },
+    "Checking folder access" : {
+      "comment" : "Disk Map (1.6.0)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordnerzugriff wird geprüft"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking folder access"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vérification de l’accès au dossier"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在检查文件夹访问权限"
           }
         }
       }
@@ -12721,36 +13381,6 @@
         }
       }
     },
-    "Codesign\\u{2026}" : {
-      "comment" : "Process Explorer & Tables",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Codesignatur \\u{2026}"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Codesign\\u{2026}"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Signature du code\\u{2026}"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "代码签名…"
-          }
-        }
-      }
-    },
     "Codesign…" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -12811,36 +13441,6 @@
         }
       }
     },
-    "Collecting data\\u{2026}" : {
-      "comment" : "Analytics & Performance Monitor",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Daten werden erfasst \\u{2026}"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Collecting data\\u{2026}"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Collecte des données\\u{2026}"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在收集数据…"
-          }
-        }
-      }
-    },
     "Collecting data…" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -12867,6 +13467,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在收集数据…"
+          }
+        }
+      }
+    },
+    "Collecting history for this process…" : {
+      "comment" : "Process Explorer & Tables",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verlauf für diesen Prozess wird erfasst …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collecting history for this process…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collecte de l’historique de ce processus…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在收集此进程的历史数据…"
           }
         }
       }
@@ -12927,6 +13557,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "收集中…"
+          }
+        }
+      }
+    },
+    "Collisions" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kollisionen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collisions"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Collisions"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冲突"
           }
         }
       }
@@ -13167,6 +13827,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "组合项目"
+          }
+        }
+      }
+    },
+    "Comments" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kommentare"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comments"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commentaires"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "备注"
           }
         }
       }
@@ -13651,6 +14341,36 @@
         }
       }
     },
+    "Connectivity" : {
+      "comment" : "Hardware View & Overview",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konnektivität"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectivity"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectivité"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接性"
+          }
+        }
+      }
+    },
     "Container %@" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -13891,6 +14611,36 @@
         }
       }
     },
+    "Copied" : {
+      "comment" : "Process Explorer & Tables",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopiert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copied"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copié"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拷贝"
+          }
+        }
+      }
+    },
     "Copy" : {
       "comment" : "Hardware View & Overview",
       "extractionState" : "manual",
@@ -13917,6 +14667,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "拷贝"
+          }
+        }
+      }
+    },
+    "Copy %@" : {
+      "comment" : "Process Explorer & Tables",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ kopieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copier %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷贝%@"
           }
         }
       }
@@ -14071,36 +14851,6 @@
         }
       }
     },
-    "Copy \\u{201C}%@: %@\\u{201D}" : {
-      "comment" : "Hardware View & Overview",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "\\u{201C}%@: %@\\u{201D} kopieren"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copy \\u{201C}%@: %@\\u{201D}"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copier \\u{201C}%@ : %@\\u{201D}"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拷贝“%@: %@”"
-          }
-        }
-      }
-    },
     "Copy a JSON binary rule (CDHash / TeamID / SigningID / PathPrefix / SigningState) for an app.settings declaration." : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -14127,6 +14877,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "为 app.settings 声明拷贝一条 JSON 二进制规则（CDHash / TeamID / SigningID / PathPrefix / SigningState）。"
+          }
+        }
+      }
+    },
+    "Copy app.settings Rule" : {
+      "comment" : "Process Explorer & Tables",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "app.settings-Regel kopieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy app.settings Rule"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copier la règle app.settings"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷贝 app.settings 规则"
           }
         }
       }
@@ -14247,6 +15027,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "拷贝值"
+          }
+        }
+      }
+    },
+    "Copy “%@: %@”" : {
+      "comment" : "Hardware View & Overview",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@: %@” kopieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy “%@: %@”"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copier “%@ : %@”"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷贝“%@: %@”"
           }
         }
       }
@@ -14611,6 +15421,66 @@
         }
       }
     },
+    "Couldn't save the report" : {
+      "comment" : "Memory Inspector & Open Files",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bericht konnte nicht gesichert werden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't save the report"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’enregistrer le rapport"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法存储报告"
+          }
+        }
+      }
+    },
+    "Couldn’t force quit" : {
+      "comment" : "Process Explorer & Tables",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sofortiges Beenden fehlgeschlagen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t force quit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de forcer à quitter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法强制退出"
+          }
+        }
+      }
+    },
     "Couldn’t move to the Trash" : {
       "comment" : "Disk Map (1.6.0)",
       "extractionState" : "manual",
@@ -14937,6 +15807,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "严重内存压力"
+          }
+        }
+      }
+    },
+    "Current" : {
+      "comment" : "Battery & Energy View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Strom"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Courant"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电流"
           }
         }
       }
@@ -15601,6 +16501,36 @@
         }
       }
     },
+    "DNS Name" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DNS-Name"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DNS Name"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom DNS"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DNS 名称"
+          }
+        }
+      }
+    },
     "DNS servers" : {
       "comment" : "Network & Network Scan View",
       "extractionState" : "manual",
@@ -16047,36 +16977,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "深度分析 · %@"
-          }
-        }
-      }
-    },
-    "Deep Dive\\u{2026}" : {
-      "comment" : "Process Explorer & Tables",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Detailanalyse …"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deep Dive\\u{2026}"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analyse approfondie…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "深度诊断…"
           }
         }
       }
@@ -16921,6 +17821,36 @@
         }
       }
     },
+    "Device Label" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerätebezeichnung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device Label"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Étiquette de l’appareil"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设备标签"
+          }
+        }
+      }
+    },
     "Device MDM" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -17307,6 +18237,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "芯片温度"
+          }
+        }
+      }
+    },
+    "Die temperature trend" : {
+      "comment" : "Accessibility strings (charts)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trend der Die-Temperatur"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die temperature trend"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tendance de la température de la puce"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芯片温度趋势"
           }
         }
       }
@@ -17731,6 +18691,36 @@
         }
       }
     },
+    "Disk operations per second trend" : {
+      "comment" : "Accessibility strings (charts)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trend der Festplattenvorgänge pro Sekunde"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disk operations per second trend"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tendance des opérations disque par seconde"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每秒磁盘操作数趋势"
+          }
+        }
+      }
+    },
     "Disk reads are normal." : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -17757,6 +18747,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "磁盘读取正常。"
+          }
+        }
+      }
+    },
+    "Disk service time trend" : {
+      "comment" : "Accessibility strings (charts)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trend der Festplatten-Servicezeit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disk service time trend"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tendance du temps de service disque"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "磁盘服务时间趋势"
           }
         }
       }
@@ -18541,6 +19561,36 @@
         }
       }
     },
+    "Download now" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktueller Download"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download now"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Téléchargement actuel"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前下载"
+          }
+        }
+      }
+    },
     "Download, upload, latency, and top network apps." : {
       "comment" : "OnboardingView",
       "extractionState" : "manual",
@@ -18871,6 +19921,36 @@
         }
       }
     },
+    "Drag to pan and zoom every chart at once." : {
+      "comment" : "Accessibility strings (charts)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ziehen, um alle Diagramme gleichzeitig zu verschieben und zu zoomen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag to pan and zoom every chart at once."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faites glisser pour déplacer et zoomer tous les graphiques à la fois."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动可同时平移和缩放所有图表。"
+          }
+        }
+      }
+    },
     "Drawing %@ from the wall · energy impact ranks which apps work the Mac hardest." : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -19047,6 +20127,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "将菜单栏放到摄像头模组下方,使其横向铺满并容纳更多项目。会占用一点屏幕高度,并适用于所有应用。"
+          }
+        }
+      }
+    },
+    "Dropped" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verworfen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dropped"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perdus"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "丢弃"
           }
         }
       }
@@ -19471,6 +20581,36 @@
         }
       }
     },
+    "Electrical" : {
+      "comment" : "Battery & Energy View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elektrische Werte"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Electrical"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Électrique"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电气参数"
+          }
+        }
+      }
+    },
     "Empty the Trash in Finder." : {
       "comment" : "Disk Map (1.6.0)",
       "extractionState" : "manual",
@@ -19647,6 +20787,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已启用"
+          }
+        }
+      }
+    },
+    "End" : {
+      "comment" : "Accessibility strings (charts)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ende"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "End"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fin"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "结束"
           }
         }
       }
@@ -20011,6 +21181,36 @@
         }
       }
     },
+    "Errors" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fehler"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Errors"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erreurs"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "错误"
+          }
+        }
+      }
+    },
     "Ethernet" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -20281,6 +21481,36 @@
         }
       }
     },
+    "Exited · PID %d" : {
+      "comment" : "Process Explorer & Tables",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beendet · PID %d"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exited · PID %d"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminé · PID %d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已退出 · PID %d"
+          }
+        }
+      }
+    },
     "Export" : {
       "comment" : "Hardware View & Overview",
       "extractionState" : "manual",
@@ -20371,6 +21601,36 @@
         }
       }
     },
+    "Export failed" : {
+      "comment" : "Process Explorer & Tables",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export fehlgeschlagen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export failed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Échec de l’exportation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出失败"
+          }
+        }
+      }
+    },
     "Export process data" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -20427,36 +21687,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "把所选进程的记录数据导出为一个可分享的文件。"
-          }
-        }
-      }
-    },
-    "Export\\u{2026}" : {
-      "comment" : "Analytics & Performance Monitor",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exportieren …"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Export\\u{2026}"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exporter…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "导出…"
           }
         }
       }
@@ -20967,6 +22197,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ 号风扇"
+          }
+        }
+      }
+    },
+    "Fan speed trend" : {
+      "comment" : "Accessibility strings (charts)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trend der Lüfterdrehzahl"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fan speed trend"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tendance de la vitesse du ventilateur"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "风扇转速趋势"
           }
         }
       }
@@ -23551,6 +24811,66 @@
         }
       }
     },
+    "Gateway" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Gateway"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gateway"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passerelle"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网关"
+          }
+        }
+      }
+    },
+    "Gauge chip" : {
+      "comment" : "Battery & Energy View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladezustandsmesser-Chip"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gauge chip"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puce de jauge"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电量计芯片"
+          }
+        }
+      }
+    },
     "General" : {
       "comment" : "SettingsView",
       "extractionState" : "manual",
@@ -23607,6 +24927,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "开始使用"
+          }
+        }
+      }
+    },
+    "Global" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Global"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Global"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Globale"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全局"
           }
         }
       }
@@ -24237,6 +25587,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "硬件"
+          }
+        }
+      }
+    },
+    "Hardware (MAC)" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hardware (MAC)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hardware (MAC)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Matériel (MAC)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "硬件地址（MAC）"
           }
         }
       }
@@ -25591,6 +26971,36 @@
         }
       }
     },
+    "How %@ works…" : {
+      "comment" : "Menu Bar Panels",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "So funktioniert %@ …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How %@ works…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment %@ fonctionne…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 的工作原理…"
+          }
+        }
+      }
+    },
     "How busy the GPU is right now, 0 to 100. Click for details." : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -25827,6 +27237,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "GPU 模块当前消耗的功率。在 Apple 芯片上，GPU 与 CPU 共享整颗芯片的功耗预算，因此繁忙的 GPU 可能会限制整体性能。"
+          }
+        }
+      }
+    },
+    "How often live system charts refresh. At 250ms and 500ms, process lists, rankings, and alerts retain a 1-second floor. Slower choices reduce CPU use; the default is 10 seconds." : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie oft die Live-Systemdiagramme aktualisiert werden. Bei 250 ms und 500 ms behalten Prozesslisten, Ranglisten und Warnungen eine Untergrenze von 1 Sekunde. Langsamere Werte senken die CPU-Last; Standard sind 10 Sekunden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How often live system charts refresh. At 250ms and 500ms, process lists, rankings, and alerts retain a 1-second floor. Slower choices reduce CPU use; the default is 10 seconds."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fréquence d’actualisation des graphiques système en direct. À 250 ms et 500 ms, les listes de processus, les classements et les alertes conservent un plancher d’une seconde. Les valeurs plus lentes réduisent l’utilisation du CPU ; la valeur par défaut est de 10 secondes."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实时系统图表的刷新频率。在 250 毫秒和 500 毫秒时，进程列表、排行和提醒仍保持 1 秒的下限。更慢的选项可降低 CPU 占用；默认值为 10 秒。"
           }
         }
       }
@@ -26101,6 +27541,66 @@
         }
       }
     },
+    "IP / Mask" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IP / Maske"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IP / Mask"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IP / Masque"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IP / 掩码"
+          }
+        }
+      }
+    },
+    "IP address" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IP-Adresse"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IP address"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse IP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IP 地址"
+          }
+        }
+      }
+    },
     "IP addresses" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -26187,6 +27687,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "IPv6"
+          }
+        }
+      }
+    },
+    "IPv6 (link-local)" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "IPv6 (link-local)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IPv6 (link-local)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IPv6 (lien-local)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IPv6（链路本地）"
           }
         }
       }
@@ -26281,6 +27811,36 @@
         }
       }
     },
+    "Identification" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identifikation"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identification"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Identification"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "识别信息"
+          }
+        }
+      }
+    },
     "Identifying %d devices" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -26307,6 +27867,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在识别 %d 台设备"
+          }
+        }
+      }
+    },
+    "Identity" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identität"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identity"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identité"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "身份信息"
           }
         }
       }
@@ -26427,36 +28017,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "图像"
-          }
-        }
-      }
-    },
-    "Import\\u{2026}" : {
-      "comment" : "Analytics & Performance Monitor",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Importieren …"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Import\\u{2026}"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Importer…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "导入…"
           }
         }
       }
@@ -26937,36 +28497,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "检查"
-          }
-        }
-      }
-    },
-    "Inspect Memory\\u{2026}" : {
-      "comment" : "Process Explorer & Tables",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Speicher untersuchen …"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inspect Memory\\u{2026}"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inspecter la mémoire…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "检查内存…"
           }
         }
       }
@@ -27537,6 +29067,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "签名无效"
+          }
+        }
+      }
+    },
+    "Invalid — %@" : {
+      "comment" : "Process Explorer & Tables",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ungültig: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid — %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non valide : %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无效：%@"
           }
         }
       }
@@ -29251,6 +30811,36 @@
         }
       }
     },
+    "Link up, no address" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbindung aktiv, keine Adresse"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link up, no address"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lien actif, aucune adresse"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "链路已连接，无地址"
+          }
+        }
+      }
+    },
     "Link width" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -29547,6 +31137,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "载入中…"
+          }
+        }
+      }
+    },
+    "Local" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lokal"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locale"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本地"
           }
         }
       }
@@ -33211,7 +34831,7 @@
         }
       }
     },
-    "Much of your \\u{201C}used\\u{201D} memory is cached files: recently used data kept around to make things fast. macOS hands it back the instant something needs it. %@ shows cached files in a calm colour so you know it is working for you, not against you." : {
+    "Much of your “used” memory is cached files: recently used data kept around to make things fast. macOS hands it back the instant something needs it. %@ shows cached files in a calm colour so you know it is working for you, not against you." : {
       "comment" : "OnboardingView",
       "extractionState" : "manual",
       "localizations" : {
@@ -33224,7 +34844,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Much of your \\u{201C}used\\u{201D} memory is cached files: recently used data kept around to make things fast. macOS hands it back the instant something needs it. %@ shows cached files in a calm colour so you know it is working for you, not against you."
+            "value" : "Much of your “used” memory is cached files: recently used data kept around to make things fast. macOS hands it back the instant something needs it. %@ shows cached files in a calm colour so you know it is working for you, not against you."
           }
         },
         "fr" : {
@@ -33541,6 +35161,66 @@
         }
       }
     },
+    "Negate this condition" : {
+      "comment" : "Groups View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Bedingung negieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Negate this condition"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inverser cette condition"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取反此条件"
+          }
+        }
+      }
+    },
+    "Negate this group" : {
+      "comment" : "Groups View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Gruppe negieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Negate this group"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inverser ce groupe"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取反此分组"
+          }
+        }
+      }
+    },
     "Negotiated link speed" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -33597,6 +35277,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "网络"
+          }
+        }
+      }
+    },
+    "Network (SSID)" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netzwerk (SSID)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network (SSID)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réseau (SSID)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网络（SSID）"
           }
         }
       }
@@ -33811,36 +35521,6 @@
         }
       }
     },
-    "New Group from This\\u{2026}" : {
-      "comment" : "Process Explorer & Tables",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neue Gruppe daraus…"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "New Group from This\\u{2026}"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nouveau groupe à partir de ceci…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "基于此项新建分组…"
-          }
-        }
-      }
-    },
     "New Group from This…" : {
       "comment" : "Process Explorer & Tables",
       "extractionState" : "manual",
@@ -34017,6 +35697,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无 MAC 地址"
+          }
+        }
+      }
+    },
+    "No Selection" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Auswahl"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Selection"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune sélection"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未选择"
           }
         }
       }
@@ -34347,6 +36057,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "暂无数据。"
+          }
+        }
+      }
+    },
+    "No details reported." : {
+      "comment" : "Hardware View & Overview",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Details gemeldet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No details reported."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun détail signalé."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未报告详细信息。"
           }
         }
       }
@@ -35761,6 +37501,36 @@
         }
       }
     },
+    "Not reachable" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht erreichbar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not reachable"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non accessible"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不可达"
+          }
+        }
+      }
+    },
     "Not readable" : {
       "comment" : "Memory Inspector & Open Files",
       "extractionState" : "manual",
@@ -35787,6 +37557,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "不可读"
+          }
+        }
+      }
+    },
+    "Not reported" : {
+      "comment" : "Hardware View & Overview",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht gemeldet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not reported"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non signalé"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未报告"
           }
         }
       }
@@ -36117,6 +37917,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未识别出已知位置"
+          }
+        }
+      }
+    },
+    "Nothing reported for this section." : {
+      "comment" : "Hardware View & Overview",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für diesen Abschnitt wurde nichts gemeldet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing reported for this section."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien de signalé pour cette section."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此部分没有报告任何内容。"
           }
         }
       }
@@ -36871,7 +38701,7 @@
         }
       }
     },
-    "On Apple silicon, almost no RAM is ever \\u{201C}free\\u{201D}, and that is normal. macOS keeps memory busy on purpose. What matters is memory pressure: how hard the system is working to keep up. %@ puts that front and centre." : {
+    "On Apple silicon, almost no RAM is ever “free”, and that is normal. macOS keeps memory busy on purpose. What matters is memory pressure: how hard the system is working to keep up. %@ puts that front and centre." : {
       "comment" : "OnboardingView",
       "extractionState" : "manual",
       "localizations" : {
@@ -36884,7 +38714,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "On Apple silicon, almost no RAM is ever \\u{201C}free\\u{201D}, and that is normal. macOS keeps memory busy on purpose. What matters is memory pressure: how hard the system is working to keep up. %@ puts that front and centre."
+            "value" : "On Apple silicon, almost no RAM is ever “free”, and that is normal. macOS keeps memory busy on purpose. What matters is memory pressure: how hard the system is working to keep up. %@ puts that front and centre."
           }
         },
         "fr" : {
@@ -37351,36 +39181,6 @@
         }
       }
     },
-    "Open Files & Sockets\\u{2026}" : {
-      "comment" : "Process Explorer & Tables",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Geöffnete Dateien & Sockets …"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open Files & Sockets\\u{2026}"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fichiers ouverts et sockets…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打开的文件与套接字…"
-          }
-        }
-      }
-    },
     "Open Files & Sockets…" : {
       "comment" : "Process Explorer & Tables",
       "extractionState" : "manual",
@@ -37587,36 +39387,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "打开设置…"
-          }
-        }
-      }
-    },
-    "Open System Settings\\u{2026}" : {
-      "comment" : "SettingsView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Systemeinstellungen öffnen …"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open System Settings\\u{2026}"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ouvrir Réglages Système…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打开系统设置…"
           }
         }
       }
@@ -38097,6 +39867,126 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "打开仪表盘可查看历史记录、图表以及各进程的详细信息。"
+          }
+        }
+      }
+    },
+    "Opening trace" : {
+      "comment" : "Process Explorer & Tables",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trace wird geöffnet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opening trace"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouverture de la trace"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在打开跟踪记录"
+          }
+        }
+      }
+    },
+    "Opens an explanation of this figure." : {
+      "comment" : "Metric Cards & Explanations",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffnet eine Erklärung zu diesem Wert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens an explanation of this figure."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre une explication de ce chiffre."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开对该数值的说明。"
+          }
+        }
+      }
+    },
+    "Opens full adapter detail" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffnet die vollständigen Adapterdetails"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens full adapter detail"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre le détail complet de l’adaptateur"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开完整的适配器详情"
+          }
+        }
+      }
+    },
+    "Opens this process in the main window" : {
+      "comment" : "Menu Bar Panels",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffnet diesen Prozess im Hauptfenster"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens this process in the main window"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre ce processus dans la fenêtre principale"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在主窗口中打开此进程"
           }
         }
       }
@@ -38967,6 +40857,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "程序包"
+          }
+        }
+      }
+    },
+    "Packets" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pakete"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Packets"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paquets"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据包"
           }
         }
       }
@@ -41611,6 +43531,36 @@
         }
       }
     },
+    "Process actions" : {
+      "comment" : "Process Explorer & Tables",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prozessaktionen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Process actions"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actions du processus"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "进程操作"
+          }
+        }
+      }
+    },
     "Process over ceiling" : {
       "comment" : "SettingsView",
       "extractionState" : "manual",
@@ -42991,6 +44941,36 @@
         }
       }
     },
+    "Reachable" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erreichbar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reachable"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accessible"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可达"
+          }
+        }
+      }
+    },
     "Read" : {
       "comment" : "DashboardView",
       "extractionState" : "manual",
@@ -43257,6 +45237,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "读写纹理"
+          }
+        }
+      }
+    },
+    "Reading %lld of %lld" : {
+      "comment" : "Hardware View & Overview",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld von %lld werden gelesen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading %lld of %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture de %lld sur %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在读取 %lld / %lld"
           }
         }
       }
@@ -43801,6 +45811,36 @@
         }
       }
     },
+    "Recorded · not running" : {
+      "comment" : "Process Explorer & Tables",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aufgezeichnet · läuft nicht"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded · not running"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistré · non actif"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已记录 · 未运行"
+          }
+        }
+      }
+    },
     "Recovery" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -44187,6 +46227,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请先移除一个进程（最多 8 个）。"
+          }
+        }
+      }
+    },
+    "Remove a process from Analytics first (eight maximum)." : {
+      "comment" : "Process Explorer & Tables",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entferne zuerst einen Prozess aus der Analyse (maximal acht)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove a process from Analytics first (eight maximum)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retirez d’abord un processus des analyses (huit au maximum)."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先从分析中移除一个进程（最多 8 个）。"
           }
         }
       }
@@ -45031,6 +47101,36 @@
         }
       }
     },
+    "Running" : {
+      "comment" : "Process Explorer & Tables",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laufend"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En cours"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在运行"
+          }
+        }
+      }
+    },
     "S.M.A.R.T. status" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -45177,6 +47277,66 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%2$@ 的 SMART 状态：%1$@"
+          }
+        }
+      }
+    },
+    "SMB Domain" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SMB-Domäne"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SMB Domain"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domaine SMB"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SMB 域"
+          }
+        }
+      }
+    },
+    "SMB Name" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SMB-Name"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SMB Name"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom SMB"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SMB 名称"
           }
         }
       }
@@ -45501,36 +47661,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Échantillonnage..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在采样…"
-          }
-        }
-      }
-    },
-    "Sampling\\u{2026}" : {
-      "comment" : "Menu Bar Panels",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Messung läuft \\u{2026}"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sampling\\u{2026}"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Échantillonnage\\u{2026}"
           }
         },
         "zh-Hans" : {
@@ -47251,36 +49381,6 @@
         }
       }
     },
-    "Settings\\u{2026}" : {
-      "comment" : "Menu Bar Panels",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Einstellungen \\u{2026}"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Settings\\u{2026}"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Réglages\\u{2026}"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "设置…"
-          }
-        }
-      }
-    },
     "Settings…" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -47967,6 +50067,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "减小或消失"
+          }
+        }
+      }
+    },
+    "Signal" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Signal"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Signal"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "信号强度"
           }
         }
       }
@@ -48661,6 +50791,36 @@
         }
       }
     },
+    "Some processes are owned by other users or the system, so macOS does not allow %@ to read their full memory figures." : {
+      "comment" : "DashboardView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manche Prozesse gehören anderen Benutzern oder dem System, daher erlaubt macOS %@ nicht, ihre vollständigen Speicherwerte zu lesen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some processes are owned by other users or the system, so macOS does not allow %@ to read their full memory figures."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Certains processus appartiennent à d’autres utilisateurs ou au système ; macOS n’autorise donc pas %@ à lire l’intégralité de leurs chiffres de mémoire."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有些进程属于其他用户或系统，因此 macOS 不允许 %@ 读取它们完整的内存数据。"
+          }
+        }
+      }
+    },
     "Space accounting" : {
       "comment" : "Disk Map (1.6.0)",
       "extractionState" : "manual",
@@ -49077,6 +51237,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "待机延迟（低电量）"
+          }
+        }
+      }
+    },
+    "Start" : {
+      "comment" : "Accessibility strings (charts)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Start"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Début"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始"
           }
         }
       }
@@ -49557,6 +51747,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Steam 游戏"
+          }
+        }
+      }
+    },
+    "Still reading…" : {
+      "comment" : "Hardware View & Overview",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird noch gelesen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Still reading…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture en cours…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仍在读取…"
           }
         }
       }
@@ -51031,6 +53251,36 @@
         }
       }
     },
+    "TCP Ports" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TCP-Ports"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TCP Ports"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ports TCP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TCP 端口"
+          }
+        }
+      }
+    },
     "TCP keep-alive" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -51747,36 +53997,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最热的 CPU 芯片传感器。颜色跟随 macOS 的散热压力：绿色表示发热但仍在设计范围内。点击查看详情。"
-          }
-        }
-      }
-    },
-    "The hottest of the CPU die's temperature sensors, the figure people mean by \\u{201C}CPU temperature\\u{201D}. High numbers under load are normal on Apple silicon; the colour turns orange or red only when macOS itself reports thermal pressure, the signal that it is slowing work down." : {
-      "comment" : "Metric Cards & Explanations",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der heißeste der Temperatursensoren des CPU-Chips, also der Wert, den man mit „CPU-Temperatur“ meint. Hohe Werte unter Last sind auf Apple Silicon normal; die Farbe wird nur dann orange oder rot, wenn macOS selbst thermischen Druck meldet, das Signal dafür, dass es die Arbeit drosselt."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The hottest of the CPU die's temperature sensors, the figure people mean by \\u{201C}CPU temperature\\u{201D}. High numbers under load are normal on Apple silicon; the colour turns orange or red only when macOS itself reports thermal pressure, the signal that it is slowing work down."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le plus chaud des capteurs de température de la puce CPU, la valeur que l'on désigne par « température du CPU ». Des valeurs élevées sous charge sont normales sur Apple Silicon ; la couleur ne passe à l'orange ou au rouge que lorsque macOS lui-même signale une pression thermique, le signal qu'il ralentit le travail."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CPU 芯片上最热的温度传感器，也就是大家通常所说的“CPU 温度”。Apple 芯片在高负载下出现较高数值属正常现象；只有当 macOS 自身报告散热压力（即系统正在降频的信号）时，颜色才会变为橙色或红色。"
           }
         }
       }
@@ -52771,6 +54991,36 @@
         }
       }
     },
+    "This session" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Sitzung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This session"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette session"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本次会话"
+          }
+        }
+      }
+    },
     "This session: %1$@ downloaded · %2$@ uploaded" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -53041,6 +55291,36 @@
         }
       }
     },
+    "Thunderbolt ports" : {
+      "comment" : "Hardware View & Overview",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thunderbolt-Anschlüsse"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thunderbolt ports"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ports Thunderbolt"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thunderbolt 端口"
+          }
+        }
+      }
+    },
     "Tiler" : {
       "comment" : "Menu Bar Panels",
       "extractionState" : "manual",
@@ -53247,6 +55527,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "时间范围"
+          }
+        }
+      }
+    },
+    "Timeline" : {
+      "comment" : "Accessibility strings (charts)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeitleiste"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timeline"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chronologie"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时间线"
           }
         }
       }
@@ -54061,6 +56371,36 @@
         }
       }
     },
+    "Traffic" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenverkehr"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traffic"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trafic"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "流量"
+          }
+        }
+      }
+    },
     "Transmit power" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -54301,6 +56641,36 @@
         }
       }
     },
+    "Turn on history logging?" : {
+      "comment" : "DashboardView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verlaufsaufzeichnung aktivieren?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on history logging?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activer l’enregistrement de l’historique ?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开启历史记录？"
+          }
+        }
+      }
+    },
     "Turn on per-app network tracking to see which apps are using the network. It is off by default because it runs an extra system tool." : {
       "comment" : "Menu Bar Panels",
       "extractionState" : "manual",
@@ -54327,6 +56697,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "开启按应用网络跟踪以查看哪些应用正在使用网络。默认关闭，因为这会运行额外的系统工具。"
+          }
+        }
+      }
+    },
+    "Tx rate" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tx-Rate"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tx rate"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Débit Tx"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送速率"
           }
         }
       }
@@ -54507,6 +56907,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "USB 总线"
+          }
+        }
+      }
+    },
+    "USB devices" : {
+      "comment" : "Hardware View & Overview",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB-Geräte"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB devices"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appareils USB"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB 设备"
           }
         }
       }
@@ -55321,6 +57751,36 @@
         }
       }
     },
+    "Updated %@" : {
+      "comment" : "Memory Inspector & Open Files",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktualisiert %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mis à jour %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新于 %@"
+          }
+        }
+      }
+    },
     "Upgradeable" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -55407,6 +57867,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "上传"
+          }
+        }
+      }
+    },
+    "Upload now" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktueller Upload"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upload now"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envoi actuel"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前上传"
           }
         }
       }
@@ -56611,32 +59101,32 @@
         }
       }
     },
-    "Waiting for your approval in System Settings \\u{203A} Login Items." : {
+    "Waiting for your approval in System Settings › Login Items." : {
       "comment" : "SettingsView",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wartet auf deine Genehmigung in Systemeinstellungen \\u{203A} Anmeldeobjekte."
+            "value" : "Wartet auf deine Genehmigung in Systemeinstellungen › Anmeldeobjekte."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Waiting for your approval in System Settings \\u{203A} Login Items."
+            "value" : "Waiting for your approval in System Settings › Login Items."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "En attente de votre approbation dans Réglages Système \\u{203A} Ouverture."
+            "value" : "En attente de votre approbation dans Réglages Système › Ouverture."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "等待您在系统设置 \\u{203A} 登录项中批准。"
+            "value" : "等待您在系统设置 › 登录项中批准。"
           }
         }
       }
@@ -59037,6 +61527,66 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "实时"
+          }
+        }
+      }
+    },
+    "load %@ · %@ · %@" : {
+      "comment" : "Menu Bar Panels",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last %@ · %@ · %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "load %@ · %@ · %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge %@ · %@ · %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负载 %@ · %@ · %@"
+          }
+        }
+      }
+    },
+    "mDNS Name" : {
+      "comment" : "Network & Network Scan View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mDNS-Name"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mDNS Name"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom mDNS"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mDNS 名称"
           }
         }
       }
