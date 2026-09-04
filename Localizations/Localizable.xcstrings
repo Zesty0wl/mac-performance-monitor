@@ -3517,7 +3517,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@, %@ CPU"
           }
         },
@@ -3529,7 +3529,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%@, %@ CPU"
           }
         },
@@ -4489,7 +4489,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%lld x %lld pixels"
           }
         },
@@ -4525,7 +4525,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%lld°C"
           }
         }
@@ -10147,7 +10147,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Broadcast"
           }
         },
@@ -13579,7 +13579,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Collisions"
           }
         },
@@ -24817,7 +24817,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Gateway"
           }
         },
@@ -24937,7 +24937,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Global"
           }
         },
@@ -25597,7 +25597,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Hardware (MAC)"
           }
         },
@@ -27697,7 +27697,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "IPv6 (link-local)"
           }
         },
@@ -27829,7 +27829,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Identification"
           }
         },
@@ -50077,7 +50077,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Signal"
           }
         },
@@ -50089,7 +50089,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Signal"
           }
         },
@@ -51247,7 +51247,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Start"
           }
         },
