@@ -197,4 +197,26 @@ final class LiveStripBucketsTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(spanned.count, 2)
     }
 
+    // MARK: Rule 7, a gap means "we were not looking"
+
+    func testGapThresholdFollowsTheCadenceNotTheWindow() {
+        // Ten second logging: a minute with nothing recorded is a hole.
+        let threshold = ChartGap.threshold(expectedSpacing: 10)
+        XCTAssertEqual(threshold, 30)
+        XCTAssertLessThan(threshold, 60, "an app not running for a minute must break the line")
+        // The old rule derived it from the span: an hour's view allowed a two
+        // and a half minute hole to be drawn as a straight line.
+        XCTAssertLessThan(threshold, max(3600 / 24, 30))
+    }
+
+    func testGapThresholdHasAFloor() {
+        // One second sampling must not break the line on a single late tick.
+        XCTAssertEqual(ChartGap.threshold(expectedSpacing: 1), 15)
+    }
+
+    func testCoarseTiersGetAProportionateThreshold() {
+        XCTAssertEqual(ChartGap.threshold(expectedSpacing: 60), 180)
+        XCTAssertEqual(ChartGap.threshold(expectedSpacing: 3600), 10800)
+    }
+
 }

@@ -36,12 +36,26 @@ struct TemperatureChart: View {
 
     private var cpuPoints: [TrendPoint] {
         Self.reduced(
-            points.compactMap { p in p.cpuDieC.map { TrendPoint(date: p.date, value: $0) } })
+            points.compactMap { p in p.cpuDieC.map { TrendPoint(date: p.date, value: $0) } },
+            width: bucketWidth)
     }
 
     private var gpuPoints: [TrendPoint] {
         Self.reduced(
-            points.compactMap { p in p.gpuDieC.map { TrendPoint(date: p.date, value: $0) } })
+            points.compactMap { p in p.gpuDieC.map { TrendPoint(date: p.date, value: $0) } },
+            width: bucketWidth)
+    }
+
+    /// Bucket width in seconds, taken from the range being shown rather than
+    /// from the data. Taking it from the data was a bug: each new sample
+    /// stretched the span slightly, every bucket boundary moved with it, and the
+    /// whole line changed shape on each tick instead of simply extending. A
+    /// width fixed by the range, with buckets anchored to absolute time, means
+    /// an old bucket always holds exactly the samples it always held.
+    private var bucketWidth: Double {
+        guard let xDomain else { return 0 }
+        let span = xDomain.upperBound.timeIntervalSince(xDomain.lowerBound)
+        return span > 0 ? span / 120 : 0
     }
 
     /// About 120 points across the window, each the hottest reading in its
@@ -50,15 +64,10 @@ struct TemperatureChart: View {
     /// height is the spread rather than the temperature. The maximum is the
     /// right reduction here, not the mean: a thermal spike is the event worth
     /// seeing. See docs/chart-rules.md.
-    private static func reduced(_ series: [TrendPoint]) -> [TrendPoint] {
-        let target = 120
-        guard series.count > target * 2, let first = series.first, let last = series.last
-        else { return series }
-        let span = last.date.timeIntervalSince(first.date)
-        guard span > 0 else { return series }
-        let width = span / Double(target)
+    private static func reduced(_ series: [TrendPoint], width: Double) -> [TrendPoint] {
+        guard width > 0, series.count > 240 else { return series }
         var out: [TrendPoint] = []
-        out.reserveCapacity(target + 1)
+        out.reserveCapacity(series.count / 2 + 1)
         var bucket = Int.min
         var hottest: TrendPoint?
         for point in series {
@@ -102,7 +111,9 @@ struct TemperatureChart: View {
             xDomain: xDomain,
             yDomain: temperatureDomain,
             yFormat: { String(format: "%.0f°C", $0) },
-            showsTimeAxis: showsTimeAxis
+            showsTimeAxis: showsTimeAxis,
+            gapThreshold: ChartGap.threshold(
+                expectedSpacing: max(bucketWidth, SamplerModel.configuredHighResInterval()))
         )
         .accessibilityLabel("Die temperature trend")
         .accessibilityValue(accessibilitySummary)
