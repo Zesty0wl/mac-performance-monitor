@@ -221,10 +221,10 @@ struct BatteryView: View {
 
     private func batteryCards(_ battery: BatterySample) -> [MetricCardData] {
         let level = BatteryLevel(percent: battery.chargePercent)
+        // Every sample: the card strip and the detail sheet reduce at draw
+        // time, like every other chart (docs/chart-rules.md, rule 1).
         func samples(_ value: @escaping (SystemHistoryPoint) -> Double) -> [MetricSample] {
-            MemoryMetrics.downsample(
-                points.map { MetricSample(date: $0.date, value: value($0)) },
-                span: range.seconds, to: 80)
+            points.map { MetricSample(date: $0.date, value: value($0)) }
         }
         var cards: [MetricCardData] = [
             MetricCardData(

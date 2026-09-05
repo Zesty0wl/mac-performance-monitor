@@ -26,6 +26,11 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
     /// Total system CPU as a fraction of capacity, 0...1. Defaulted so call
     /// sites that predate CPU history (and the analysis tests) still build.
     public var cpuLoad: Double
+    /// The kernel's load averages: run-queue length over the last 1, 5 and
+    /// 15 minutes. Zero for rows written before they were recorded.
+    public var loadAverage1: Double
+    public var loadAverage5: Double
+    public var loadAverage15: Double
     // Battery timeline scalars (the charge-line slope shows charge vs discharge,
     // so no separate charging flag is carried here). Defaulted, like cpuLoad.
     public var batteryCharge: Double
@@ -83,6 +88,9 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
         cachedFiles: UInt64,
         swapUsed: UInt64,
         cpuLoad: Double = 0,
+        loadAverage1: Double = 0,
+        loadAverage5: Double = 0,
+        loadAverage15: Double = 0,
         batteryCharge: Double = 0,
         batteryPowerWatts: Double = 0,
         batteryHealthPercent: Double = 0,
@@ -122,6 +130,9 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
         self.cachedFiles = cachedFiles
         self.swapUsed = swapUsed
         self.cpuLoad = cpuLoad
+        self.loadAverage1 = loadAverage1
+        self.loadAverage5 = loadAverage5
+        self.loadAverage15 = loadAverage15
         self.batteryCharge = batteryCharge
         self.batteryPowerWatts = batteryPowerWatts
         self.batteryHealthPercent = batteryHealthPercent
@@ -165,11 +176,15 @@ public struct SystemHistoryPeaks: Sendable, Equatable {
     public var diskReadBytesPerSec: Double
     public var diskWriteBytesPerSec: Double
     public var gpuUtilization: Double?
+    /// The 1 minute load average's peak. Nil for tier rows written before it
+    /// was recorded.
+    public var loadAverage1: Double?
 
     public init(
         pressurePercent: Double, cpuLoad: Double, networkInBytesPerSec: Double,
         networkOutBytesPerSec: Double, diskReadBytesPerSec: Double,
-        diskWriteBytesPerSec: Double, gpuUtilization: Double? = nil
+        diskWriteBytesPerSec: Double, gpuUtilization: Double? = nil,
+        loadAverage1: Double? = nil
     ) {
         self.pressurePercent = pressurePercent
         self.cpuLoad = cpuLoad
@@ -178,6 +193,7 @@ public struct SystemHistoryPeaks: Sendable, Equatable {
         self.diskReadBytesPerSec = diskReadBytesPerSec
         self.diskWriteBytesPerSec = diskWriteBytesPerSec
         self.gpuUtilization = gpuUtilization
+        self.loadAverage1 = loadAverage1
     }
 
     /// The peaks of a single raw sample: the sample itself.
@@ -188,7 +204,7 @@ public struct SystemHistoryPeaks: Sendable, Equatable {
             networkOutBytesPerSec: point.networkOutBytesPerSec,
             diskReadBytesPerSec: point.diskReadBytesPerSec,
             diskWriteBytesPerSec: point.diskWriteBytesPerSec,
-            gpuUtilization: point.gpuUtilization)
+            gpuUtilization: point.gpuUtilization, loadAverage1: point.loadAverage1)
     }
 
     /// The element-wise larger of two peaks.
@@ -200,7 +216,8 @@ public struct SystemHistoryPeaks: Sendable, Equatable {
             networkOutBytesPerSec: max(networkOutBytesPerSec, other.networkOutBytesPerSec),
             diskReadBytesPerSec: max(diskReadBytesPerSec, other.diskReadBytesPerSec),
             diskWriteBytesPerSec: max(diskWriteBytesPerSec, other.diskWriteBytesPerSec),
-            gpuUtilization: [gpuUtilization, other.gpuUtilization].compactMap { $0 }.max())
+            gpuUtilization: [gpuUtilization, other.gpuUtilization].compactMap { $0 }.max(),
+            loadAverage1: [loadAverage1, other.loadAverage1].compactMap { $0 }.max())
     }
 }
 
@@ -278,7 +295,8 @@ extension SampleStore {
                        gpu_util, gpu_power, ane_power,
                        cpu_die, gpu_die, ssd_temp, fan_rpm, thermal_state,
                        cpu_p_die, cpu_e_die, airflow_temp, skin_temp, wireless_temp,
-                       vrail_temp, other_temp
+                       vrail_temp, other_temp,
+                       load_1, load_5, load_15
                 FROM system_samples
                 WHERE timestamp >= ?
                 ORDER BY timestamp ASC
@@ -302,8 +320,9 @@ extension SampleStore {
                        cpu_die_max, gpu_die_max, ssd_temp_max, fan_rpm_max, thermal_state_max,
                        cpu_p_die_max, cpu_e_die_max, airflow_temp_max, skin_temp_max,
                        wireless_temp_max, vrail_temp_max, other_temp_max,
+                       load_1_avg, load_5_avg, load_15_avg,
                        pressure_max, cpu_max, net_in_max, net_out_max,
-                       disk_read_max, disk_write_max, gpu_util_max
+                       disk_read_max, disk_write_max, gpu_util_max, load_1_max
                 FROM \(table)
                 WHERE bucket >= ?
                 ORDER BY bucket ASC
@@ -311,19 +330,20 @@ extension SampleStore {
         ).map(Self.decodeAggregatePoint)
     }
 
-    /// The shared decode plus the peak columns only the tiers have (38 on).
+    /// The shared decode plus the peak columns only the tiers have (41 on).
     private static func decodeAggregatePoint(_ row: Row) -> SystemHistoryPoint {
         var point = decodeHistoryPoint(row)
         point.peaks = SystemHistoryPeaks(
-            pressurePercent: row[38], cpuLoad: row[39],
-            networkInBytesPerSec: row[40], networkOutBytesPerSec: row[41],
-            diskReadBytesPerSec: row[42], diskWriteBytesPerSec: row[43],
-            gpuUtilization: row[44])
+            pressurePercent: row[41], cpuLoad: row[42],
+            networkInBytesPerSec: row[43], networkOutBytesPerSec: row[44],
+            diskReadBytesPerSec: row[45], diskWriteBytesPerSec: row[46],
+            gpuUtilization: row[47], loadAverage1: row[48])
         return point
     }
 
     /// Positional decode shared by the raw and aggregate queries, which list the
-    /// same 23 columns in the same order. Reading by index (`row[0]`) rather than
+    /// same 41 columns in the same order (the load columns, 38 to 40, are null
+    /// on rows written before v16). Reading by index (`row[0]`) rather than
     /// by name (`row["..."]`) avoids a column-name→index lookup per field per row,
     /// which over a few hundred points × 14 columns was a measurable read cost.
     private static func decodeHistoryPoint(_ row: Row) -> SystemHistoryPoint {
@@ -337,6 +357,9 @@ extension SampleStore {
             cachedFiles: SQLInt.read(row[5]),
             swapUsed: SQLInt.read(row[6]),
             cpuLoad: row[7],
+            loadAverage1: (row[38] as Double?) ?? 0,
+            loadAverage5: (row[39] as Double?) ?? 0,
+            loadAverage15: (row[40] as Double?) ?? 0,
             batteryCharge: row[8],
             batteryPowerWatts: row[9],
             batteryHealthPercent: row[10],

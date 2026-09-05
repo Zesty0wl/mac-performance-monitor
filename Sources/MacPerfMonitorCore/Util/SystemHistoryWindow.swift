@@ -50,6 +50,13 @@ public struct SystemHistoryWindow {
         case diskReadPeak
         case diskWritePeak
         case gpuUtilizationPeak
+        /// The kernel's load averages, so the Processes header's load card
+        /// reads history like its neighbours instead of a ring that empties
+        /// whenever the tab is remounted.
+        case loadAverage1
+        case loadAverage5
+        case loadAverage15
+        case loadAverage1Peak
     }
 
     /// Timestamps as `timeIntervalSinceReferenceDate`, oldest first.
@@ -140,6 +147,9 @@ public struct SystemHistoryWindow {
                     cachedFiles: UInt64(columns[Column.cachedFiles.rawValue][i]),
                     swapUsed: UInt64(columns[Column.swapUsed.rawValue][i]),
                     cpuLoad: columns[Column.cpuLoad.rawValue][i],
+                    loadAverage1: columns[Column.loadAverage1.rawValue][i],
+                    loadAverage5: columns[Column.loadAverage5.rawValue][i],
+                    loadAverage15: columns[Column.loadAverage15.rawValue][i],
                     networkInBytesPerSec: columns[Column.networkInBytesPerSec.rawValue][i],
                     networkOutBytesPerSec: columns[Column.networkOutBytesPerSec.rawValue][i],
                     diskReadBytesPerSec: columns[Column.diskReadBytesPerSec.rawValue][i],
@@ -179,6 +189,11 @@ public struct SystemHistoryWindow {
         columns[Column.diskWritePeak.rawValue].append(peaks.diskWriteBytesPerSec)
         columns[Column.gpuUtilizationPeak.rawValue].append(
             peaks.gpuUtilization ?? point.gpuUtilization ?? 0)
+        columns[Column.loadAverage1.rawValue].append(point.loadAverage1)
+        columns[Column.loadAverage5.rawValue].append(point.loadAverage5)
+        columns[Column.loadAverage15.rawValue].append(point.loadAverage15)
+        columns[Column.loadAverage1Peak.rawValue].append(
+            peaks.loadAverage1 ?? point.loadAverage1)
         latest = point
     }
 

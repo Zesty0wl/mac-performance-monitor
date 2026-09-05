@@ -6,6 +6,8 @@ import SwiftUI
 struct MetricSample: Identifiable, Equatable {
     var date: Date
     var value: Double
+    /// The stored peak behind a mean, for rows from the minute and hour tiers.
+    var high: Double? = nil
     var id: Date { date }
 }
 
@@ -113,7 +115,7 @@ struct MetricChart: View, Equatable {
             // runs are already split, so the chart must not split them again.
             series: segments.map { run in
                 TrendSeries(
-                    points: run.map { TrendPoint(date: $0.date, value: $0.value) },
+                    points: run.map { TrendPoint(date: $0.date, value: $0.value, high: $0.high) },
                     color: tint, filled: false, lineWidth: 1.8)
             },
             xDomain: xDomain,

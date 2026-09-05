@@ -51,7 +51,7 @@ NOT_TRANSLATED = {
     "1", "1024", "192.168.1.1", "192.168.1.254", "ABCDE12345",
     # Swift Charts series and axis identifiers: named for the code that reads
     # them back, never drawn on screen.
-    "t", "u", "c", "Value",
+    "t", "u", "c",
 }
 
 

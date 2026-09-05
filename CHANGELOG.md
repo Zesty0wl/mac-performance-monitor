@@ -50,7 +50,12 @@ Notable changes to Mac Performance Monitor. This project follows
   the history to 360 points before drawing it, and the menu bar panels draw the
   same curve. The load average card on the Processes tab shows the 1, 5 and 15
   minute averages together, as beszel does: the 1 minute figure as the line,
-  the slower two as fainter lines behind it, with their values in the corner.
+  the slower two as fainter lines behind it, with their values on the card.
+  The load averages are recorded to the history database now (they lived only
+  in memory before, so the card started empty every time the Processes tab was
+  opened), and the detail sheet a card opens is larger and draws the same
+  smoothed line and band as the charts, with the three load lines and a legend
+  where the card has them.
 
 ### Security
 

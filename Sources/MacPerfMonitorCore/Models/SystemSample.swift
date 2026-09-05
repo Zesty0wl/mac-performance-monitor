@@ -40,6 +40,11 @@ public struct SystemSample: Sendable, Codable {
 
     /// System-wide CPU load as a fraction (0...1 per core averaged), best-effort.
     public var cpuLoad: Double
+    /// The kernel's load averages (run-queue length over 1, 5 and 15 minutes,
+    /// the figures `uptime` reports), persisted so the load card has history.
+    public var loadAverage1: Double
+    public var loadAverage5: Double
+    public var loadAverage15: Double
 
     // Battery state, persisted so the dashboard battery timelines work over the
     // long ranges. Only the chartable scalars live here; the richer live-only
@@ -144,6 +149,9 @@ public struct SystemSample: Sendable, Codable {
         compressionsDelta: UInt64 = 0,
         decompressionsDelta: UInt64 = 0,
         cpuLoad: Double = 0,
+        loadAverage1: Double = 0,
+        loadAverage5: Double = 0,
+        loadAverage15: Double = 0,
         batteryPresent: Bool = false,
         batteryCharge: Double = 0,
         batteryPowerWatts: Double = 0,
@@ -202,6 +210,9 @@ public struct SystemSample: Sendable, Codable {
         self.compressionsDelta = compressionsDelta
         self.decompressionsDelta = decompressionsDelta
         self.cpuLoad = cpuLoad
+        self.loadAverage1 = loadAverage1
+        self.loadAverage5 = loadAverage5
+        self.loadAverage15 = loadAverage15
         self.batteryPresent = batteryPresent
         self.batteryCharge = batteryCharge
         self.batteryPowerWatts = batteryPowerWatts

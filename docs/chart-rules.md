@@ -160,7 +160,9 @@ met today; everything else is work.
 | Dashboard: pressure, processor, network, disk, swap | 1, 2, 3, 4, 7, 9 | none |
 | Dashboard: thermals | 1, 2, 3, 4, 5, 7, 9 | none |
 | Dashboard: metric cards | 1, 2, 3, 4, 5, 7, 9 | 8: no peak label, unlike the Processes header |
-| Processes header: CPU, load, die | 1, 2, 3, 4, 5, 8, 9 | none |
+| Processes header: CPU, load (1, 5 and 15 minute), die | 1, 2, 3, 4, 5, 8, 9 | none |
+| Metric card detail sheets (Dashboard, Processes, Energy) | 1, 2, 3, 4, 5, 7, 8, 9 | none |
+| Energy tab cards | 1, 2, 3, 4, 7, 8, 9 | 5 |
 | GPU tab: utilisation, power, temperature | 1, 2, 3, 4, 7, 9 | 5 for power, which still runs from zero to a rounded peak; utilisation keeps 0 to 100 on purpose |
 | Energy tab: thermals, fan, charge | 1, 2, 3, 4, 5, 7, 9 | none |
 | Disk tab: throughput, operations, latency, free space | 1, 2, 3, 4, 7, 9 | 5 for latency; free space keeps 0 to capacity on purpose |

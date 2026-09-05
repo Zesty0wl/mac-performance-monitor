@@ -13,6 +13,8 @@ import SwiftUI
 /// thinner than the main one: the 5 and 15 minute load averages beside the
 /// 1 minute line, the way beszel shows load.
 struct MetricCardCompanion {
+    /// Legend label for the detail sheet, a catalog key such as "5 min".
+    var label: String
     var column: LiveColumn
     var alpha: CGFloat
     var lineWidth: CGFloat = 1.2
@@ -27,6 +29,7 @@ final class MetricCardFeed {
     private(set) var tint: NSColor = .labelColor
     /// The raw window column behind the sparkline, zero-copy.
     private(set) var column: LiveColumn?
+    private(set) var companions: [MetricCardCompanion] = []
     private(set) var scale: Double = 1
     private(set) var xDomain: ClosedRange<Date>?
     private(set) var yDomain: ClosedRange<Double>?
@@ -43,6 +46,7 @@ final class MetricCardFeed {
         self.peak = peak
         self.tint = tint
         self.column = column
+        self.companions = companions
         self.scale = scale
         self.xDomain = xDomain
         self.yDomain = yDomain
@@ -71,11 +75,25 @@ final class MetricCardFeed {
     }
 
     /// The sparkline's series as timestamped samples, for the detail sheet.
-    /// Decimated here, on demand, rather than on every tick.
+    /// Every sample, with its stored peak: the sheet's chart reduces at draw
+    /// time like every other chart (docs/chart-rules.md, rule 1). Built on
+    /// demand, when the sheet opens, not on every tick.
     var samples: [MetricSample] {
         guard let column else { return [] }
-        return LiveTrend.points(column, xDomain: xDomain, buckets: 160).map {
-            MetricSample(date: $0.date, value: $0.value * scale)
+        return Self.samples(column, scale: scale)
+    }
+
+    /// The companion lines the same way, labelled for the sheet's legend.
+    var companionSamples: [MetricCompanionSamples] {
+        companions.map {
+            MetricCompanionSamples(
+                label: $0.label, alpha: $0.alpha, samples: Self.samples($0.column, scale: scale))
+        }
+    }
+
+    private static func samples(_ column: LiveColumn, scale: Double) -> [MetricSample] {
+        LiveTrend.allPoints(column).map {
+            MetricSample(date: $0.date, value: $0.value * scale, high: $0.high.map { $0 * scale })
         }
     }
 
