@@ -92,8 +92,7 @@ struct GPUView: View {
     private func reload() {
         guard let model else { return }
         let requested = range
-        let pointLimit = requested.granularity == .raw ? nil : 720
-        model.loadSystemHistory(requested, downsampledTo: pointLimit) { points in
+        model.loadSystemHistory(requested) { points in
             guard range == requested else { return }
             timeline.replace(
                 points, span: requested.seconds, live: model.liveSystem, gpu: model.latestGPU)

@@ -144,9 +144,9 @@ be raw data is a lie the user cannot see.
 | --- | --- |
 | 1, 4 | `TrendRenderer.smoothingSeconds` sets the window from the span; `LiveStripBuckets` supplies the per-column extremes behind it, raised to the stored peaks where a row carries them; `MonotoneCurve` draws the line. The history window keeps every sample on purpose |
 | 2 | `TrendSurfaceSeries.reduction`, declared per series where the model is built |
-| 3 | `TrendSurface` band drawing, fed by the decimator's existing min and max |
+| 3 | `TrendRenderer.drawSeries`, the one routine every series is drawn with: the layer-backed strips call it for their live columns, the Canvas `TrendChart` (every tab chart, the detail charts, the battery chart) calls it for its points |
 | 5, 6 | `ChartDomain.fitted`, called by each chart with its own minimum span |
-| 7 | `TrendModel.gapThreshold`, sized by `ChartGap.threshold` from the loaded tier's spacing; `Sampler.hasBaseline` keeps the zero tick out |
+| 7 | `TrendModel.gapThreshold`, sized by `ChartGap.threshold` from the loaded tier's spacing; a `TrendChart` given no threshold reads its series' own spacing with `ChartGap.expectedSpacing`; `Sampler.hasBaseline` keeps the zero tick out |
 | 8 | `TrendChartGeometry` for full charts, `ScaledSparkline` for strips |
 | 9, 10 | review, and the captions each panel already carries |
 
@@ -158,14 +158,16 @@ met today; everything else is work.
 | Surface | Rules met | Work needed |
 | --- | --- | --- |
 | Dashboard: pressure, processor, network, disk, swap | 1, 2, 3, 4, 7, 9 | none |
-| Dashboard: thermals | 1, 2, 4, 5, 7, 9 | 3: `TrendChart` has no band, so this shows the bucket maximum as a line with no spread behind it |
+| Dashboard: thermals | 1, 2, 3, 4, 5, 7, 9 | none |
 | Dashboard: metric cards | 1, 2, 3, 4, 5, 7, 9 | 8: no peak label, unlike the Processes header |
 | Processes header: CPU, load, die | 1, 2, 3, 4, 5, 8, 9 | none |
-| GPU tab | 7 | 1, 3, 5: fixed 0 to 100 and 0 to peak domains |
-| Energy and battery | 7, 9 | 1, 3, 5 |
-| Disk tab | 7 | 1, 3, 5 |
-| Network tab | 7 | 1, 3, 5 |
-| Menu bar panels | 8, 9 | 3, 5 |
+| GPU tab: utilisation, power, temperature | 1, 2, 3, 4, 7, 9 | 5 for power, which still runs from zero to a rounded peak; utilisation keeps 0 to 100 on purpose |
+| Energy tab: thermals, fan, charge | 1, 2, 3, 4, 5, 7, 9 | none |
+| Disk tab: throughput, operations, latency, free space | 1, 2, 3, 4, 7, 9 | 5 for latency; free space keeps 0 to capacity on purpose |
+| Network tab and adapter detail | 1, 2, 3, 4, 7, 9 | 5 |
+| Process and group detail charts | 1, 2, 3, 4, 7, 9 | 5 |
+| Menu bar panels | 8, 9 | 1, 3, 5: the curve is shared, the reduction and band are not |
+| Process performance chart (Processes tab, trace viewer) | 7 | to audit: a separate Canvas with its own scrubber |
 | Insights and Analytics | to audit | to audit |
 
 ## Rollout
@@ -174,12 +176,15 @@ One pull request per rule group, applied across every surface at once rather
 than per tab, because the point of writing this down is to stop fixing charts
 one at a time.
 
-1. **Resolution and reduction** (rules 1 to 4, 9): done for every live surface.
-   `LiveStripBuckets` carries each bucket's mean alongside its extremes, and
-   `TrendSurface` draws the mean as the line inside a translucent band of the
-   spread. Series declare their reduction, so temperature follows the maximum
-   while everything else follows the mean, and the area fills are gone from the
-   volatile series.
+1. **Resolution and reduction** (rules 1 to 4, 9): done for every chart but
+   the menu bar panels and the process performance chart. `LiveStripBuckets`
+   carries each bucket's mean alongside its extremes, and
+   `TrendRenderer.drawSeries` draws the mean as a monotone curve inside a
+   translucent band of the spread, for the live strips and the Canvas charts
+   alike. Series declare their reduction, so temperature and fan speed follow
+   the maximum while everything else follows the mean, the area fills are gone
+   from the volatile series, and the tabs load every stored row instead of
+   thinning to 360 points on the way in.
 2. **Axes** (rules 5 and 6): `ChartDomain.fitted` everywhere, with a stated
    minimum span per metric, and hysteresis on live recomputation. Done for the
    two temperature surfaces; the GPU, Energy, Disk and Network tabs still carry

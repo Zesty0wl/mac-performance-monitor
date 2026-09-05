@@ -49,28 +49,13 @@ struct MetricChart: View, Equatable {
             && lhs.samples.last == rhs.samples.last
     }
 
-    /// Cap on the number of points actually drawn. A dense window (a 30-minute
-    /// or longer span holds hundreds to thousands of 1-second samples) is
-    /// collapsed to at most this many points, so the line stays a crisp trend
-    /// instead of smearing into noise and the live edge does not shimmer.
-    private static let maxPoints = 160
-
-    /// Width of one downsampling bucket, fixed by the span and the point cap so
-    /// it does not move as data accrues. Because it is anchored to the clock,
-    /// past buckets are settled the moment they fall behind the live edge.
-    private var bucketWidth: TimeInterval { windowSeconds / Double(Self.maxPoints) }
-
     /// The raw samples split into contiguous runs, broken wherever two samples
     /// are far enough apart to mean data is missing (the app was asleep, the
-    /// process was briefly unreadable, or it was relaunched). Splitting the RAW
-    /// series, before downsampling, is deliberate: the downsampled points sit
-    /// at each bucket's peak, whose timestamps jitter within the bucket, so
-    /// judging gaps on them would invent breaks in spiky metrics like CPU and
-    /// disk I/O. Each run is then downsampled on its own, so a real gap is left
-    /// blank rather than bridged by a misleading straight diagonal.
+    /// process was briefly unreadable, or it was relaunched). The chart then
+    /// reduces each run at draw time, a mean line inside a band of the
+    /// extremes (docs/chart-rules.md), so nothing is thinned here.
     private var segments: [[MetricSample]] {
         Self.split(samples, gapThreshold: gapThreshold)
-            .map { Self.stableDownsample($0, bucketWidth: bucketWidth) }
     }
 
     /// A gap is a jump well beyond the normal sampling cadence. Raw rows are
@@ -144,45 +129,6 @@ struct MetricChart: View, Equatable {
         .accessibilityLabel(t(accessibilityTitle))
         .accessibilityValue(accessibilitySummary)
         .reducedMotionAware()
-    }
-
-    /// Collapse a dense series to one point per fixed time bucket by keeping the
-    /// bucket's peak sample. The bucket width is fixed by the caller (derived
-    /// from the span, not the data), and the buckets are anchored to absolute
-    /// time (epoch / bucketWidth), not to the array index, so they stay put as
-    /// the live window advances: appending the newest sample only ever changes
-    /// the rightmost bucket while the rest of the line holds perfectly still
-    /// instead of changing shape. Keeping each bucket's maximum preserves spikes
-    /// (a climbing leak, a CPU burst) rather than averaging them away. A series
-    /// already coarser than the bucket width passes straight through untouched.
-    private static func stableDownsample(
-        _ samples: [MetricSample], bucketWidth: TimeInterval
-    )
-        -> [MetricSample]
-    {
-        guard bucketWidth > 0, samples.count > 2 else { return samples }
-        func bucketIndex(_ d: Date) -> Int {
-            Int((d.timeIntervalSince1970 / bucketWidth).rounded(.down))
-        }
-        var result: [MetricSample] = []
-        result.reserveCapacity(samples.count)
-        var currentBucket = bucketIndex(samples[0].date)
-        var peak = samples[0]
-        for sample in samples.dropFirst() {
-            let bucket = bucketIndex(sample.date)
-            if bucket == currentBucket {
-                if sample.value > peak.value { peak = sample }
-            } else {
-                result.append(peak)
-                currentBucket = bucket
-                peak = sample
-            }
-        }
-        result.append(peak)
-        if let latest = samples.last, latest.date > peak.date {
-            result.append(latest)
-        }
-        return result
     }
 
     /// Break a series into contiguous runs wherever two consecutive points are

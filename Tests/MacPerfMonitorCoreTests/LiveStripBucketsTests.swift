@@ -265,4 +265,50 @@ final class LiveStripBucketsTests: XCTestCase {
             through: 10, gapThreshold: 5)
         XCTAssertEqual(mismatched[0].maxValue, 0.4, "a highs slice of the wrong length is dropped")
     }
+
+    // MARK: - Expected spacing
+
+    func testExpectedSpacingOfAUniformSeriesIsItsCadence() {
+        let times = (0..<100).map { Double($0) * 10 }
+        XCTAssertEqual(ChartGap.expectedSpacing(times: times[...]), 10)
+    }
+
+    func testExpectedSpacingFollowsTheCoarseTierWhenTiersMix() {
+        // A week of hour rows, topped up with an hour of minute rows and two
+        // minutes of one second rows: the fine tail outnumbers the hour rows,
+        // so a median would break the hour rows into islands.
+        var times: [Double] = []
+        var t = 0.0
+        for _ in 0..<168 {
+            times.append(t)
+            t += 3600
+        }
+        for _ in 0..<60 {
+            times.append(t)
+            t += 60
+        }
+        for _ in 0..<120 {
+            times.append(t)
+            t += 1
+        }
+        XCTAssertEqual(ChartGap.expectedSpacing(times: times[...]), 3600)
+    }
+
+    func testExpectedSpacingIgnoresAFewRealHoles() {
+        var times: [Double] = []
+        var t = 0.0
+        for i in 0..<200 {
+            times.append(t)
+            t += i == 100 ? 1800 : 60
+        }
+        XCTAssertEqual(ChartGap.expectedSpacing(times: times[...]), 60)
+        XCTAssertLessThan(
+            ChartGap.threshold(expectedSpacing: ChartGap.expectedSpacing(times: times[...])),
+            1800, "the hole is still a gap")
+    }
+
+    func testExpectedSpacingOfTooFewSamplesIsZero() {
+        XCTAssertEqual(ChartGap.expectedSpacing(times: [][...]), 0)
+        XCTAssertEqual(ChartGap.expectedSpacing(times: [5][...]), 0)
+    }
 }

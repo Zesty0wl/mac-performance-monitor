@@ -566,8 +566,6 @@ struct DiskUsageView: View {
         }
     }
 
-    private static let maxChartPoints = 360
-
     private func rebuildPoints() {
         var pts = history
         if let system = model.liveSystem {
@@ -600,7 +598,7 @@ struct DiskUsageView: View {
 
     private func reload() {
         let requested = range
-        model.loadSystemHistory(requested, downsampledTo: Self.maxChartPoints) { pts in
+        model.loadSystemHistory(requested) { pts in
             self.history = pts
             self.loadedRange = requested
             self.rebuildPoints()

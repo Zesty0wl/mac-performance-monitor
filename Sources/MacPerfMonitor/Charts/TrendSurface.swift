@@ -946,97 +946,115 @@ enum TrendRenderer {
             ctx.strokePath()
         }
 
-        // How many columns of history the line averages over. One column holds
-        // two or three samples at an hour's span, and the mean of three noisy
-        // samples is still noisy, so bucketing to pixels barely smooths at all.
-        // Averaging over a window sized from the span does: a target of about
-        // 120 points across the plot puts thirty seconds behind each point at an
-        // hour, three minutes at six hours, and two seconds at five minutes,
-        // where the detail is still the point. See docs/chart-rules.md.
-        let smoothingSeconds = TrendRenderer.smoothingSeconds(span: tick.span)
-        // Columns of extra history to fetch, so a repaint of the live edge sees
-        // the same window as a full repaint. Expressed in the same units as the
-        // window itself.
-        let smoothing =
-            bucketWidth > 0 ? max(1, Int((smoothingSeconds / bucketWidth).rounded())) : 1
         // Columns of extra history to the left, so a repaint of a few live
         // columns matches a full one exactly. The first visible curve segment
         // takes its shape from the two points before it, each at most a gap
         // threshold back (further and it is a new run), and each of those needs
         // the full trailing window behind it for its averaged value to agree.
+        let smoothing = smoothingColumns(span: tick.span, bucketWidth: bucketWidth)
         let gapColumns = bucketWidth > 0 ? Int((tick.gapThreshold / bucketWidth).rounded(.up)) : 1
         let context = 2 * gapColumns + smoothing + 2
 
         for s in model.series {
-            let extremes = LiveStripBuckets.buckets(
-                times: s.column.times, values: s.column.values, highs: s.column.highs,
-                width: bucketWidth, from: buckets.lowerBound - context,
-                through: buckets.upperBound, gapThreshold: tick.gapThreshold, scale: s.scale)
-            guard !extremes.isEmpty else { continue }
-            let color = NSColor(s.color)
+            drawSeries(
+                s, span: tick.span, bucketWidth: bucketWidth,
+                buckets: (buckets.lowerBound - context)...buckets.upperBound,
+                gapThreshold: tick.gapThreshold, x: x, y: y, fillTop: 0, fillBaseline: height,
+                context: ctx, gradients: &gradients)
+        }
+    }
 
-            // More than one sample per column means the samples cannot all be
-            // drawn honestly. Rule 3: the line becomes the bucket's reduction
-            // and the spread goes behind it as a band, instead of a spike per
-            // column that turns a busy metric into a solid block.
-            let aggregated = extremes.contains(where: \.isAggregate) || smoothing > 1
+    /// How many columns of history the line averages over. One column holds
+    /// two or three samples at an hour's span, and the mean of three noisy
+    /// samples is still noisy, so bucketing to pixels barely smooths at all.
+    /// Averaging over a window sized from the span does: a target of about
+    /// 120 points across the plot puts thirty seconds behind each point at an
+    /// hour, three minutes at six hours, and two seconds at five minutes,
+    /// where the detail is still the point. See docs/chart-rules.md.
+    static func smoothingColumns(span: Double, bucketWidth: Double) -> Int {
+        bucketWidth > 0 ? max(1, Int((smoothingSeconds(span: span) / bucketWidth).rounded())) : 1
+    }
+
+    /// One series over `buckets`: the band of each column's spread, the
+    /// smoothed line as a monotone curve, the optional fill, and a dot for an
+    /// isolated reading. This is the whole of how a series is drawn, shared by
+    /// the strip (which widens `buckets` to the left so a partial repaint
+    /// agrees with a full one) and the Canvas charts (a full redraw of the
+    /// visible buckets), so every chart in the app follows the same rules.
+    static func drawSeries(
+        _ s: TrendSurfaceSeries, span: Double, bucketWidth: Double, buckets: ClosedRange<Int>,
+        gapThreshold: Double, x: (Double) -> CGFloat, y: (Double) -> CGFloat, fillTop: CGFloat,
+        fillBaseline: CGFloat, context ctx: CGContext, gradients: inout [String: CGGradient]
+    ) {
+        let smoothingSeconds = smoothingSeconds(span: span)
+        let smoothing = smoothingColumns(span: span, bucketWidth: bucketWidth)
+        let extremes = LiveStripBuckets.buckets(
+            times: s.column.times, values: s.column.values, highs: s.column.highs,
+            width: bucketWidth, from: buckets.lowerBound, through: buckets.upperBound,
+            gapThreshold: gapThreshold, scale: s.scale)
+        guard !extremes.isEmpty else { return }
+        let color = NSColor(s.color)
+
+        // More than one sample per column means the samples cannot all be
+        // drawn honestly. Rule 3: the line becomes the bucket's reduction
+        // and the spread goes behind it as a band, instead of a spike per
+        // column that turns a busy metric into a solid block.
+        let aggregated = extremes.contains(where: \.isAggregate) || smoothing > 1
+        if aggregated {
+            drawBand(extremes, width: bucketWidth, color: color, x: x, y: y, context: ctx)
+        }
+        let line = TrendRenderer.smoothed(
+            extremes, seconds: smoothingSeconds, width: bucketWidth,
+            value: { s.reduction == .maximum ? $0.maxValue : $0.mean })
+
+        // Gap-free runs of points in time order.
+        var runs: [[CGPoint]] = []
+        var current: [CGPoint] = []
+        for (bucket, value) in zip(extremes, line) {
+            if bucket.gapBefore, !current.isEmpty {
+                runs.append(current)
+                current = []
+            }
             if aggregated {
-                drawBand(
-                    extremes, width: bucketWidth, color: color, x: x, y: y, context: ctx)
+                current.append(
+                    CGPoint(x: x(bucketMidTime(bucket, width: bucketWidth)), y: y(value)))
+            } else {
+                for point in bucket.orderedPoints {
+                    current.append(CGPoint(x: x(point.time), y: y(point.value)))
+                }
             }
-            let line = TrendRenderer.smoothed(
-                extremes, seconds: smoothingSeconds, width: bucketWidth,
-                value: { s.reduction == .maximum ? $0.maxValue : $0.mean })
+        }
+        if !current.isEmpty { runs.append(current) }
 
-            // Gap-free runs of points in time order.
-            var runs: [[CGPoint]] = []
-            var current: [CGPoint] = []
-            for (bucket, value) in zip(extremes, line) {
-                if bucket.gapBefore, !current.isEmpty {
-                    runs.append(current)
-                    current = []
-                }
-                if aggregated {
-                    current.append(
-                        CGPoint(x: x(bucketMidTime(bucket, width: bucketWidth)), y: y(value)))
-                } else {
-                    for point in bucket.orderedPoints {
-                        current.append(CGPoint(x: x(point.time), y: y(point.value)))
-                    }
-                }
+        for run in runs {
+            guard let first = run.first, let last = run.last else { continue }
+            if run.count == 1 {
+                ctx.setFillColor(color.cgColor)
+                let r: CGFloat = 1.6
+                ctx.fillEllipse(
+                    in: CGRect(x: first.x - r, y: first.y - r, width: 2 * r, height: 2 * r))
+                continue
             }
-            if !current.isEmpty { runs.append(current) }
-
-            for run in runs {
-                guard let first = run.first, let last = run.last else { continue }
-                if run.count == 1 {
-                    ctx.setFillColor(color.cgColor)
-                    let r: CGFloat = 1.6
-                    ctx.fillEllipse(
-                        in: CGRect(x: first.x - r, y: first.y - r, width: 2 * r, height: 2 * r))
-                    continue
-                }
-                let path = MonotoneCurve.path(run)
-                if s.filled, let gradient = gradient(for: color, cache: &gradients) {
-                    let fill = path.mutableCopy() ?? CGMutablePath()
-                    fill.addLine(to: CGPoint(x: last.x, y: height))
-                    fill.addLine(to: CGPoint(x: first.x, y: height))
-                    fill.closeSubpath()
-                    ctx.saveGState()
-                    ctx.addPath(fill)
-                    ctx.clip()
-                    ctx.drawLinearGradient(
-                        gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: 0, y: height),
-                        options: [])
-                    ctx.restoreGState()
-                }
-                ctx.addPath(path)
-                ctx.setStrokeColor(color.cgColor)
-                ctx.setLineWidth(s.lineWidth)
-                ctx.setLineCap(.butt)
-                ctx.setLineJoin(.bevel)
-                ctx.strokePath()
+            let path = MonotoneCurve.path(run)
+            if s.filled, let gradient = gradient(for: color, cache: &gradients) {
+                let fill = path.mutableCopy() ?? CGMutablePath()
+                fill.addLine(to: CGPoint(x: last.x, y: fillBaseline))
+                fill.addLine(to: CGPoint(x: first.x, y: fillBaseline))
+                fill.closeSubpath()
+                ctx.saveGState()
+                ctx.addPath(fill)
+                ctx.clip()
+                ctx.drawLinearGradient(
+                    gradient, start: CGPoint(x: 0, y: fillTop),
+                    end: CGPoint(x: 0, y: fillBaseline), options: [])
+                ctx.restoreGState()
             }
+            ctx.addPath(path)
+            ctx.setStrokeColor(color.cgColor)
+            ctx.setLineWidth(s.lineWidth)
+            ctx.setLineCap(.butt)
+            ctx.setLineJoin(.bevel)
+            ctx.strokePath()
         }
     }
 

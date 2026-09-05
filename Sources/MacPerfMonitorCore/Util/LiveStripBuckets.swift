@@ -25,6 +25,26 @@ public enum ChartGap {
     public static func threshold(expectedSpacing: TimeInterval) -> TimeInterval {
         max(expectedSpacing * 3, 15)
     }
+
+    /// The coarsest spacing a series legitimately has, read from the series
+    /// itself: the 90th percentile of the intervals between consecutive
+    /// samples. A series can mix tiers (hour rows topped up with minute rows
+    /// and then raw ones), and the median would follow whichever is more
+    /// numerous and turn the coarse rows into islands; a high percentile
+    /// follows the coarse rows, and the few real holes above it are what the
+    /// threshold exists to find. Zero with fewer than two samples.
+    public static func expectedSpacing(times: ArraySlice<Double>) -> Double {
+        guard times.count > 1 else { return 0 }
+        var deltas: [Double] = []
+        deltas.reserveCapacity(times.count - 1)
+        var previous = times[times.startIndex]
+        for t in times.dropFirst() {
+            deltas.append(t - previous)
+            previous = t
+        }
+        deltas.sort()
+        return deltas[min(deltas.count - 1, (deltas.count * 9) / 10)]
+    }
 }
 
 public enum LiveStripBuckets {
