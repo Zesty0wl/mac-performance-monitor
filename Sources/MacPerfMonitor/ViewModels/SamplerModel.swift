@@ -146,6 +146,12 @@ final class SamplerModel: ObservableObject {
     /// what lets an app with no surfaces skip the per-tick hop to the main
     /// thread entirely.
     private var menuBarItemVisible = true
+    /// Whether a main window is open, covered or not. Separate from the process
+    /// consumers, which are dropped a few seconds after the window is covered:
+    /// the heavy scan should stop then, but the cheap per-tick history must keep
+    /// filling, or the chart the window shows on its return has a hole in it for
+    /// however long it was hidden.
+    private var windowOpen = false
     /// The visible-surface cadence: `liveTick` (charts, the menu-bar image)
     /// and the on-screen row re-reads follow the refresh dial, while the 1 Hz
     /// system heartbeat keeps running underneath for logging and smoothing.
@@ -650,6 +656,12 @@ final class SamplerModel: ObservableObject {
         queue.async { self.menuBarItemVisible = visible }
     }
 
+    /// Tell the sampler whether a main window exists, covered or not. See
+    /// `windowOpen`.
+    func setWindowOpen(_ open: Bool) {
+        queue.async { self.windowOpen = open }
+    }
+
     /// Install (or clear) the privileged helper-backed reader on the sampler.
     /// Hops to the sampler queue, where the `Sampler` is exclusively touched, so
     /// the reader is swapped safely between ticks. Passing nil reverts to
@@ -1112,13 +1124,14 @@ final class SamplerModel: ObservableObject {
         }
 
         // Publish the fresh system sample every tick, independent of any scan:
-        // the full-rate heartbeat the menu bar and the live charts read. With
-        // no menu bar item, no window and no popover, nothing reads it, so the
-        // hop to the main thread is pure cost: skip it. The rings it fills are
-        // live-chart state, and a chart that is not on screen has no history to
-        // lose; recorded history comes from the database.
+        // the full-rate heartbeat the menu bar and the live charts read. Skip
+        // the hop to the main thread only when there is genuinely nobody: no
+        // menu bar item, no popover, and no window at all. A window that is
+        // merely covered still counts, because it will show this history the
+        // moment it is uncovered, and a hole in that line would read as "we
+        // stopped measuring" rather than "you were in another app".
         let diagnostics = self.diagnostics
-        let anythingWatching = menuBarItemVisible || interactive
+        let anythingWatching = menuBarItemVisible || interactive || windowOpen
         if anythingWatching {
             DispatchQueue.main.async {
                 let publishStart = TickDiagnostics.now()

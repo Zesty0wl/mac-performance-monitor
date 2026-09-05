@@ -83,11 +83,16 @@ struct DashboardView: View {
             if appState.mainWindowVisible { reloadTopConsumers() }
         }
         .onReceive(liveTicks) { _ in
-            guard appState.mainWindowVisible, let model else { return }
+            guard let model else { return }
+            // Collect even while the window is covered, and only skip the
+            // drawing. Stopping the collection left a hole in the line for
+            // however long the window was hidden, which the next reload then
+            // quietly repaired: a gap on a monitoring chart has to mean "we were
+            // not looking", never "you switched apps".
             timeline.append(
                 model.liveSystem, cpu: model.smoothedCPU, liveCPU: model.liveCPU,
                 networkRates: model.smoothedNetworkRates, diskRates: model.smoothedDiskRates,
-                disk: model.latestDisk)
+                disk: model.latestDisk, publish: appState.mainWindowVisible)
             appendThermalPoint(model)
         }
         .onChange(of: appState.mainWindowVisible) { _, visible in if visible { reload() } }
@@ -515,12 +520,17 @@ private final class DashboardTimelineStore: ObservableObject {
         rangeVersion &+= 1
     }
 
+    /// Add a sample. `publish` builds the chart models from it, which is the
+    /// expensive half and pointless while the window is covered; the sample is
+    /// kept either way so the line has no hole in it when the window returns.
     func append(
         _ system: SystemSample?, cpu: CPUSample?, liveCPU: CPUSample?,
         networkRates: (inBytesPerSec: Double, outBytesPerSec: Double)?,
-        diskRates: (readBytesPerSec: Double, writeBytesPerSec: Double)?, disk: DiskSample?
+        diskRates: (readBytesPerSec: Double, writeBytesPerSec: Double)?, disk: DiskSample?,
+        publish: Bool = true
     ) {
         guard let system, window.append(Self.point(from: system)) else { return }
+        guard publish else { return }
         latestSystem = system
         pressureLevel = system.pressureLevel
         cpuLevel = CPULevel(fraction: cpu?.totalUsage ?? 0)

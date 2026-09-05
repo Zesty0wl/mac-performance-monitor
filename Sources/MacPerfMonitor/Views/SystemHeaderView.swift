@@ -63,8 +63,12 @@ struct SystemHeaderView: View {
         // The window grows in place at the dial rate; nothing here re-renders
         // for it (the feeds repaint their AppKit surfaces).
         .onReceive(model.liveTick) {
-            guard appState.mainWindowVisible else { return }
-            live.append(model.liveSystem, cpu: model.smoothedCPU, liveCPU: model.liveCPU)
+            // Collect while covered, draw only when visible: see the same
+            // change in DashboardView. A hidden window must not punch a hole in
+            // the history it shows when it comes back.
+            live.append(
+                model.liveSystem, cpu: model.smoothedCPU, liveCPU: model.liveCPU,
+                publish: appState.mainWindowVisible)
         }
     }
 
@@ -225,8 +229,11 @@ final class ProcessHeaderStore: ObservableObject {
         publish(cpu, system: live, liveCPU: liveCPU)
     }
 
-    func append(_ system: SystemSample?, cpu: CPUSample?, liveCPU: CPUSample?) {
+    func append(
+        _ system: SystemSample?, cpu: CPUSample?, liveCPU: CPUSample?, publish shouldPublish: Bool
+    ) {
         if let system { window.append(Self.point(from: system)) }
+        guard shouldPublish else { return }
         publish(cpu, system: system, liveCPU: liveCPU)
     }
 
