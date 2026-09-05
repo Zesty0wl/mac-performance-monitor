@@ -48,7 +48,9 @@ Notable changes to Mac Performance Monitor. This project follows
   process and group detail charts, and the battery charge chart, which moves
   off Swift Charts. Those tabs now load every stored row rather than thinning
   the history to 360 points before drawing it, and the menu bar panels draw the
-  same curve.
+  same curve. The load average card on the Processes tab shows the 1, 5 and 15
+  minute averages together, as beszel does: the 1 minute figure as the line,
+  the slower two as fainter lines behind it, with their values in the corner.
 
 ### Security
 

@@ -9,6 +9,15 @@ import SwiftUI
 /// The sparkline is a bare `TrendSurfaceView` (no axes, no padding) driven
 /// through `trend`, so it scrolls by sliding pixels like the page's charts
 /// instead of restroking its whole path four times a second.
+/// A secondary line drawn on a card strip in the strip's own tint, fainter and
+/// thinner than the main one: the 5 and 15 minute load averages beside the
+/// 1 minute line, the way beszel shows load.
+struct MetricCardCompanion {
+    var column: LiveColumn
+    var alpha: CGFloat
+    var lineWidth: CGFloat = 1.2
+}
+
 final class MetricCardFeed {
     private(set) var value: String?
 
@@ -28,7 +37,7 @@ final class MetricCardFeed {
     func publish(
         value: String?, tint: NSColor, column: LiveColumn?, scale: Double = 1,
         xDomain: ClosedRange<Date>?, yDomain: ClosedRange<Double>?, peak: String? = nil,
-        reduction: TrendSurfaceSeries.Reduction = .mean
+        reduction: TrendSurfaceSeries.Reduction = .mean, companions: [MetricCardCompanion] = []
     ) {
         self.value = value
         self.peak = peak
@@ -40,11 +49,17 @@ final class MetricCardFeed {
         var model = TrendModel()
         model.bare = true
         if let column {
-            model.series = [
+            // Companions go first so the main line is drawn over them.
+            model.series = companions.map { companion in
+                TrendSurfaceSeries(
+                    column: companion.column, scale: scale,
+                    color: Color(nsColor: tint.withAlphaComponent(companion.alpha)),
+                    lineWidth: companion.lineWidth, reduction: reduction, band: false)
+            }
+            model.series.append(
                 TrendSurfaceSeries(
                     column: column, scale: scale, color: Color(nsColor: tint), lineWidth: 1.5,
-                    reduction: reduction)
-            ]
+                    reduction: reduction))
         }
         model.xDomain = xDomain
         model.yDomain = yDomain
