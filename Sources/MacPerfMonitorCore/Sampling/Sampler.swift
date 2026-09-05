@@ -332,7 +332,8 @@ public final class Sampler {
         let gpu = readGPU ? cachedGPU : nil
         let thermal = readGPU ? cachedThermal : nil
         let system = sampleSystem(
-            now: now, wallDeltaSeconds: wallDeltaSeconds, cpuLoad: cpu.totalUsage, battery: battery,
+            now: now, wallDeltaSeconds: wallDeltaSeconds, cpuLoad: cpu.totalUsage,
+            loadAverages: (cpu.loadAverage1, cpu.loadAverage5, cpu.loadAverage15), battery: battery,
             network: network, disk: disk, bootVolume: bootVolume, gpu: gpu, thermal: thermal)
         lastSystemTime = now
         return (system, cpu, battery, network, disk, gpu)
@@ -790,7 +791,8 @@ public final class Sampler {
     /// `cpuLoad` a true instantaneous figure (it used to be a since-boot average)
     /// and feeds the persisted system-history CPU timeline.
     private func sampleSystem(
-        now: Date, wallDeltaSeconds: TimeInterval, cpuLoad: Double, battery: BatterySample?,
+        now: Date, wallDeltaSeconds: TimeInterval, cpuLoad: Double,
+        loadAverages: (Double, Double, Double) = (0, 0, 0), battery: BatterySample?,
         network: NetworkSample?, disk: DiskSample?, bootVolume: BootVolumeReader.Capacity?,
         gpu: GPUSample? = nil, thermal: ThermalSample? = nil
     ) -> SystemSample {
@@ -869,6 +871,9 @@ public final class Sampler {
             compressionsDelta: deltas.compressions,
             decompressionsDelta: deltas.decompressions,
             cpuLoad: cpuLoad,
+            loadAverage1: loadAverages.0,
+            loadAverage5: loadAverages.1,
+            loadAverage15: loadAverages.2,
             batteryPresent: battery?.isPresent ?? false,
             batteryCharge: battery?.chargePercent ?? 0,
             batteryPowerWatts: battery?.powerWatts ?? 0,

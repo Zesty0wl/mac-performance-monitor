@@ -276,9 +276,9 @@ public final class SampleStore {
                  gpu_util, gpu_power, ane_power,
                  cpu_die, gpu_die, ssd_temp, fan_rpm, thermal_state,
                  cpu_p_die, cpu_e_die, airflow_temp, skin_temp, wireless_temp, vrail_temp,
-                 other_temp)
+                 other_temp, load_1, load_5, load_15)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
-                        ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """)
         try statement.execute(
             arguments: [
@@ -305,6 +305,7 @@ public final class SampleStore {
                 s.thermalPressure?.rawValue,
                 s.cpuPCoreDieC, s.cpuECoreDieC, s.airflowC, s.skinC, s.wirelessC,
                 s.voltageRailC, s.otherSensorC,
+                s.loadAverage1, s.loadAverage5, s.loadAverage15,
             ])
     }
 
@@ -513,6 +514,9 @@ public final class SampleStore {
             compressionsDelta: SQLInt.read(row["compressions_delta"]),
             decompressionsDelta: SQLInt.read(row["decompressions_delta"]),
             cpuLoad: row["cpu_load"],
+            loadAverage1: (row["load_1"] as Double?) ?? 0,
+            loadAverage5: (row["load_5"] as Double?) ?? 0,
+            loadAverage15: (row["load_15"] as Double?) ?? 0,
             batteryPresent: (row["battery_present"] as Int64) != 0,
             batteryCharge: row["battery_charge"],
             batteryPowerWatts: row["battery_power"],

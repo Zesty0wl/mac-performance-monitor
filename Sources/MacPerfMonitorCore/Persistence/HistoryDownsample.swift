@@ -107,6 +107,9 @@ extension Array where Element == SystemHistoryPoint {
                 // CPU is inherently spiky, so average rather than peak per
                 // bucket; a max-collapsed line would read as permanently high.
                 cpuLoad: dmean { $0.cpuLoad },
+                loadAverage1: dmean { $0.loadAverage1 },
+                loadAverage5: dmean { $0.loadAverage5 },
+                loadAverage15: dmean { $0.loadAverage15 },
                 // Carry the battery scalars through too: omitting them
                 // defaulted them to 0, which collapsed the Battery tab's
                 // charge/power lines to a flat zero on any downsampled range.

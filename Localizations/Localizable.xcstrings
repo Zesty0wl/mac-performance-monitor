@@ -5581,6 +5581,36 @@
         }
       }
     },
+    "15 min" : {
+      "comment" : "Legend label: the 15 minute load average line",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 Min."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 min"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 min"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 分钟"
+          }
+        }
+      }
+    },
     "2 deep" : {
       "comment" : "Disk Map (1.6.0)",
       "extractionState" : "manual",

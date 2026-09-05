@@ -111,4 +111,26 @@ final class SystemHistoryWindowTests: XCTestCase {
         XCTAssertEqual(Array(window.values(.diskWritePeak)), [4, 8])
         XCTAssertEqual(Array(window.values(.gpuUtilizationPeak)), [0, 0])
     }
+
+    func testLoadAverageColumnsFollowThePointAndItsPeak() {
+        var window = SystemHistoryWindow(span: 3600)
+        let base = Date(timeIntervalSinceReferenceDate: 1000)
+        window.append(
+            SystemHistoryPoint(
+                date: base, pressurePercent: 1, appMemory: 1, wired: 1, compressed: 1,
+                cachedFiles: 1, swapUsed: 0, loadAverage1: 3, loadAverage5: 2, loadAverage15: 1))
+        var stored = SystemHistoryPoint(
+            date: base.addingTimeInterval(60), pressurePercent: 1, appMemory: 1, wired: 1,
+            compressed: 1, cachedFiles: 1, swapUsed: 0, loadAverage1: 4, loadAverage5: 3,
+            loadAverage15: 2)
+        stored.peaks = SystemHistoryPeaks(
+            pressurePercent: 1, cpuLoad: 0, networkInBytesPerSec: 0, networkOutBytesPerSec: 0,
+            diskReadBytesPerSec: 0, diskWriteBytesPerSec: 0, loadAverage1: 9)
+        window.append(stored)
+        XCTAssertEqual(Array(window.values(.loadAverage1)), [3, 4])
+        XCTAssertEqual(Array(window.values(.loadAverage5)), [2, 3])
+        XCTAssertEqual(Array(window.values(.loadAverage15)), [1, 2])
+        XCTAssertEqual(Array(window.values(.loadAverage1Peak)), [3, 9])
+        XCTAssertEqual(window.points().map(\.loadAverage1), [3, 4])
+    }
 }

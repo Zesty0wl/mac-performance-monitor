@@ -295,7 +295,7 @@ public enum Retention {
 
         try db.execute(
             sql: """
-                INSERT INTO system_minute (bucket, pressure_avg, pressure_max, app_avg, wired_avg, compressed_avg, cached_avg, swap_used_avg, cpu_avg, cpu_max, samples, battery_charge_avg, battery_power_avg, battery_health_avg, battery_cycles_max, battery_temp_avg, net_in_avg, net_in_max, net_out_avg, net_out_max, disk_read_avg, disk_read_max, disk_write_avg, disk_write_max, disk_read_iops_avg, disk_read_iops_max, disk_write_iops_avg, disk_write_iops_max, disk_read_latency_avg, disk_read_latency_max, disk_write_latency_avg, disk_write_latency_max, disk_util_avg, disk_util_max, boot_free_avg, boot_free_min, boot_total, gpu_util_avg, gpu_util_max, gpu_power_avg, gpu_power_max, ane_power_avg, ane_power_max, cpu_die_avg, cpu_die_max, gpu_die_avg, gpu_die_max, ssd_temp_avg, ssd_temp_max, fan_rpm_avg, fan_rpm_max, thermal_state_max, cpu_p_die_max, cpu_e_die_max, airflow_temp_max, skin_temp_max, wireless_temp_max, vrail_temp_max, other_temp_max)
+                INSERT INTO system_minute (bucket, pressure_avg, pressure_max, app_avg, wired_avg, compressed_avg, cached_avg, swap_used_avg, cpu_avg, cpu_max, samples, battery_charge_avg, battery_power_avg, battery_health_avg, battery_cycles_max, battery_temp_avg, net_in_avg, net_in_max, net_out_avg, net_out_max, disk_read_avg, disk_read_max, disk_write_avg, disk_write_max, disk_read_iops_avg, disk_read_iops_max, disk_write_iops_avg, disk_write_iops_max, disk_read_latency_avg, disk_read_latency_max, disk_write_latency_avg, disk_write_latency_max, disk_util_avg, disk_util_max, boot_free_avg, boot_free_min, boot_total, gpu_util_avg, gpu_util_max, gpu_power_avg, gpu_power_max, ane_power_avg, ane_power_max, cpu_die_avg, cpu_die_max, gpu_die_avg, gpu_die_max, ssd_temp_avg, ssd_temp_max, fan_rpm_avg, fan_rpm_max, thermal_state_max, cpu_p_die_max, cpu_e_die_max, airflow_temp_max, skin_temp_max, wireless_temp_max, vrail_temp_max, other_temp_max, load_1_avg, load_1_max, load_5_avg, load_15_avg)
                 SELECT CAST(timestamp / \(b) AS INTEGER) * \(b) AS b,
                        AVG(pressure_percent), MAX(pressure_percent),
                        CAST(AVG(app_memory) AS INTEGER), CAST(AVG(wired) AS INTEGER),
@@ -317,7 +317,8 @@ public enum Retention {
                        AVG(ssd_temp), MAX(ssd_temp), AVG(fan_rpm), MAX(fan_rpm),
                        MAX(thermal_state),
                        MAX(cpu_p_die), MAX(cpu_e_die), MAX(airflow_temp), MAX(skin_temp),
-                       MAX(wireless_temp), MAX(vrail_temp), MAX(other_temp)
+                       MAX(wireless_temp), MAX(vrail_temp), MAX(other_temp),
+                       AVG(load_1), MAX(load_1), AVG(load_5), AVG(load_15)
                 FROM system_samples
                 WHERE timestamp >= ? AND timestamp < ?
                 GROUP BY b
@@ -364,7 +365,9 @@ public enum Retention {
                   skin_temp_max = excluded.skin_temp_max,
                   wireless_temp_max = excluded.wireless_temp_max,
                   vrail_temp_max = excluded.vrail_temp_max,
-                  other_temp_max = excluded.other_temp_max
+                  other_temp_max = excluded.other_temp_max,
+                  load_1_avg = excluded.load_1_avg, load_1_max = excluded.load_1_max,
+                  load_5_avg = excluded.load_5_avg, load_15_avg = excluded.load_15_avg
                 """, arguments: [watermark, completeUpTo])
 
         try setMeta(db, "minute_watermark", completeUpTo)
@@ -420,7 +423,7 @@ public enum Retention {
 
         try db.execute(
             sql: """
-                INSERT INTO system_hour (bucket, pressure_avg, pressure_max, app_avg, wired_avg, compressed_avg, cached_avg, swap_used_avg, cpu_avg, cpu_max, samples, battery_charge_avg, battery_power_avg, battery_health_avg, battery_cycles_max, battery_temp_avg, net_in_avg, net_in_max, net_out_avg, net_out_max, disk_read_avg, disk_read_max, disk_write_avg, disk_write_max, disk_read_iops_avg, disk_read_iops_max, disk_write_iops_avg, disk_write_iops_max, disk_read_latency_avg, disk_read_latency_max, disk_write_latency_avg, disk_write_latency_max, disk_util_avg, disk_util_max, boot_free_avg, boot_free_min, boot_total, gpu_util_avg, gpu_util_max, gpu_power_avg, gpu_power_max, ane_power_avg, ane_power_max, cpu_die_avg, cpu_die_max, gpu_die_avg, gpu_die_max, ssd_temp_avg, ssd_temp_max, fan_rpm_avg, fan_rpm_max, thermal_state_max, cpu_p_die_max, cpu_e_die_max, airflow_temp_max, skin_temp_max, wireless_temp_max, vrail_temp_max, other_temp_max)
+                INSERT INTO system_hour (bucket, pressure_avg, pressure_max, app_avg, wired_avg, compressed_avg, cached_avg, swap_used_avg, cpu_avg, cpu_max, samples, battery_charge_avg, battery_power_avg, battery_health_avg, battery_cycles_max, battery_temp_avg, net_in_avg, net_in_max, net_out_avg, net_out_max, disk_read_avg, disk_read_max, disk_write_avg, disk_write_max, disk_read_iops_avg, disk_read_iops_max, disk_write_iops_avg, disk_write_iops_max, disk_read_latency_avg, disk_read_latency_max, disk_write_latency_avg, disk_write_latency_max, disk_util_avg, disk_util_max, boot_free_avg, boot_free_min, boot_total, gpu_util_avg, gpu_util_max, gpu_power_avg, gpu_power_max, ane_power_avg, ane_power_max, cpu_die_avg, cpu_die_max, gpu_die_avg, gpu_die_max, ssd_temp_avg, ssd_temp_max, fan_rpm_avg, fan_rpm_max, thermal_state_max, cpu_p_die_max, cpu_e_die_max, airflow_temp_max, skin_temp_max, wireless_temp_max, vrail_temp_max, other_temp_max, load_1_avg, load_1_max, load_5_avg, load_15_avg)
                 SELECT CAST(bucket / 3600 AS INTEGER) * 3600 AS b,
                        SUM(pressure_avg * samples) / SUM(samples), MAX(pressure_max),
                        CAST(SUM(app_avg * samples) / SUM(samples) AS INTEGER),
@@ -477,7 +480,14 @@ public enum Retention {
                        MAX(thermal_state_max),
                        MAX(cpu_p_die_max), MAX(cpu_e_die_max), MAX(airflow_temp_max),
                        MAX(skin_temp_max), MAX(wireless_temp_max), MAX(vrail_temp_max),
-                       MAX(other_temp_max)
+                       MAX(other_temp_max),
+                       SUM(load_1_avg * samples)
+                           / SUM(CASE WHEN load_1_avg IS NOT NULL THEN samples END),
+                       MAX(load_1_max),
+                       SUM(load_5_avg * samples)
+                           / SUM(CASE WHEN load_5_avg IS NOT NULL THEN samples END),
+                       SUM(load_15_avg * samples)
+                           / SUM(CASE WHEN load_15_avg IS NOT NULL THEN samples END)
                 FROM system_minute
                 WHERE bucket >= ? AND bucket < ?
                 GROUP BY b
@@ -524,7 +534,9 @@ public enum Retention {
                   skin_temp_max = excluded.skin_temp_max,
                   wireless_temp_max = excluded.wireless_temp_max,
                   vrail_temp_max = excluded.vrail_temp_max,
-                  other_temp_max = excluded.other_temp_max
+                  other_temp_max = excluded.other_temp_max,
+                  load_1_avg = excluded.load_1_avg, load_1_max = excluded.load_1_max,
+                  load_5_avg = excluded.load_5_avg, load_15_avg = excluded.load_15_avg
                 """, arguments: [watermark, completeUpTo])
 
         try setMeta(db, "hour_watermark", completeUpTo)

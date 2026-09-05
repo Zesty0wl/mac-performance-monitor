@@ -1,4 +1,3 @@
-import Charts
 import MacPerfMonitorCore
 import SwiftUI
 
@@ -38,9 +37,14 @@ struct MetricCardData: Identifiable {
     let label: String
     var value: String?
     var tint: Color = .primary
-    /// Timestamped trend, downsampled for a clean line. Drives both the small
-    /// sparkline (values only) and the detail modal's axed chart (with dates).
+    /// Timestamped trend at full resolution: the sparkline and the detail
+    /// sheet's chart reduce it at draw time (docs/chart-rules.md, rule 1).
     var samples: [MetricSample] = []
+    /// Secondary series drawn behind the main one on the detail sheet, each
+    /// with a legend label (the 5 and 15 minute load averages).
+    var companions: [MetricCompanionSamples] = []
+    /// Legend label for the main series when companions are shown ("1 min").
+    var seriesLabel: String? = nil
     /// The raw window column behind a live card's sparkline (zero-copy), for
     /// `MetricCardFeed`; `samples` is left empty for those cards.
     var column: LiveColumn? = nil
@@ -79,10 +83,19 @@ struct MetricCardData: Identifiable {
         var copy = self
         copy.value = live.value
         copy.samples = live.samples
+        copy.companions = live.companionSamples
         copy.yDomain = live.yDomain
         copy.live = nil
         return copy
     }
+}
+
+/// A labelled secondary series for a metric detail sheet.
+struct MetricCompanionSamples {
+    var label: String
+    /// Opacity of the line relative to the main series' tint.
+    var alpha: CGFloat
+    var samples: [MetricSample]
 }
 
 /// A point-in-time gauge for a state metric: a horizontal bar filled to
@@ -190,14 +203,7 @@ struct MetricCard: View {
                         .controlSize(.small)
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else if data.samples.count >= 2 {
-                    Sparkline(
-                        values: data.samples.map(\.value),
-                        dates: data.samples.map(\.date),
-                        xDomain: xDomain,
-                        yDomain: data.yDomain,
-                        lineWidth: 1.5
-                    )
-                    .tint(data.tint)
+                    StaticCardStrip(data: data, xDomain: xDomain)
                 } else {
                     Color.clear
                 }
@@ -233,6 +239,48 @@ struct MetricCard: View {
 /// small but left it impossible to read a height against. These two marks are
 /// what the charts in the detail rail get from a full axis, at a fraction of the
 /// ink.
+/// The strip of a card whose data arrives as samples rather than a live feed
+/// (the Battery tab's cards): the same bare strip, peak label and baseline the
+/// live cards draw, fed from the samples whenever they change, so every card
+/// in the app follows the chart rules.
+private struct StaticCardStrip: View {
+    let data: MetricCardData
+    var xDomain: ClosedRange<Date>?
+    @State private var feed = MetricCardFeed()
+
+    /// What a republish depends on. The samples are append-only or reloaded
+    /// whole, so the count and the end points identify them without an O(n)
+    /// comparison on every render.
+    private struct Key: Equatable {
+        var count: Int
+        var first: Date?
+        var last: Date?
+        var upper: Date?
+        var tint: Color
+    }
+
+    private var key: Key {
+        Key(
+            count: data.samples.count, first: data.samples.first?.date,
+            last: data.samples.last?.date, upper: xDomain?.upperBound, tint: data.tint)
+    }
+
+    var body: some View {
+        ScaledSparkline(feed: feed)
+            .onAppear(perform: publish)
+            .onChange(of: key) { _ in publish() }
+    }
+
+    private func publish() {
+        let column = LiveColumn(
+            data.samples.map { TrendPoint(date: $0.date, value: $0.value, high: $0.high) })
+        let peak = column.range.map { t("peak %@", data.unit.format($0.max)) }
+        feed.publish(
+            value: data.value, tint: NSColor(data.tint), column: column, xDomain: xDomain,
+            yDomain: data.yDomain, peak: peak)
+    }
+}
+
 private struct ScaledSparkline: View {
     let feed: MetricCardFeed
     @State private var peak: String?
@@ -418,10 +466,11 @@ struct MetricDetailSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             header
             MetricDetailChart(
-                samples: data.samples, tint: data.tint, unit: data.unit, xDomain: xDomain,
-                yDomain: data.yDomain
+                samples: data.samples, companions: data.companions,
+                seriesLabel: data.seriesLabel, tint: data.tint, unit: data.unit,
+                xDomain: xDomain, yDomain: data.yDomain
             )
-            .frame(height: 220)
+            .frame(height: data.companions.isEmpty ? 300 : 324)
             if let explanation = data.explanation {
                 explanationSection("What it means", explanation.meaning)
                 explanationSection("How it's calculated", explanation.calculation)
@@ -434,7 +483,7 @@ struct MetricDetailSheet: View {
             }
         }
         .padding(24)
-        .frame(width: 480)
+        .frame(width: 760)
     }
 
     private var header: some View {
@@ -475,12 +524,16 @@ struct MetricDetailSheet: View {
     }
 }
 
-/// A larger line chart with visible time and value axes, used in the metric
-/// detail modal. Lines only, solid gridlines and a framed plot for a clean,
-/// instrument-like read; the Y axis is formatted in the metric's own units and
-/// the X axis label format widens with the span shown.
+/// The detail sheet's chart: the same drawing as every other chart in the app
+/// (a smoothed mean inside a band of the extremes, gaps left open, a monotone
+/// curve), with visible time and value axes, a framed plot, and a hover
+/// read-out. Companion series draw behind the main one in fainter shades of
+/// its tint, with a legend beneath. The Y axis is formatted in the metric's
+/// own units and fits the readings where the metric has no natural scale.
 struct MetricDetailChart: View {
     let samples: [MetricSample]
+    var companions: [MetricCompanionSamples] = []
+    var seriesLabel: String? = nil
     var tint: Color
     var unit: MetricUnit
     var xDomain: ClosedRange<Date>? = nil
@@ -490,58 +543,70 @@ struct MetricDetailChart: View {
         if samples.count < 2 {
             emptyState
         } else {
-            chart
+            VStack(alignment: .leading, spacing: 8) {
+                chart
+                if !companions.isEmpty { legend }
+            }
         }
     }
 
     private var chart: some View {
-        Chart {
-            ForEach(Array(samples.enumerated()), id: \.offset) { _, sample in
-                LineMark(
-                    x: .value("Time", sample.date),
-                    y: .value("Value", sample.value)
-                )
-                .interpolationMethod(.linear)
-                .lineStyle(StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
-                .foregroundStyle(tint)
-            }
-        }
-        .chartXScale(domain: resolvedXDomain)
-        .chartYScale(domain: yDomain ?? 0...yMax)
-        .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.secondary.opacity(0.28))
-                AxisTick(length: 4, stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.secondary.opacity(0.4))
-                AxisValueLabel {
-                    if let v = value.as(Double.self) {
-                        Text(unit.format(v))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-        .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 5)) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.secondary.opacity(0.14))
-                AxisTick(length: 4, stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.secondary.opacity(0.4))
-                AxisValueLabel {
-                    if let d = value.as(Date.self) {
-                        Text(d, format: xFormat)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-        .chartPlotStyle { plot in
-            plot.border(Color.secondary.opacity(0.22), width: 0.5)
-        }
+        TrendChart(
+            series: series,
+            xDomain: xDomain,
+            yDomain: yDomain ?? fittedDomain,
+            yFormat: unit.format,
+            showsTimeAxis: true,
+            plotBorder: true,
+            scrubbable: true,
+            leftGutter: 56
+        )
         .accessibilityLabel("Trend chart")
+    }
+
+    /// Companions first, so the main line is drawn over them.
+    private var series: [TrendSeries] {
+        var out = companions.map { companion in
+            TrendSeries(
+                points: Self.points(companion.samples), color: tint.opacity(companion.alpha),
+                lineWidth: 1.4)
+        }
+        out.append(TrendSeries(points: Self.points(samples), color: tint, reduction: reduction))
+        return out
+    }
+
+    /// Temperatures and fan speeds follow the maximum; everything else the mean
+    /// (docs/chart-rules.md, rule 2).
+    private var reduction: TrendSurfaceSeries.Reduction {
+        switch unit {
+        case .celsius, .rpm: return .maximum
+        case .percent, .bytes, .watts: return .mean
+        }
+    }
+
+    private static func points(_ samples: [MetricSample]) -> [TrendPoint] {
+        samples.map { TrendPoint(date: $0.date, value: $0.value, high: $0.high) }
+    }
+
+    private var legend: some View {
+        HStack(spacing: 14) {
+            legendEntry(seriesLabel ?? "", opacity: 1)
+            ForEach(Array(companions.enumerated()), id: \.offset) { _, companion in
+                legendEntry(companion.label, opacity: companion.alpha)
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .padding(.leading, 56)
+    }
+
+    private func legendEntry(_ label: String, opacity: CGFloat) -> some View {
+        HStack(spacing: 5) {
+            Capsule()
+                .fill(tint.opacity(opacity))
+                .frame(width: 14, height: 3)
+            Text(LocalizedStringKey(label))
+        }
     }
 
     private var emptyState: some View {
@@ -554,36 +619,23 @@ struct MetricDetailChart: View {
             )
     }
 
-    /// Y domain top: a percentage/index uses its true 0...100 scale so the
-    /// danger bands stay meaningful; a byte metric scales to its own peak with a
-    /// little headroom so the line is not crushed against the floor.
-    private var yMax: Double {
-        let peak = samples.map(\.value).max() ?? 0
+    /// Y domain when the card has none of its own. A percentage keeps its true
+    /// 0 to 100 scale so the danger bands stay meaningful; a byte, power or
+    /// fan figure runs from zero to a rounded peak with a little headroom; a
+    /// temperature fits the readings with a floor on its span, so a sensor
+    /// sitting between 60 and 90 degrees is not a flat ribbon through the
+    /// middle of a 0 to 110 axis (rule 5).
+    private var fittedDomain: ClosedRange<Double> {
+        let values = samples.map(\.value) + companions.flatMap { $0.samples.map(\.value) }
+        let peak = values.max() ?? 0
         switch unit {
-        case .percent: return 100
-        case .bytes: return max(peak * 1.12, 1)
-        case .watts: return max(peak * 1.2, 1)
-        // Die sensors top out near 110; a fixed ceiling keeps the danger zone
-        // in a stable place instead of rescaling with each window.
-        case .celsius: return 110
-        case .rpm: return max(peak * 1.2, 1)
+        case .percent: return 0...100
+        case .bytes: return 0...LiveChartGeometry.niceCeiling(max(peak * 1.12, 1))
+        case .watts, .rpm: return 0...LiveChartGeometry.niceCeiling(max(peak * 1.2, 1))
+        case .celsius:
+            let low = values.min() ?? peak
+            return ChartDomain.fitted(min: low, max: peak, minimumSpan: 30, padding: 5, floor: 0)
         }
-    }
-
-    /// Widen the X label format as the window grows, so a long span does not
-    /// show ambiguous repeating clock times.
-    private var xFormat: Date.FormatStyle {
-        let span = resolvedXDomain.upperBound.timeIntervalSince(resolvedXDomain.lowerBound)
-        if span <= 10 * 60 { return .dateTime.minute().second() }
-        if span <= 26 * 3600 { return .dateTime.hour().minute() }
-        return .dateTime.month(.abbreviated).day()
-    }
-
-    private var resolvedXDomain: ClosedRange<Date> {
-        if let xDomain { return xDomain }
-        let first = samples.first?.date ?? .distantPast
-        let last = samples.last?.date ?? first.addingTimeInterval(1)
-        return first < last ? first...last : first.addingTimeInterval(-1)...last
     }
 }
 
@@ -639,27 +691,23 @@ enum MemoryMetrics {
     ///   - window: the trailing window the page is showing.
     ///   - scale: fixed Y scales from the loaded range (see `scale(window:total:)`);
     ///     derived from the window itself when nil.
-    ///   - points: time buckets the sparklines are reduced to (min and max each),
-    ///     anchored to the window so the shape is stable from tick to tick.
+    ///   - includeSamples: whether to carry the window's samples for the
+    ///     detail sheet; a card driven by a live feed leaves them out.
     static func cards(
         system: SystemSample?, window: SystemHistoryWindow, scale: MemoryCardScale? = nil,
-        points: Int = 160, includeSamples: Bool = true
+        includeSamples: Bool = true
     ) -> [MetricCardData] {
         let total = system?.totalRAM ?? 0
         let scale = scale ?? Self.scale(window: window, total: total)
-        let domain: ClosedRange<Double>? = window.xDomain.map {
-            let lo = $0.lowerBound.timeIntervalSinceReferenceDate
-            let hi = $0.upperBound.timeIntervalSinceReferenceDate
-            return lo...hi
-        }
-        func samples(_ values: ArraySlice<Double>) -> [MetricSample] {
-            guard includeSamples, let domain else { return [] }
-            return LiveSeriesDecimator.decimate(
-                times: window.timestamps, values: values, buckets: points, domain: domain
-            ).map { MetricSample(date: $0.date, value: $0.value) }
-        }
         func column(_ values: ArraySlice<Double>) -> LiveColumn {
             LiveColumn(times: window.timestamps, values: values)
+        }
+        // Every sample: the sheet's chart reduces at draw time (rule 1).
+        func samples(_ values: ArraySlice<Double>) -> [MetricSample] {
+            guard includeSamples else { return [] }
+            return LiveTrend.allPoints(column(values)).map {
+                MetricSample(date: $0.date, value: $0.value)
+            }
         }
         let free = freeColumn(window, total: total)
         var cards = [
@@ -770,45 +818,6 @@ enum MemoryMetrics {
         let measured = s.wired &+ s.appMemory &+ s.compressed &+ s.cachedFiles
         return s.totalRAM > measured ? s.totalRAM - measured : 0
     }
-
-    /// Average timestamped samples down to roughly `maxCount` points for a clean
-    /// line, bucketed by ABSOLUTE TIME on a fixed grid (`span / maxCount` wide,
-    /// anchored to the epoch) so the sparkline's shape is STABLE: a sample's
-    /// bucket depends only on its timestamp, not the array length, so a new tick
-    /// only changes the rightmost bucket and the line slides left rather than
-    /// reshaping. Each bucket is dated to its grid start so timestamps (used by
-    /// the detail modal's time axis) stay correct and never wander.
-    static func downsample(
-        _ samples: [MetricSample], span: TimeInterval, to maxCount: Int
-    )
-        -> [MetricSample]
-    {
-        guard samples.count > maxCount, maxCount > 0, span > 0 else { return samples }
-        let width = span / Double(maxCount)
-        func bucketIndex(_ s: MetricSample) -> Double {
-            (s.date.timeIntervalSince1970 / width).rounded(.down)
-        }
-        var result: [MetricSample] = []
-        result.reserveCapacity(maxCount + 1)
-        var i = 0
-        while i < samples.count {
-            let b = bucketIndex(samples[i])
-            var j = i
-            var sum = 0.0
-            while j < samples.count, bucketIndex(samples[j]) == b {
-                sum += samples[j].value
-                j += 1
-            }
-            result.append(
-                MetricSample(
-                    date: Date(timeIntervalSince1970: b * width), value: sum / Double(j - i)))
-            i = j
-        }
-        if let latest = samples.last, let bucket = result.last, latest.date > bucket.date {
-            result.append(latest)
-        }
-        return result
-    }
 }
 
 /// The scalar CPU cards for the Processes-tab header, built as the same
@@ -819,11 +828,13 @@ enum MemoryMetrics {
 /// (smoothed) sample.
 enum CPUMetrics {
     static func cards(
-        cpu: CPUSample?, history: [SystemHistoryPoint], span: TimeInterval, points: Int = 80
+        cpu: CPUSample?, history: [SystemHistoryPoint], span: TimeInterval
     ) -> [MetricCardData] {
-        let usageSamples = MemoryMetrics.downsample(
-            history.map { MetricSample(date: $0.date, value: $0.cpuLoad * 100) },
-            span: span, to: points)
+        // Every sample: the detail sheet's chart reduces at draw time (rule 1).
+        let usageSamples = history.map {
+            MetricSample(
+                date: $0.date, value: $0.cpuLoad * 100, high: $0.effectivePeaks.cpuLoad * 100)
+        }
         let coreCount = cpu?.cores.count ?? 0
         return [
             MetricCardData(
@@ -850,6 +861,7 @@ enum CPUMetrics {
                 label: "Load average",
                 value: cpu.map { String(format: "%.2f", $0.loadAverage1) },
                 tint: loadTint(cpu),
+                seriesLabel: "1 min",
                 // No gauge: the header gives this card a live chart like the
                 // others, and a card cannot have both. The Dashboard does not
                 // use this card.

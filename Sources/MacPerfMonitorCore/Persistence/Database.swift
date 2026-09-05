@@ -196,6 +196,14 @@ public enum MacPerfMonitorDatabase {
         migrator.registerMigration("v15-sensor-domains") { db in
             try db.execute(sql: Schema.v15)
         }
+        // The kernel's 1, 5 and 15 minute load averages. Until now the load
+        // card drew them from a ring in memory, which emptied every time the
+        // Processes tab was remounted and never reached the longer ranges.
+        // The 1 minute figure keeps its bucket maximum for the band; the 5 and
+        // 15 minute figures are already averages, so a mean is enough.
+        migrator.registerMigration("v16-load-averages") { db in
+            try db.execute(sql: Schema.v16)
+        }
         return migrator
     }
 }
@@ -617,6 +625,22 @@ enum Schema {
         ALTER TABLE system_hour ADD COLUMN wireless_temp_max REAL;
         ALTER TABLE system_hour ADD COLUMN vrail_temp_max REAL;
         ALTER TABLE system_hour ADD COLUMN other_temp_max REAL;
+        """
+
+    static let v16 = """
+        ALTER TABLE system_samples ADD COLUMN load_1 REAL;
+        ALTER TABLE system_samples ADD COLUMN load_5 REAL;
+        ALTER TABLE system_samples ADD COLUMN load_15 REAL;
+
+        ALTER TABLE system_minute ADD COLUMN load_1_avg REAL;
+        ALTER TABLE system_minute ADD COLUMN load_1_max REAL;
+        ALTER TABLE system_minute ADD COLUMN load_5_avg REAL;
+        ALTER TABLE system_minute ADD COLUMN load_15_avg REAL;
+
+        ALTER TABLE system_hour ADD COLUMN load_1_avg REAL;
+        ALTER TABLE system_hour ADD COLUMN load_1_max REAL;
+        ALTER TABLE system_hour ADD COLUMN load_5_avg REAL;
+        ALTER TABLE system_hour ADD COLUMN load_15_avg REAL;
         """
 }
 

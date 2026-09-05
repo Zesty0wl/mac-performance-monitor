@@ -207,16 +207,6 @@ final class ProcessHeaderStore: ObservableObject {
     /// Shared by the window and the history load so they cannot drift apart.
     static let headerSpan: TimeInterval = 10 * 60
 
-    /// Load average has no column in the history window, so the header keeps its
-    /// own rings of samples over the same span. That is what lets the load card
-    /// be a chart like its neighbours instead of the odd bar out. All three
-    /// averages are kept: the 1 minute figure is the line, and the 5 and 15
-    /// minute figures ride behind it as fainter companions, the way beszel
-    /// draws load, so a spike and the trend it sits on read together.
-    private var loadTimes: [Double] = []
-    private var loadValues: [Double] = []
-    private var load5Values: [Double] = []
-    private var load15Values: [Double] = []
     let usageFeed = MetricCardFeed()
     let loadFeed = MetricCardFeed()
     let coreFeed = CoreGridFeed()
@@ -249,23 +239,16 @@ final class ProcessHeaderStore: ObservableObject {
             tint: NSColor(level.color), column: LiveColumn(window, .cpuLoad), scale: 100,
             xDomain: window.xDomain, yDomain: 0...100,
             peak: window.peak(.cpuLoad).map { t("peak %@%%", String(Int(($0 * 100).rounded()))) })
-        if let cpu {
-            let now = Date().timeIntervalSinceReferenceDate
-            loadTimes.append(now)
-            loadValues.append(cpu.loadAverage1)
-            load5Values.append(cpu.loadAverage5)
-            load15Values.append(cpu.loadAverage15)
-            let cutoff = now - Self.headerSpan
-            if let keep = loadTimes.firstIndex(where: { $0 >= cutoff }), keep > 0 {
-                loadTimes.removeFirst(keep)
-                loadValues.removeFirst(keep)
-                load5Values.removeFirst(keep)
-                load15Values.removeFirst(keep)
-            }
-        }
-        let loadColumn = LiveColumn(times: loadTimes[...], values: loadValues[...])
-        let load5Column = LiveColumn(times: loadTimes[...], values: load5Values[...])
-        let load15Column = LiveColumn(times: loadTimes[...], values: load15Values[...])
+        // The load averages come from the window like every other metric, so
+        // the card shows history the moment the tab opens and the detail sheet
+        // has the same series. All three are drawn: the 1 minute figure as the
+        // line, the 5 and 15 minute figures as fainter lines behind it, the way
+        // beszel draws load, so a spike and the trend it sits on read together.
+        let (loadTimes, load1, load5, load15) = Self.recordedLoad(window)
+        let loadColumn = LiveColumn(
+            times: loadTimes, values: load1.values, highs: load1.highs)
+        let load5Column = LiveColumn(times: loadTimes, values: load5)
+        let load15Column = LiveColumn(times: loadTimes, values: load15)
         // Full height is one process per core, so the chart reads as "how close
         // to fully subscribed", and it stretches when load goes past that.
         let loadTop = max(
@@ -277,10 +260,13 @@ final class ProcessHeaderStore: ObservableObject {
             xDomain: window.xDomain, yDomain: 0...loadTop,
             peak: loadColumn.range.map { t("peak %@", String(format: "%.2f", $0.max)) },
             // The card's second line labels these two, so the fainter lines
-            // read without a legend the strip has no room for.
+            // read without a legend the strip has no room for; the detail
+            // sheet draws the legend.
             companions: [
-                MetricCardCompanion(column: load5Column, alpha: 0.6, lineWidth: 1.2),
-                MetricCardCompanion(column: load15Column, alpha: 0.35, lineWidth: 1),
+                MetricCardCompanion(
+                    label: "5 min", column: load5Column, alpha: 0.6, lineWidth: 1.2),
+                MetricCardCompanion(
+                    label: "15 min", column: load15Column, alpha: 0.35, lineWidth: 1),
             ])
         // The bars show the sample as measured. The cards above them stay
         // smoothed: a jittering percentage is unreadable, a still core grid is
@@ -324,8 +310,45 @@ final class ProcessHeaderStore: ObservableObject {
             cachedFiles: s.cachedFiles,
             swapUsed: s.swapUsed,
             cpuLoad: s.cpuLoad,
+            loadAverage1: s.loadAverage1,
+            loadAverage5: s.loadAverage5,
+            loadAverage15: s.loadAverage15,
             cpuDieC: s.cpuDieC
         )
+    }
+
+    /// The window's load averages, without the rows that have none. Rows
+    /// written before the load averages were recorded read as zero, and a load
+    /// average is never zero on a running Mac, so zero means "not recorded"
+    /// rather than "idle"; drawing it would put a false floor under the chart
+    /// for the first ten minutes after the upgrade.
+    private static func recordedLoad(
+        _ window: SystemHistoryWindow
+    ) -> (
+        times: ArraySlice<Double>, load1: (values: ArraySlice<Double>, highs: ArraySlice<Double>),
+        load5: ArraySlice<Double>, load15: ArraySlice<Double>
+    ) {
+        let times = window.timestamps
+        let load1 = window.values(.loadAverage1)
+        let peak1 = window.values(.loadAverage1Peak)
+        let load5 = window.values(.loadAverage5)
+        let load15 = window.values(.loadAverage15)
+        if !load1.contains(0) {
+            return (times, (load1, peak1), load5, load15)
+        }
+        var t: [Double] = []
+        var v1: [Double] = []
+        var h1: [Double] = []
+        var v5: [Double] = []
+        var v15: [Double] = []
+        for (offset, value) in load1.enumerated() where value > 0 {
+            t.append(times[times.startIndex + offset])
+            v1.append(value)
+            h1.append(peak1[peak1.startIndex + offset])
+            v5.append(load5[load5.startIndex + offset])
+            v15.append(load15[load15.startIndex + offset])
+        }
+        return (t[...], (v1[...], h1[...]), v5[...], v15[...])
     }
 }
 
