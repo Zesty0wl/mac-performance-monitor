@@ -44,14 +44,40 @@ public struct SystemHistoryWindow {
     private var columns: [[Double]] = Array(repeating: [], count: Column.allCases.count)
     private var head = 0
     public private(set) var span: TimeInterval
+    /// Width of the buckets appended samples are folded into, or zero to keep
+    /// every sample as it arrives.
+    ///
+    /// A one hour window at a one second cadence holds 3,600 samples and is
+    /// drawn perhaps 1,500 pixels wide, so more than two samples land in every
+    /// column and the line is painted at the highest of them: the chart reads as
+    /// a band of noise whose height is worst case rather than typical. Folding
+    /// appends into buckets keeps the window at the resolution the chart can
+    /// actually show, however long the app runs. Short ranges leave this at zero
+    /// and keep every sample, because at five minutes the detail is the point.
+    public private(set) var bucketSeconds: TimeInterval = 0
+    /// How many samples the open bucket has absorbed, for the running mean.
+    private var openBucketCount = 0
     /// The newest sample in full, for the live read-outs.
     public private(set) var latest: SystemHistoryPoint?
 
     private static var compactionThreshold: Int { 1024 }
 
-    public init(span: TimeInterval) {
+    public init(span: TimeInterval, bucketSeconds: TimeInterval = 0) {
         precondition(span > 0, "SystemHistoryWindow span must be positive")
         self.span = span
+        self.bucketSeconds = max(0, bucketSeconds)
+    }
+
+    /// Change the bucket width. Samples already held keep whatever resolution
+    /// they were stored at; the caller reloads when it wants them re-bucketed.
+    public mutating func setBucketSeconds(_ seconds: TimeInterval) {
+        bucketSeconds = max(0, seconds)
+        openBucketCount = 0
+    }
+
+    /// Which bucket a timestamp belongs to, as a bucket index.
+    private func bucket(_ time: Double) -> Double {
+        (time / bucketSeconds).rounded(.down)
     }
 
     public var count: Int { times.count - head }
@@ -98,9 +124,55 @@ public struct SystemHistoryWindow {
     @discardableResult
     public mutating func append(_ point: SystemHistoryPoint) -> Bool {
         if let latest, point.date <= latest.date { return false }
-        push(point)
+        let time = point.date.timeIntervalSinceReferenceDate
+        if bucketSeconds > 0, let lastTime = times.last, count > 0,
+            bucket(lastTime) == bucket(time)
+        {
+            merge(point)
+        } else {
+            openBucketCount = 1
+            push(point)
+        }
         trim()
         return true
+    }
+
+    /// Fold a sample into the open bucket rather than starting a new one.
+    ///
+    /// Most metrics take a running mean, which is what makes a long window
+    /// readable. The temperature column takes the maximum instead, matching the
+    /// stored-history downsampler: averaging thermal readings erases the spikes,
+    /// which are the reason to look at them at all. The timestamp stays at the
+    /// bucket's first sample so the x axis does not creep.
+    private mutating func merge(_ point: SystemHistoryPoint) {
+        let n = Double(openBucketCount)
+        let next = n + 1
+        func mean(_ column: Column, _ value: Double) {
+            let i = columns[column.rawValue].count - 1
+            columns[column.rawValue][i] = (columns[column.rawValue][i] * n + value) / next
+        }
+        func peak(_ column: Column, _ value: Double) {
+            let i = columns[column.rawValue].count - 1
+            columns[column.rawValue][i] = Swift.max(columns[column.rawValue][i], value)
+        }
+        mean(.pressurePercent, point.pressurePercent)
+        mean(.cpuLoad, point.cpuLoad)
+        mean(.appMemory, Double(point.appMemory))
+        mean(.wired, Double(point.wired))
+        mean(.compressed, Double(point.compressed))
+        mean(.cachedFiles, Double(point.cachedFiles))
+        mean(.swapUsed, Double(point.swapUsed))
+        mean(.networkInBytesPerSec, point.networkInBytesPerSec)
+        mean(.networkOutBytesPerSec, point.networkOutBytesPerSec)
+        mean(.diskReadBytesPerSec, point.diskReadBytesPerSec)
+        mean(.diskWriteBytesPerSec, point.diskWriteBytesPerSec)
+        mean(.gpuUtilization, point.gpuUtilization ?? 0)
+        mean(.gpuPowerWatts, point.gpuPowerWatts ?? 0)
+        mean(.anePowerWatts, point.anePowerWatts ?? 0)
+        peak(.cpuDieC, point.cpuDieC ?? 0)
+        openBucketCount += 1
+        // The read-outs want the sample as it arrived, not the bucket's mean.
+        latest = point
     }
 
     /// The window as points, oldest first. Allocates; for occasional use only
