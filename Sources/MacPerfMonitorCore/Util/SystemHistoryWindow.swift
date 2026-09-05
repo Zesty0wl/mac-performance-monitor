@@ -37,6 +37,19 @@ public struct SystemHistoryWindow {
         /// 0 (the columnar store is non-optional); consumers with a floored
         /// y-domain should treat near-zero as "not sampled".
         case cpuDieC
+        /// The bucket peaks behind the metrics above, for points read from
+        /// the stored minute and hour tiers (`SystemHistoryPoint.peaks`). A raw
+        /// sample's peak is the sample itself, so for live data these columns
+        /// equal their metric and cost nothing to read alongside it. A chart
+        /// pairs a metric with its peak column and the band rises to the peak
+        /// where the line is a mean.
+        case pressurePercentPeak
+        case cpuLoadPeak
+        case networkInPeak
+        case networkOutPeak
+        case diskReadPeak
+        case diskWritePeak
+        case gpuUtilizationPeak
     }
 
     /// Timestamps as `timeIntervalSinceReferenceDate`, oldest first.
@@ -157,6 +170,15 @@ public struct SystemHistoryWindow {
         columns[Column.gpuPowerWatts.rawValue].append(point.gpuPowerWatts ?? 0)
         columns[Column.anePowerWatts.rawValue].append(point.anePowerWatts ?? 0)
         columns[Column.cpuDieC.rawValue].append(point.cpuDieC ?? 0)
+        let peaks = point.effectivePeaks
+        columns[Column.pressurePercentPeak.rawValue].append(peaks.pressurePercent)
+        columns[Column.cpuLoadPeak.rawValue].append(peaks.cpuLoad)
+        columns[Column.networkInPeak.rawValue].append(peaks.networkInBytesPerSec)
+        columns[Column.networkOutPeak.rawValue].append(peaks.networkOutBytesPerSec)
+        columns[Column.diskReadPeak.rawValue].append(peaks.diskReadBytesPerSec)
+        columns[Column.diskWritePeak.rawValue].append(peaks.diskWriteBytesPerSec)
+        columns[Column.gpuUtilizationPeak.rawValue].append(
+            peaks.gpuUtilization ?? point.gpuUtilization ?? 0)
         latest = point
     }
 

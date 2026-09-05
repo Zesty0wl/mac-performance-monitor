@@ -65,6 +65,15 @@ database, because rule 3 needs the real minimum and maximum of each bucket and
 an average taken earlier has thrown them away. Keeping full resolution in memory
 is the cheap part: an hour at one second is 3,600 doubles per metric.
 
+The line through those points is a monotone cubic curve, the same construction
+beszel draws with (d3's `curveMonotoneX`). A polyline through 120 points reads
+as jagged, and an ordinary spline smooths it by overshooting, which on a
+monitoring chart invents a peak between two real ones. The monotone curve stays
+inside the vertical range of each pair of points it joins, so every bump is one
+that was measured. `MonotoneCubic` in Core holds the tangent rule and its tests;
+`MonotoneCurve` turns it into a path for both the layer-backed strips and the
+Canvas charts.
+
 **2. How a bucket is reduced belongs to the metric, and is decided once.**
 
 | Kind of metric | Reduction | Why |
@@ -84,9 +93,14 @@ this is a drawing change rather than a data change.
 is the plot width that decides how much reduction happens. Five minutes at one
 second is 300 samples and most of them survive; an hour is 3,600 and most do
 not. Nothing is special-cased by name. Ranges long enough to be served by the
-stored minute and hour tiers arrive pre-averaged, so their bands are flat: giving
-those tiers a stored minimum and maximum is the one piece of this that is not
-done.
+stored minute and hour tiers arrive as means, but each row carries its bucket's
+peak (`SystemHistoryPoint.peaks`, from the `_max` columns the tiers already
+kept), and the band rises to it: at six hours and beyond the line is the mean
+and the shading above it reaches what the spikes hit. The tiers store no
+minimum, so the band's floor there is the mean itself. Those ranges also run
+right up to the present: a tier only holds buckets that were complete when
+retention last ran, so the query tops up from the finer tiers past each
+watermark down to the raw rows, and the live samples join on without a hole.
 
 **5. The y axis fits the data, with a floor on the span.** A fixed wide axis
 wastes the plot: a die sensor pinned to 0 to 110 draws a flat ribbon through the
@@ -101,7 +115,15 @@ each second makes a steady signal look alive.
 
 **7. Gaps are gaps.** A missing sample breaks the line. Never interpolate across
 a hole, because on a monitoring chart a straight line means "we measured this"
-and a gap means "we were not looking".
+and a gap means "we were not looking". The threshold comes from the spacing the
+data legitimately has (`ChartGap.threshold`: three times the coarsest expected
+spacing, floored at fifteen seconds), never from the span. For a live range that
+is the logging interval; for a range served by a stored tier it is the tier's
+row spacing, a minute or an hour, or every stored row is its own island and the
+chart draws dots. A run resumes from its first real sample: the sampler's first
+tick after launch has nothing to difference against and reports zeros, so it is
+neither recorded nor charted, otherwise every run after a gap begins with a
+vertical climb from the axis.
 
 **8. Every chart says what it is showing against.** Where there is room, a
 labelled y axis, a time axis, and a caption. On a card strip there is not room,
@@ -120,11 +142,11 @@ be raw data is a lie the user cannot see.
 
 | Rule | Where it lives |
 | --- | --- |
-| 1, 4 | `TrendRenderer.smoothingColumns` sets the window from the span; `LiveStripBuckets` supplies the per-column extremes behind it. The history window keeps every sample on purpose |
-| 2 | one table in Core, keyed by `SystemHistoryWindow.Column` |
+| 1, 4 | `TrendRenderer.smoothingSeconds` sets the window from the span; `LiveStripBuckets` supplies the per-column extremes behind it, raised to the stored peaks where a row carries them; `MonotoneCurve` draws the line. The history window keeps every sample on purpose |
+| 2 | `TrendSurfaceSeries.reduction`, declared per series where the model is built |
 | 3 | `TrendSurface` band drawing, fed by the decimator's existing min and max |
 | 5, 6 | `ChartDomain.fitted`, called by each chart with its own minimum span |
-| 7 | `TrendModel.gapThreshold` |
+| 7 | `TrendModel.gapThreshold`, sized by `ChartGap.threshold` from the loaded tier's spacing; `Sampler.hasBaseline` keeps the zero tick out |
 | 8 | `TrendChartGeometry` for full charts, `ScaledSparkline` for strips |
 | 9, 10 | review, and the captions each panel already carries |
 
@@ -164,8 +186,9 @@ one at a time.
    fixed domains.
 3. **Annotation** (rules 8 and 10): peak labels on every card strip, captions
    that name the reduction. Done for the Processes header only.
-4. **Stored tiers** (rule 4's exception): keep a minimum and maximum alongside
-   the mean in the minute and hour tiers, so ranges of six hours and longer get
-   a band too.
+4. **Stored tiers** (rule 4's exception): the tiers' stored maxima now ride
+   along with the means, so ranges of six hours and longer get a band from the
+   mean up to the peak. Storing a minimum as well, so the band has a floor
+   below the mean, is the remaining piece.
 
 Rules 7 and 9 are met everywhere the audit does not list an exception.

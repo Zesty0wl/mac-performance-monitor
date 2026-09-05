@@ -578,11 +578,8 @@ private struct TrendLiveLayer: View {
                     } else {
                         run = rawRun
                     }
-                    var linePath = Path()
-                    for (i, pt) in run.enumerated() {
-                        let q = CGPoint(x: x(pt.date), y: y(pt.value))
-                        if i == 0 { linePath.move(to: q) } else { linePath.addLine(to: q) }
-                    }
+                    let linePath = Path(
+                        MonotoneCurve.path(run.map { CGPoint(x: x($0.date), y: y($0.value)) }))
                     if s.filled, run.count >= 2 {
                         var fill = linePath
                         fill.addLine(to: CGPoint(x: x(run.last!.date), y: plot.maxY))

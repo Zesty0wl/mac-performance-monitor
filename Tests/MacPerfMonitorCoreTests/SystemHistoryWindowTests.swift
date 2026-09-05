@@ -84,4 +84,31 @@ final class SystemHistoryWindowTests: XCTestCase {
         }
         XCTAssertLessThanOrEqual(columnar.count, 1440)
     }
+
+    // MARK: - Peak columns
+
+    func testPeakColumnsMirrorRawSamplesAndCarryStoredPeaks() {
+        var window = SystemHistoryWindow(span: 3600)
+        let base = Date(timeIntervalSinceReferenceDate: 1000)
+        let raw = SystemHistoryPoint(
+            date: base, pressurePercent: 20, appMemory: 1, wired: 1, compressed: 1, cachedFiles: 1,
+            swapUsed: 0, cpuLoad: 0.3, networkInBytesPerSec: 10, diskWriteBytesPerSec: 4)
+        window.append(raw)
+        var stored = SystemHistoryPoint(
+            date: base.addingTimeInterval(60), pressurePercent: 30, appMemory: 1, wired: 1,
+            compressed: 1, cachedFiles: 1, swapUsed: 0, cpuLoad: 0.2, networkInBytesPerSec: 2)
+        stored.peaks = SystemHistoryPeaks(
+            pressurePercent: 80, cpuLoad: 0.9, networkInBytesPerSec: 50, networkOutBytesPerSec: 6,
+            diskReadBytesPerSec: 7, diskWriteBytesPerSec: 8)
+        window.append(stored)
+
+        XCTAssertEqual(Array(window.values(.cpuLoad)), [0.3, 0.2], "the line column is the mean")
+        XCTAssertEqual(
+            Array(window.values(.cpuLoadPeak)), [0.3, 0.9],
+            "a raw sample's peak is itself; a stored row's is its bucket peak")
+        XCTAssertEqual(Array(window.values(.pressurePercentPeak)), [20, 80])
+        XCTAssertEqual(Array(window.values(.networkInPeak)), [10, 50])
+        XCTAssertEqual(Array(window.values(.diskWritePeak)), [4, 8])
+        XCTAssertEqual(Array(window.values(.gpuUtilizationPeak)), [0, 0])
+    }
 }

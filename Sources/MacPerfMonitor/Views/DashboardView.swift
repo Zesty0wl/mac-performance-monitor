@@ -388,24 +388,33 @@ struct DashboardView: View {
 
     // MARK: - Loading
 
-    /// Cap for minute/hour history. Raw windows keep their samples so every
-    /// recorded point remains immutable and moves left intact.
-    private static let maxChartPoints = 360
-
+    /// Every range loads at the resolution its tier stores. Nothing is folded
+    /// on the way in: the charts reduce at draw time so the band behind the
+    /// line is made of real extremes (docs/chart-rules.md, rule 1).
     private func reload() {
         guard let model else { return }
         let requested = range
-        let pointLimit = requested.granularity == .raw ? nil : Self.maxChartPoints
-        model.loadSystemHistory(requested, downsampledTo: pointLimit) { pts in
+        model.loadSystemHistory(requested) { pts in
             guard self.range == requested else { return }
             self.timeline.replace(
-                pts, span: requested.seconds, live: model.liveSystem, cpu: model.smoothedCPU,
-                liveCPU: model.liveCPU,
+                pts, span: requested.seconds, storedSpacing: Self.storedSpacing(requested),
+                live: model.liveSystem, cpu: model.smoothedCPU, liveCPU: model.liveCPU,
                 totalRAM: model.liveSystem?.totalRAM ?? model.latest?.system.totalRAM ?? 0)
             self.thermalPoints = pts
             self.loadedRange = requested
         }
         reloadTopConsumers(window: requested)
+    }
+
+    /// The coarsest spacing the loaded rows legitimately have: nothing beyond
+    /// the logging interval for a raw range, the tier's bucket for the rest.
+    /// The minute tier's bucket follows the standard-resolution dial.
+    private static func storedSpacing(_ window: HistoryWindow) -> TimeInterval {
+        var spacing = window.granularity.storedSpacing ?? 0
+        if window.granularity == .minute {
+            spacing = max(spacing, SamplerModel.configuredStandardResInterval())
+        }
+        return spacing
     }
 
     /// The ranking is an aggregation over the whole window's raw rows (at 1 s
@@ -493,10 +502,11 @@ private final class DashboardTimelineStore: ObservableObject {
     var xDomain: ClosedRange<Date>? { window.xDomain }
 
     func replace(
-        _ loaded: [SystemHistoryPoint], span: TimeInterval, live: SystemSample?, cpu: CPUSample?,
-        liveCPU: CPUSample?, totalRAM: UInt64
+        _ loaded: [SystemHistoryPoint], span: TimeInterval, storedSpacing: TimeInterval,
+        live: SystemSample?, cpu: CPUSample?, liveCPU: CPUSample?, totalRAM: UInt64
     ) {
         window.replace(loaded, span: span)
+        self.storedSpacing = storedSpacing
         if let live {
             window.append(Self.point(from: live))
             latestSystem = live
@@ -556,12 +566,19 @@ private final class DashboardTimelineStore: ObservableObject {
         diskYDomain = 0...MenuChart.niceUpperBound(max(diskPeak * 1.25, 100 * 1_048_576))
     }
 
+    /// The spacing of the rows the current range loaded from the database:
+    /// zero for a raw range, a minute or an hour for the stored tiers.
+    private var storedSpacing: TimeInterval = 0
+
     /// What counts as missing data here. The window mixes live samples, one a
-    /// second, with history read back from the database at the logging
-    /// interval, so the coarsest legitimate spacing is the logging interval,
-    /// and anything much beyond it means nothing was recorded.
+    /// second, with history read back from the database: at the logging
+    /// interval for the raw ranges, a row a minute or an hour for the longer
+    /// ones. The coarsest of those is the legitimate spacing; anything much
+    /// beyond it means nothing was recorded. Sizing this to the logging
+    /// interval alone made every stored row its own island on a six hour view.
     private var gapThreshold: TimeInterval {
-        ChartGap.threshold(expectedSpacing: max(1, SamplerModel.configuredHighResInterval()))
+        ChartGap.threshold(
+            expectedSpacing: max(1, SamplerModel.configuredHighResInterval(), storedSpacing))
     }
 
     /// Build every chart's and card's model from the window and hand it to
@@ -624,7 +641,7 @@ private final class DashboardTimelineStore: ObservableObject {
         _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, level: PressureLevel,
         gap: TimeInterval
     ) -> TrendModel {
-        let column = LiveColumn(window, .pressurePercent)
+        let column = LiveColumn(window, .pressurePercent, peak: .pressurePercentPeak)
         var model = TrendModel()
         model.series = [
             TrendSurfaceSeries(column: column, color: level.color, filled: true)
@@ -655,7 +672,7 @@ private final class DashboardTimelineStore: ObservableObject {
         _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, level: CPULevel,
         gap: TimeInterval
     ) -> TrendModel {
-        let column = LiveColumn(window, .cpuLoad)
+        let column = LiveColumn(window, .cpuLoad, peak: .cpuLoadPeak)
         var model = TrendModel()
         model.series = [
             TrendSurfaceSeries(column: column, scale: 100, color: level.color)
@@ -686,8 +703,8 @@ private final class DashboardTimelineStore: ObservableObject {
         _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, yDomain: ClosedRange<Double>,
         gap: TimeInterval
     ) -> TrendModel {
-        let download = LiveColumn(window, .networkInBytesPerSec)
-        let upload = LiveColumn(window, .networkOutBytesPerSec)
+        let download = LiveColumn(window, .networkInBytesPerSec, peak: .networkInPeak)
+        let upload = LiveColumn(window, .networkOutBytesPerSec, peak: .networkOutPeak)
         var model = TrendModel()
         model.series = [
             TrendSurfaceSeries(column: download, color: NetworkStyle.download),
@@ -719,8 +736,8 @@ private final class DashboardTimelineStore: ObservableObject {
         _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, yDomain: ClosedRange<Double>,
         gap: TimeInterval
     ) -> TrendModel {
-        let read = LiveColumn(window, .diskReadBytesPerSec)
-        let write = LiveColumn(window, .diskWriteBytesPerSec)
+        let read = LiveColumn(window, .diskReadBytesPerSec, peak: .diskReadPeak)
+        let write = LiveColumn(window, .diskWriteBytesPerSec, peak: .diskWritePeak)
         var model = TrendModel()
         model.series = [
             TrendSurfaceSeries(column: read, color: DiskStyle.read),
