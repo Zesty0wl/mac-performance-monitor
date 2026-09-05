@@ -369,6 +369,32 @@ struct TrendChart: View {
 
 /// The plot rectangle shared by the layers, so gridlines, labels, the series
 /// and the scrub overlay agree on where the axes are.
+/// Y ranges that fit the data without magnifying a flat reading.
+///
+/// A fixed wide axis (0 to 110 for a die sensor, say) is safe but wastes most of
+/// the plot: a CPU that lives between 60 and 90 degrees draws a flat ribbon
+/// across the middle. A tight auto-fit has the opposite problem, turning a
+/// degree of idle noise into a mountain range. `fitted` does both: it wraps the
+/// data with a little air, and refuses to show a span narrower than
+/// `minimumSpan`, so a steady reading stays visibly steady.
+enum ChartDomain {
+    static func fitted(
+        min lo: Double, max hi: Double, minimumSpan: Double, padding: Double,
+        floor: Double = -.greatestFiniteMagnitude
+    ) -> ClosedRange<Double> {
+        var low = lo - padding
+        var high = hi + padding
+        let short = minimumSpan - (high - low)
+        if short > 0 {
+            low -= short / 2
+            high += short / 2
+        }
+        low = Swift.max(floor, low.rounded(.down))
+        high = Swift.max(low + minimumSpan, high.rounded(.up))
+        return low...high
+    }
+}
+
 struct TrendChartGeometry: Equatable {
     var leftGutter: CGFloat
     var showsTimeAxis: Bool

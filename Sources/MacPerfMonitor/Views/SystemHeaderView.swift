@@ -21,7 +21,7 @@ struct SystemHeaderView: View {
         // Prefer the smoothed live CPU (matches the Dashboard's Processor panel),
         // falling back to the snapshot's raw sample before the first smooth lands.
         let cpu = model.smoothedCPU ?? snapshot?.cpu
-        var cards = CPUMetrics.cards(cpu: cpu, history: [], span: 2 * 3600)
+        var cards = CPUMetrics.cards(cpu: cpu, history: [], span: ProcessHeaderStore.headerSpan)
         if !cards.isEmpty { cards[0].live = live.usageFeed }
         if cards.count > 1 { cards[1].live = live.loadFeed }
         return VStack(alignment: .leading, spacing: 10) {
@@ -69,7 +69,7 @@ struct SystemHeaderView: View {
     }
 
     private func reload() {
-        model.loadRecentSystemHistory(seconds: 2 * 3600) { points in
+        model.loadRecentSystemHistory(seconds: ProcessHeaderStore.headerSpan) { points in
             live.replace(
                 points, live: model.liveSystem, cpu: model.smoothedCPU,
                 liveCPU: model.liveCPU)
@@ -167,7 +167,7 @@ private struct CPUCoreCard: View {
                     .lineLimit(1)
                 Spacer(minLength: 4)
             }
-            CoreGridSurface(feed: feed, barHeight: 40)
+            CoreGridSurface(feed: feed, barHeight: 50)
         }
         // Match the metric cards' fill so all three header cards are one height.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -192,7 +192,22 @@ private struct CPUCoreCard: View {
 /// dial rate without re-rendering any SwiftUI view. Main thread only.
 @MainActor
 final class ProcessHeaderStore: ObservableObject {
-    private var window = SystemHistoryWindow(span: 2 * 3600)
+    /// Ten minutes, not two hours. The strip is about 350 points wide, so a two
+    /// hour window at the sampler's cadence put roughly twenty samples in every
+    /// pixel column and painted the spike from each one: the result read as a
+    /// band of noise whose height was worst case, not typical. Ten minutes is
+    /// close to one sample per column, which is what makes the charts on the
+    /// right legible.
+    private var window = SystemHistoryWindow(span: ProcessHeaderStore.headerSpan)
+
+    /// Shared by the window and the history load so they cannot drift apart.
+    static let headerSpan: TimeInterval = 10 * 60
+
+    /// Load average has no column in the history window, so the header keeps its
+    /// own ring of samples over the same span. That is what lets the load card
+    /// be a chart like its neighbours instead of the odd bar out.
+    private var loadTimes: [Double] = []
+    private var loadValues: [Double] = []
     let usageFeed = MetricCardFeed()
     let loadFeed = MetricCardFeed()
     let coreFeed = CoreGridFeed()
@@ -220,10 +235,27 @@ final class ProcessHeaderStore: ObservableObject {
         usageFeed.publish(
             value: cpu.map { "\(Int(($0.totalUsage * 100).rounded()))%" },
             tint: NSColor(level.color), column: LiveColumn(window, .cpuLoad), scale: 100,
-            xDomain: window.xDomain, yDomain: 0...100)
+            xDomain: window.xDomain, yDomain: 0...100,
+            peak: window.peak(.cpuLoad).map { t("peak %@%%", String(Int(($0 * 100).rounded()))) })
+        if let cpu {
+            let now = Date().timeIntervalSinceReferenceDate
+            loadTimes.append(now)
+            loadValues.append(cpu.loadAverage1)
+            let cutoff = now - Self.headerSpan
+            if let keep = loadTimes.firstIndex(where: { $0 >= cutoff }), keep > 0 {
+                loadTimes.removeFirst(keep)
+                loadValues.removeFirst(keep)
+            }
+        }
+        let loadColumn = LiveColumn(times: loadTimes[...], values: loadValues[...])
+        // Full height is one process per core, so the chart reads as "how close
+        // to fully subscribed", and it stretches when load goes past that.
+        let loadTop = max(Double(cpu?.cores.count ?? 0), loadColumn.range?.max ?? 0, 1)
         loadFeed.publish(
-            value: cpu.map { String(format: "%.2f", $0.loadAverage1) }, tint: .labelColor,
-            column: nil, xDomain: nil, yDomain: nil)
+            value: cpu.map { String(format: "%.2f", $0.loadAverage1) },
+            tint: NSColor(CPUMetrics.loadColor(cpu)), column: loadColumn, scale: 1,
+            xDomain: window.xDomain, yDomain: 0...loadTop,
+            peak: loadColumn.range.map { t("peak %@", String(format: "%.2f", $0.max)) })
         // The bars show the sample as measured. The cards above them stay
         // smoothed: a jittering percentage is unreadable, a still core grid is
         // uninformative.
@@ -233,10 +265,24 @@ final class ProcessHeaderStore: ObservableObject {
         let die = system?.cpuDieC ?? window.peakLatestCPUDie
         if die != nil, !hasTemperature { hasTemperature = true }
         let pressure = system?.thermalPressure ?? .nominal
+        // Zoom to the readings rather than 0 to 110: a die that lives between 60
+        // and 75 degrees drew a flat line across the bottom sixth of the strip.
+        // A minimum span keeps a steady temperature from being magnified into
+        // noise, and the padding stops the line touching the edges.
+        let dieColumn = LiveColumn(window, .cpuDieC)
+        let dieRange = dieColumn.range
+        let dieDomain =
+            dieRange.map {
+                ChartDomain.fitted(
+                    min: $0.min, max: $0.max, minimumSpan: 10, padding: 2, floor: 0)
+            } ?? 20...90
         temperatureFeed.publish(
             value: die.map { "\(Int($0.rounded()))°C" },
-            tint: NSColor(pressure.color), column: LiveColumn(window, .cpuDieC), scale: 1,
-            xDomain: window.xDomain, yDomain: 0...110)
+            tint: NSColor(pressure.color), column: dieColumn, scale: 1,
+            xDomain: window.xDomain, yDomain: dieDomain,
+            peak: window.peak(.cpuDieC).flatMap {
+                $0 > 0 ? t("peak %@°C", String(Int($0.rounded()))) : nil
+            })
     }
 
     private static func point(from s: SystemSample) -> SystemHistoryPoint {

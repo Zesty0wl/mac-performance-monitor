@@ -98,6 +98,12 @@ struct MetricGauge: Equatable {
 /// height so a row or grid stays tidy. The whole card is a button that opens a
 /// detail modal explaining the figure and showing its chart in full.
 struct MetricCard: View {
+    /// Height of the chart strip inside a compact card, and so of the card
+    /// itself, since these are sized by their content. Roughly a quarter taller
+    /// than it was: the strips are the part being read, and at the old height a
+    /// trend had almost no room to be one.
+    static let stripHeight: CGFloat = 57
+
     /// Narrowest a card is laid out at in a row before the row wraps to a grid.
     static let minimumWidth: CGFloat = 150
 
@@ -178,7 +184,7 @@ struct MetricCard: View {
                     MetricGaugeBar(
                         fraction: gauge.fraction, threshold: gauge.threshold, tint: data.tint)
                 } else if let live = data.live {
-                    LiveSparkline(feed: live, lineWidth: 1.5)
+                    ScaledSparkline(feed: live)
                 } else if loading {
                     ProgressView()
                         .controlSize(.small)
@@ -196,7 +202,7 @@ struct MetricCard: View {
                     Color.clear
                 }
             }
-            .frame(height: 28)
+            .frame(height: MetricCard.stripHeight)
             .accessibilityHidden(true)
         }
         // Fill the row's height so cards of differing content (e.g. beside the
@@ -217,6 +223,46 @@ struct MetricCard: View {
                 )
         )
         .contentShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+/// A card sparkline with the least scale it can get away with: a hairline at the
+/// bottom to sit the trend on, and the window's peak in the top corner.
+///
+/// The strip is drawn bare, with no axes, which is right for something this
+/// small but left it impossible to read a height against. These two marks are
+/// what the charts in the detail rail get from a full axis, at a fraction of the
+/// ink.
+private struct ScaledSparkline: View {
+    let feed: MetricCardFeed
+    @State private var peak: String?
+    @State private var observer: UUID?
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            LiveSparkline(feed: feed, lineWidth: 1.5)
+            VStack(alignment: .trailing, spacing: 0) {
+                if let peak {
+                    Text(peak)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.tertiary)
+                        .padding(.trailing, 1)
+                }
+                Spacer(minLength: 0)
+                Rectangle()
+                    .fill(Color.primary.opacity(0.10))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 0.5)
+            }
+        }
+        .onAppear {
+            peak = feed.peak
+            observer = feed.observe { peak = feed.peak }
+        }
+        .onDisappear {
+            if let observer { feed.stopObserving(observer) }
+            observer = nil
+        }
     }
 }
 
@@ -804,10 +850,10 @@ enum CPUMetrics {
                 label: "Load average",
                 value: cpu.map { String(format: "%.2f", $0.loadAverage1) },
                 tint: loadTint(cpu),
-                gauge: cpu.map {
-                    MetricGauge(
-                        fraction: coreCount > 0 ? min(1, $0.loadAverage1 / Double(coreCount)) : 0)
-                },
+                // No gauge: the header gives this card a live chart like the
+                // others, and a card cannot have both. The Dashboard does not
+                // use this card.
+
                 unit: .percent,
                 detail: cpu.map {
                     String(format: "%.2f · %.2f", $0.loadAverage5, $0.loadAverage15)
@@ -826,6 +872,8 @@ enum CPUMetrics {
 
     /// Green/amber/red by 1-minute load relative to the core count: comfortable
     /// below ~0.7×, subscribed up to 1×, queuing above.
+    static func loadColor(_ cpu: CPUSample?) -> Color { loadTint(cpu) }
+
     private static func loadTint(_ cpu: CPUSample?) -> Color {
         guard let cpu, !cpu.cores.isEmpty else { return .secondary }
         switch cpu.loadAverage1 / Double(cpu.cores.count) {

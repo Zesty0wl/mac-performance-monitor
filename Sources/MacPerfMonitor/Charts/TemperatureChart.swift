@@ -77,15 +77,15 @@ struct TemperatureChart: View {
         .accessibilityValue(accessibilitySummary)
     }
 
-    /// A stable floor-to-headroom domain: starting the axis at 0 wastes half
-    /// the plot (die sensors never read near 0), while a tight auto-fit makes
-    /// idle noise look dramatic. 20 to a rounded-up peak keeps small wiggles
-    /// small and real spikes visible.
+    /// Fit the readings rather than pinning the axis to a fixed 20 degrees and a
+    /// rounded-up peak. That was safe but spent most of the plot on temperatures
+    /// a die never reaches: sensors sitting between 60 and 90 drew a flat ribbon
+    /// through the middle. The 30 degree minimum span is what stops the opposite
+    /// problem, a degree of idle noise filling the chart.
     private var temperatureDomain: ClosedRange<Double>? {
         let values = cpuPoints.map(\.value) + gpuPoints.map(\.value)
-        guard let peak = values.max() else { return nil }
-        let top = max(60, (peak / 10).rounded(.up) * 10 + 10)
-        return 20...top
+        guard let lo = values.min(), let hi = values.max() else { return nil }
+        return ChartDomain.fitted(min: lo, max: hi, minimumSpan: 30, padding: 5, floor: 0)
     }
 }
 

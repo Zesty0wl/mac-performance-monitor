@@ -137,7 +137,9 @@ final class CoreGridSurfaceView: LiveSurfaceView {
         }
         let spacing: CGFloat = 3
         let width = (bounds.width - spacing * CGFloat(cores.count - 1)) / CGFloat(cores.count)
-        let track = NSColor.secondaryLabelColor.withAlphaComponent(0.14)
+        // Quiet: eleven empty tracks used to carry more weight on screen than
+        // the fills inside them.
+        let track = NSColor.secondaryLabelColor.withAlphaComponent(0.08)
         for (i, core) in cores.enumerated() {
             let x = CGFloat(i) * (width + spacing)
             let full = CGRect(x: x, y: 0, width: width, height: barHeight)
