@@ -455,7 +455,9 @@ final class TrendSurfaceView: LiveSurfaceView {
 
     /// Place the live-edge dot on the first series' newest raw sample.
     private func updateMarker(_ model: TrendModel, domain: ClosedRange<Double>) {
-        guard !model.bare, let first = model.series.first, let last = first.column.values.last
+        guard !model.bare, let first = model.series.first,
+            let last = TrendRenderer.lineEndValue(
+                first, smoothingSeconds: TrendRenderer.smoothingSeconds(span: tick.span))
         else {
             markerLayer.isHidden = true
             return
@@ -466,7 +468,7 @@ final class TrendSurfaceView: LiveSurfaceView {
             markerLayer.backgroundColor = color.cgColor
             markerLayer.borderColor = NSColor.windowBackgroundColor.withAlphaComponent(0.9).cgColor
         }
-        let value = last * first.scale
+        let value = last
         let y = plot.maxY - CGFloat(LiveChartGeometry.normalizedY(value, in: domain)) * plot.height
         let r = Self.markerRadius
         markerLayer.position = CGPoint(x: snap(plot.maxX - r), y: snap(y - r))
@@ -800,35 +802,72 @@ enum TrendRenderer {
     /// points, y is the plot height flipped. The caller has clipped the
     /// context to the columns being repainted; the path is built from a couple
     /// of buckets either side so joins at the clip edges match a full repaint.
-    /// Columns of history behind each point of the line, aiming for about 120
-    /// points across the whole span whatever the range.
-    static func smoothingColumns(span: Double, bucketWidth: Double) -> Int {
-        guard bucketWidth > 0, span > 0 else { return 1 }
-        return max(1, Int(((span / 120) / bucketWidth).rounded()))
+    /// Where the line actually ends: the same trailing reduction the line is
+    /// drawn with, so the dot that marks the latest value sits on it rather
+    /// than beside it at the raw sample.
+    static func lineEndValue(_ series: TrendSurfaceSeries, smoothingSeconds: Double) -> Double? {
+        let values = series.column.values
+        let times = series.column.times
+        guard let lastTime = times.last, !values.isEmpty else { return nil }
+        guard smoothingSeconds > 0 else { return values.last.map { $0 * series.scale } }
+        let cutoff = lastTime - smoothingSeconds
+        var sum = 0.0
+        var count = 0
+        var peak = -Double.greatestFiniteMagnitude
+        var i = times.endIndex - 1
+        let valueOffset = values.startIndex - times.startIndex
+        while i >= times.startIndex, times[i] >= cutoff {
+            let v = values[i + valueOffset]
+            sum += v
+            peak = Swift.max(peak, v)
+            count += 1
+            i -= 1
+        }
+        guard count > 0 else { return values.last.map { $0 * series.scale } }
+        let reduced = series.reduction == .maximum ? peak : sum / Double(count)
+        return reduced * series.scale
     }
 
-    /// A trailing average of `value` over `columns` buckets, reset at every gap
-    /// so a pause does not drag an average across it.
+    /// Seconds of history behind each point of the line, aiming for about 120
+    /// points across the whole span whatever the range.
+    static func smoothingSeconds(span: Double) -> Double {
+        span > 0 ? span / 120 : 0
+    }
+
+    /// A trailing average of `value` over `seconds` of history, reset at every
+    /// gap so a pause does not drag an average across it.
+    ///
+    /// The window is a duration, not a number of buckets. Buckets are per
+    /// column and only exist where a sample landed, so at short ranges most
+    /// columns are empty: counting buckets made the window five times longer
+    /// than intended and, worse, longer than the history the renderer fetches
+    /// for it, so the live edge averaged over less than the rest of the line and
+    /// drew a step.
     static func smoothed(
-        _ buckets: [LiveStripBuckets.Bucket], columns: Int,
+        _ buckets: [LiveStripBuckets.Bucket], seconds: Double, width: Double,
         value: (LiveStripBuckets.Bucket) -> Double
     ) -> [Double] {
-        guard columns > 1 else { return buckets.map(value) }
+        guard seconds > 0, width > 0, buckets.count > 1 else { return buckets.map(value) }
         var out: [Double] = []
         out.reserveCapacity(buckets.count)
-        var window: [Double] = []
-        window.reserveCapacity(columns)
+        var start = 0
         var sum = 0.0
-        for bucket in buckets {
+        var runStart = 0
+        for (i, bucket) in buckets.enumerated() {
             if bucket.gapBefore {
-                window.removeAll(keepingCapacity: true)
+                runStart = i
+                start = i
                 sum = 0
             }
-            let v = value(bucket)
-            window.append(v)
-            sum += v
-            if window.count > columns { sum -= window.removeFirst() }
-            out.append(sum / Double(window.count))
+            sum += value(bucket)
+            let cutoff = bucketMidTime(bucket, width: width) - seconds
+            while start < i, start < buckets.count,
+                bucketMidTime(buckets[start], width: width) < cutoff, start >= runStart
+            {
+                sum -= value(buckets[start])
+                start += 1
+            }
+            out.append(sum / Double(i - start + 1))
         }
         return out
     }
@@ -908,7 +947,12 @@ enum TrendRenderer {
         // 120 points across the plot puts thirty seconds behind each point at an
         // hour, three minutes at six hours, and two seconds at five minutes,
         // where the detail is still the point. See docs/chart-rules.md.
-        let smoothing = TrendRenderer.smoothingColumns(span: tick.span, bucketWidth: bucketWidth)
+        let smoothingSeconds = TrendRenderer.smoothingSeconds(span: tick.span)
+        // Columns of extra history to fetch, so a repaint of the live edge sees
+        // the same window as a full repaint. Expressed in the same units as the
+        // window itself.
+        let smoothing =
+            bucketWidth > 0 ? max(1, Int((smoothingSeconds / bucketWidth).rounded())) : 1
 
         for s in model.series {
             // Fetch the extra columns to the left that the trailing average
@@ -930,7 +974,7 @@ enum TrendRenderer {
                     extremes, width: bucketWidth, color: color, x: x, y: y, context: ctx)
             }
             let line = TrendRenderer.smoothed(
-                extremes, columns: smoothing,
+                extremes, seconds: smoothingSeconds, width: bucketWidth,
                 value: { s.reduction == .maximum ? $0.maxValue : $0.mean })
 
             // Gap-free runs of points in time order.
