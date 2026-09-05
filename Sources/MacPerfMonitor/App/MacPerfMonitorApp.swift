@@ -713,6 +713,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         // (and, after a grace period, on occlusion).
         occlusionReleaseTimer?.invalidate()
         occlusionReleaseTimer = nil
+        model.setWindowOpen(true)
         if !mainWindowProcessConsumerActive {
             mainWindowProcessConsumerActive = true
             model.addProcessConsumer()
@@ -762,6 +763,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         if title == AppInfo.displayName {
             MainActor.assumeIsolated {
                 appState.mainWindowOpen = false
+                model.setWindowOpen(false)
                 occlusionReleaseTimer?.invalidate()
                 occlusionReleaseTimer = nil
                 MemoryReclaim.runAfterWindowClose()

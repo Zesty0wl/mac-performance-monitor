@@ -170,4 +170,31 @@ final class LiveStripBucketsTests: XCTestCase {
         XCTAssertEqual(bucket.mean, 20, accuracy: 0.0001)
     }
 
+    // MARK: The smoothing window is a duration, not a bucket count
+
+    /// Buckets exist only where a sample landed, so at short ranges most
+    /// columns are empty. A window counted in buckets then covers far more time
+    /// than intended, and more than the history a live repaint fetches for it,
+    /// which drew a step at the right-hand edge.
+    func testSparseBucketsCoverTheIntendedDuration() {
+        // One sample a second, columns a fifth of a second wide: one column in
+        // five holds a sample.
+        let width = 0.2
+        let times = (0..<60).map { Double($0) }
+        let values = [Double](repeating: 1, count: 60)
+        let buckets = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], width: width,
+            from: 0, through: Int(60 / width), gapThreshold: 1000)
+        XCTAssertEqual(buckets.count, 60, "one bucket per sample, not per column")
+
+        // Two and a half seconds of history is two or three samples, not twelve.
+        let seconds = 2.5
+        let spanned = buckets.filter {
+            let t = (Double($0.index) + 0.5) * width
+            return t >= 55 - seconds && t <= 55
+        }
+        XCTAssertLessThanOrEqual(spanned.count, 4)
+        XCTAssertGreaterThanOrEqual(spanned.count, 2)
+    }
+
 }
