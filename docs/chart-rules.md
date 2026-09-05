@@ -49,13 +49,21 @@ than per chart.
 
 ## The rules
 
-**1. Never draw more points than there are pixels, and reduce as late as
-possible.** The budget comes from the plot width, not from the range: one bucket
-per column of the plot. Do the reduction at draw time, not on the way into the
-window or out of the database, because rule 3 needs the real minimum and maximum
-of each bucket and an average taken earlier has already thrown them away. Keeping
-full resolution in memory is the cheap part; an hour at one second is 3,600
-doubles per metric.
+**1. The line carries about 120 points across the plot, whatever the range, and
+the reduction happens as late as possible.**
+
+Pixels are the wrong budget. A plot 1,500 columns wide showing an hour puts two
+or three samples in each column, and the mean of three noisy samples is still
+noisy: bucketing to pixel resolution barely smooths anything, which is why the
+first attempt at this looked almost as bad as no reduction at all. Sizing the
+reduction to a target point count is what actually works, and it is what beszel
+does: roughly thirty seconds behind each point at an hour, three minutes at six
+hours, two seconds at five minutes where the detail is still the point.
+
+Do the reduction at draw time, not on the way into the window or out of the
+database, because rule 3 needs the real minimum and maximum of each bucket and
+an average taken earlier has thrown them away. Keeping full resolution in memory
+is the cheap part: an hour at one second is 3,600 doubles per metric.
 
 **2. How a bucket is reduced belongs to the metric, and is decided once.**
 
@@ -112,7 +120,7 @@ be raw data is a lie the user cannot see.
 
 | Rule | Where it lives |
 | --- | --- |
-| 1, 4 | `LiveStripBuckets` at draw time, one bucket per plot column. The window keeps every sample on purpose |
+| 1, 4 | `TrendRenderer.smoothingColumns` sets the window from the span; `LiveStripBuckets` supplies the per-column extremes behind it. The history window keeps every sample on purpose |
 | 2 | one table in Core, keyed by `SystemHistoryWindow.Column` |
 | 3 | `TrendSurface` band drawing, fed by the decimator's existing min and max |
 | 5, 6 | `ChartDomain.fitted`, called by each chart with its own minimum span |
@@ -128,7 +136,7 @@ met today; everything else is work.
 | Surface | Rules met | Work needed |
 | --- | --- | --- |
 | Dashboard: pressure, processor, network, disk, swap | 1, 2, 3, 4, 7, 9 | none |
-| Dashboard: thermals | 2, 5, 7 | 3: drawn by `TemperatureChart`, which has no band yet |
+| Dashboard: thermals | 1, 2, 4, 5, 7, 9 | 3: `TrendChart` has no band, so this shows the bucket maximum as a line with no spread behind it |
 | Dashboard: metric cards | 1, 2, 3, 4, 5, 7, 9 | 8: no peak label, unlike the Processes header |
 | Processes header: CPU, load, die | 1, 2, 3, 4, 5, 8, 9 | none |
 | GPU tab | 7 | 1, 3, 5: fixed 0 to 100 and 0 to peak domains |

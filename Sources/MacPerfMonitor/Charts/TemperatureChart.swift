@@ -35,15 +35,46 @@ struct TemperatureChart: View {
     var showsTimeAxis = false
 
     private var cpuPoints: [TrendPoint] {
-        points.compactMap { point in
-            point.cpuDieC.map { TrendPoint(date: point.date, value: $0) }
-        }
+        Self.reduced(
+            points.compactMap { p in p.cpuDieC.map { TrendPoint(date: p.date, value: $0) } })
     }
 
     private var gpuPoints: [TrendPoint] {
-        points.compactMap { point in
-            point.gpuDieC.map { TrendPoint(date: point.date, value: $0) }
+        Self.reduced(
+            points.compactMap { p in p.gpuDieC.map { TrendPoint(date: p.date, value: $0) } })
+    }
+
+    /// About 120 points across the window, each the hottest reading in its
+    /// bucket. An hour of one second samples is 3,600 readings in a panel a few
+    /// hundred points wide; drawn raw they stack into a solid block whose
+    /// height is the spread rather than the temperature. The maximum is the
+    /// right reduction here, not the mean: a thermal spike is the event worth
+    /// seeing. See docs/chart-rules.md.
+    private static func reduced(_ series: [TrendPoint]) -> [TrendPoint] {
+        let target = 120
+        guard series.count > target * 2, let first = series.first, let last = series.last
+        else { return series }
+        let span = last.date.timeIntervalSince(first.date)
+        guard span > 0 else { return series }
+        let width = span / Double(target)
+        var out: [TrendPoint] = []
+        out.reserveCapacity(target + 1)
+        var bucket = Int.min
+        var hottest: TrendPoint?
+        for point in series {
+            let index = Int(
+                (point.date.timeIntervalSinceReferenceDate
+                    / width).rounded(.down))
+            if index != bucket {
+                if let hottest { out.append(hottest) }
+                bucket = index
+                hottest = point
+            } else if let current = hottest, point.value > current.value {
+                hottest = point
+            }
         }
+        if let hottest { out.append(hottest) }
+        return out
     }
 
     private var accessibilitySummary: String {
@@ -64,7 +95,7 @@ struct TemperatureChart: View {
     var body: some View {
         TrendChart(
             series: [
-                TrendSeries(points: cpuPoints, color: ThermalStyle.cpu, filled: true),
+                TrendSeries(points: cpuPoints, color: ThermalStyle.cpu),
                 TrendSeries(
                     points: gpuPoints, color: ThermalStyle.gpu, filled: false, lineWidth: 1.8),
             ],
