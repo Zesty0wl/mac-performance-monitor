@@ -257,6 +257,15 @@ public final class Sampler {
             battery: battery, network: network, disk: disk)
     }
 
+    /// Whether the next `tickSystem` has a previous tick to difference against.
+    ///
+    /// The first tick after launch or `reset()` has none, so its CPU, network
+    /// and disk figures are zero by construction rather than measured. Anything
+    /// that records or charts samples should skip that tick: recorded, it puts a
+    /// zero at the start of every run, and the line climbs vertically out of it
+    /// when the chart resumes after the gap.
+    public var hasBaseline: Bool { lastSystemTime != nil }
+
     /// The cheap system-wide sample: total/per-core CPU and the memory/pressure
     /// figures. It does no per-process enumeration, so it is safe to call at a
     /// fast (sub-second) cadence to keep the menubar live without the cost of

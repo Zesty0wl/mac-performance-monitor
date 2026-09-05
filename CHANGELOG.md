@@ -28,6 +28,22 @@ Notable changes to Mac Performance Monitor. This project follows
   Opening at login stays quiet, with no window and no Dock icon.
 - Closing the last window quits the app when neither the menu bar item nor
   recording is switched on. With either on, it keeps running as before.
+- **Every chart follows one set of rules**, written down in
+  `docs/chart-rules.md` and modelled on beszel. A line carries about 120 points
+  whatever the range, so a five minute view and a seven day view are equally
+  readable, and the reduction to those points happens at draw time so nothing
+  is thrown away on the way in. A volatile metric is drawn as the mean of each
+  point's samples inside a translucent band from their minimum to their
+  maximum, so the plot shows the typical level and the spikes at once instead of
+  a solid block of spikes. Temperatures follow the maximum, because the spike is
+  the event. The line is a monotone curve, the kind beszel draws, which is
+  smooth but cannot overshoot, so every bump on it was measured. On the six
+  hour, day and week ranges the stored rows carry their bucket's peak, so the
+  band still reaches the real spikes there, and those ranges now run right up
+  to the present rather than stopping at the last complete minute or hour.
+  Temperature axes fit the data with a floor on their span, the area fills are
+  gone from the volatile series, the Processes header cards state their peak,
+  and the load average is a chart.
 
 ### Security
 
@@ -63,6 +79,24 @@ Notable changes to Mac Performance Monitor. This project follows
   scan once a minute when nothing else calls for one.
 - With no menu bar item, no window and no panel open, the sampler no longer
   publishes to the main thread every second for nobody to read.
+- A chart resuming after a gap no longer climbs vertically from zero. The
+  sampler's first tick after launch has nothing to difference against, so its
+  CPU, network and disk figures were zero by construction, and that tick was
+  both recorded and drawn: every restart left a zero at the start of the run.
+  The first tick still seeds the sampler and drives the first process scan, but
+  it is neither recorded nor charted.
+- The six hour, day and week ranges drew dots instead of a line. The gap
+  threshold was sized to the logging interval, but those ranges are served by
+  rows a minute or an hour apart, so every row counted as an island. The
+  threshold now follows the spacing of whichever tier the range loaded from.
+- Gaps in the recently drawn line, and straight lines across periods when the
+  app was not running: samples kept arriving while the window was covered but
+  were dropped, and the gap threshold grew with the range (two and a half
+  minutes at an hour) so real holes were bridged. Samples are now kept while the
+  window is covered, and a gap is anything beyond three times the cadence.
+- The thermals chart changed shape as it scrolled: its buckets were sized from
+  the data's extent rather than the axis, so every new sample moved every
+  boundary. Buckets are anchored to absolute time now.
 - 99 interface strings were never in the catalog, so they stayed English in
   every language whatever you chose. They are SwiftUI literals that the
   source-scanning check cannot see, from the battery detail panels, the network

@@ -94,68 +94,74 @@ extension Array where Element == SystemHistoryPoint {
             func omax(_ value: (SystemHistoryPoint) -> Double?) -> Double? {
                 slice.compactMap(value).max()
             }
-            result.append(
-                SystemHistoryPoint(
-                    // Grid-anchored start of the bucket: a fixed point that does
-                    // not move as samples land in this or any other bucket.
-                    date: Date(timeIntervalSince1970: b * width),
-                    pressurePercent: slice.map(\.pressurePercent).max() ?? 0,
-                    appMemory: mean { $0.appMemory },
-                    wired: mean { $0.wired },
-                    compressed: mean { $0.compressed },
-                    cachedFiles: mean { $0.cachedFiles },
-                    swapUsed: mean { $0.swapUsed },
-                    // CPU is inherently spiky, so average rather than peak per
-                    // bucket; a max-collapsed line would read as permanently high.
-                    cpuLoad: dmean { $0.cpuLoad },
-                    // Carry the battery scalars through too: omitting them
-                    // defaulted them to 0, which collapsed the Battery tab's
-                    // charge/power lines to a flat zero on any downsampled range.
-                    batteryCharge: dmean { $0.batteryCharge },
-                    batteryPowerWatts: dmean { $0.batteryPowerWatts },
-                    batteryHealthPercent: dmean { $0.batteryHealthPercent },
-                    batteryTemperatureCelsius: dmean { $0.batteryTemperatureCelsius },
-                    // Network is bursty, so average per bucket (a max-collapsed
-                    // line would read as permanently saturated), like CPU.
-                    networkInBytesPerSec: dmean { $0.networkInBytesPerSec },
-                    networkOutBytesPerSec: dmean { $0.networkOutBytesPerSec },
-                    // Disk throughput is bursty too, so average per bucket like
-                    // network. Carrying these through is the same fix the battery
-                    // and network scalars already got: leaving them out defaulted
-                    // them to 0 and flattened the Disk tab's read/write trend on
-                    // any range whose point count exceeded the chart cap.
-                    diskReadBytesPerSec: dmean { $0.diskReadBytesPerSec },
-                    diskWriteBytesPerSec: dmean { $0.diskWriteBytesPerSec },
-                    diskReadOperationsPerSec: dmean { $0.diskReadOperationsPerSec },
-                    diskWriteOperationsPerSec: dmean { $0.diskWriteOperationsPerSec },
-                    diskReadLatencyMs: omean { $0.diskReadLatencyMs },
-                    diskWriteLatencyMs: omean { $0.diskWriteLatencyMs },
-                    diskUtilizationPercent: omean { $0.diskUtilizationPercent },
-                    // Free space wants its low water mark, not its average: the
-                    // moment the disk nearly filled is the moment that matters.
-                    bootFreeBytes: slice.compactMap(\.bootFreeBytes).min(),
-                    bootTotalBytes: slice.compactMap(\.bootTotalBytes).last,
-                    // Carry the GPU figures through: omitting them defaulted
-                    // them to nil and blanked the GPU tab's history on any
-                    // downsampled range, the same class of drop the battery
-                    // and disk scalars had. Bursty like CPU, so average.
-                    gpuUtilization: omean { $0.gpuUtilization },
-                    gpuPowerWatts: omean { $0.gpuPowerWatts },
-                    anePowerWatts: omean { $0.anePowerWatts },
-                    cpuDieC: omax { $0.cpuDieC },
-                    gpuDieC: omax { $0.gpuDieC },
-                    ssdTemperatureC: omax { $0.ssdTemperatureC },
-                    fanRPM: omax { $0.fanRPM },
-                    // Worst pressure in the bucket, for the same reason.
-                    thermalPressure: slice.compactMap(\.thermalPressure).max(),
-                    cpuPCoreDieC: omax { $0.cpuPCoreDieC },
-                    cpuECoreDieC: omax { $0.cpuECoreDieC },
-                    airflowC: omax { $0.airflowC },
-                    skinC: omax { $0.skinC },
-                    wirelessC: omax { $0.wirelessC },
-                    voltageRailC: omax { $0.voltageRailC },
-                    otherSensorC: omax { $0.otherSensorC }
-                ))
+            var point = SystemHistoryPoint(
+                // Grid-anchored start of the bucket: a fixed point that does
+                // not move as samples land in this or any other bucket.
+                date: Date(timeIntervalSince1970: b * width),
+                pressurePercent: slice.map(\.pressurePercent).max() ?? 0,
+                appMemory: mean { $0.appMemory },
+                wired: mean { $0.wired },
+                compressed: mean { $0.compressed },
+                cachedFiles: mean { $0.cachedFiles },
+                swapUsed: mean { $0.swapUsed },
+                // CPU is inherently spiky, so average rather than peak per
+                // bucket; a max-collapsed line would read as permanently high.
+                cpuLoad: dmean { $0.cpuLoad },
+                // Carry the battery scalars through too: omitting them
+                // defaulted them to 0, which collapsed the Battery tab's
+                // charge/power lines to a flat zero on any downsampled range.
+                batteryCharge: dmean { $0.batteryCharge },
+                batteryPowerWatts: dmean { $0.batteryPowerWatts },
+                batteryHealthPercent: dmean { $0.batteryHealthPercent },
+                batteryTemperatureCelsius: dmean { $0.batteryTemperatureCelsius },
+                // Network is bursty, so average per bucket (a max-collapsed
+                // line would read as permanently saturated), like CPU.
+                networkInBytesPerSec: dmean { $0.networkInBytesPerSec },
+                networkOutBytesPerSec: dmean { $0.networkOutBytesPerSec },
+                // Disk throughput is bursty too, so average per bucket like
+                // network. Carrying these through is the same fix the battery
+                // and network scalars already got: leaving them out defaulted
+                // them to 0 and flattened the Disk tab's read/write trend on
+                // any range whose point count exceeded the chart cap.
+                diskReadBytesPerSec: dmean { $0.diskReadBytesPerSec },
+                diskWriteBytesPerSec: dmean { $0.diskWriteBytesPerSec },
+                diskReadOperationsPerSec: dmean { $0.diskReadOperationsPerSec },
+                diskWriteOperationsPerSec: dmean { $0.diskWriteOperationsPerSec },
+                diskReadLatencyMs: omean { $0.diskReadLatencyMs },
+                diskWriteLatencyMs: omean { $0.diskWriteLatencyMs },
+                diskUtilizationPercent: omean { $0.diskUtilizationPercent },
+                // Free space wants its low water mark, not its average: the
+                // moment the disk nearly filled is the moment that matters.
+                bootFreeBytes: slice.compactMap(\.bootFreeBytes).min(),
+                bootTotalBytes: slice.compactMap(\.bootTotalBytes).last,
+                // Carry the GPU figures through: omitting them defaulted
+                // them to nil and blanked the GPU tab's history on any
+                // downsampled range, the same class of drop the battery
+                // and disk scalars had. Bursty like CPU, so average.
+                gpuUtilization: omean { $0.gpuUtilization },
+                gpuPowerWatts: omean { $0.gpuPowerWatts },
+                anePowerWatts: omean { $0.anePowerWatts },
+                cpuDieC: omax { $0.cpuDieC },
+                gpuDieC: omax { $0.gpuDieC },
+                ssdTemperatureC: omax { $0.ssdTemperatureC },
+                fanRPM: omax { $0.fanRPM },
+                // Worst pressure in the bucket, for the same reason.
+                thermalPressure: slice.compactMap(\.thermalPressure).max(),
+                cpuPCoreDieC: omax { $0.cpuPCoreDieC },
+                cpuECoreDieC: omax { $0.cpuECoreDieC },
+                airflowC: omax { $0.airflowC },
+                skinC: omax { $0.skinC },
+                wirelessC: omax { $0.wirelessC },
+                voltageRailC: omax { $0.voltageRailC },
+                otherSensorC: omax { $0.otherSensorC }
+            )
+            // The bucket's peak is the highest peak among its members (a raw
+            // member's peak being itself), so a band drawn over the result
+            // still reaches the real spike.
+            point.peaks = slice.dropFirst().reduce(slice[i].effectivePeaks) {
+                $0.merged(with: $1.effectivePeaks)
+            }
+            result.append(point)
             i = j
         }
         return result

@@ -1046,6 +1046,12 @@ final class SamplerModel: ObservableObject {
         // A GPU panel on screen (the GPU tab, an open GPU dropdown) reads the
         // device every tick so it moves at the dial; the icon alone and the
         // history make do with one read a second.
+        // The first tick after launch has nothing to difference against, so
+        // its CPU, network and disk figures are zero by construction. It still
+        // seeds the sampler and drives the first scan, but it is neither
+        // recorded nor charted: a recorded zero starts every run after a gap
+        // with a vertical climb from the axis.
+        let hasBaseline = sampler.hasBaseline
         let (system, cpu, battery, network, disk, gpu) = sampler.tickSystem(
             readGPU: gpuSamplingEnabled || gpuConsumers > 0 || persistenceEnabled,
             gpuReadInterval: gpuConsumers > 0 ? 0 : 1)
@@ -1135,10 +1141,14 @@ final class SamplerModel: ObservableObject {
         if anythingWatching {
             DispatchQueue.main.async {
                 let publishStart = TickDiagnostics.now()
-                self.systemHistory.append(system)
-                self.appendRecentCPU(cpu)
-                self.appendRecentNetwork(network)
-                self.appendRecentDisk(disk)
+                // The delta-based rings skip the baseline tick (see above);
+                // battery and GPU are read directly and are fine to show.
+                if hasBaseline {
+                    self.systemHistory.append(system)
+                    self.appendRecentCPU(cpu)
+                    self.appendRecentNetwork(network)
+                    self.appendRecentDisk(disk)
+                }
                 self.recentBattery = battery
                 // GPU is sampled only while the menubar GPU item is on; smooth it like
                 // CPU so the icon figure settles, and drop the history when it goes off.
@@ -1235,7 +1245,7 @@ final class SamplerModel: ObservableObject {
         // cost. The live charts read the in-memory ring, not the DB, so only
         // the long-range history granularity follows this.
         var persistStore: SampleStore?
-        if scanDue, persistenceEnabled, let store {
+        if scanDue, persistenceEnabled, hasBaseline, let store {
             let now = Date()
             if lastPersistAt.map({ now.timeIntervalSince($0) >= persistMinInterval }) ?? true {
                 lastPersistAt = now

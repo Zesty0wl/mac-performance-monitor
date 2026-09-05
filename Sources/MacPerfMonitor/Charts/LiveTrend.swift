@@ -10,15 +10,24 @@ struct LiveColumn {
     /// `timeIntervalSinceReferenceDate` seconds, oldest first.
     var times: ArraySlice<Double>
     var values: ArraySlice<Double>
+    /// Each sample's own peak, where the samples are stored means with the
+    /// bucket maximum beside them (`SystemHistoryWindow.Column` peak columns).
+    /// The band rises to these; the line ignores them.
+    var highs: ArraySlice<Double>?
 
-    init(times: ArraySlice<Double>, values: ArraySlice<Double>) {
+    init(times: ArraySlice<Double>, values: ArraySlice<Double>, highs: ArraySlice<Double>? = nil) {
         self.times = times
         self.values = values
+        self.highs = highs
     }
 
-    init(_ window: SystemHistoryWindow, _ column: SystemHistoryWindow.Column) {
+    init(
+        _ window: SystemHistoryWindow, _ column: SystemHistoryWindow.Column,
+        peak: SystemHistoryWindow.Column? = nil
+    ) {
         times = window.timestamps
         values = window.values(column)
+        highs = peak.map { window.values($0) }
     }
 
     init(_ points: [SystemHistoryPoint], value: (SystemHistoryPoint) -> Double) {

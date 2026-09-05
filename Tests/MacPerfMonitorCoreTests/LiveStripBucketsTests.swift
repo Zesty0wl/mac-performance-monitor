@@ -219,4 +219,50 @@ final class LiveStripBucketsTests: XCTestCase {
         XCTAssertEqual(ChartGap.threshold(expectedSpacing: 3600), 10800)
     }
 
+    // MARK: - Stored peaks
+
+    func testHighsRaiseTheMaximumButNotTheMean() {
+        let times: [Double] = [100, 101, 102]
+        let values: [Double] = [0.2, 0.4, 0.3]
+        let highs: [Double] = [0.2, 0.9, 0.3]
+        let buckets = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], highs: highs[...], width: 10, from: 10,
+            through: 10, gapThreshold: 5)
+        XCTAssertEqual(buckets.count, 1)
+        XCTAssertEqual(buckets[0].maxValue, 0.9)
+        XCTAssertEqual(buckets[0].maxTime, 101)
+        XCTAssertEqual(buckets[0].minValue, 0.2)
+        XCTAssertEqual(buckets[0].mean, 0.3, accuracy: 1e-9, "the line still follows the means")
+        XCTAssertEqual(buckets[0].count, 3)
+    }
+
+    func testAStoredMeanWithAPeakIsAggregateOnItsOwn() {
+        // One minute-tier row per column: a mean with the bucket peak beside it
+        // has a spread worth a band even though it is a single sample.
+        let times: [Double] = [100]
+        let values: [Double] = [0.2]
+        let highs: [Double] = [0.6]
+        let buckets = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], highs: highs[...], width: 10, from: 10,
+            through: 10, gapThreshold: 5)
+        XCTAssertEqual(buckets.count, 1)
+        XCTAssertEqual(buckets[0].count, 1)
+        XCTAssertEqual(buckets[0].maxValue, 0.6)
+        XCTAssertEqual(buckets[0].minValue, 0.2)
+        XCTAssertTrue(buckets[0].isAggregate)
+        XCTAssertEqual(buckets[0].mean, 0.2)
+    }
+
+    func testHighsScaleWithTheValuesAndMismatchedHighsAreIgnored() {
+        let times: [Double] = [100, 101]
+        let values: [Double] = [0.2, 0.4]
+        let scaled = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], highs: [0.5, 0.5][...], width: 10, from: 10,
+            through: 10, gapThreshold: 5, scale: 100)
+        XCTAssertEqual(scaled[0].maxValue, 50)
+        let mismatched = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], highs: [0.9][...], width: 10, from: 10,
+            through: 10, gapThreshold: 5)
+        XCTAssertEqual(mismatched[0].maxValue, 0.4, "a highs slice of the wrong length is dropped")
+    }
 }

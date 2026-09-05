@@ -397,7 +397,12 @@ final class TrendSurfaceView: LiveSurfaceView {
         {
             // Extend: the bucket still filling plus its neighbours, whose
             // joins depend on it, are repainted; everything older is final.
-            dirtyFrom = max(current.drawnThrough - 3, current.home)
+            // The line is a curve whose slope at a point depends on both
+            // neighbours, so a new sample also reshapes the segment before the
+            // previous one: repaint back past two sample spacings (the gap
+            // threshold is three) so that segment gets its final tangent.
+            let reach = Int((2 * gapThreshold / 3 / bucketWidth).rounded(.up))
+            dirtyFrom = max(current.drawnThrough - 3 - reach, current.home)
             current.drawnThrough = live
             strip = current
         } else {
@@ -903,7 +908,8 @@ enum TrendRenderer {
                 bottom.append(CGPoint(x: px, y: y(bucket.minValue)))
             }
             let path = CGMutablePath()
-            path.addLines(between: top + bottom.reversed())
+            MonotoneCurve.add(top, to: path)
+            MonotoneCurve.add(bottom, to: path, reversed: true, move: false)
             path.closeSubpath()
             ctx.addPath(path)
             ctx.setFillColor(color.withAlphaComponent(0.22).cgColor)
@@ -953,14 +959,19 @@ enum TrendRenderer {
         // window itself.
         let smoothing =
             bucketWidth > 0 ? max(1, Int((smoothingSeconds / bucketWidth).rounded())) : 1
+        // Columns of extra history to the left, so a repaint of a few live
+        // columns matches a full one exactly. The first visible curve segment
+        // takes its shape from the two points before it, each at most a gap
+        // threshold back (further and it is a new run), and each of those needs
+        // the full trailing window behind it for its averaged value to agree.
+        let gapColumns = bucketWidth > 0 ? Int((tick.gapThreshold / bucketWidth).rounded(.up)) : 1
+        let context = 2 * gapColumns + smoothing + 2
 
         for s in model.series {
-            // Fetch the extra columns to the left that the trailing average
-            // needs, so a repaint of a few live columns matches a full one.
             let extremes = LiveStripBuckets.buckets(
-                times: s.column.times, values: s.column.values, width: bucketWidth,
-                from: buckets.lowerBound - smoothing, through: buckets.upperBound,
-                gapThreshold: tick.gapThreshold, scale: s.scale)
+                times: s.column.times, values: s.column.values, highs: s.column.highs,
+                width: bucketWidth, from: buckets.lowerBound - context,
+                through: buckets.upperBound, gapThreshold: tick.gapThreshold, scale: s.scale)
             guard !extremes.isEmpty else { continue }
             let color = NSColor(s.color)
 
@@ -1005,8 +1016,7 @@ enum TrendRenderer {
                         in: CGRect(x: first.x - r, y: first.y - r, width: 2 * r, height: 2 * r))
                     continue
                 }
-                let path = CGMutablePath()
-                path.addLines(between: run)
+                let path = MonotoneCurve.path(run)
                 if s.filled, let gradient = gradient(for: color, cache: &gradients) {
                     let fill = path.mutableCopy() ?? CGMutablePath()
                     fill.addLine(to: CGPoint(x: last.x, y: height))

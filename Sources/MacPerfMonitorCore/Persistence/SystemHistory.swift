@@ -8,6 +8,14 @@ import GRDB
 /// part of this point; the live stacked bar (which must sum to total RAM) uses
 /// the current `SystemSample` instead.
 public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
+    /// The highest raw value inside the bucket this point summarises. Set for
+    /// points read from the minute and hour tiers, whose value is a mean; nil
+    /// for a raw sample, whose peak is itself. The charts draw the mean as the
+    /// line and the peak as the top of the band behind it, so a long range still
+    /// shows what the spikes reached rather than a flat average. The tiers do
+    /// not store a minimum, so the band's floor is the mean.
+    public var peaks: SystemHistoryPeaks?
+
     public var date: Date
     public var pressurePercent: Double
     public var appMemory: UInt64
@@ -147,11 +155,71 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
     }
 }
 
+/// The per-bucket peaks stored alongside the means in the minute and hour
+/// tiers, for the metrics the Dashboard draws as a line inside a band.
+public struct SystemHistoryPeaks: Sendable, Equatable {
+    public var pressurePercent: Double
+    public var cpuLoad: Double
+    public var networkInBytesPerSec: Double
+    public var networkOutBytesPerSec: Double
+    public var diskReadBytesPerSec: Double
+    public var diskWriteBytesPerSec: Double
+    public var gpuUtilization: Double?
+
+    public init(
+        pressurePercent: Double, cpuLoad: Double, networkInBytesPerSec: Double,
+        networkOutBytesPerSec: Double, diskReadBytesPerSec: Double,
+        diskWriteBytesPerSec: Double, gpuUtilization: Double? = nil
+    ) {
+        self.pressurePercent = pressurePercent
+        self.cpuLoad = cpuLoad
+        self.networkInBytesPerSec = networkInBytesPerSec
+        self.networkOutBytesPerSec = networkOutBytesPerSec
+        self.diskReadBytesPerSec = diskReadBytesPerSec
+        self.diskWriteBytesPerSec = diskWriteBytesPerSec
+        self.gpuUtilization = gpuUtilization
+    }
+
+    /// The peaks of a single raw sample: the sample itself.
+    public init(_ point: SystemHistoryPoint) {
+        self.init(
+            pressurePercent: point.pressurePercent, cpuLoad: point.cpuLoad,
+            networkInBytesPerSec: point.networkInBytesPerSec,
+            networkOutBytesPerSec: point.networkOutBytesPerSec,
+            diskReadBytesPerSec: point.diskReadBytesPerSec,
+            diskWriteBytesPerSec: point.diskWriteBytesPerSec,
+            gpuUtilization: point.gpuUtilization)
+    }
+
+    /// The element-wise larger of two peaks.
+    public func merged(with other: SystemHistoryPeaks) -> SystemHistoryPeaks {
+        SystemHistoryPeaks(
+            pressurePercent: max(pressurePercent, other.pressurePercent),
+            cpuLoad: max(cpuLoad, other.cpuLoad),
+            networkInBytesPerSec: max(networkInBytesPerSec, other.networkInBytesPerSec),
+            networkOutBytesPerSec: max(networkOutBytesPerSec, other.networkOutBytesPerSec),
+            diskReadBytesPerSec: max(diskReadBytesPerSec, other.diskReadBytesPerSec),
+            diskWriteBytesPerSec: max(diskWriteBytesPerSec, other.diskWriteBytesPerSec),
+            gpuUtilization: [gpuUtilization, other.gpuUtilization].compactMap { $0 }.max())
+    }
+}
+
+extension SystemHistoryPoint {
+    /// The peaks this point stands for: its stored bucket peaks, or itself.
+    public var effectivePeaks: SystemHistoryPeaks { peaks ?? SystemHistoryPeaks(self) }
+}
+
 extension SampleStore {
     /// System history for a dashboard window, oldest first. Reads from the raw,
     /// minute, or hour table according to `window.granularity`. The whole app
     /// shares one `HistoryWindow` (5m / 30m / 1h / 6h / 24h / 7d) so every page's
     /// history picker offers the same timeframes.
+    ///
+    /// A tier only holds buckets that were complete when retention last ran, so
+    /// on its own it ends up to a minute (or an hour) before now. The result is
+    /// topped up from the finer tiers past each tier's watermark, down to the
+    /// raw rows, so every range runs right up to the last recorded sample and
+    /// the live samples the caller appends join on without a hole.
     public func systemHistory(
         _ window: HistoryWindow, now: Date = Date()
     ) throws -> [SystemHistoryPoint] {
@@ -160,9 +228,26 @@ extension SampleStore {
         case .raw:
             return try rawHistory(since: since)
         case .minute:
-            return try aggregateHistory(table: "system_minute", since: since)
+            return try tieredHistory(since: since, hours: false)
         case .hour:
-            return try aggregateHistory(table: "system_hour", since: since)
+            return try tieredHistory(since: since, hours: true)
+        }
+    }
+
+    private func tieredHistory(since: Double, hours: Bool) throws -> [SystemHistoryPoint] {
+        try databasePool.read { db in
+            var points: [SystemHistoryPoint] = []
+            var coveredThrough = since
+            if hours {
+                points = try Self.aggregateHistory(db, table: "system_hour", since: since)
+                let watermark = try Retention.meta(db, "hour_watermark") ?? 0
+                coveredThrough = max(coveredThrough, watermark)
+            }
+            points += try Self.aggregateHistory(db, table: "system_minute", since: coveredThrough)
+            let watermark = try Retention.meta(db, "minute_watermark") ?? 0
+            coveredThrough = max(coveredThrough, watermark)
+            points += try Self.rawHistory(db, since: coveredThrough)
+            return points
         }
     }
 
@@ -179,47 +264,62 @@ extension SampleStore {
     }
 
     private func rawHistory(since: Double) throws -> [SystemHistoryPoint] {
-        try databasePool.read { db in
-            try Row.fetchAll(
-                db,
-                sql: """
-                    SELECT timestamp, pressure_percent, app_memory, wired, compressed, cached_files, swap_used, cpu_load,
-                           battery_charge, battery_power, battery_health, battery_temp, net_in, net_out,
-                           disk_read, disk_write, disk_read_iops, disk_write_iops,
-                           disk_read_latency, disk_write_latency, disk_util, boot_free, boot_total,
-                           gpu_util, gpu_power, ane_power,
-                           cpu_die, gpu_die, ssd_temp, fan_rpm, thermal_state,
-                           cpu_p_die, cpu_e_die, airflow_temp, skin_temp, wireless_temp,
-                           vrail_temp, other_temp
-                    FROM system_samples
-                    WHERE timestamp >= ?
-                    ORDER BY timestamp ASC
-                    """, arguments: [since]
-            ).map(Self.decodeHistoryPoint)
-        }
+        try databasePool.read { db in try Self.rawHistory(db, since: since) }
     }
 
-    private func aggregateHistory(table: String, since: Double) throws -> [SystemHistoryPoint] {
-        try databasePool.read { db in
-            try Row.fetchAll(
-                db,
-                sql: """
-                    SELECT bucket, pressure_avg, app_avg, wired_avg, compressed_avg, cached_avg, swap_used_avg, cpu_avg,
-                           battery_charge_avg, battery_power_avg, battery_health_avg, battery_temp_avg,
-                           net_in_avg, net_out_avg,
-                           disk_read_avg, disk_write_avg, disk_read_iops_avg, disk_write_iops_avg,
-                           disk_read_latency_avg, disk_write_latency_avg, disk_util_avg,
-                           boot_free_min, boot_total,
-                           gpu_util_avg, gpu_power_avg, ane_power_avg,
-                           cpu_die_max, gpu_die_max, ssd_temp_max, fan_rpm_max, thermal_state_max,
-                           cpu_p_die_max, cpu_e_die_max, airflow_temp_max, skin_temp_max,
-                           wireless_temp_max, vrail_temp_max, other_temp_max
-                    FROM \(table)
-                    WHERE bucket >= ?
-                    ORDER BY bucket ASC
-                    """, arguments: [since]
-            ).map(Self.decodeHistoryPoint)
-        }
+    private static func rawHistory(_ db: Database, since: Double) throws -> [SystemHistoryPoint] {
+        try Row.fetchAll(
+            db,
+            sql: """
+                SELECT timestamp, pressure_percent, app_memory, wired, compressed, cached_files, swap_used, cpu_load,
+                       battery_charge, battery_power, battery_health, battery_temp, net_in, net_out,
+                       disk_read, disk_write, disk_read_iops, disk_write_iops,
+                       disk_read_latency, disk_write_latency, disk_util, boot_free, boot_total,
+                       gpu_util, gpu_power, ane_power,
+                       cpu_die, gpu_die, ssd_temp, fan_rpm, thermal_state,
+                       cpu_p_die, cpu_e_die, airflow_temp, skin_temp, wireless_temp,
+                       vrail_temp, other_temp
+                FROM system_samples
+                WHERE timestamp >= ?
+                ORDER BY timestamp ASC
+                """, arguments: [since]
+        ).map(Self.decodeHistoryPoint)
+    }
+
+    private static func aggregateHistory(
+        _ db: Database, table: String, since: Double
+    ) throws -> [SystemHistoryPoint] {
+        try Row.fetchAll(
+            db,
+            sql: """
+                SELECT bucket, pressure_avg, app_avg, wired_avg, compressed_avg, cached_avg, swap_used_avg, cpu_avg,
+                       battery_charge_avg, battery_power_avg, battery_health_avg, battery_temp_avg,
+                       net_in_avg, net_out_avg,
+                       disk_read_avg, disk_write_avg, disk_read_iops_avg, disk_write_iops_avg,
+                       disk_read_latency_avg, disk_write_latency_avg, disk_util_avg,
+                       boot_free_min, boot_total,
+                       gpu_util_avg, gpu_power_avg, ane_power_avg,
+                       cpu_die_max, gpu_die_max, ssd_temp_max, fan_rpm_max, thermal_state_max,
+                       cpu_p_die_max, cpu_e_die_max, airflow_temp_max, skin_temp_max,
+                       wireless_temp_max, vrail_temp_max, other_temp_max,
+                       pressure_max, cpu_max, net_in_max, net_out_max,
+                       disk_read_max, disk_write_max, gpu_util_max
+                FROM \(table)
+                WHERE bucket >= ?
+                ORDER BY bucket ASC
+                """, arguments: [since]
+        ).map(Self.decodeAggregatePoint)
+    }
+
+    /// The shared decode plus the peak columns only the tiers have (38 on).
+    private static func decodeAggregatePoint(_ row: Row) -> SystemHistoryPoint {
+        var point = decodeHistoryPoint(row)
+        point.peaks = SystemHistoryPeaks(
+            pressurePercent: row[38], cpuLoad: row[39],
+            networkInBytesPerSec: row[40], networkOutBytesPerSec: row[41],
+            diskReadBytesPerSec: row[42], diskWriteBytesPerSec: row[43],
+            gpuUtilization: row[44])
+        return point
     }
 
     /// Positional decode shared by the raw and aggregate queries, which list the

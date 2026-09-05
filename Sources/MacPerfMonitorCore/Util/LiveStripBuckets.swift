@@ -64,9 +64,9 @@ public enum LiveStripBuckets {
         /// follow. Falls back to the single value when there is only one.
         public var mean: Double { count > 0 ? sum / Double(count) : minValue }
 
-        /// Whether this bucket holds more than the one sample a column can show
-        /// directly, and so has a band worth drawing.
-        public var isAggregate: Bool { count > 1 && maxValue > minValue }
+        /// Whether this bucket has a spread worth drawing as a band: more than
+        /// one distinct sample, or a stored peak above a stored mean.
+        public var isAggregate: Bool { maxValue > minValue }
 
         /// The bucket's one or two points in chronological order: a single
         /// point when both extremes are the same sample, else the earlier
@@ -89,16 +89,23 @@ public enum LiveStripBuckets {
     /// multiplies every value. The sample just before the range (if any) is
     /// consulted so the first bucket's `gapBefore` is right.
     ///
+    /// `highs`, when given, holds each sample's own peak (a stored tier row is
+    /// a mean with the bucket's maximum beside it); it can only raise a
+    /// bucket's maximum, never move its mean, so the band reaches the real
+    /// spike while the line still follows the average.
+    ///
     /// Cost is a binary search plus one pass over the samples inside the
     /// range, so a live edge of a few buckets costs a few dozen samples however
     /// long the window is.
     public static func buckets(
-        times: ArraySlice<Double>, values: ArraySlice<Double>, width: Double,
-        from first: Int, through last: Int, gapThreshold: Double, scale: Double = 1
+        times: ArraySlice<Double>, values: ArraySlice<Double>, highs: ArraySlice<Double>? = nil,
+        width: Double, from first: Int, through last: Int, gapThreshold: Double,
+        scale: Double = 1
     ) -> [Bucket] {
         guard width > 0, first <= last, !times.isEmpty, times.count == values.count else {
             return []
         }
+        let highs = highs.flatMap { $0.count == times.count ? $0 : nil }
         let rangeStart = Double(first) * width
         let rangeEnd = Double(last + 1) * width
 
@@ -115,6 +122,7 @@ public enum LiveStripBuckets {
         // a trimmed slice, a derived column a fresh array), so index `values`
         // by offset from `times`.
         let valueOffset = values.startIndex - times.startIndex
+        let highOffset = highs.map { $0.startIndex - times.startIndex } ?? 0
         var out: [Bucket] = []
         var current: Bucket?
         var i = lo
@@ -122,14 +130,15 @@ public enum LiveStripBuckets {
             let t = times[i]
             if t >= rangeEnd { break }
             let v = values[i + valueOffset] * scale
+            let h = highs.map { max(v, $0[i + highOffset] * scale) } ?? v
             let b = index(of: t, width: width)
             if var bucket = current, bucket.index == b {
                 if v < bucket.minValue {
                     bucket.minValue = v
                     bucket.minTime = t
                 }
-                if v > bucket.maxValue {
-                    bucket.maxValue = v
+                if h > bucket.maxValue {
+                    bucket.maxValue = h
                     bucket.maxTime = t
                 }
                 bucket.sum += v
@@ -139,7 +148,8 @@ public enum LiveStripBuckets {
                 if let bucket = current { out.append(bucket) }
                 let gap = previousTime.map { t - $0 > gapThreshold } ?? false
                 current = Bucket(
-                    index: b, minTime: t, minValue: v, maxTime: t, maxValue: v, gapBefore: gap)
+                    index: b, minTime: t, minValue: v, maxTime: t, maxValue: h, gapBefore: gap,
+                    sum: v)
             }
             previousTime = t
             i += 1

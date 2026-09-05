@@ -103,4 +103,59 @@ final class SystemHistoryTests: XCTestCase {
         XCTAssertEqual(HistoryWindow.oneDay.granularity, .minute)
         XCTAssertEqual(HistoryWindow.sevenDays.granularity, .hour)
     }
+
+    // MARK: - Tiers carry their peaks and run up to the last raw row
+
+    func testMinuteAggregatesCarryTheBucketPeak() throws {
+        try insert(at: anchor.addingTimeInterval(6), pressure: 10)
+        try insert(at: anchor.addingTimeInterval(12), pressure: 50)
+        try Retention.run(store.databasePool, now: anchor.addingTimeInterval(600))
+
+        let points = try store.systemHistory(.oneDay, now: anchor.addingTimeInterval(600))
+        let minute = try XCTUnwrap(points.first)
+        XCTAssertEqual(minute.pressurePercent, 30, accuracy: 0.001, "the line gets the mean")
+        XCTAssertEqual(minute.peaks?.pressurePercent ?? 0, 50, accuracy: 0.001)
+        XCTAssertEqual(minute.effectivePeaks.pressurePercent, 50, accuracy: 0.001)
+    }
+
+    func testLongRangesTopUpFromTheRawRowsPastTheWatermark() throws {
+        // Two complete minutes, rolled into the minute tier...
+        for i in 0..<20 {
+            try insert(at: anchor.addingTimeInterval(Double(i) * 6), pressure: 30)
+        }
+        try Retention.run(store.databasePool, now: anchor.addingTimeInterval(120))
+        // ...then raw samples retention has not seen yet.
+        try insert(at: anchor.addingTimeInterval(130), pressure: 70)
+        try insert(at: anchor.addingTimeInterval(140), pressure: 80)
+
+        let points = try store.systemHistory(.sixHours, now: anchor.addingTimeInterval(150))
+        let dates = points.map(\.date)
+        XCTAssertEqual(dates, dates.sorted())
+        XCTAssertEqual(Set(dates).count, dates.count, "no row is served twice")
+        XCTAssertEqual(points.count, 4, "two minute rows, then the two raw rows after them")
+        XCTAssertNotNil(points[0].peaks)
+        XCTAssertNotNil(points[1].peaks)
+        XCTAssertNil(points[2].peaks, "a raw row has no stored peak")
+        XCTAssertEqual(points[2].pressurePercent, 70)
+        XCTAssertEqual(points[3].pressurePercent, 80)
+        XCTAssertEqual(
+            points[2].date.timeIntervalSince(points[1].date), 70, accuracy: 0.001,
+            "the raw tail starts at the minute watermark, not inside a rolled minute")
+    }
+
+    func testRawSamplesAlreadyRolledUpAreNotServedTwice() throws {
+        for i in 0..<10 {
+            try insert(at: anchor.addingTimeInterval(Double(i) * 6), pressure: 30)
+        }
+        try Retention.run(store.databasePool, now: anchor.addingTimeInterval(60))
+        let points = try store.systemHistory(.sixHours, now: anchor.addingTimeInterval(70))
+        XCTAssertEqual(points.count, 1, "the minute row stands in for its ten raw samples")
+    }
+
+    func testStoredSpacingPerTier() {
+        XCTAssertNil(HistoryWindow.oneHour.granularity.storedSpacing)
+        XCTAssertEqual(HistoryWindow.sixHours.granularity.storedSpacing, 60)
+        XCTAssertEqual(HistoryWindow.oneDay.granularity.storedSpacing, 60)
+        XCTAssertEqual(HistoryWindow.sevenDays.granularity.storedSpacing, 3600)
+    }
 }
