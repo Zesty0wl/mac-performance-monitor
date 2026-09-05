@@ -13,8 +13,12 @@ struct DiskChart: View {
         yDomain: ClosedRange<Double>? = nil, showsTimeAxis: Bool = false
     ) {
         self.init(
-            read: LiveColumn(points) { $0.diskReadBytesPerSec },
-            write: LiveColumn(points) { $0.diskWriteBytesPerSec },
+            read: LiveColumn(
+                points, value: { $0.diskReadBytesPerSec },
+                high: { $0.effectivePeaks.diskReadBytesPerSec }),
+            write: LiveColumn(
+                points, value: { $0.diskWriteBytesPerSec },
+                high: { $0.effectivePeaks.diskWriteBytesPerSec }),
             xDomain: xDomain, yDomain: yDomain, showsTimeAxis: showsTimeAxis)
     }
 
@@ -24,8 +28,8 @@ struct DiskChart: View {
         yDomain: ClosedRange<Double>? = nil, showsTimeAxis: Bool = false
     ) {
         self.init(
-            read: LiveColumn(window, .diskReadBytesPerSec),
-            write: LiveColumn(window, .diskWriteBytesPerSec),
+            read: LiveColumn(window, .diskReadBytesPerSec, peak: .diskReadPeak),
+            write: LiveColumn(window, .diskWriteBytesPerSec, peak: .diskWritePeak),
             xDomain: xDomain, yDomain: yDomain, showsTimeAxis: showsTimeAxis)
     }
 
@@ -54,12 +58,9 @@ struct DiskChart: View {
     var body: some View {
         TrendChart(
             series: [
+                TrendSeries(points: LiveTrend.allPoints(read), color: DiskStyle.read),
                 TrendSeries(
-                    points: LiveTrend.points(read, xDomain: xDomain),
-                    color: DiskStyle.read, filled: true),
-                TrendSeries(
-                    points: LiveTrend.points(write, xDomain: xDomain),
-                    color: DiskStyle.write, filled: false, lineWidth: 1.8),
+                    points: LiveTrend.allPoints(write), color: DiskStyle.write, lineWidth: 1.8),
             ],
             xDomain: xDomain,
             yDomain: yDomain,

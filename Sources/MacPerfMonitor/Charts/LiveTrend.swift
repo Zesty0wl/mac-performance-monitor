@@ -30,17 +30,44 @@ struct LiveColumn {
         highs = peak.map { window.values($0) }
     }
 
-    init(_ points: [SystemHistoryPoint], value: (SystemHistoryPoint) -> Double) {
+    /// `high`, when given, reads each point's stored peak (see
+    /// `SystemHistoryPoint.effectivePeaks`) so the band reaches it.
+    init(
+        _ points: [SystemHistoryPoint], value: (SystemHistoryPoint) -> Double,
+        high: ((SystemHistoryPoint) -> Double)? = nil
+    ) {
+        var t: [Double] = []
+        var v: [Double] = []
+        var h: [Double] = []
+        t.reserveCapacity(points.count)
+        v.reserveCapacity(points.count)
+        if high != nil { h.reserveCapacity(points.count) }
+        for point in points {
+            t.append(point.date.timeIntervalSinceReferenceDate)
+            v.append(value(point))
+            if let high { h.append(high(point)) }
+        }
+        times = t[...]
+        values = v[...]
+        highs = high == nil ? nil : h[...]
+    }
+
+    /// The Canvas charts' input, as a column. Highs are carried only when some
+    /// point has one; a series of raw samples has none.
+    init(_ points: [TrendPoint]) {
         var t: [Double] = []
         var v: [Double] = []
         t.reserveCapacity(points.count)
         v.reserveCapacity(points.count)
         for point in points {
             t.append(point.date.timeIntervalSinceReferenceDate)
-            v.append(value(point))
+            v.append(point.value)
         }
         times = t[...]
         values = v[...]
+        if points.contains(where: { $0.high != nil }) {
+            highs = points.map { $0.high ?? $0.value }[...]
+        }
     }
 
     var count: Int { times.count }
@@ -74,8 +101,34 @@ enum LiveTrend {
     /// this is about one bucket per point, so nothing visible is lost.
     static let buckets = 720
 
+    /// Every sample of a column as chart points, peaks included. The chart
+    /// reduces at draw time (docs/chart-rules.md, rule 1), so nothing is
+    /// thinned here.
+    static func allPoints(_ column: LiveColumn) -> [TrendPoint] {
+        var out: [TrendPoint] = []
+        out.reserveCapacity(column.count)
+        var ti = column.times.startIndex
+        var vi = column.values.startIndex
+        var hi = column.highs?.startIndex
+        while ti < column.times.endIndex {
+            var point = TrendPoint(
+                date: Date(timeIntervalSinceReferenceDate: column.times[ti]),
+                value: column.values[vi])
+            if let highs = column.highs, let h = hi {
+                point.high = highs[h]
+                hi = h + 1
+            }
+            out.append(point)
+            ti += 1
+            vi += 1
+        }
+        return out
+    }
+
     /// Decimated points for one metric. `xDomain` anchors the buckets; without
-    /// one (a static chart) the data's own extent is used.
+    /// one (a static chart) the data's own extent is used. Used by the card
+    /// strips' fallback path; the charts take `allPoints` and reduce at draw
+    /// time.
     static func points(
         _ column: LiveColumn, xDomain: ClosedRange<Date>?, buckets: Int = LiveTrend.buckets
     ) -> [TrendPoint] {

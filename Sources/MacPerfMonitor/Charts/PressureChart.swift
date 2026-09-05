@@ -53,8 +53,8 @@ struct PressureChart: View {
         TrendChart(
             series: [
                 TrendSeries(
-                    points: LiveTrend.points(pressure, xDomain: xDomain),
-                    color: currentLevel.color, filled: true)
+                    points: LiveTrend.allPoints(pressure), color: currentLevel.color,
+                    filled: true)
             ],
             xDomain: xDomain,
             yDomain: 0...100,

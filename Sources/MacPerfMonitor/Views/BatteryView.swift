@@ -615,13 +615,11 @@ struct BatteryView: View {
 
     // MARK: - Derived
 
-    private static let maxChartPoints = 360
-
-    /// Recompute the memoized `points`: the pre-thinned loaded history plus the
-    /// latest live sample on the right edge so the timelines track the current
-    /// tick. The downsampling itself happens on the model's read queue
-    /// (`downsampledTo:`), so this per-tick step is O(chart points). Called only
-    /// when `history` reloads or a new sample lands — never during a layout pass.
+    /// Recompute the memoized `points`: the loaded history plus the latest live
+    /// sample on the right edge so the timelines track the current tick. The
+    /// charts reduce at draw time, so the history is loaded at the resolution
+    /// its tier stores. Called only when `history` reloads or a new sample
+    /// lands, never during a layout pass.
     private func rebuildPoints() {
         var pts = history
         if let system = model.liveSystem, system.batteryPresent {
@@ -659,7 +657,7 @@ struct BatteryView: View {
 
     private func reload() {
         let requested = range
-        model.loadSystemHistory(requested, downsampledTo: Self.maxChartPoints) { pts in
+        model.loadSystemHistory(requested) { pts in
             self.history = pts
             self.loadedRange = requested
             self.rebuildPoints()

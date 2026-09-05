@@ -25,65 +25,33 @@ extension ThermalPressureState {
 
 /// CPU and GPU die temperature over the selected window. The thermal fields
 /// are optional (nil marks a tick that did not read the SMC), so each series
-/// carries only the points that have a value: `TrendChart`'s gap splitting
+/// carries only the points that have a value: the chart's gap splitting
 /// leaves unsampled stretches blank instead of drawing a misleading 0 degree
-/// floor. On aggregate ranges the points already carry the bucket max, so the
-/// line is "how hot did it get", never a smoothed average.
+/// floor. The line follows each bucket's maximum, never a mean, because a
+/// thermal spike is the event worth seeing, and the band behind it shows how
+/// far the readings ranged below that (docs/chart-rules.md, rule 2). On the
+/// stored ranges the rows already carry the bucket maximum.
 struct TemperatureChart: View {
     let points: [SystemHistoryPoint]
     var xDomain: ClosedRange<Date>? = nil
     var showsTimeAxis = false
 
     private var cpuPoints: [TrendPoint] {
-        Self.reduced(
-            points.compactMap { p in p.cpuDieC.map { TrendPoint(date: p.date, value: $0) } },
-            width: bucketWidth)
+        points.compactMap { p in p.cpuDieC.map { TrendPoint(date: p.date, value: $0) } }
     }
 
     private var gpuPoints: [TrendPoint] {
-        Self.reduced(
-            points.compactMap { p in p.gpuDieC.map { TrendPoint(date: p.date, value: $0) } },
-            width: bucketWidth)
+        points.compactMap { p in p.gpuDieC.map { TrendPoint(date: p.date, value: $0) } }
     }
 
-    /// Bucket width in seconds, taken from the range being shown rather than
-    /// from the data. Taking it from the data was a bug: each new sample
-    /// stretched the span slightly, every bucket boundary moved with it, and the
-    /// whole line changed shape on each tick instead of simply extending. A
-    /// width fixed by the range, with buckets anchored to absolute time, means
-    /// an old bucket always holds exactly the samples it always held.
-    private var bucketWidth: Double {
+    /// The spacing of one drawn point, taken from the range being shown rather
+    /// than from the data (which would move with every sample). It sizes the
+    /// gap threshold: on the stored ranges a row a minute or an hour apart is
+    /// still one series.
+    private var pointSpacing: Double {
         guard let xDomain else { return 0 }
         let span = xDomain.upperBound.timeIntervalSince(xDomain.lowerBound)
         return span > 0 ? span / 120 : 0
-    }
-
-    /// About 120 points across the window, each the hottest reading in its
-    /// bucket. An hour of one second samples is 3,600 readings in a panel a few
-    /// hundred points wide; drawn raw they stack into a solid block whose
-    /// height is the spread rather than the temperature. The maximum is the
-    /// right reduction here, not the mean: a thermal spike is the event worth
-    /// seeing. See docs/chart-rules.md.
-    private static func reduced(_ series: [TrendPoint], width: Double) -> [TrendPoint] {
-        guard width > 0, series.count > 240 else { return series }
-        var out: [TrendPoint] = []
-        out.reserveCapacity(series.count / 2 + 1)
-        var bucket = Int.min
-        var hottest: TrendPoint?
-        for point in series {
-            let index = Int(
-                (point.date.timeIntervalSinceReferenceDate
-                    / width).rounded(.down))
-            if index != bucket {
-                if let hottest { out.append(hottest) }
-                bucket = index
-                hottest = point
-            } else if let current = hottest, point.value > current.value {
-                hottest = point
-            }
-        }
-        if let hottest { out.append(hottest) }
-        return out
     }
 
     private var accessibilitySummary: String {
@@ -104,16 +72,17 @@ struct TemperatureChart: View {
     var body: some View {
         TrendChart(
             series: [
-                TrendSeries(points: cpuPoints, color: ThermalStyle.cpu),
+                TrendSeries(points: cpuPoints, color: ThermalStyle.cpu, reduction: .maximum),
                 TrendSeries(
-                    points: gpuPoints, color: ThermalStyle.gpu, filled: false, lineWidth: 1.8),
+                    points: gpuPoints, color: ThermalStyle.gpu, lineWidth: 1.8,
+                    reduction: .maximum),
             ],
             xDomain: xDomain,
             yDomain: temperatureDomain,
             yFormat: { String(format: "%.0f°C", $0) },
             showsTimeAxis: showsTimeAxis,
             gapThreshold: ChartGap.threshold(
-                expectedSpacing: max(bucketWidth, SamplerModel.configuredHighResInterval()))
+                expectedSpacing: max(pointSpacing, SamplerModel.configuredHighResInterval()))
         )
         .accessibilityLabel("Die temperature trend")
         .accessibilityValue(accessibilitySummary)
@@ -155,7 +124,7 @@ struct FanChart: View {
     var body: some View {
         TrendChart(
             series: [
-                TrendSeries(points: fanPoints, color: ThermalStyle.fan, filled: true)
+                TrendSeries(points: fanPoints, color: ThermalStyle.fan, reduction: .maximum)
             ],
             xDomain: xDomain,
             yFormat: { t("%@ rpm", String(format: "%.0f", max($0, 0))) },

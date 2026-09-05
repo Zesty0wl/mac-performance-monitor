@@ -43,7 +43,12 @@ Notable changes to Mac Performance Monitor. This project follows
   to the present rather than stopping at the last complete minute or hour.
   Temperature axes fit the data with a floor on their span, the area fills are
   gone from the volatile series, the Processes header cards state their peak,
-  and the load average is a chart.
+  and the load average is a chart. The same drawing runs on every chart in the
+  app, not only the Dashboard: the GPU, Energy, Disk and Network tabs, the
+  process and group detail charts, and the battery charge chart, which moves
+  off Swift Charts. Those tabs now load every stored row rather than thinning
+  the history to 360 points before drawing it, and the menu bar panels draw the
+  same curve.
 
 ### Security
 
