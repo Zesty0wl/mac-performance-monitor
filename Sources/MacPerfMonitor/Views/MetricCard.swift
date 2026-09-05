@@ -856,7 +856,9 @@ enum CPUMetrics {
 
                 unit: .percent,
                 detail: cpu.map {
-                    String(format: "%.2f · %.2f", $0.loadAverage5, $0.loadAverage15)
+                    t(
+                        "5 min %1$@ · 15 min %2$@", String(format: "%.2f", $0.loadAverage5),
+                        String(format: "%.2f", $0.loadAverage15))
                 },
                 help:
                     "Processes competing to run, averaged over 1 minute (5 and 15-minute alongside). Click for details.",
@@ -864,7 +866,7 @@ enum CPUMetrics {
                     meaning:
                         "The run-queue length (roughly how many processes are competing to run) averaged over the last minute, with the 5 and 15-minute figures beside it. A load near your core count (\(coreCount > 0 ? String(coreCount) : "the number of cores")) means the CPU is fully subscribed; well above it means work is queuing.",
                     calculation:
-                        "Read straight from the kernel's load averages (the same numbers `uptime` reports). The bar shows the 1-minute load relative to your logical core count, full at one process per core."
+                        "Read straight from the kernel's load averages (the same numbers `uptime` reports). The chart draws the 1-minute load as the line and the 5 and 15-minute averages as fainter lines behind it, with full height at one process per core."
                 )
             ),
         ]

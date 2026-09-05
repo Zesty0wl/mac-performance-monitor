@@ -5881,6 +5881,36 @@
         }
       }
     },
+    "5 min %1$@ · 15 min %2$@" : {
+      "comment" : "Processes header: the load average card's corner label, the 5 and 15 minute averages beside the 1 minute line",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 Min. %1$@ · 15 Min. %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 min %1$@ · 15 min %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 min %1$@ · 15 min %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 分钟 %1$@ · 15 分钟 %2$@"
+          }
+        }
+      }
+    },
     "6 hr" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -45181,32 +45211,32 @@
         }
       }
     },
-    "Read straight from the kernel's load averages (the same numbers `uptime` reports). The bar shows the 1-minute load relative to your logical core count, full at one process per core." : {
+    "Read straight from the kernel's load averages (the same numbers `uptime` reports). The chart draws the 1-minute load as the line and the 5 and 15-minute averages as fainter lines behind it, with full height at one process per core." : {
       "comment" : "Metric Cards & Explanations",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Direkt aus der durchschnittlichen Auslastung des Kernels gelesen (dieselben Zahlen, die `uptime` meldet). Der Balken zeigt die 1-Minuten-Last im Verhältnis zur Zahl deiner logischen Kerne, voll bei einem Prozess pro Kern."
+            "value" : "Direkt aus der durchschnittlichen Auslastung des Kernels gelesen (dieselben Zahlen, die `uptime` meldet). Das Diagramm zeichnet die 1-Minuten-Last als Linie und die 5- und 15-Minuten-Durchschnitte als blassere Linien dahinter, wobei die volle Höhe einem Prozess pro Kern entspricht."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Read straight from the kernel's load averages (the same numbers `uptime` reports). The bar shows the 1-minute load relative to your logical core count, full at one process per core."
+            "value" : "Read straight from the kernel's load averages (the same numbers `uptime` reports). The chart draws the 1-minute load as the line and the 5 and 15-minute averages as fainter lines behind it, with full height at one process per core."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lu directement dans la charge moyenne du noyau (les mêmes chiffres que rapporte `uptime`). La barre montre la charge sur 1 minute par rapport à votre nombre de cœurs logiques, pleine à un processus par cœur."
+            "value" : "Lu directement dans la charge moyenne du noyau (les mêmes chiffres que rapporte `uptime`). Le graphique trace la charge sur 1 minute en ligne principale et les moyennes sur 5 et 15 minutes en lignes plus pâles derrière elle, la pleine hauteur correspondant à un processus par cœur."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "直接从内核的平均负载中读取（与 uptime 命令报告的数值相同）。柱状条显示相对于逻辑核心数的 1 分钟负载，每个核心对应一个进程时为满格。"
+            "value" : "直接从内核的平均负载中读取（与 uptime 命令报告的数值相同）。图表以主线绘制 1 分钟负载，并在其后以较淡的线条绘制 5 分钟和 15 分钟平均值，满高度对应每个核心一个进程。"
           }
         }
       }

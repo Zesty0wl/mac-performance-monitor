@@ -24,6 +24,10 @@ struct TrendSurfaceSeries {
     var filled = false
     var lineWidth: CGFloat = 2
     var reduction: Reduction = .mean
+    /// Whether the spread of each bucket is drawn behind the line. Off for a
+    /// companion line (the 5 and 15 minute load averages beside the 1 minute
+    /// one), where three overlapping bands would only muddy the strip.
+    var band = true
 }
 
 /// What a live chart surface draws: the same inputs as `TrendChart`, as a
@@ -1000,7 +1004,7 @@ enum TrendRenderer {
         // and the spread goes behind it as a band, instead of a spike per
         // column that turns a busy metric into a solid block.
         let aggregated = extremes.contains(where: \.isAggregate) || smoothing > 1
-        if aggregated {
+        if aggregated, s.band {
             drawBand(extremes, width: bucketWidth, color: color, x: x, y: y, context: ctx)
         }
         let line = TrendRenderer.smoothed(

@@ -44,14 +44,14 @@ NOT_TRANSLATED = {
     # Units and identifiers that read the same in every language. PID, MAC and
     # the protocol names are the same list check-localization.py keeps in
     # KEEP_IN_ENGLISH.
-    "%lld ms", "± %lld ms", "80%", "fd %d · %@", "PID %d", "PID %d · UID %u",
+    "%lld ms", "± %lld ms", "fd %d · %@", "PID %d", "PID %d · UID %u",
     "%@ · PID %d", "PID %d · %@%@",
     "MTU", "MAC", "DNS", "SMB", "mDNS", "IPv4", "RAM",
     # Sample values shown as a text field's placeholder, not as copy.
     "1", "1024", "192.168.1.1", "192.168.1.254", "ABCDE12345",
     # Swift Charts series and axis identifiers: named for the code that reads
     # them back, never drawn on screen.
-    "t", "u", "c", "Segment", "Value", "Full",
+    "t", "u", "c", "Value",
 }
 
 

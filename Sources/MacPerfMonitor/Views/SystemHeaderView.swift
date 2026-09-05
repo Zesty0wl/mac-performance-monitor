@@ -208,10 +208,15 @@ final class ProcessHeaderStore: ObservableObject {
     static let headerSpan: TimeInterval = 10 * 60
 
     /// Load average has no column in the history window, so the header keeps its
-    /// own ring of samples over the same span. That is what lets the load card
-    /// be a chart like its neighbours instead of the odd bar out.
+    /// own rings of samples over the same span. That is what lets the load card
+    /// be a chart like its neighbours instead of the odd bar out. All three
+    /// averages are kept: the 1 minute figure is the line, and the 5 and 15
+    /// minute figures ride behind it as fainter companions, the way beszel
+    /// draws load, so a spike and the trend it sits on read together.
     private var loadTimes: [Double] = []
     private var loadValues: [Double] = []
+    private var load5Values: [Double] = []
+    private var load15Values: [Double] = []
     let usageFeed = MetricCardFeed()
     let loadFeed = MetricCardFeed()
     let coreFeed = CoreGridFeed()
@@ -248,21 +253,35 @@ final class ProcessHeaderStore: ObservableObject {
             let now = Date().timeIntervalSinceReferenceDate
             loadTimes.append(now)
             loadValues.append(cpu.loadAverage1)
+            load5Values.append(cpu.loadAverage5)
+            load15Values.append(cpu.loadAverage15)
             let cutoff = now - Self.headerSpan
             if let keep = loadTimes.firstIndex(where: { $0 >= cutoff }), keep > 0 {
                 loadTimes.removeFirst(keep)
                 loadValues.removeFirst(keep)
+                load5Values.removeFirst(keep)
+                load15Values.removeFirst(keep)
             }
         }
         let loadColumn = LiveColumn(times: loadTimes[...], values: loadValues[...])
+        let load5Column = LiveColumn(times: loadTimes[...], values: load5Values[...])
+        let load15Column = LiveColumn(times: loadTimes[...], values: load15Values[...])
         // Full height is one process per core, so the chart reads as "how close
         // to fully subscribed", and it stretches when load goes past that.
-        let loadTop = max(Double(cpu?.cores.count ?? 0), loadColumn.range?.max ?? 0, 1)
+        let loadTop = max(
+            Double(cpu?.cores.count ?? 0), loadColumn.range?.max ?? 0,
+            load5Column.range?.max ?? 0, load15Column.range?.max ?? 0, 1)
         loadFeed.publish(
             value: cpu.map { String(format: "%.2f", $0.loadAverage1) },
             tint: NSColor(CPUMetrics.loadColor(cpu)), column: loadColumn, scale: 1,
             xDomain: window.xDomain, yDomain: 0...loadTop,
-            peak: loadColumn.range.map { t("peak %@", String(format: "%.2f", $0.max)) })
+            peak: loadColumn.range.map { t("peak %@", String(format: "%.2f", $0.max)) },
+            // The card's second line labels these two, so the fainter lines
+            // read without a legend the strip has no room for.
+            companions: [
+                MetricCardCompanion(column: load5Column, alpha: 0.6, lineWidth: 1.2),
+                MetricCardCompanion(column: load15Column, alpha: 0.35, lineWidth: 1),
+            ])
         // The bars show the sample as measured. The cards above them stay
         // smoothed: a jittering percentage is unreadable, a still core grid is
         // uninformative.
