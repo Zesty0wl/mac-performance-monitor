@@ -800,6 +800,39 @@ enum TrendRenderer {
     /// points, y is the plot height flipped. The caller has clipped the
     /// context to the columns being repainted; the path is built from a couple
     /// of buckets either side so joins at the clip edges match a full repaint.
+    /// Columns of history behind each point of the line, aiming for about 120
+    /// points across the whole span whatever the range.
+    static func smoothingColumns(span: Double, bucketWidth: Double) -> Int {
+        guard bucketWidth > 0, span > 0 else { return 1 }
+        return max(1, Int(((span / 120) / bucketWidth).rounded()))
+    }
+
+    /// A trailing average of `value` over `columns` buckets, reset at every gap
+    /// so a pause does not drag an average across it.
+    static func smoothed(
+        _ buckets: [LiveStripBuckets.Bucket], columns: Int,
+        value: (LiveStripBuckets.Bucket) -> Double
+    ) -> [Double] {
+        guard columns > 1 else { return buckets.map(value) }
+        var out: [Double] = []
+        out.reserveCapacity(buckets.count)
+        var window: [Double] = []
+        window.reserveCapacity(columns)
+        var sum = 0.0
+        for bucket in buckets {
+            if bucket.gapBefore {
+                window.removeAll(keepingCapacity: true)
+                sum = 0
+            }
+            let v = value(bucket)
+            window.append(v)
+            sum += v
+            if window.count > columns { sum -= window.removeFirst() }
+            out.append(sum / Double(window.count))
+        }
+        return out
+    }
+
     /// The middle of a bucket in absolute time, so an aggregated line sits at
     /// the centre of the column it summarises rather than at whichever sample
     /// happened to be the extreme.
@@ -868,10 +901,21 @@ enum TrendRenderer {
             ctx.strokePath()
         }
 
+        // How many columns of history the line averages over. One column holds
+        // two or three samples at an hour's span, and the mean of three noisy
+        // samples is still noisy, so bucketing to pixels barely smooths at all.
+        // Averaging over a window sized from the span does: a target of about
+        // 120 points across the plot puts thirty seconds behind each point at an
+        // hour, three minutes at six hours, and two seconds at five minutes,
+        // where the detail is still the point. See docs/chart-rules.md.
+        let smoothing = TrendRenderer.smoothingColumns(span: tick.span, bucketWidth: bucketWidth)
+
         for s in model.series {
+            // Fetch the extra columns to the left that the trailing average
+            // needs, so a repaint of a few live columns matches a full one.
             let extremes = LiveStripBuckets.buckets(
                 times: s.column.times, values: s.column.values, width: bucketWidth,
-                from: buckets.lowerBound, through: buckets.upperBound,
+                from: buckets.lowerBound - smoothing, through: buckets.upperBound,
                 gapThreshold: tick.gapThreshold, scale: s.scale)
             guard !extremes.isEmpty else { continue }
             let color = NSColor(s.color)
@@ -880,22 +924,24 @@ enum TrendRenderer {
             // drawn honestly. Rule 3: the line becomes the bucket's reduction
             // and the spread goes behind it as a band, instead of a spike per
             // column that turns a busy metric into a solid block.
-            let aggregated = extremes.contains(where: \.isAggregate)
+            let aggregated = extremes.contains(where: \.isAggregate) || smoothing > 1
             if aggregated {
                 drawBand(
                     extremes, width: bucketWidth, color: color, x: x, y: y, context: ctx)
             }
+            let line = TrendRenderer.smoothed(
+                extremes, columns: smoothing,
+                value: { s.reduction == .maximum ? $0.maxValue : $0.mean })
 
             // Gap-free runs of points in time order.
             var runs: [[CGPoint]] = []
             var current: [CGPoint] = []
-            for bucket in extremes {
+            for (bucket, value) in zip(extremes, line) {
                 if bucket.gapBefore, !current.isEmpty {
                     runs.append(current)
                     current = []
                 }
                 if aggregated {
-                    let value = s.reduction == .maximum ? bucket.maxValue : bucket.mean
                     current.append(
                         CGPoint(x: x(bucketMidTime(bucket, width: bucketWidth)), y: y(value)))
                 } else {
