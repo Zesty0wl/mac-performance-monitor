@@ -282,7 +282,10 @@ final class ProcessHeaderStore: ObservableObject {
             xDomain: window.xDomain, yDomain: dieDomain,
             peak: window.peak(.cpuDieC).flatMap {
                 $0 > 0 ? t("peak %@°C", String(Int($0.rounded()))) : nil
-            })
+            },
+            // Rule 2: a thermal spike is the event, so the line follows the
+            // bucket maximum rather than its mean.
+            reduction: .maximum)
     }
 
     private static func point(from s: SystemSample) -> SystemHistoryPoint {

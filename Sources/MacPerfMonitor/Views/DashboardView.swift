@@ -633,7 +633,7 @@ private final class DashboardTimelineStore: ObservableObject {
         let column = LiveColumn(window, .cpuLoad)
         var model = TrendModel()
         model.series = [
-            TrendSurfaceSeries(column: column, scale: 100, color: level.color, filled: true)
+            TrendSurfaceSeries(column: column, scale: 100, color: level.color)
         ]
         model.xDomain = domain
         model.yDomain = 0...100
@@ -663,7 +663,7 @@ private final class DashboardTimelineStore: ObservableObject {
         let upload = LiveColumn(window, .networkOutBytesPerSec)
         var model = TrendModel()
         model.series = [
-            TrendSurfaceSeries(column: download, color: NetworkStyle.download, filled: true),
+            TrendSurfaceSeries(column: download, color: NetworkStyle.download),
             TrendSurfaceSeries(
                 column: upload, color: NetworkStyle.upload, filled: false, lineWidth: 1.8),
         ]
@@ -694,7 +694,7 @@ private final class DashboardTimelineStore: ObservableObject {
         let write = LiveColumn(window, .diskWriteBytesPerSec)
         var model = TrendModel()
         model.series = [
-            TrendSurfaceSeries(column: read, color: DiskStyle.read, filled: true),
+            TrendSurfaceSeries(column: read, color: DiskStyle.read),
             TrendSurfaceSeries(
                 column: write, color: DiskStyle.write, filled: false, lineWidth: 1.8),
         ]

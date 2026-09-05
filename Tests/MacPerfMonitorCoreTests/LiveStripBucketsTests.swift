@@ -119,4 +119,55 @@ final class LiveStripBucketsTests: XCTestCase {
                 times: t[...], values: v[...], width: 0, from: 0, through: 10, gapThreshold: 30
             ).isEmpty)
     }
+    // MARK: Rule 2 and 3: a bucket carries its mean as well as its extremes
+
+    func testBucketCarriesMeanAndCount() {
+        let times: [Double] = [0, 1, 2, 3]
+        let values: [Double] = [10, 20, 30, 40]
+        let buckets = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], width: 10,
+            from: 0, through: 0, gapThreshold: 100)
+        XCTAssertEqual(buckets.count, 1)
+        let bucket = try! XCTUnwrap(buckets.first)
+        XCTAssertEqual(bucket.count, 4)
+        XCTAssertEqual(bucket.mean, 25, accuracy: 0.0001)
+        XCTAssertEqual(bucket.minValue, 10)
+        XCTAssertEqual(bucket.maxValue, 40)
+        XCTAssertTrue(bucket.isAggregate)
+    }
+
+    func testSingleSampleBucketIsNotAggregate() {
+        let times: [Double] = [0]
+        let values: [Double] = [42]
+        let buckets = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], width: 10,
+            from: 0, through: 0, gapThreshold: 100)
+        let bucket = try! XCTUnwrap(buckets.first)
+        XCTAssertEqual(bucket.mean, 42)
+        XCTAssertEqual(bucket.count, 1)
+        XCTAssertFalse(bucket.isAggregate, "one sample has no spread to band")
+    }
+
+    func testMeanIgnoresBucketBoundariesCorrectly() {
+        // Two buckets of two samples each: means 15 and 35, not one mean of 25.
+        let times: [Double] = [0, 1, 10, 11]
+        let values: [Double] = [10, 20, 30, 40]
+        let buckets = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], width: 10,
+            from: 0, through: 1, gapThreshold: 100)
+        XCTAssertEqual(buckets.count, 2)
+        XCTAssertEqual(buckets[0].mean, 15, accuracy: 0.0001)
+        XCTAssertEqual(buckets[1].mean, 35, accuracy: 0.0001)
+    }
+
+    func testScaleAppliesToTheMeanToo() {
+        let times: [Double] = [0, 1]
+        let values: [Double] = [0.1, 0.3]
+        let buckets = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], width: 10,
+            from: 0, through: 0, gapThreshold: 100, scale: 100)
+        let bucket = try! XCTUnwrap(buckets.first)
+        XCTAssertEqual(bucket.mean, 20, accuracy: 0.0001)
+    }
+
 }
