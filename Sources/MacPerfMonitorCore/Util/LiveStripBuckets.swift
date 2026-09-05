@@ -20,6 +20,12 @@ public enum LiveStripBuckets {
         public var minValue: Double
         public var maxTime: Double
         public var maxValue: Double
+        /// Running total and count of the samples in this bucket, so the mean
+        /// can be drawn as the line with the extremes as a band behind it. A
+        /// chart that draws only the extremes reads as a forest of spikes once
+        /// more than one sample lands in a column: see docs/chart-rules.md.
+        public var sum: Double
+        public var count: Int
         /// True when the first sample in this bucket follows a pause longer
         /// than the gap threshold, so a line must not connect it to the
         /// previous bucket.
@@ -27,7 +33,7 @@ public enum LiveStripBuckets {
 
         public init(
             index: Int, minTime: Double, minValue: Double, maxTime: Double, maxValue: Double,
-            gapBefore: Bool
+            gapBefore: Bool, sum: Double? = nil, count: Int = 1
         ) {
             self.index = index
             self.minTime = minTime
@@ -35,7 +41,17 @@ public enum LiveStripBuckets {
             self.maxTime = maxTime
             self.maxValue = maxValue
             self.gapBefore = gapBefore
+            self.sum = sum ?? minValue
+            self.count = count
         }
+
+        /// The bucket's mean, which is what a line through the buckets should
+        /// follow. Falls back to the single value when there is only one.
+        public var mean: Double { count > 0 ? sum / Double(count) : minValue }
+
+        /// Whether this bucket holds more than the one sample a column can show
+        /// directly, and so has a band worth drawing.
+        public var isAggregate: Bool { count > 1 && maxValue > minValue }
 
         /// The bucket's one or two points in chronological order: a single
         /// point when both extremes are the same sample, else the earlier
@@ -101,6 +117,8 @@ public enum LiveStripBuckets {
                     bucket.maxValue = v
                     bucket.maxTime = t
                 }
+                bucket.sum += v
+                bucket.count += 1
                 current = bucket
             } else {
                 if let bucket = current { out.append(bucket) }

@@ -8,11 +8,22 @@ import SwiftUI
 /// (see `TrendSurfaceView`). `scale` multiplies every value (CPU load 0...1
 /// is shown as a percentage).
 struct TrendSurfaceSeries {
+    /// What the line through a bucket of samples should be. See rule 2 in
+    /// docs/chart-rules.md: the reduction belongs to the metric, not the chart.
+    enum Reduction {
+        /// "How loaded was it": the mean, with the extremes drawn as a band.
+        case mean
+        /// "Did it spike": the maximum. Temperatures and fan speeds, where an
+        /// average erases the event worth seeing.
+        case maximum
+    }
+
     var column: LiveColumn
     var scale: Double = 1
     var color: Color
     var filled = false
     var lineWidth: CGFloat = 2
+    var reduction: Reduction = .mean
 }
 
 /// What a live chart surface draws: the same inputs as `TrendChart`, as a
@@ -789,6 +800,50 @@ enum TrendRenderer {
     /// points, y is the plot height flipped. The caller has clipped the
     /// context to the columns being repainted; the path is built from a couple
     /// of buckets either side so joins at the clip edges match a full repaint.
+    /// The middle of a bucket in absolute time, so an aggregated line sits at
+    /// the centre of the column it summarises rather than at whichever sample
+    /// happened to be the extreme.
+    fileprivate static func bucketMidTime(
+        _ bucket: LiveStripBuckets.Bucket, width: Double
+    )
+        -> Double
+    {
+        (Double(bucket.index) + 0.5) * width
+    }
+
+    /// The minimum-to-maximum spread of each bucket, as one translucent shape
+    /// behind the line. Runs break at gaps, exactly like the line does.
+    fileprivate static func drawBand(
+        _ buckets: [LiveStripBuckets.Bucket], width: Double, color: NSColor,
+        x: (Double) -> CGFloat, y: (Double) -> CGFloat, context ctx: CGContext
+    ) {
+        var run: [LiveStripBuckets.Bucket] = []
+        func flush() {
+            defer { run = [] }
+            guard run.count > 1 else { return }
+            var top: [CGPoint] = []
+            var bottom: [CGPoint] = []
+            top.reserveCapacity(run.count)
+            bottom.reserveCapacity(run.count)
+            for bucket in run {
+                let px = x(bucketMidTime(bucket, width: width))
+                top.append(CGPoint(x: px, y: y(bucket.maxValue)))
+                bottom.append(CGPoint(x: px, y: y(bucket.minValue)))
+            }
+            let path = CGMutablePath()
+            path.addLines(between: top + bottom.reversed())
+            path.closeSubpath()
+            ctx.addPath(path)
+            ctx.setFillColor(color.withAlphaComponent(0.22).cgColor)
+            ctx.fillPath()
+        }
+        for bucket in buckets {
+            if bucket.gapBefore { flush() }
+            run.append(bucket)
+        }
+        flush()
+    }
+
     fileprivate static func drawColumns(
         _ model: TrendModel, tick: TickFrame, bucketWidth: Double, home: Int,
         buckets: ClosedRange<Int>, height: CGFloat, context ctx: CGContext,
@@ -821,6 +876,16 @@ enum TrendRenderer {
             guard !extremes.isEmpty else { continue }
             let color = NSColor(s.color)
 
+            // More than one sample per column means the samples cannot all be
+            // drawn honestly. Rule 3: the line becomes the bucket's reduction
+            // and the spread goes behind it as a band, instead of a spike per
+            // column that turns a busy metric into a solid block.
+            let aggregated = extremes.contains(where: \.isAggregate)
+            if aggregated {
+                drawBand(
+                    extremes, width: bucketWidth, color: color, x: x, y: y, context: ctx)
+            }
+
             // Gap-free runs of points in time order.
             var runs: [[CGPoint]] = []
             var current: [CGPoint] = []
@@ -829,8 +894,14 @@ enum TrendRenderer {
                     runs.append(current)
                     current = []
                 }
-                for point in bucket.orderedPoints {
-                    current.append(CGPoint(x: x(point.time), y: y(point.value)))
+                if aggregated {
+                    let value = s.reduction == .maximum ? bucket.maxValue : bucket.mean
+                    current.append(
+                        CGPoint(x: x(bucketMidTime(bucket, width: bucketWidth)), y: y(value)))
+                } else {
+                    for point in bucket.orderedPoints {
+                        current.append(CGPoint(x: x(point.time), y: y(point.value)))
+                    }
                 }
             }
             if !current.isEmpty { runs.append(current) }

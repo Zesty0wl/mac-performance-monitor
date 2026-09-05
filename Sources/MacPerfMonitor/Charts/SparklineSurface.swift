@@ -27,7 +27,8 @@ final class MetricCardFeed {
 
     func publish(
         value: String?, tint: NSColor, column: LiveColumn?, scale: Double = 1,
-        xDomain: ClosedRange<Date>?, yDomain: ClosedRange<Double>?, peak: String? = nil
+        xDomain: ClosedRange<Date>?, yDomain: ClosedRange<Double>?, peak: String? = nil,
+        reduction: TrendSurfaceSeries.Reduction = .mean
     ) {
         self.value = value
         self.peak = peak
@@ -41,7 +42,8 @@ final class MetricCardFeed {
         if let column {
             model.series = [
                 TrendSurfaceSeries(
-                    column: column, scale: scale, color: Color(nsColor: tint), lineWidth: 1.5)
+                    column: column, scale: scale, color: Color(nsColor: tint), lineWidth: 1.5,
+                    reduction: reduction)
             ]
         }
         model.xDomain = xDomain

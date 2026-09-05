@@ -49,11 +49,13 @@ than per chart.
 
 ## The rules
 
-**1. Never draw more points than there are pixels.** The budget comes from the
-plot width, not from the range. Aim for one bucket per two pixels and never
-exceed one per pixel. This applies equally to history loaded from the database
-and to samples appended live, because a window that starts correct drifts back
-to raw resolution after an hour of running otherwise.
+**1. Never draw more points than there are pixels, and reduce as late as
+possible.** The budget comes from the plot width, not from the range: one bucket
+per column of the plot. Do the reduction at draw time, not on the way into the
+window or out of the database, because rule 3 needs the real minimum and maximum
+of each bucket and an average taken earlier has already thrown them away. Keeping
+full resolution in memory is the cheap part; an hour at one second is 3,600
+doubles per metric.
 
 **2. How a bucket is reduced belongs to the metric, and is decided once.**
 
@@ -70,9 +72,13 @@ of the same hue behind it. That keeps the worst case visible without letting it
 own the plot. The live decimator already computes both ends of the range, so
 this is a drawing change rather than a data change.
 
-**4. No range is special.** A range is raw only while its raw sample count fits
-the point budget. Five minutes at one second is 300 points and fits; one hour
-does not, so it is bucketed. Nothing is special-cased by name.
+**4. No range is special.** Every range goes through the same reduction, and it
+is the plot width that decides how much reduction happens. Five minutes at one
+second is 300 samples and most of them survive; an hour is 3,600 and most do
+not. Nothing is special-cased by name. Ranges long enough to be served by the
+stored minute and hour tiers arrive pre-averaged, so their bands are flat: giving
+those tiers a stored minimum and maximum is the one piece of this that is not
+done.
 
 **5. The y axis fits the data, with a floor on the span.** A fixed wide axis
 wastes the plot: a die sensor pinned to 0 to 110 draws a flat ribbon through the
@@ -106,7 +112,7 @@ be raw data is a lie the user cannot see.
 
 | Rule | Where it lives |
 | --- | --- |
-| 1, 4 | `SystemHistoryWindow.bucketSeconds` for live appends, `chartDownsampled` for loaded history, `LiveSeriesDecimator` at draw time |
+| 1, 4 | `LiveStripBuckets` at draw time, one bucket per plot column. The window keeps every sample on purpose |
 | 2 | one table in Core, keyed by `SystemHistoryWindow.Column` |
 | 3 | `TrendSurface` band drawing, fed by the decimator's existing min and max |
 | 5, 6 | `ChartDomain.fitted`, called by each chart with its own minimum span |
@@ -121,10 +127,10 @@ met today; everything else is work.
 
 | Surface | Rules met | Work needed |
 | --- | --- | --- |
-| Dashboard: pressure, processor, network, disk, swap | 7 | 1, 3, 4: raw at 5 min to 1 hr, min/max forest above 30 min |
-| Dashboard: thermals | 2, 5, 7 | 1, 3: still raw below six hours |
-| Dashboard: metric cards | 5, 7, 9 | 8: no peak label, unlike the Processes header |
-| Processes header: CPU, load, die | 5, 8, 9 | 3: ten minute window is close to the budget but not derived from it |
+| Dashboard: pressure, processor, network, disk, swap | 1, 2, 3, 4, 7, 9 | none |
+| Dashboard: thermals | 2, 5, 7 | 3: drawn by `TemperatureChart`, which has no band yet |
+| Dashboard: metric cards | 1, 2, 3, 4, 5, 7, 9 | 8: no peak label, unlike the Processes header |
+| Processes header: CPU, load, die | 1, 2, 3, 4, 5, 8, 9 | none |
 | GPU tab | 7 | 1, 3, 5: fixed 0 to 100 and 0 to peak domains |
 | Energy and battery | 7, 9 | 1, 3, 5 |
 | Disk tab | 7 | 1, 3, 5 |
@@ -138,14 +144,20 @@ One pull request per rule group, applied across every surface at once rather
 than per tab, because the point of writing this down is to stop fixing charts
 one at a time.
 
-1. **Resolution** (rules 1 and 4): the point budget comes from the plot width;
-   the live window buckets its appends; loaded history uses the same budget. One
-   change in Core plus the call sites.
-2. **Reduction** (rules 2 and 3): the per-metric table, and the band behind the
-   mean line in `TrendSurface`.
-3. **Axes** (rules 5 and 6): `ChartDomain.fitted` everywhere, with a stated
-   minimum span per metric, and hysteresis on live recomputation.
-4. **Annotation** (rules 8 and 10): peak labels on every card strip, captions
-   that name the reduction.
+1. **Resolution and reduction** (rules 1 to 4, 9): done for every live surface.
+   `LiveStripBuckets` carries each bucket's mean alongside its extremes, and
+   `TrendSurface` draws the mean as the line inside a translucent band of the
+   spread. Series declare their reduction, so temperature follows the maximum
+   while everything else follows the mean, and the area fills are gone from the
+   volatile series.
+2. **Axes** (rules 5 and 6): `ChartDomain.fitted` everywhere, with a stated
+   minimum span per metric, and hysteresis on live recomputation. Done for the
+   two temperature surfaces; the GPU, Energy, Disk and Network tabs still carry
+   fixed domains.
+3. **Annotation** (rules 8 and 10): peak labels on every card strip, captions
+   that name the reduction. Done for the Processes header only.
+4. **Stored tiers** (rule 4's exception): keep a minimum and maximum alongside
+   the mean in the minute and hour tiers, so ranges of six hours and longer get
+   a band too.
 
-Rules 7 and 9 are already met almost everywhere; the audit lists the exceptions.
+Rules 7 and 9 are met everywhere the audit does not list an exception.
