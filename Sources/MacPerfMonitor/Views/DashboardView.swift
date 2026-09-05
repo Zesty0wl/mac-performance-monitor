@@ -556,16 +556,28 @@ private final class DashboardTimelineStore: ObservableObject {
         diskYDomain = 0...MenuChart.niceUpperBound(max(diskPeak * 1.25, 100 * 1_048_576))
     }
 
+    /// What counts as missing data here. The window mixes live samples, one a
+    /// second, with history read back from the database at the logging
+    /// interval, so the coarsest legitimate spacing is the logging interval,
+    /// and anything much beyond it means nothing was recorded.
+    private var gapThreshold: TimeInterval {
+        ChartGap.threshold(expectedSpacing: max(1, SamplerModel.configuredHighResInterval()))
+    }
+
     /// Build every chart's and card's model from the window and hand it to
     /// its feed.
     private func publishCharts() {
         let domain = window.xDomain
-        pressureFeed.publish(Self.pressureModel(window, domain: domain, level: pressureLevel))
-        cpuFeed.publish(Self.cpuModel(window, domain: domain, level: cpuLevel))
-        networkFeed.publish(Self.networkModel(window, domain: domain, yDomain: networkYDomain))
-        diskFeed.publish(Self.diskModel(window, domain: domain, yDomain: diskYDomain))
+        let gap = gapThreshold
+        pressureFeed.publish(
+            Self.pressureModel(window, domain: domain, level: pressureLevel, gap: gap))
+        cpuFeed.publish(Self.cpuModel(window, domain: domain, level: cpuLevel, gap: gap))
+        networkFeed.publish(
+            Self.networkModel(window, domain: domain, yDomain: networkYDomain, gap: gap))
+        diskFeed.publish(Self.diskModel(window, domain: domain, yDomain: diskYDomain, gap: gap))
         swapFeed.publish(
-            Self.swapModel(window, domain: domain, yDomain: 0...max(Double(totalRAM), 1)))
+            Self.swapModel(
+                window, domain: domain, yDomain: 0...max(Double(totalRAM), 1), gap: gap))
         let cards = MemoryMetrics.cards(
             system: latestSystem, window: window, scale: memoryScale, includeSamples: false)
         for (feed, card) in zip(cardFeeds, cards) {
@@ -609,7 +621,8 @@ private final class DashboardTimelineStore: ObservableObject {
     }
 
     private static func pressureModel(
-        _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, level: PressureLevel
+        _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, level: PressureLevel,
+        gap: TimeInterval
     ) -> TrendModel {
         let column = LiveColumn(window, .pressurePercent)
         var model = TrendModel()
@@ -617,6 +630,7 @@ private final class DashboardTimelineStore: ObservableObject {
             TrendSurfaceSeries(column: column, color: level.color, filled: true)
         ]
         model.xDomain = domain
+        model.gapThreshold = gap
         model.yDomain = 0...100
         model.yTicks = [0, 34, 67, 100]
         model.rules = [
@@ -638,7 +652,8 @@ private final class DashboardTimelineStore: ObservableObject {
     }
 
     private static func cpuModel(
-        _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, level: CPULevel
+        _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, level: CPULevel,
+        gap: TimeInterval
     ) -> TrendModel {
         let column = LiveColumn(window, .cpuLoad)
         var model = TrendModel()
@@ -646,6 +661,7 @@ private final class DashboardTimelineStore: ObservableObject {
             TrendSurfaceSeries(column: column, scale: 100, color: level.color)
         ]
         model.xDomain = domain
+        model.gapThreshold = gap
         model.yDomain = 0...100
         model.yTicks = [0, 60, 85, 100]
         model.rules = [
@@ -667,7 +683,8 @@ private final class DashboardTimelineStore: ObservableObject {
     }
 
     private static func networkModel(
-        _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, yDomain: ClosedRange<Double>
+        _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, yDomain: ClosedRange<Double>,
+        gap: TimeInterval
     ) -> TrendModel {
         let download = LiveColumn(window, .networkInBytesPerSec)
         let upload = LiveColumn(window, .networkOutBytesPerSec)
@@ -678,6 +695,7 @@ private final class DashboardTimelineStore: ObservableObject {
                 column: upload, color: NetworkStyle.upload, filled: false, lineWidth: 1.8),
         ]
         model.xDomain = domain
+        model.gapThreshold = gap
         model.yDomain = yDomain
         model.yFormat = { ByteFormat.rate(max($0, 0)) }
         model.showsTimeAxis = true
@@ -698,7 +716,8 @@ private final class DashboardTimelineStore: ObservableObject {
     }
 
     private static func diskModel(
-        _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, yDomain: ClosedRange<Double>
+        _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, yDomain: ClosedRange<Double>,
+        gap: TimeInterval
     ) -> TrendModel {
         let read = LiveColumn(window, .diskReadBytesPerSec)
         let write = LiveColumn(window, .diskWriteBytesPerSec)
@@ -709,6 +728,7 @@ private final class DashboardTimelineStore: ObservableObject {
                 column: write, color: DiskStyle.write, filled: false, lineWidth: 1.8),
         ]
         model.xDomain = domain
+        model.gapThreshold = gap
         model.yDomain = yDomain
         model.yFormat = { ByteFormat.rate(max($0, 0)) }
         model.showsTimeAxis = true
@@ -730,7 +750,8 @@ private final class DashboardTimelineStore: ObservableObject {
     }
 
     private static func swapModel(
-        _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, yDomain: ClosedRange<Double>
+        _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, yDomain: ClosedRange<Double>,
+        gap: TimeInterval
     ) -> TrendModel {
         let swap = LiveColumn(window, .swapUsed)
         var model = TrendModel()
@@ -738,6 +759,7 @@ private final class DashboardTimelineStore: ObservableObject {
             TrendSurfaceSeries(column: swap, color: .indigo, filled: true)
         ]
         model.xDomain = domain
+        model.gapThreshold = gap
         model.yDomain = yDomain
         model.yFormat = { ByteFormat.string(UInt64(max($0, 0))) }
         model.accessibilityLabel = "Swap usage trend"

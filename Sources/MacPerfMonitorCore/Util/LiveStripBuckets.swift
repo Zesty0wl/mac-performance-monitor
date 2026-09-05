@@ -12,6 +12,21 @@ import Foundation
 /// since the reference date, so a completed bucket's extremes never change and
 /// a chart can draw it once, then only repaint the bucket that is still
 /// filling.
+/// What counts as missing data on a time chart.
+///
+/// A gap has to mean "we were not looking", so the threshold belongs to the
+/// cadence of the series, not to the width of the window. Deriving it from the
+/// span, as this app used to, put the threshold at two and a half minutes on an
+/// hour's view, so a Mac that was asleep or an app that was not running for a
+/// minute drew a straight line across the hole as if it had been measured.
+public enum ChartGap {
+    /// Three times the coarsest spacing the series legitimately has, floored so
+    /// a single late tick never breaks the line.
+    public static func threshold(expectedSpacing: TimeInterval) -> TimeInterval {
+        max(expectedSpacing * 3, 15)
+    }
+}
+
 public enum LiveStripBuckets {
     /// The extremes of one non-empty bucket.
     public struct Bucket: Equatable, Sendable {
