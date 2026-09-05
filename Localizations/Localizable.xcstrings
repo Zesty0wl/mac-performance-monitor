@@ -62581,6 +62581,36 @@
         }
       }
     },
+    "peak %@" : {
+      "comment" : "Accessibility strings (charts)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spitze %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "peak %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pic %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "峰值 %@"
+          }
+        }
+      }
+    },
     "peak %@ · %d samples" : {
       "comment" : "InsightsView",
       "extractionState" : "manual",
@@ -62607,6 +62637,66 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "峰值 %@ · %d 个样本"
+          }
+        }
+      }
+    },
+    "peak %@%%" : {
+      "comment" : "Accessibility strings (charts)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spitze %@ %%"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "peak %@%%"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pic %@ %%"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "峰值 %@%%"
+          }
+        }
+      }
+    },
+    "peak %@°C" : {
+      "comment" : "Accessibility strings (charts)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spitze %@ °C"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "peak %@°C"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pic %@ °C"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "峰值 %@°C"
           }
         }
       }

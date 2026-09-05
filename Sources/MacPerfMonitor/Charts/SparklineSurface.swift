@@ -11,6 +11,10 @@ import SwiftUI
 /// instead of restroking its whole path four times a second.
 final class MetricCardFeed {
     private(set) var value: String?
+
+    /// The largest value in the window, already formatted. Drawn in the corner
+    /// of the strip so a bare sparkline has something to read against.
+    private(set) var peak: String?
     private(set) var tint: NSColor = .labelColor
     /// The raw window column behind the sparkline, zero-copy.
     private(set) var column: LiveColumn?
@@ -23,9 +27,10 @@ final class MetricCardFeed {
 
     func publish(
         value: String?, tint: NSColor, column: LiveColumn?, scale: Double = 1,
-        xDomain: ClosedRange<Date>?, yDomain: ClosedRange<Double>?
+        xDomain: ClosedRange<Date>?, yDomain: ClosedRange<Double>?, peak: String? = nil
     ) {
         self.value = value
+        self.peak = peak
         self.tint = tint
         self.column = column
         self.scale = scale
