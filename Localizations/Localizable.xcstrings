@@ -1,6 +1,426 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Low accessory battery" : {
+      "comment" : "Opt-in accessory battery alert toggle. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niedriger Batteriestand bei Zubehör"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low accessory battery"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Batterie faible d'un accessoire"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配件电池电量低"
+          }
+        }
+      }
+    },
+    "Notify at or below" : {
+      "comment" : "Accessory battery percentage threshold. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Benachrichtigen bei oder unter"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notify at or below"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifier à ce niveau ou en dessous"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "达到或低于此电量时通知"
+          }
+        }
+      }
+    },
+    "Accessory Batteries" : {
+      "comment" : "Alert settings section heading. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zubehörbatterien"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accessory Batteries"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Batteries des accessoires"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配件电池"
+          }
+        }
+      }
+    },
+    "Checks once a minute while the app is running, even with Energy hidden. One quiet alert until charge recovers. macOS may report cached levels." : {
+      "comment" : "Background polling and cached-data limits for opt-in battery alerts. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prüft einmal pro Minute, solange die App läuft, auch wenn Energie ausgeblendet ist. Eine lautlose Warnung, bis der Ladestand wieder steigt. macOS meldet möglicherweise zwischengespeicherte Werte."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checks once a minute while the app is running, even with Energy hidden. One quiet alert until charge recovers. macOS may report cached levels."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vérifie une fois par minute tant que l'app est ouverte, même si Énergie est masqué. Une seule alerte silencieuse jusqu'à ce que la charge remonte. macOS peut signaler des niveaux en cache."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用运行时每分钟检查一次，即使“能耗”已隐藏。电量恢复前只发送一次静默警报。macOS 可能报告缓存的电量。"
+          }
+        }
+      }
+    },
+    "Low battery: %@" : {
+      "comment" : "Accessory low-battery notification title; argument is the device name. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Batterie schwach: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low battery: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Batterie faible : %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电量低：%@"
+          }
+        }
+      }
+    },
+    "macOS reports %@." : {
+      "comment" : "Accessory battery notice with grouped part levels, without claiming a fresh device measurement. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS meldet %@."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS reports %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS indique %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS 报告 %@。"
+          }
+        }
+      }
+    },
+    "Accessories" : {
+      "comment" : "Energy panel for accessory batteries. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zubehör"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accessories"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accessoires"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配件"
+          }
+        }
+      }
+    },
+    "Battery status unavailable" : {
+      "comment" : "Accessory battery report failed or its format is unsupported. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Batteriestatus nicht verfügbar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battery status unavailable"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "État de la batterie indisponible"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电池状态不可用"
+          }
+        }
+      }
+    },
+    "No accessory batteries reported" : {
+      "comment" : "Successful report with no accessory batteries. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Zubehörbatterien gemeldet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No accessory batteries reported"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune batterie d'accessoire signalée"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未报告配件电池"
+          }
+        }
+      }
+    },
+    "Last reported" : {
+      "comment" : "Accessory values retained after a failed refresh, not current readings. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zuletzt gemeldet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last reported"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernières valeurs signalées"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上次报告"
+          }
+        }
+      }
+    },
+    "Checked %@" : {
+      "comment" : "Time the app last read a valid accessory report, not the device's measurement time. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abgefragt um %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checked %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vérifié à %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检查时间：%@"
+          }
+        }
+      }
+    },
+    "Left" : {
+      "comment" : "Left earbud battery. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Links"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Left"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gauche"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左侧"
+          }
+        }
+      }
+    },
+    "Right" : {
+      "comment" : "Right earbud battery. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechts"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Right"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Droite"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右侧"
+          }
+        }
+      }
+    },
+    "Case" : {
+      "comment" : "Earbud charging case battery. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladecase"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Case"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boîtier"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充电盒"
+          }
+        }
+      }
+    },
     "%@ more active alerts." : {
       "comment" : "Grouped alert notification overflow. AI-generated translations; native-speaker review pending.",
       "extractionState" : "manual",
