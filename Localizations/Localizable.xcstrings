@@ -1,6 +1,1446 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Time to full" : {
+      "comment" : "Energy runtime while charging. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeit bis voll"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time to full"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temps avant charge complète"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充满所需时间"
+          }
+        }
+      }
+    },
+    "Estimated runtime" : {
+      "comment" : "Estimated battery runtime, not a measured duration. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geschätzte Laufzeit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated runtime"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autonomie estimée"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预计续航时间"
+          }
+        }
+      }
+    },
+    "Mac power draw" : {
+      "comment" : "Whole-machine power, distinct from battery flow. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac-Leistungsaufnahme"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac power draw"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puissance consommée par le Mac"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac 功耗"
+          }
+        }
+      }
+    },
+    "Calculating" : {
+      "comment" : "Battery runtime not yet known. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird berechnet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calculating"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calcul en cours"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在计算"
+          }
+        }
+      }
+    },
+    "Recent use" : {
+      "comment" : "Runtime estimate based on recent discharge. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letzte Nutzung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent use"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usage récent"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "近期使用情况"
+          }
+        }
+      }
+    },
+    "%@ battery" : {
+      "comment" : "Signed battery flow in watts beside whole-Mac draw. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Batterie"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ battery"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ batterie"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 电池"
+          }
+        }
+      }
+    },
+    "%@ pp / 90d" : {
+      "comment" : "Battery health change in percentage points over 90 days. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Pp. / 90 T."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ pp / 90d"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ pts / 90 j"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 个百分点 / 90 天"
+          }
+        }
+      }
+    },
+    "+%@ / 30d" : {
+      "comment" : "Recorded cycle increase over 30 days. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%@ / 30 T."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%@ / 30d"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%@ / 30 j"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%@ / 30 天"
+          }
+        }
+      }
+    },
+    "Click for details." : {
+      "comment" : "Metric-card hover hint. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für Details klicken."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click for details."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cliquez pour les détails."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点击查看详情。"
+          }
+        }
+      }
+    },
+    "Battery flow" : {
+      "comment" : "Signed power flowing into or out of the battery. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Batterieleistungsfluss"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battery flow"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flux de la batterie"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电池功率流"
+          }
+        }
+      }
+    },
+    "Service reference" : {
+      "comment" : "Battery health reference, not a failure forecast. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wartungsrichtwert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Service reference"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repère d'entretien"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "维修参考值"
+          }
+        }
+      }
+    },
+    "30 days" : {
+      "comment" : "Battery history range. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30 Tage"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30 days"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30 jours"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30 天"
+          }
+        }
+      }
+    },
+    "90 days" : {
+      "comment" : "Battery history range. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "90 Tage"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "90 days"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "90 jours"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "90 天"
+          }
+        }
+      }
+    },
+    "6 months" : {
+      "comment" : "Battery history range. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6 Monate"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6 months"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6 mois"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6 个月"
+          }
+        }
+      }
+    },
+    "1 year" : {
+      "comment" : "Battery history range. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Jahr"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 year"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 an"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 年"
+          }
+        }
+      }
+    },
+    "All recorded" : {
+      "comment" : "All available battery history. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle Aufzeichnungen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All recorded"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout l'historique"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部记录"
+          }
+        }
+      }
+    },
+    "Since unplugging" : {
+      "comment" : "Scope to a recorded switch from adapter to battery. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seit dem Trennen vom Netz"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Since unplugging"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Depuis le débranchement"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自拔下电源以来"
+          }
+        }
+      }
+    },
+    "History unavailable; showing the captured readings." : {
+      "comment" : "Energy history read failure. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verlauf nicht verfügbar; die erfassten Werte werden angezeigt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History unavailable; showing the captured readings."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historique indisponible ; affichage des valeurs capturées."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "历史记录不可用；正在显示已获取的读数。"
+          }
+        }
+      }
+    },
+    "No recorded history for this range." : {
+      "comment" : "No Energy samples in the selected range. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Aufzeichnungen für diesen Zeitraum."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No recorded history for this range."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun historique enregistré pour cette période."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此时间范围内没有历史记录。"
+          }
+        }
+      }
+    },
+    "Used since unplugging" : {
+      "comment" : "Charge used during the observed battery session. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seit dem Trennen verbraucht"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used since unplugging"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisé depuis le débranchement"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拔下电源后已用电量"
+          }
+        }
+      }
+    },
+    "%@ percentage points" : {
+      "comment" : "Absolute change in battery percentage. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Prozentpunkte"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ percentage points"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ points de pourcentage"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 个百分点"
+          }
+        }
+      }
+    },
+    "Estimate source" : {
+      "comment" : "Source of the battery runtime estimate. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelle der Schätzung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimate source"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source de l'estimation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "估算来源"
+          }
+        }
+      }
+    },
+    "Full charge at this rate" : {
+      "comment" : "Estimated full-charge runtime at the same consumption rate. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volle Ladung bei diesem Verbrauch"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full charge at this rate"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge complète à ce rythme"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前耗电速度下的满电续航"
+          }
+        }
+      }
+    },
+    "Adapter rating" : {
+      "comment" : "Rated adapter wattage, not measured consumption. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nennleistung des Netzteils"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adapter rating"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puissance nominale de l'adaptateur"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适配器额定功率"
+          }
+        }
+      }
+    },
+    "Full-charge capacity" : {
+      "comment" : "Battery capacity when fully charged. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapazität bei voller Ladung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full-charge capacity"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capacité à pleine charge"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "满充容量"
+          }
+        }
+      }
+    },
+    "%@ mAh" : {
+      "comment" : "Battery capacity in milliamp-hours. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@ mAh"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ mAh"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@ mAh"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@ mAh"
+          }
+        }
+      }
+    },
+    "History begins" : {
+      "comment" : "First available daily battery reading. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beginn der Aufzeichnung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History begins"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Début de l'historique"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "历史记录起始日期"
+          }
+        }
+      }
+    },
+    "Rated cycle reference" : {
+      "comment" : "Cycle rating as context rather than a failure deadline. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Richtwert für Ladezyklen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rated cycle reference"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombre de cycles de référence"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "额定循环次数参考值"
+          }
+        }
+      }
+    },
+    "Monthly cycle increases" : {
+      "comment" : "Cycle-count differences across calendar months. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monatlicher Zuwachs an Ladezyklen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monthly cycle increases"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Augmentation mensuelle des cycles"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每月循环次数增量"
+          }
+        }
+      }
+    },
+    "Not enough history" : {
+      "comment" : "A comparison cannot be calculated from available history. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht genügend Verlaufsdaten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough history"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historique insuffisant"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "历史记录不足"
+          }
+        }
+      }
+    },
+    "Power states" : {
+      "comment" : "Recorded battery/charging/adapter states. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stromversorgungszustände"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Power states"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "États d'alimentation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "供电状态"
+          }
+        }
+      }
+    },
+    "Charge projection" : {
+      "comment" : "Forecast rather than recorded battery charge. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladestandsprognose"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge projection"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Projection de charge"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电量预测"
+          }
+        }
+      }
+    },
+    "Recorded charge" : {
+      "comment" : "Actual observations on the forecast comparison. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erfasster Ladestand"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded charge"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge enregistrée"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已记录的电量"
+          }
+        }
+      }
+    },
+    "Forecast" : {
+      "comment" : "Forecast chart series, separate from observations. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prognose"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forecast"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prévision"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预测"
+          }
+        }
+      }
+    },
+    "Dashed line: an estimate if the current rate of use continues." : {
+      "comment" : "Forecast qualification. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestrichelte Linie: Schätzung bei gleichbleibendem Verbrauch."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dashed line: an estimate if the current rate of use continues."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pointillés : estimation si le rythme d'utilisation actuel se maintient."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "虚线：保持当前耗电速度时的估算。"
+          }
+        }
+      }
+    },
+    "0 min" : {
+      "comment" : "Zero-duration value on an Energy chart axis. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0 Min."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0 min"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "0 min"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0 分钟"
+          }
+        }
+      }
+    },
+    "The charge available now. Charging, battery use, and time on an adapter are different states, even when the percentage stays still." : {
+      "comment" : "Charge card explanation. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der derzeit verfügbare Ladestand. Laden, Batteriebetrieb und Netzbetrieb sind unterschiedliche Zustände, auch wenn der Prozentwert gleich bleibt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The charge available now. Charging, battery use, and time on an adapter are different states, even when the percentage stays still."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La charge disponible actuellement. La charge, l'utilisation sur batterie et l'alimentation par adaptateur sont des états distincts, même si le pourcentage reste stable."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前可用电量。充电、使用电池和使用适配器是不同的状态，即使电量百分比保持不变。"
+          }
+        }
+      }
+    },
+    "macOS reports current charge relative to full-charge capacity. The chart keeps recorded gaps. Charge used since unplugging is shown only when that transition was observed." : {
+      "comment" : "Charge card calculation. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS meldet den aktuellen Ladestand im Verhältnis zur vollen Ladekapazität. Lücken in der Aufzeichnung bleiben im Diagramm erhalten. Der Verbrauch seit dem Trennen vom Netz wird nur angezeigt, wenn dieser Wechsel erfasst wurde."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS reports current charge relative to full-charge capacity. The chart keeps recorded gaps. Charge used since unplugging is shown only when that transition was observed."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS indique la charge actuelle par rapport à la capacité à pleine charge. Le graphique conserve les lacunes de l'enregistrement. La charge utilisée depuis le débranchement n'apparaît que si cette transition a été observée."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS 报告当前电量与满充容量的比值。图表保留记录中的空缺。只有观察到拔下电源这一转换时，才会显示之后消耗的电量。"
+          }
+        }
+      }
+    },
+    "An estimate of how long this charge may last, not a promise. The estimate can change when your workload changes. While charging, the figure is time to full instead." : {
+      "comment" : "Runtime card explanation. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Schätzung, wie lange diese Ladung reichen könnte, keine Zusage. Sie kann sich mit der Arbeitslast ändern. Beim Laden zeigt der Wert stattdessen die Zeit bis zur vollen Ladung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An estimate of how long this charge may last, not a promise. The estimate can change when your workload changes. While charging, the figure is time to full instead."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une estimation de la durée possible de cette charge, pas une garantie. Elle peut changer avec votre charge de travail. Pendant la charge, la valeur indique le temps avant la charge complète."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这是当前电量可能维持多久的估算，并非保证。工作负载变化时，估算也可能变化。充电时，此值改为充满所需时间。"
+          }
+        }
+      }
+    },
+    "We prefer the macOS estimate. Otherwise, after at least three minutes of steady discharge, we divide remaining capacity by recent average current. Gaps, charging, and unstable load reset that estimate. Full-charge runtime assumes the same rate of use." : {
+      "comment" : "Runtime estimator method and reset conditions. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wir bevorzugen die macOS-Schätzung. Andernfalls teilen wir nach mindestens drei Minuten gleichmäßiger Entladung die Restkapazität durch den zuletzt gemessenen Durchschnittsstrom. Lücken, Laden und unstabile Last setzen die Schätzung zurück. Die Laufzeit bei voller Ladung setzt denselben Verbrauch voraus."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We prefer the macOS estimate. Otherwise, after at least three minutes of steady discharge, we divide remaining capacity by recent average current. Gaps, charging, and unstable load reset that estimate. Full-charge runtime assumes the same rate of use."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nous privilégions l'estimation de macOS. Sinon, après au moins trois minutes de décharge régulière, nous divisons la capacité restante par le courant moyen récent. Les lacunes, la charge et une consommation instable réinitialisent cette estimation. L'autonomie à pleine charge suppose le même rythme d'utilisation."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "优先使用 macOS 的估算。否则，在至少三分钟稳定放电后，用剩余容量除以近期平均电流。采样空缺、充电和不稳定负载会重置此估算。满电续航假设耗电速度保持不变。"
+          }
+        }
+      }
+    },
+    "Mac power draw is whole-machine consumption. Battery flow is separate: positive watts charge the battery; negative watts drain it. Adapter wattage is its rating, not measured draw." : {
+      "comment" : "Power card explanation. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Mac-Leistungsaufnahme ist der Verbrauch des gesamten Rechners. Der Batterieleistungsfluss ist getrennt: positive Wattwerte laden, negative entladen die Batterie. Die Wattangabe des Netzteils ist seine Nennleistung, nicht der gemessene Verbrauch."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac power draw is whole-machine consumption. Battery flow is separate: positive watts charge the battery; negative watts drain it. Adapter wattage is its rating, not measured draw."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La puissance consommée par le Mac concerne toute la machine. Le flux de la batterie est distinct : une valeur positive la charge, une valeur négative la décharge. La puissance de l'adaptateur est sa valeur nominale, pas sa consommation mesurée."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac 功耗是整机消耗的功率。电池功率流单独显示：正值表示充电，负值表示放电。适配器瓦数是额定功率，不是实测功耗。"
+          }
+        }
+      }
+    },
+    "Mac power comes from the system power sensor. Battery flow comes from battery voltage and current, with charging state supplying direction. Stored ranges preserve the mean and observed limits of available readings." : {
+      "comment" : "Power card calculation. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Mac-Leistung stammt vom Systemleistungssensor. Der Batterieleistungsfluss wird aus Spannung und Strom berechnet; der Ladezustand bestimmt die Richtung. Gespeicherte Intervalle bewahren den Mittelwert und die beobachteten Grenzen verfügbarer Messwerte."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac power comes from the system power sensor. Battery flow comes from battery voltage and current, with charging state supplying direction. Stored ranges preserve the mean and observed limits of available readings."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La puissance du Mac provient du capteur de puissance du système. Le flux de la batterie repose sur sa tension et son courant, le sens dépendant de l'état de charge. Les intervalles stockés conservent la moyenne et les limites observées des mesures disponibles."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac 功耗来自系统功率传感器。电池功率流由电压和电流得出，方向取决于充电状态。存储的时间区间保留可用读数的平均值和观察到的上下限。"
+          }
+        }
+      }
+    },
+    "The battery pack temperature, not the CPU or GPU temperature. Charging and sustained use can warm the battery. Missing readings are not zero degrees." : {
+      "comment" : "Battery temperature card explanation. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Temperatur des Batteriepacks, nicht der CPU oder GPU. Laden und dauerhafte Nutzung können die Batterie erwärmen. Fehlende Messwerte bedeuten nicht null Grad."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The battery pack temperature, not the CPU or GPU temperature. Charging and sustained use can warm the battery. Missing readings are not zero degrees."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La température de la batterie, et non du CPU ou du GPU. La charge et une utilisation prolongée peuvent la réchauffer. Une mesure absente ne signifie pas zéro degré."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这是电池组温度，不是 CPU 或 GPU 温度。充电和持续使用可能使电池升温。缺失读数不代表零度。"
+          }
+        }
+      }
+    },
+    "The battery controller supplies the temperature. The chart preserves recorded values and ranges. CPU temperature warning limits do not apply to this sensor." : {
+      "comment" : "Battery temperature calculation. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Batteriecontroller liefert die Temperatur. Das Diagramm bewahrt die erfassten Werte und Bereiche. CPU-Temperaturwarnschwellen gelten nicht für diesen Sensor."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The battery controller supplies the temperature. The chart preserves recorded values and ranges. CPU temperature warning limits do not apply to this sensor."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le contrôleur de la batterie fournit la température. Le graphique conserve les valeurs et plages enregistrées. Les seuils d'alerte de température du CPU ne s'appliquent pas à ce capteur."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "温度由电池控制器提供。图表保留已记录的数值和范围。CPU 温度警告阈值不适用于此传感器。"
+          }
+        }
+      }
+    },
+    "How much charge the battery can hold compared with its design capacity. Small changes can reflect calibration, not damage. The 80% line is a service reference, not a predicted failure date." : {
+      "comment" : "Battery health card explanation. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie viel Ladung die Batterie im Vergleich zur Auslegungskapazität aufnehmen kann. Kleine Änderungen können auf Kalibrierung statt auf Schäden zurückgehen. Die 80%-Linie ist ein Wartungsrichtwert, kein vorhergesagtes Ausfalldatum."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How much charge the battery can hold compared with its design capacity. Small changes can reflect calibration, not damage. The 80% line is a service reference, not a predicted failure date."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La charge que la batterie peut contenir par rapport à sa capacité de conception. De petites variations peuvent refléter un étalonnage, pas un dommage. La ligne à 80% est un repère d'entretien, pas une date de panne prévue."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电池可储存的电量与设计容量的比值。小幅变化可能源于校准，而非损坏。80% 线是维修参考值，不是预计失效日期。"
+          }
+        }
+      }
+    },
+    "Full-charge capacity divided by design capacity. One record per battery per day supports month and year trends. A replacement battery starts a separate history. A 90-day change appears only when the recorded dates cover that comparison." : {
+      "comment" : "Battery health calculation and coverage. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volle Ladekapazität geteilt durch Auslegungskapazität. Ein Eintrag pro Batterie und Tag ermöglicht Monats- und Jahrestrends. Eine Ersatzbatterie erhält einen eigenen Verlauf. Die Änderung über 90 Tage erscheint nur, wenn die Aufzeichnung diesen Vergleich abdeckt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full-charge capacity divided by design capacity. One record per battery per day supports month and year trends. A replacement battery starts a separate history. A 90-day change appears only when the recorded dates cover that comparison."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La capacité à pleine charge divisée par la capacité de conception. Un relevé quotidien par batterie permet des tendances sur des mois et des années. Une batterie de remplacement commence un historique distinct. La variation sur 90 jours n'apparaît que si les dates enregistrées couvrent cette comparaison."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "满充容量除以设计容量。每块电池每天一条记录，用于查看月度和年度趋势。更换电池后会开始独立的历史记录。只有记录日期覆盖比较区间时，才会显示 90 天变化。"
+          }
+        }
+      }
+    },
+    "A cycle is cumulative use of a full charge, not each time you plug in. The rated count is a wear reference; the battery does not suddenly stop working at that number." : {
+      "comment" : "Cycle-count explanation. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Zyklus ist der kumulierte Verbrauch einer vollen Ladung, nicht jedes Einstecken. Die Nennzahl ist ein Verschleißrichtwert; die Batterie stellt bei dieser Zahl nicht plötzlich den Betrieb ein."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A cycle is cumulative use of a full charge, not each time you plug in. The rated count is a wear reference; the battery does not suddenly stop working at that number."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un cycle correspond à l'utilisation cumulée d'une charge complète, pas à chaque branchement. Le nombre nominal est un repère d'usure ; la batterie ne cesse pas soudain de fonctionner à ce nombre."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一次循环是累计消耗相当于满电的电量，而不是每次插入电源。额定次数是老化参考值；电池不会在达到此次数时突然停止工作。"
+          }
+        }
+      }
+    },
+    "The battery controller supplies the cycle total. Daily records make a step chart. Monthly increases need observations near both month boundaries; missing months are not zero cycles." : {
+      "comment" : "Cycle-count history calculation. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Batteriecontroller liefert die Gesamtzahl der Zyklen. Tageswerte ergeben ein Stufendiagramm. Monatliche Zuwächse benötigen Beobachtungen nahe beiden Monatsgrenzen; fehlende Monate bedeuten nicht null Zyklen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The battery controller supplies the cycle total. Daily records make a step chart. Monthly increases need observations near both month boundaries; missing months are not zero cycles."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le contrôleur de la batterie fournit le total des cycles. Les relevés quotidiens forment un graphique en escalier. Les augmentations mensuelles nécessitent des observations proches des deux limites du mois ; un mois absent ne signifie pas zéro cycle."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电池控制器提供累计循环次数。每日记录形成阶梯图。每月增量需要月初和月末附近的读数；缺失月份不代表零次循环。"
+          }
+        }
+      }
+    },
     "Low accessory battery" : {
       "comment" : "Opt-in accessory battery alert toggle. AI-generated translations; native-speaker review pending.",
       "extractionState" : "manual",
