@@ -1,6 +1,186 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Start minimised" : {
+      "comment" : "Startup preference. AI-generated translations need native review.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimiert starten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start minimised"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Démarrer en mode réduit"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最小化启动"
+          }
+        }
+      }
+    },
+    "Keep the main window closed at startup when the menu bar is enabled." : {
+      "comment" : "Startup preference tooltip. AI-generated translations need native review.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beim Start das Hauptfenster geschlossen lassen, wenn das Menüleistensymbol aktiviert ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep the main window closed at startup when the menu bar is enabled."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ne pas ouvrir la fenêtre principale au démarrage lorsque l'icône de la barre des menus est activée."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用菜单栏图标时，启动时不打开主窗口。"
+          }
+        }
+      }
+    },
+    "Enjoying %@?" : {
+      "comment" : "One-time GitHub star prompt title; %@ is the app name. AI-generated translations need native review.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gefällt dir %@?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enjoying %@?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous aimez %@ ?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您喜欢 %@ 吗？"
+          }
+        }
+      }
+    },
+    "If %@ has been useful, please consider giving it a star on GitHub." : {
+      "comment" : "One-time GitHub star prompt; %@ is the app name. AI-generated translations need native review.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn dir %@ hilft, unterstütze das Projekt gerne mit einem Stern auf GitHub."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If %@ has been useful, please consider giving it a star on GitHub."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si %@ vous est utile, pensez à lui attribuer une étoile sur GitHub."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果 %@ 对您有帮助，欢迎在 GitHub 上为它点亮一颗星。"
+          }
+        }
+      }
+    },
+    "Star on GitHub" : {
+      "comment" : "Opens the repository in a browser. AI-generated translations need native review.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stern auf GitHub vergeben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Star on GitHub"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mettre une étoile sur GitHub"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 GitHub 上点亮星标"
+          }
+        }
+      }
+    },
+    "No Thanks" : {
+      "comment" : "Permanently dismisses the GitHub star prompt. AI-generated translations need native review.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nein, danke"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Thanks"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non merci"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不用，谢谢"
+          }
+        }
+      }
+    },
     "%@ GB/s" : {
       "comment" : "Historical GPU bandwidth chart. AI-generated translations need native review.",
       "extractionState" : "manual",
