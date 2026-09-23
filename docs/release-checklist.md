@@ -1,5 +1,65 @@
 # Release Checklist
 
+## 2.2.1 Release
+
+The maintainer approved publishing 2.2.1 on 23 September 2026 to fix
+[#117](https://github.com/Zesty0wl/mac-performance-monitor/issues/117).
+[Version 2.2.1, build 261](https://github.com/Zesty0wl/mac-performance-monitor/releases/tag/v2.2.1.261)
+became the latest stable release at **19:50:40 UTC** that day. The previous
+public release was 2.2.0 build 260.
+
+### Cause
+
+2.2.0 was the first release built with Xcode 27. Its default SwiftPM build
+engine (Swift Build) writes the deployment target into `LC_BUILD_VERSION` as
+the SDK version. The shipped binary recorded `minos 15.0, sdk 15.0`, so macOS 26
+and 27 gave it the pre-Liquid Glass compatibility appearance. 2.1.0, built with
+Xcode 26, recorded `sdk 26.5`. A one-file package reproduces it: the default
+engine records `sdk 15.0` and `--build-system native` records `sdk 27.0`.
+
+`Scripts/build.sh` now passes the real SDK version to the linker for all three
+executables. `Scripts/bundle.sh` fails if the app binary records an SDK older
+than 26. Check this on every release build:
+
+```sh
+otool -l "build/Mac Performance Monitor.app/Contents/MacOS/Mac Performance Monitor" \
+  | grep -A4 LC_BUILD_VERSION
+```
+
+### Verification Record
+
+- The annotated tag `v2.2.1.261` pins squash commit
+  `1e35ec8288992432e7459afcf2befedb97b41b4b` from
+  [PR #118](https://github.com/Zesty0wl/mac-performance-monitor/pull/118).
+  Its tree is identical to the branch commit that was built and signed.
+  [Hosted CI](https://github.com/Zesty0wl/mac-performance-monitor/actions/runs/35911159858)
+  passed on `macos-15` and `xcode-27` for that commit.
+- The local suite ran **1,030 tests**: 183 app, 17 IPC, and 830 Core, with 15
+  expected opt-in skips and no failures. Strict lint and the localization check pass.
+- The app, helper, and inference worker all record `minos 15.0, sdk 27.0`.
+  The new bundle guard rejects the 2.2.0 binary. The Liquid Glass toolbar was
+  confirmed on screen under macOS 27 with the same build change.
+- Apple accepted app notarization `0176d3c3-c97e-4d9b-a1d1-d0462b896ae7` and
+  installer notarization `301f238d-1456-4296-b4e1-ce6f0f8463bc`. Both staples
+  validate and Gatekeeper accepts both as Notarized Developer ID.
+- The Sparkle archive signature verifies with the public key shipped in 2.2.0
+  (`SUPublicEDKey` is unchanged). The feed embeds these release notes and names
+  build 261, version 2.2.1, macOS 15, arm64, and an archive length of 33,453,835 bytes.
+- The draft assets matched the local files byte for byte before publication.
+  The latest installer and feed, plus the versioned ZIP, return HTTP 200
+  without a sign-in and hash to the values below.
+- The signed build installed to `/Applications` from `install.sh --no-launch`.
+  This pass did not run a Sparkle UI upgrade from 2.2.0 or a Homebrew install.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `MacPerformanceMonitor.pkg` | `66be86a8f771b6b3ef32d1e8531085d311f50a5b0ea47a2689b6033f0f1f74c2` |
+| `MacPerformanceMonitor-2.2.1.261.zip` | `87dd7eb71750cd290833c5b9a8bcdd082740b847899ac20bb842860fa1a183a6` |
+| `appcast.xml` | `1bdfdcf3a1005f3d637f512858c55b39860af47cd16e02df72a87becebca1049` |
+
+This repository's cask targets 2.2.1.261 with the published package checksum.
+Homebrew's bot handles the official catalog bump. `brew fetch` was not run against the tap copy.
+
 ## 2.2.0 Release
 
 The maintainer approved publishing 2.2.0 on 20 September 2026.
