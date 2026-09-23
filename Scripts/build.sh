@@ -40,12 +40,19 @@ if [[ ! -f "$METAL_STAMP" ]] || [[ "$(< "$METAL_STAMP")" != "$METAL" ]]; then
   printf '%s\n' "$METAL" > "$METAL_STAMP"
 fi
 
-echo "Building MacPerfMonitor ($CONFIG, arm64)..."
-swift build -c "$CONFIG" --product MacPerfMonitor
+# The Swift Build engine (SwiftPM's default since Xcode 27) stamps the deployment
+# target into LC_BUILD_VERSION as the SDK version (sdk 15.0). macOS keys Liquid
+# Glass and other new-SDK behaviour on that field, so 2.2.0 shipped with the
+# legacy look (#117). Pass the real SDK version to the linker explicitly.
+SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
+LINK_SDK=(-Xlinker -platform_version -Xlinker macos -Xlinker 15.0 -Xlinker "$SDK_VERSION")
+
+echo "Building MacPerfMonitor ($CONFIG, arm64, SDK $SDK_VERSION)..."
+swift build -c "$CONFIG" "${LINK_SDK[@]}" --product MacPerfMonitor
 # The privileged helper is a separate executable product (the app does not
 # depend on it), so it must be built explicitly to be bundled alongside the app.
-swift build -c "$CONFIG" --product MacPerfMonitorHelper
-swift build -c "$CONFIG" --product MacPerfMonitorInference
+swift build -c "$CONFIG" "${LINK_SDK[@]}" --product MacPerfMonitorHelper
+swift build -c "$CONFIG" "${LINK_SDK[@]}" --product MacPerfMonitorInference
 
 BIN="$(swift build --show-bin-path -c "$CONFIG")/MacPerfMonitor"
 echo "Built: $BIN"

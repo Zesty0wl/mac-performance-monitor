@@ -40,6 +40,16 @@ if [[ ! -x "$BIN" ]]; then
   exit 1
 fi
 
+# macOS gives an app Liquid Glass and other current-SDK behaviour only when its
+# LC_BUILD_VERSION records SDK 26 or later. 2.2.0 shipped stamped "sdk 15.0"
+# (#117), so refuse to bundle a binary that would lose the current look.
+LINKED_SDK="$(otool -l "$BIN" | awk '/LC_BUILD_VERSION/ {found = 1} found && $1 == "sdk" {print $2; exit}')"
+if [[ -z "$LINKED_SDK" ]] || (( ${LINKED_SDK%%.*} < 26 )); then
+  echo "error: $BIN records SDK '${LINKED_SDK:-unknown}', not 26 or later." >&2
+  echo "       Build with Scripts/build.sh, which passes the real SDK version to the linker." >&2
+  exit 1
+fi
+
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # The built SPM binary is named for the product ("MacPerfMonitor"); copy it to the

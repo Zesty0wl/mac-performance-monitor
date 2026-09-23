@@ -6,6 +6,20 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-09-23
+
+### Fixed
+
+- **Liquid Glass is back on macOS 26 and 27** ([#117](https://github.com/Zesty0wl/mac-performance-monitor/issues/117)).
+  Version 2.2.0 was the first release built with Xcode 27. Its default Swift
+  build engine recorded the macOS 15 deployment target as the app's SDK
+  version, so macOS showed the older, pre-Liquid Glass appearance. The build
+  script now passes the real SDK version to the linker. Bundling fails if the
+  app binary records an SDK older than 26. The minimum macOS stays 15.
+- The main window no longer restores itself at startup. The saved startup
+  setting controls whether it opens. The app no longer relies on macOS launch
+  data. A pinned Dock icon no longer takes focus when no window is open.
+
 ### Added
 
 - **Start minimised** in Settings > General > Startup, on by default. With the
@@ -17,12 +31,6 @@ Notable changes to Mac Performance Monitor. This project follows
   bar panel and the main window. The request waits until the main window is in
   front with no other prompt. Either response stops future requests. These
   usage flags stay on your Mac.
-
-### Fixed
-
-- The main window no longer restores itself at startup. The saved startup
-  setting controls whether it opens. The app no longer relies on macOS launch
-  data. A pinned Dock icon no longer takes focus when no window is open.
 
 ## [2.2.0] - 2026-09-20
 
@@ -1022,7 +1030,9 @@ processes behind them.
 - A clean split between a headless, unit-tested data layer and the SwiftUI app. CI
   builds, tests, and lints on every push and pull request.
 
-[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.1.0.236...HEAD
+[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.2.1.261...HEAD
+[2.2.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.2.0.260...v2.2.1.261
+[2.2.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.1.0.236...v2.2.0.260
 [2.1.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.0.0.231...v2.1.0.236
 [2.0.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.7.1.206...v2.0.0.231
 [1.7.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.6.0.204...v1.7.0.205
