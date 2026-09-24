@@ -6,6 +6,14 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- The menu bar item keeps its place after an update ([#120](https://github.com/Zesty0wl/mac-performance-monitor/issues/120)).
+  macOS forgot the position of the unnamed item whenever the app was replaced,
+  so each update put it back beside the notch, where a crowded menu bar hides
+  it. The item now has a stable name, so a spot you Command-drag it to survives
+  updates. The first launch of this version still uses the default spot.
+
 ## [2.2.1] - 2026-09-23
 
 ### Fixed

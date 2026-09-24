@@ -8,6 +8,11 @@ final class CombinedStatusItemController: NSObject {
     var onPopoverOpened: (() -> Void)?
 
     private static let panelDefaultsKey = "combinedMenuBarPanel"
+    /// Stable identity for the status item, so macOS remembers where the user
+    /// Command-dragged it. Without one, every relaunch (an update, a login)
+    /// inserts the item at the default slot beside the notch, where a crowded
+    /// menu bar hides it with no indication (#120).
+    static let statusItemAutosaveName = "MacPerfMonitorCombined"
     private static let alarmImage: NSImage = {
         let size = NSSize(width: 12, height: 12)
         let image = NSImage(size: size, flipped: false) { rect in
@@ -121,6 +126,7 @@ final class CombinedStatusItemController: NSObject {
     private func installItem() {
         guard statusItem == nil else { return }
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item.autosaveName = Self.statusItemAutosaveName
         item.button?.target = self
         item.button?.action = #selector(togglePopover(_:))
         item.button?.imagePosition = .imageOnly
