@@ -91,9 +91,13 @@ struct MetricChart: View, Equatable {
 
     /// A spoken summary for VoiceOver: the latest value and the peak, formatted
     /// in the metric's own units via the caller-supplied `yFormat`.
+    /// NaN samples are deliberate gap markers (a process restart, for example),
+    /// so they are skipped: a series can end on one, and `max()` returns NaN
+    /// when the first element is NaN.
     private var accessibilitySummary: String {
-        guard let latest = samples.last?.value else { return t("No data yet.") }
-        let peak = samples.map(\.value).max() ?? latest
+        let values = samples.lazy.map(\.value).filter(\.isFinite)
+        guard let latest = values.last else { return t("No data yet.") }
+        let peak = values.max() ?? latest
         return t(
             "Currently %1$@. Peak %2$@ over the shown window.", yFormat(latest), yFormat(peak))
     }

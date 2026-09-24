@@ -13,6 +13,10 @@ Notable changes to Mac Performance Monitor. This project follows
   so each update put it back beside the notch, where a crowded menu bar hides
   it. The item now has a stable name, so a spot you Command-drag it to survives
   updates. The first launch of this version still uses the default spot.
+- The app no longer crashes when a process inspector's Disk I/O charts show a
+  process that has just restarted. The restart gap marker reached the rate
+  label as NaN, which crashed the app when converted to a whole number. Rate
+  labels now treat missing values as zero, and chart summaries skip gap markers.
 
 ## [2.2.1] - 2026-09-23
 
