@@ -286,7 +286,9 @@ public final class AlertEngine {
                     kind: .processCeiling, title: "", body: "", identity: process.id, date: now
                 ).id
                 guard process.footprintReadable,
-                    Self.fresh(process.timestamp, at: now, maximumGap: max(120, maximumGap))
+                    Self.fresh(
+                        process.timestamp, at: now, maximumGap: max(120, maximumGap),
+                        lead: Self.processLead)
                 else {
                     unknown.insert(id)
                     continue
@@ -411,9 +413,18 @@ public final class AlertEngine {
         tracker.deliveryFailed(ids, attemptedAt: attemptedAt, now: now)
     }
 
-    private static func fresh(_ timestamp: Date, at now: Date, maximumGap: TimeInterval) -> Bool {
+    /// How far a process sample may be stamped after the evaluation's `now`.
+    /// The scan runs after the system tick it is evaluated with and stamps its
+    /// samples when it reads them, so fresh evidence is routinely a few
+    /// milliseconds "in the future"; treating that as unknown made every
+    /// per-process incident flicker to unknown once per scan.
+    static let processLead: TimeInterval = 5
+
+    private static func fresh(
+        _ timestamp: Date, at now: Date, maximumGap: TimeInterval, lead: TimeInterval = 0
+    ) -> Bool {
         let age = now.timeIntervalSince(timestamp)
-        return age.isFinite && age >= 0 && age <= maximumGap
+        return age.isFinite && age >= -lead && age <= maximumGap
     }
 
     private func appendTimed(

@@ -36,7 +36,8 @@ final class ProcessGrowthMonitor {
         for process in selected {
             let identity = process.id
             let age = now.timeIntervalSince(process.timestamp)
-            guard process.footprintReadable, age >= 0, age <= maximumGap else {
+            guard process.footprintReadable, age >= -AlertEngine.processLead, age <= maximumGap
+            else {
                 result.unknown.insert(identity)
                 continue
             }

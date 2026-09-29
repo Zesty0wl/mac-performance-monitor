@@ -80,6 +80,32 @@ final class AdaptiveAlertEngineTests: XCTestCase {
         XCTAssertEqual(critical.map(\.kind), [.criticalPressure])
     }
 
+    func testScanStampedJustAfterTheTickKeepsALeakActive() {
+        // The scan runs after the system tick it is evaluated with, so its
+        // process samples are a few milliseconds newer than `now`. That must
+        // read as fresh evidence, not as unknown.
+        let engine = AlertEngine()
+        let config = AlertConfig(leakEnabled: true)
+        func leaking(_ offset: Double) -> ProcessSample {
+            Make.process(
+                timestamp: start.addingTimeInterval(offset),
+                footprint: UInt64(200 * 1_048_576 + offset * 400 * 1024))
+        }
+        for offset in stride(from: 0.0, through: 2700, by: 10) {
+            _ = engine.evaluate(
+                system: Make.system(timestamp: start.addingTimeInterval(offset)),
+                processes: [leaking(offset)], config: config)
+        }
+        let id = Alert(
+            kind: .leak, title: "", body: "", identity: leaking(0).id, date: start
+        ).id
+        XCTAssertEqual(engine.incidentSnapshot.incidents[id]?.phase, .active)
+        _ = engine.evaluate(
+            system: Make.system(timestamp: start.addingTimeInterval(2710)),
+            processes: [leaking(2710.05)], config: config)
+        XCTAssertEqual(engine.incidentSnapshot.incidents[id]?.phase, .active)
+    }
+
     func testOlderEvaluationCannotResolveANewerIncident() {
         let engine = AlertEngine()
         _ = engine.evaluate(
