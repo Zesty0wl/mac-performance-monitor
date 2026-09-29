@@ -1,9 +1,53 @@
+import AppKit
 import MacPerfMonitorCore
 import SwiftUI
 
-enum MainWindowTab: Hashable {
+/// The main window's size limits. The window's only drag handle is the empty
+/// toolbar beside the tab strip. On macOS 26 and later the strip gives every tab
+/// the width of the widest title and never shrinks: about 820 pt in English but
+/// about 1,135 pt in French, where "Tableau de bord" sets every segment. When the
+/// window is too narrow for the strip, the traffic lights and the trailing
+/// buttons, nothing is left to grab and the window cannot be dragged at all,
+/// which is how it always opened at the old 980 pt default. So the minimum is
+/// measured from the localized titles. A language change relaunches the app, so
+/// measuring once is enough.
+enum MainWindowSize {
+    static let minimumHeight: CGFloat = 520
+    static let defaultHeight: CGFloat = 720
+
+    static let minimumWidth: CGFloat = {
+        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        let widest =
+            MainWindowTab.allCases.map {
+                ($0.title as NSString).size(withAttributes: [.font: font]).width
+            }.max() ?? 0
+        // Each segment is its title plus about 16 pt; the strip is centred, so
+        // each side needs the trailing buttons' ~100 pt plus room to grab.
+        let strip = CGFloat(MainWindowTab.allCases.count) * (widest + 16) + 4
+        return max(860, (strip + 2 * (100 + 40)).rounded(.up))
+    }()
+
+    static var defaultWidth: CGFloat { max(1280, minimumWidth + 100) }
+}
+
+enum MainWindowTab: Hashable, CaseIterable {
     case dashboard, processes, gpu, battery, network, diskUsage, hardware
     case analytics, insights, groups
+
+    var title: String {
+        switch self {
+        case .dashboard: return t("Dashboard")
+        case .processes: return t("Processes")
+        case .gpu: return t("GPU")
+        case .battery: return t("Energy")
+        case .network: return t("Network")
+        case .diskUsage: return t("Disk")
+        case .hardware: return t("Hardware")
+        case .analytics: return t("Explorer")
+        case .insights: return t("Insights")
+        case .groups: return t("Groups")
+        }
+    }
 }
 
 /// The main window's four tabs: Dashboard (pressure timeline, taxonomy, swap,
@@ -39,51 +83,57 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $tab) {
             TabGate(isActive: tab == .dashboard) { DashboardView() }
-                .tabItem { Label("Dashboard", systemImage: "gauge.with.dots.needle.50percent") }
+                .tabItem {
+                    Label(
+                        MainWindowTab.dashboard.title,
+                        systemImage: "gauge.with.dots.needle.50percent")
+                }
                 .tag(MainWindowTab.dashboard)
 
             TabGate(isActive: tab == .processes) {
                 ProcessesTab(selection: $processSelection, didAutoSelect: $didAutoSelectProcess)
             }
-            .tabItem { Label("Processes", systemImage: "list.bullet.rectangle") }
+            .tabItem { Label(MainWindowTab.processes.title, systemImage: "list.bullet.rectangle") }
             .tag(MainWindowTab.processes)
 
             TabGate(isActive: tab == .gpu) { GPUView() }
-                .tabItem { Label("GPU", systemImage: "display") }
+                .tabItem { Label(MainWindowTab.gpu.title, systemImage: "display") }
                 .tag(MainWindowTab.gpu)
 
             TabGate(isActive: tab == .battery) { BatteryView() }
-                .tabItem { Label("Energy", systemImage: "bolt.fill") }
+                .tabItem { Label(MainWindowTab.battery.title, systemImage: "bolt.fill") }
                 .tag(MainWindowTab.battery)
 
             TabGate(isActive: tab == .network) { NetworkView() }
-                .tabItem { Label("Network", systemImage: "network") }
+                .tabItem { Label(MainWindowTab.network.title, systemImage: "network") }
                 .tag(MainWindowTab.network)
 
             TabGate(isActive: tab == .diskUsage) { DiskUsageView() }
-                .tabItem { Label("Disk", systemImage: "internaldrive") }
+                .tabItem { Label(MainWindowTab.diskUsage.title, systemImage: "internaldrive") }
                 .tag(MainWindowTab.diskUsage)
 
             TabGate(isActive: tab == .hardware) { HardwareView() }
-                .tabItem { Label("Hardware", systemImage: "macbook") }
+                .tabItem { Label(MainWindowTab.hardware.title, systemImage: "macbook") }
                 .tag(MainWindowTab.hardware)
 
             TabGate(isActive: tab == .analytics) {
                 AnalyticsView(explorer: explorer, imported: $importedTrace)
                     .id(investigationRevision)
             }
-            .tabItem { Label("Explorer", systemImage: "waveform.path.ecg.rectangle") }
+            .tabItem {
+                Label(MainWindowTab.analytics.title, systemImage: "waveform.path.ecg.rectangle")
+            }
             .tag(MainWindowTab.analytics)
 
             TabGate(isActive: tab == .insights) { InsightsView() }
-                .tabItem { Label("Insights", systemImage: "lightbulb") }
+                .tabItem { Label(MainWindowTab.insights.title, systemImage: "lightbulb") }
                 .tag(MainWindowTab.insights)
 
             TabGate(isActive: tab == .groups) { GroupsView() }
-                .tabItem { Label("Groups", systemImage: "square.stack.3d.up") }
+                .tabItem { Label(MainWindowTab.groups.title, systemImage: "square.stack.3d.up") }
                 .tag(MainWindowTab.groups)
         }
-        .frame(minWidth: 860, minHeight: 520)
+        .frame(minWidth: MainWindowSize.minimumWidth, minHeight: MainWindowSize.minimumHeight)
         .forceQuitConfirmation(target: $appState.pendingForceQuit)
         .sheet(item: $appState.codesignTarget) { target in
             CodesignSheet(target: target)

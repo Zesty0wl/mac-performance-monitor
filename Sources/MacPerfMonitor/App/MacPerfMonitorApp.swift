@@ -142,7 +142,7 @@ struct MacPerfMonitorApp: App {
                     .environmentObject(appDelegate.components)
             }
         }
-        .defaultSize(width: 980, height: 640)
+        .defaultSize(width: MainWindowSize.defaultWidth, height: MainWindowSize.defaultHeight)
         .windowToolbarStyle(.unifiedCompact)
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
@@ -1015,7 +1015,9 @@ struct MainWindowGate: View {
                 ContentView()
             } else {
                 Color(nsColor: .windowBackgroundColor)
-                    .frame(minWidth: 860, minHeight: 520)
+                    .frame(
+                        minWidth: MainWindowSize.minimumWidth,
+                        minHeight: MainWindowSize.minimumHeight)
             }
         }
         .toolbar {
