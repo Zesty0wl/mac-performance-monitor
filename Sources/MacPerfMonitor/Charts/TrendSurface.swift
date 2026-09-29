@@ -54,6 +54,9 @@ struct TrendModel {
     var detailFormat: ((Double) -> String)?
     var discrete = false
     var valueUnit: String?
+    /// A spike the auto-scaled axis chose not to fit (see
+    /// `LiveChartGeometry.outlierCeiling`), whether or not it is on scale now.
+    var outlierPeak: Double?
 }
 
 /// A live chart's data channel: the current model and the surfaces listening

@@ -42,6 +42,8 @@ final class DataExplorerModel: ObservableObject {
     @Published var selectedLaneID = "cpu"
     @Published var focusedLaneID: String?
     @Published var showsInspector = true
+    /// Lanes drawn to their tallest spike rather than fitted to the rest.
+    @Published private(set) var fullScaleLaneIDs: Set<String> = []
     let cursor = ExplorerCursor()
 
     private(set) var system: [SystemHistoryPoint] = []
@@ -63,6 +65,7 @@ final class DataExplorerModel: ObservableObject {
     private var preparation: DispatchWorkItem?
     private var preparationGeneration = 0
     private var needsChartReplacement = false
+    private var publishedFullScale: Set<String> = []
     private var tailInFlight = false
     private let preferences: UserDefaults?
 
@@ -533,12 +536,13 @@ final class DataExplorerModel: ObservableObject {
         let identities = identities
         let domain = domain
         let colors = Dictionary(uniqueKeysWithValues: identities.map { ($0, color(for: $0)) })
+        let fullScale = fullScaleLaneIDs
         let highResolution = SamplerModel.configuredHighResInterval()
         let standardResolution = SamplerModel.configuredStandardResInterval()
         let publish: @MainActor ([(ExplorerLaneDefinition, TrendModel)]) -> Void = {
             [weak self] models in
             guard let self, request == self.preparationGeneration else { return }
-            self.publish(models, replacing: self.needsChartReplacement)
+            self.publish(models, replacing: self.needsChartReplacement, fullScale: fullScale)
             self.needsChartReplacement = false
             self.preparing = false
         }
@@ -546,13 +550,13 @@ final class DataExplorerModel: ObservableObject {
             publish(
                 Self.prepare(
                     definitions: definitions, system: system, histories: histories,
-                    identities: identities, colors: colors, domain: domain,
+                    identities: identities, colors: colors, domain: domain, fullScale: fullScale,
                     highResolution: highResolution, standardResolution: standardResolution))
         } else {
             let work = DispatchWorkItem {
                 let models = Self.prepare(
                     definitions: definitions, system: system, histories: histories,
-                    identities: identities, colors: colors, domain: domain,
+                    identities: identities, colors: colors, domain: domain, fullScale: fullScale,
                     highResolution: highResolution, standardResolution: standardResolution)
                 DispatchQueue.main.async { publish(models) }
             }
@@ -565,7 +569,7 @@ final class DataExplorerModel: ObservableObject {
         definitions: [ExplorerLaneDefinition], system: [SystemHistoryPoint],
         histories: [ExplorerProcessHistory],
         identities: [ProcessIdentity], colors: [ProcessIdentity: Color], domain: ClosedRange<Date>,
-        highResolution: Double, standardResolution: Double
+        fullScale: Set<String>, highResolution: Double, standardResolution: Double
     ) -> [(ExplorerLaneDefinition, TrendModel)] {
         let sourceWidth = max(
             system.map(\.bucketDuration).max() ?? 0,
@@ -621,18 +625,55 @@ final class DataExplorerModel: ObservableObject {
                     model.yDomain = 20...100
                 }
             }
-            if model.yDomain == nil { model.yDomain = TrendSurfaceView.resolvedDomain(model) }
+            if model.yDomain == nil {
+                let fit = LiveChartGeometry.outlierCeiling(peaks: samplePeaks(model.series))
+                model.outlierPeak = fit.outlierPeak
+                model.yDomain =
+                    0...(fullScale.contains(definition.id) ? fit.fullCeiling : fit.ceiling)
+            }
             result.append((definition, model))
         }
         return result
     }
 
-    private func publish(_ models: [(ExplorerLaneDefinition, TrendModel)], replacing: Bool) {
+    /// Each sample's highest scaled value across a lane's series: its band top
+    /// where it has one, else the value itself.
+    nonisolated private static func samplePeaks(_ series: [TrendSurfaceSeries]) -> [Double] {
+        var peaks: [Double] = []
+        peaks.reserveCapacity(series.reduce(0) { $0 + $1.column.values.count })
+        for s in series {
+            let values = s.column.values
+            let highs = s.column.highs.map(Array.init)
+            for (offset, value) in values.enumerated() {
+                var peak = value
+                if let highs, offset < highs.count, highs[offset].isFinite {
+                    peak = peak.isFinite ? max(peak, highs[offset]) : highs[offset]
+                }
+                peaks.append(peak * s.scale)
+            }
+        }
+        return peaks
+    }
+
+    func toggleFullScale(_ laneID: String) {
+        if fullScaleLaneIDs.remove(laneID) == nil { fullScaleLaneIDs.insert(laneID) }
+        rebuild(replacing: false)
+    }
+
+    private func publish(
+        _ models: [(ExplorerLaneDefinition, TrendModel)], replacing: Bool, fullScale: Set<String>
+    ) {
         var result: [ExplorerLane] = []
         for (definition, prepared) in models {
             var model = prepared
             let feed = feeds[definition.id] ?? TrendFeed()
-            if !replacing, definition.fixedDomain == nil, let previous = feed.model.yDomain {
+            // A scale switch must be free to shrink the axis, so it skips the
+            // grow-only union that keeps a live axis steady.
+            let rescaled =
+                fullScale.contains(definition.id) != publishedFullScale.contains(definition.id)
+            if !replacing, !rescaled, definition.fixedDomain == nil,
+                let previous = feed.model.yDomain
+            {
                 let next = model.yDomain ?? previous
                 model.yDomain =
                     min(
@@ -643,6 +684,7 @@ final class DataExplorerModel: ObservableObject {
             feeds[definition.id] = feed
             result.append(ExplorerLane(definition: definition, feed: feed))
         }
+        publishedFullScale = fullScale
         let order = [
             "cpu", "process.cpu", "pressure", "memory", "process.footprint", "network",
             "process.network",

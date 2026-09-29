@@ -352,39 +352,59 @@ struct DataExplorerView: View {
         .padding(.horizontal, 14).frame(height: 38)
     }
 
+    /// The lanes on screen: the focused one alone, or every enabled lane.
+    private var visibleLanes: [ExplorerLane] {
+        explorer.lanes.filter { explorer.focusedLaneID == nil || $0.id == explorer.focusedLaneID }
+    }
+
+    /// One or two charts stack full width and share the height rather than
+    /// leaving most of the workspace empty.
+    private var lanesFillHeight: Bool { (1...2).contains(visibleLanes.count) }
+
     private var chartWorkspace: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                if let error = explorer.error {
-                    HStack {
-                        Label(error, systemImage: "exclamationmark.triangle").font(.callout)
-                        Spacer()
-                        Button("Retry") { explorer.refresh() }
-                    }.foregroundStyle(.orange).padding(16)
-                }
-                if chartGrid, explorer.focusedLaneID == nil {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 370), spacing: 0)], spacing: 0)
-                    {
-                        ForEach(explorer.lanes) { lane in
-                            VStack(spacing: 0) {
+        GeometryReader { geometry in
+            ScrollView {
+                if lanesFillHeight {
+                    VStack(spacing: 0) {
+                        errorBanner
+                        ForEach(visibleLanes) { lane in
+                            laneView(lane, fillsHeight: true)
+                            Divider()
+                        }
+                    }
+                    // Short windows scroll rather than squash the charts.
+                    .frame(
+                        height: max(
+                            geometry.size.height, CGFloat(visibleLanes.count) * Self.minimumFillLane
+                        ))
+                } else {
+                    LazyVStack(spacing: 0) {
+                        errorBanner
+                        if chartGrid, explorer.focusedLaneID == nil {
+                            LazyVGrid(
+                                columns: [GridItem(.adaptive(minimum: 370), spacing: 0)],
+                                spacing: 0
+                            ) {
+                                ForEach(explorer.lanes) { lane in
+                                    VStack(spacing: 0) {
+                                        laneView(lane)
+                                        Divider()
+                                    }
+                                }
+                            }
+                        } else {
+                            ForEach(visibleLanes) { lane in
                                 laneView(lane)
                                 Divider()
                             }
                         }
-                    }
-                } else {
-                    ForEach(
-                        explorer.lanes.filter {
-                            explorer.focusedLaneID == nil || $0.id == explorer.focusedLaneID
+                        if explorer.lanes.isEmpty {
+                            ContentUnavailableView(
+                                "No metrics selected", systemImage: "chart.xyaxis.line"
+                            )
+                            .frame(minHeight: 280)
                         }
-                    ) { lane in
-                        laneView(lane)
-                        Divider()
                     }
-                }
-                if explorer.lanes.isEmpty {
-                    ContentUnavailableView("No metrics selected", systemImage: "chart.xyaxis.line")
-                        .frame(minHeight: 280)
                 }
             }
         }
@@ -392,7 +412,47 @@ struct DataExplorerView: View {
         .opacity(explorer.loading || explorer.preparing ? 0.45 : 1)
     }
 
-    private func laneView(_ lane: ExplorerLane) -> some View {
+    /// Height below which a filling lane stops shrinking and the stack scrolls.
+    private static let minimumFillLane: CGFloat = 240
+
+    @ViewBuilder private var errorBanner: some View {
+        if let error = explorer.error {
+            HStack {
+                Label(error, systemImage: "exclamationmark.triangle").font(.callout)
+                Spacer()
+                Button("Retry") { explorer.refresh() }
+            }.foregroundStyle(.orange).padding(16)
+        }
+    }
+
+    /// Offers the other scale when the lane's axis left a spike off the top,
+    /// or was switched to show it.
+    @ViewBuilder private func scaleControl(_ lane: ExplorerLane) -> some View {
+        if let peak = lane.feed.model.outlierPeak {
+            if explorer.fullScaleLaneIDs.contains(lane.id) {
+                Button {
+                    explorer.toggleFullScale(lane.id)
+                } label: {
+                    Label("Fit scale", systemImage: "arrow.down.to.line").font(.caption2)
+                }
+                .buttonStyle(.plain).foregroundStyle(.secondary)
+                .help("Fit the axis to the rest of the data")
+            } else if let top = lane.feed.model.yDomain?.upperBound, peak > top {
+                Button {
+                    explorer.toggleFullScale(lane.id)
+                } label: {
+                    Label(
+                        t("Peak %@ off scale", lane.definition.unit.format(peak)),
+                        systemImage: "arrow.up.to.line"
+                    ).font(.caption2)
+                }
+                .buttonStyle(.plain).foregroundStyle(.orange)
+                .help("Show full scale")
+            }
+        }
+    }
+
+    private func laneView(_ lane: ExplorerLane, fillsHeight: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Button {
@@ -404,6 +464,7 @@ struct DataExplorerView: View {
                         .font(.subheadline.weight(.semibold))
                 }.buttonStyle(.plain)
                 Spacer(minLength: 0)
+                scaleControl(lane)
                 Text(lane.definition.isProcess ? t("Processes") : t("Machine"))
                     .font(.caption2).foregroundStyle(.secondary)
                 Button {
@@ -428,7 +489,8 @@ struct DataExplorerView: View {
                     explorer.selectedLaneID = lane.id
                     explorer.inspect(date)
                 }
-                .frame(height: explorer.focusedLaneID == nil ? 165 : 350)
+                .frame(height: fillsHeight ? nil : explorer.focusedLaneID == nil ? 165 : 350)
+                .frame(minHeight: fillsHeight ? 120 : nil, maxHeight: fillsHeight ? .infinity : nil)
                 .accessibilityIdentifier("explorer.chart.\(lane.id)")
                 if lane.feed.model.series.allSatisfy({
                     !$0.column.values.contains(where: \.isFinite)
@@ -452,6 +514,7 @@ struct DataExplorerView: View {
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 12)
+        .frame(maxHeight: fillsHeight ? .infinity : nil, alignment: .top)
         .background(explorer.selectedLaneID == lane.id ? Color.accentColor.opacity(0.035) : .clear)
     }
 

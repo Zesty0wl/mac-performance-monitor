@@ -1876,6 +1876,46 @@
         "zh-Hans" : { "stringUnit" : { "state" : "needs_review", "value" : "聚焦图表" } }
       }
     },
+    "Peak %@ off scale" : {
+      "comment" : "Explorer lane header: a spike above the fitted y axis, with its value. Clicking shows the full scale. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "needs_review", "value" : "Spitze %@ außerhalb der Skala" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Peak %@ off scale" } },
+        "fr" : { "stringUnit" : { "state" : "needs_review", "value" : "Pic de %@ hors échelle" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "needs_review", "value" : "峰值 %@ 超出刻度" } }
+      }
+    },
+    "Show full scale" : {
+      "comment" : "Explorer: help for the off-scale peak button. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "needs_review", "value" : "Volle Skala anzeigen" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Show full scale" } },
+        "fr" : { "stringUnit" : { "state" : "needs_review", "value" : "Afficher l’échelle complète" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "needs_review", "value" : "显示完整刻度" } }
+      }
+    },
+    "Fit scale" : {
+      "comment" : "Explorer lane header: fit the y axis to the data again, leaving a spike off the top. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "needs_review", "value" : "Skala anpassen" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Fit scale" } },
+        "fr" : { "stringUnit" : { "state" : "needs_review", "value" : "Ajuster l’échelle" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "needs_review", "value" : "适配刻度" } }
+      }
+    },
+    "Fit the axis to the rest of the data" : {
+      "comment" : "Explorer: help for the Fit scale button. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "needs_review", "value" : "Achse an die übrigen Daten anpassen" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Fit the axis to the rest of the data" } },
+        "fr" : { "stringUnit" : { "state" : "needs_review", "value" : "Ajuster l’axe au reste des données" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "needs_review", "value" : "让坐标轴适配其余数据" } }
+      }
+    },
     "Go" : {
       "comment" : "Explorer jump-to-time confirmation. AI-generated translations; native-speaker review pending.",
       "extractionState" : "manual",
