@@ -122,4 +122,21 @@ final class NotchDisplayModesTests: XCTestCase {
         XCTAssertNil(NotchDisplayModes.notchFreeTwin(of: mode(1512, 982), in: []))
         XCTAssertFalse(NotchDisplayModes.isNotchHidden(current: mode(1512, 982), in: []))
     }
+
+    func testLaunchRestoresOnlyANotchSwitchTheAppMade() {
+        func restore(_ hide: Bool?, _ byApp: Bool?, _ hidden: Bool) -> Bool {
+            NotchDisplayModes.shouldRestoreNotch(
+                hideNotch: hide, hiddenByApp: byApp, isNotchHidden: hidden)
+        }
+        // Turned off outside the menu after the app hid it: restore.
+        XCTAssertTrue(restore(false, true, true))
+        // A switch from before the record existed, explicitly turned off.
+        XCTAssertTrue(restore(false, nil, true))
+        // Still wanted, or already showing: leave it.
+        XCTAssertFalse(restore(true, true, true))
+        XCTAssertFalse(restore(false, true, false))
+        // The user picked the notch-free size in System Settings.
+        XCTAssertFalse(restore(false, false, true))
+        XCTAssertFalse(restore(nil, nil, true))
+    }
 }

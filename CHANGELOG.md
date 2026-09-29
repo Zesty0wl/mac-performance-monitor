@@ -22,6 +22,12 @@ Notable changes to Mac Performance Monitor. This project follows
   in place at launch to apply it. On macOS 27 the menu bar could not recognise
   the restarted process, so the item never showed. The language is now applied
   without a restart.
+- Turning Hide Notch off outside the menu now brings the notch back. The
+  display switch is permanent, and only the menu's Show Notch used to undo it,
+  so writing `hideNotch` false while the menu bar item was invisible left the
+  Mac on the notch-free resolution. At launch the app now restores the notched
+  resolution when it made the switch itself. A resolution picked in System
+  Settings is left alone.
 - Leak and memory budget alerts no longer flicker in the menu bar. Every
   process scan briefly marked them unknown because its samples were stamped a
   few milliseconds after the moment they were checked against, so an alert

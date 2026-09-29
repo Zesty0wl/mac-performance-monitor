@@ -116,4 +116,26 @@ public enum NotchDisplayModes {
     public static func hasNotchPair(in modes: [DisplayModeDescriptor]) -> Bool {
         modes.contains { notchFreeTwin(of: $0, in: modes) != nil }
     }
+
+    /// Whether launch should put the notch back. The switch is permanent, so
+    /// turning Hide Notch off by any route other than the menu (which restores
+    /// the display itself), such as `defaults write ... hideNotch -bool false`
+    /// while the menu bar item is invisible, used to leave the Mac on the
+    /// notch-free resolution for good.
+    ///
+    /// - Parameters:
+    ///   - hideNotch: the stored preference, nil when it has never been set.
+    ///   - hiddenByApp: whether this app made the current notch-free switch,
+    ///     nil when the build that made it predates the record.
+    ///   - isNotchHidden: whether the display is on a notch-free mode now.
+    /// Restores only a switch the app made, or, for switches made before the
+    /// record existed, only when the preference was explicitly set to false.
+    /// A notch-free resolution picked in System Settings is never undone.
+    public static func shouldRestoreNotch(
+        hideNotch: Bool?, hiddenByApp: Bool?, isNotchHidden: Bool
+    ) -> Bool {
+        guard isNotchHidden, hideNotch != true else { return false }
+        if let hiddenByApp { return hiddenByApp }
+        return hideNotch == false
+    }
 }

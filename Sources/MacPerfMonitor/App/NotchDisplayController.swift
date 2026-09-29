@@ -29,6 +29,10 @@ final class NotchDisplayController: ObservableObject {
     /// UserDefaults key. Absent reads as `false`, so the display is never touched
     /// until the user asks for it.
     static let defaultsKey = "hideNotch"
+    /// Whether the current notch-free mode is one this app switched to, so
+    /// launch can undo it when the preference is turned off by any route other
+    /// than the menu (see `NotchDisplayModes.shouldRestoreNotch`).
+    static let hiddenByAppKey = "hideNotch.appliedByApp"
 
     /// Whether this Mac has a notch to hide. Drives whether the menu shows the
     /// item at all, so Macs without one never see a toggle that does nothing.
@@ -48,6 +52,13 @@ final class NotchDisplayController: ObservableObject {
         refreshState()
         if defaults.bool(forKey: Self.defaultsKey) {
             apply(hidingNotch: true)
+        } else if NotchDisplayModes.shouldRestoreNotch(
+            hideNotch: defaults.object(forKey: Self.defaultsKey) as? Bool,
+            hiddenByApp: defaults.object(forKey: Self.hiddenByAppKey) as? Bool,
+            isNotchHidden: isNotchHidden)
+        {
+            AppLog.ui.notice("notch toggle: Hide Notch is off, restoring the notched mode")
+            apply(hidingNotch: false)
         }
         // Fires on wake, on docking or undocking a display, and when the user
         // changes resolution in System Settings.
@@ -127,6 +138,8 @@ final class NotchDisplayController: ObservableObject {
         if result != .success {
             AppLog.ui.error(
                 "notch toggle: display configuration failed (\(result.rawValue, privacy: .public))")
+        } else {
+            defaults.set(hidden, forKey: Self.hiddenByAppKey)
         }
         refreshState()
     }
