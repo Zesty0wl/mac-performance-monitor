@@ -64,31 +64,30 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
 /// MainActor-bound manager.
 let appLanguageDefaultsKey = "uk.co.bzwrd.macperfmonitor.language"
 
-/// Re-executes the app with `-AppleLanguages` when the stored language choice
-/// is not what the main bundle resolved. Writing `AppleLanguages` to the app's
+/// Applies the stored language choice to this process before anything reads
+/// its localization. Writing `AppleLanguages` to the app's persistent
 /// preferences steers `Locale` but, on current macOS, not the main bundle's
-/// string-table selection, so a plain relaunch after switching language in
-/// Settings would come up part-translated. The launch-argument domain is
-/// honored everywhere, so `main()` calls this once before the SwiftUI
-/// lifecycle starts whenever a specific language is stored; the guard against
-/// an existing `-AppleLanguages` argument makes a loop impossible. Detecting
-/// whether the re-exec is needed is deliberately not attempted:
-/// `preferredLocalizations` reports the preference-derived answer even when
-/// string lookup is serving the development language, so the only reliable
-/// signal is the argument itself.
+/// string-table selection, so a launch after switching language in Settings
+/// would come up part-translated. The launch-argument domain is honored
+/// everywhere, so `main()` calls this once before the SwiftUI lifecycle starts
+/// and it places the choice there, exactly where `-AppleLanguages` on the
+/// command line would put it.
+///
+/// This used to `execv` the binary with `-AppleLanguages` appended. On macOS 27
+/// that replaced process keeps its pid but not its pid version, so MenuBarAgent
+/// could not resolve it and the menu bar item never appeared whenever a
+/// specific language was chosen (#124). Setting the argument domain in place
+/// needs no second process.
 enum AppLanguagePreflight {
     static func run() {
         guard !CommandLine.arguments.contains("-AppleLanguages"),
             let raw = UserDefaults.standard.string(forKey: appLanguageDefaultsKey),
-            let language = AppLanguage(rawValue: raw), language != .system,
-            let binary = Bundle.main.executablePath
+            let language = AppLanguage(rawValue: raw), language != .system
         else { return }
-        var arguments = CommandLine.arguments
-        arguments.append(contentsOf: ["-AppleLanguages", "(\(language.rawValue))"])
-        let argv = arguments.map { strdup($0) } + [nil]
-        execv(binary, argv)
-        // execv only returns on failure; continue with the mixed launch.
-        argv.forEach { free($0) }
+        let defaults = UserDefaults.standard
+        var arguments = defaults.volatileDomain(forName: UserDefaults.argumentDomain)
+        arguments["AppleLanguages"] = [language.rawValue]
+        defaults.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
     }
 }
 

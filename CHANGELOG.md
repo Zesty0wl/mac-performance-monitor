@@ -17,6 +17,28 @@ Notable changes to Mac Performance Monitor. This project follows
   process that has just restarted. The restart gap marker reached the rate
   label as NaN, which crashed the app when converted to a whole number. Rate
   labels now treat missing values as zero, and chart summaries skip gap markers.
+- **The menu bar item appears again when a specific language is chosen** ([#124](https://github.com/Zesty0wl/mac-performance-monitor/issues/124)).
+  With the language set to anything but Follow System, the app restarted itself
+  in place at launch to apply it. On macOS 27 the menu bar could not recognise
+  the restarted process, so the item never showed. The language is now applied
+  without a restart.
+- Leak and memory budget alerts no longer flicker in the menu bar. Every
+  process scan briefly marked them unknown because its samples were stamped a
+  few milliseconds after the moment they were checked against, so an alert
+  appeared and vanished before it could be read.
+- The main window can be dragged again on macOS 26 and 27. It opened too
+  narrow to leave any empty toolbar beside the tab strip, which is the only
+  place to grab it. The minimum and default widths now fit the tab titles of
+  the chosen language with room to spare.
+
+### Changed
+
+- With one or two charts showing, the Explorer stacks them full width and
+  shares the window height between them instead of leaving most of the
+  workspace empty.
+- An Explorer chart no longer lets a single spike set its whole axis. When a
+  few isolated samples tower over the rest, the axis fits the rest and the
+  chart header shows the spike's value; click it to see the full scale.
 
 ## [2.2.1] - 2026-09-23
 
