@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 #
-# run.sh — the dev inner loop: build, bundle, sign, and launch.
+# run.sh - the dev inner loop: build, bundle, sign, and launch.
 #
-# Debug by default for fast iteration; pass --release to match the shipping
-# build.
+# Debug by default for fast iteration; --release uses release optimization,
+# but does not notarize or install a shipping build.
 #
 # Signing modes:
-#   (default)        Ad-hoc (codesign -s -). Launches locally with no cert, but
+#   (default)        Use a keychain identity when available, otherwise ad-hoc.
+#   --adhoc          Ad-hoc (codesign -s -). Launches locally with no cert, but
 #                    the ad-hoc signature has no certificate chain, so it cannot
 #                    satisfy the app<->helper XPC code-signing pin
 #                    (HelperConstants.peerRequirement, which requires
@@ -70,22 +71,21 @@ if [[ "$SIGN_MODE" == "auto" ]]; then
     SIGN_MODE="identity"
   else
     SIGN_MODE="adhoc"
-    echo "run.sh: no codesigning identity found — falling back to ad-hoc." >&2
+    echo "run.sh: no codesigning identity found; falling back to ad-hoc." >&2
     echo "        (Helper coverage will not work and perf is unrepresentative.)" >&2
   fi
 fi
 
 echo "==> Building ($CONFIG)"
-swift build -c "$CONFIG" --product MacPerfMonitor
-# Build the privileged helper too so the bundle is complete (the app target does
-# not depend on it, so it is not built transitively).
-swift build -c "$CONFIG" --product MacPerfMonitorHelper
+Scripts/build.sh "--$CONFIG"
 
 echo "==> Bundling"
 Scripts/bundle.sh "$CONFIG"
 
 APP="build/Mac Performance Monitor.app"
 HELPER="$APP/Contents/MacOS/MacPerfMonitorHelper"
+INFERENCE="$APP/Contents/MacOS/MacPerfMonitorInference"
+LLAMA="$APP/Contents/Frameworks/llama.framework"
 
 ENTITLEMENTS="Resources/MacPerfMonitor.entitlements"
 
@@ -97,6 +97,9 @@ if [[ "$SIGN_MODE" == "identity" ]]; then
     exit 1
   }
   echo "==> Signing with identity: $IDENTITY"
+  codesign --force --options runtime --sign "$IDENTITY" "$LLAMA"
+  codesign --force --options runtime --identifier "uk.co.bzwrd.macperfmonitor.inference" \
+    --sign "$IDENTITY" "$INFERENCE"
   # Inside out: sign the nested helper before the enclosing app. The helper needs
   # no entitlements (it runs as root); the explicit --identifier makes its code
   # identity "uk.co.bzwrd.macperfmonitor.helper" so it satisfies the app's
@@ -147,6 +150,8 @@ if [[ "$SIGN_MODE" == "identity" ]]; then
   fi
 else
   echo "==> Ad-hoc signing (helper coverage will NOT work; pass --developer-id to sign with your cert)"
+  codesign --force --sign - "$LLAMA"
+  codesign --force --identifier "uk.co.bzwrd.macperfmonitor.inference" --sign - "$INFERENCE"
   # NO --options runtime on this path, deliberately. Hardened Runtime turns on
   # library validation, which requires the app and every framework it loads to
   # share a Team ID. An ad-hoc signature carries NO team, and macOS does not treat
@@ -187,5 +192,4 @@ fi
 echo "==> Launching"
 open "$APP"
 echo "Launched $APP"
-echo "Note: this is a menu bar app (no window, no Dock icon by default);"
-echo "look for its read-out near the clock at the right end of the menu bar."
+echo "Opening the app window. Menu bar, Dock, and history options are in Settings."

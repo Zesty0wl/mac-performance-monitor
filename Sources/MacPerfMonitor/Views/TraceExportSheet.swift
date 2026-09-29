@@ -15,6 +15,8 @@ struct TraceExportSheet: View {
     let currentView: ClosedRange<Date>
     /// Processes to pre-tick (the ones already pinned on the chart), if any.
     let preselected: [ProcessIdentity]
+    var recorded: [ExplorerProcess] = []
+    var initialResolution: ExportResolution = .full
 
     /// Running, readable processes snapshotted on appear so the list does not
     /// churn while the user is choosing.
@@ -81,6 +83,15 @@ struct TraceExportSheet: View {
         }
     }
 
+    private var recordedCandidates: [ExplorerProcess] {
+        let live = Set(candidates.map(\.id))
+        return recorded.filter { !live.contains($0.id) }
+    }
+
+    private var candidateIDs: Set<ProcessIdentity> {
+        Set(candidates.map(\.id)).union(recordedCandidates.map(\.id))
+    }
+
     private var processList: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
@@ -90,9 +101,9 @@ struct TraceExportSheet: View {
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button("Select all") { selected = Set(candidates.map(\.id)) }
+                Button("Select all") { selected = candidateIDs }
                     .controlSize(.small)
-                    .disabled(candidates.isEmpty || selected.count == candidates.count)
+                    .disabled(candidateIDs.isEmpty || selected == candidateIDs)
                 Button("Clear") { selected.removeAll() }
                     .controlSize(.small)
                     .disabled(selected.isEmpty)
@@ -121,6 +132,35 @@ struct TraceExportSheet: View {
                 LazyVStack(spacing: 0) {
                     ForEach(filteredCandidates) { process in
                         row(for: process)
+                        Divider()
+                    }
+                    ForEach(
+                        recordedCandidates.filter {
+                            search.isEmpty || $0.name.localizedCaseInsensitiveContains(search)
+                                || String($0.id.pid).contains(search)
+                        }
+                    ) { process in
+                        Button {
+                            toggle(process.id)
+                        } label: {
+                            HStack(spacing: 9) {
+                                Image(
+                                    systemName: selected.contains(process.id)
+                                        ? "checkmark.circle.fill" : "circle")
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(process.name).lineLimit(1).truncationMode(.middle)
+                                    Text(t("PID %@", String(process.id.pid))).font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text("Recorded").font(.caption).foregroundStyle(.secondary)
+                            }.padding(.horizontal, 16).padding(.vertical, 6).contentShape(
+                                Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .background(
+                            selected.contains(process.id) ? Color.accentColor.opacity(0.08) : .clear
+                        )
                         Divider()
                     }
                 }
@@ -236,9 +276,8 @@ struct TraceExportSheet: View {
     private func loadCandidates() {
         let readable = (model.latest?.processes ?? []).filter { $0.footprintReadable }
         candidates = readable.sorted { $0.physFootprint > $1.physFootprint }
-        // Pre-tick the pinned processes that are still running.
-        let running = Set(candidates.map(\.id))
-        selected = Set(preselected).intersection(running)
+        selected = Set(preselected).intersection(candidateIDs)
+        resolution = initialResolution
     }
 
     private func toggle(_ id: ProcessIdentity) {
@@ -251,15 +290,20 @@ struct TraceExportSheet: View {
 
     private func performExport() {
         // Keep the on-screen order (heaviest first) so series draw predictably.
-        let ordered = candidates.map(\.id).filter { selected.contains($0) }
+        let ordered = (candidates.map(\.id) + recordedCandidates.map(\.id)).filter {
+            selected.contains($0)
+        }
         guard !ordered.isEmpty else { return }
         let sampleByID = Dictionary(candidates.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let recordedByID = Dictionary(
+            recorded.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let now = Date()
         let window = timeframe.window(now: now, currentView: currentView)
         let res = resolution
         guard
             let destination = chooseDestination(
-                for: ordered.compactMap { sampleByID[$0] }, exportedAt: now)
+                for: ordered.compactMap { sampleByID[$0]?.displayName ?? recordedByID[$0]?.name },
+                exportedAt: now)
         else { return }
 
         exportOperation?.cancel()
@@ -287,6 +331,7 @@ struct TraceExportSheet: View {
                 histories: map,
                 orderedIdentities: ordered,
                 samples: sampleByID,
+                recorded: recordedByID,
                 window: window,
                 resolutionSeconds: res.nominalSeconds,
                 exportedAt: now,
@@ -309,7 +354,7 @@ struct TraceExportSheet: View {
     }
 
     private func chooseDestination(
-        for processes: [ProcessSample], exportedAt: Date
+        for processes: [String], exportedAt: Date
     ) -> URL? {
         let panel = NSSavePanel()
         panel.title = t("Export Process Data")
@@ -329,13 +374,13 @@ struct TraceExportSheet: View {
     }
 
     private func suggestedFileName(
-        for processes: [ProcessSample], exportedAt: Date
+        for processes: [String], exportedAt: Date
     ) -> String {
         let stamp = Self.stampFormatter.string(from: exportedAt)
         let base: String
         if processes.count == 1, let only = processes.first {
             let illegal = CharacterSet(charactersIn: "/:\\?%*|\"<>")
-            let safe = only.displayName.components(separatedBy: illegal).joined(separator: "_")
+            let safe = only.components(separatedBy: illegal).joined(separator: "_")
                 .trimmingCharacters(in: .whitespaces)
             base = safe.isEmpty ? "process" : safe
         } else {

@@ -44,8 +44,8 @@ final class ThermalTests: XCTestCase {
 
     // MARK: - Plausibility gates
 
-    /// Discovery is strict: calibration offset pairs (0.00 / -3.10), dead
-    /// zones, and sub-ambient voltage readings must never become sampled keys.
+    /// Non-die discovery is strict: calibration offset pairs (0.00 / -3.10),
+    /// dead zones and sub-ambient voltage readings must not become sampled keys.
     func testDiscoveryGateRejectsJunk() {
         for value in [0.0, -3.10, 0.01, 2.63, 9.9, 10.0, 110.0, 130.0] {
             XCTAssertFalse(SMCReader.isPlausibleDiscoveryTemperature(value), "\(value)")

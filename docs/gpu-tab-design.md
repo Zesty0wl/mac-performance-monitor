@@ -1,5 +1,209 @@
 # GPU tab: what Apple Silicon exposes, and a design
 
+## Menu Charts and Awake Time (18 September 2026)
+
+The GPU menu now has separate ANE time and power charts for the last 60 seconds.
+Both use the existing recent samples and menu refresh. They need no extra timer
+or database read. The axes show ms/s and watts, not a shared percent scale.
+Missing readings break the lines. Partial ANE time is a lower bound. Without
+the approved helper, ANE Time still works where supported, while ANE Power
+shows **Helper required**. The dropdown scrolls so its contents fit small screens.
+
+The former **Active** card is now **GPU awake**. It shows time with GPU power
+and its clock on, including time spent waiting for work. A high value does not
+mean the GPU is busy. The GPU utilization card reports busy time separately.
+Awake time is 100 minus the OFF state's share in IOReport. A missing or invalid
+OFF state now stays unknown instead of appearing as 100% awake.
+
+The card previously had no history feed, so its detail chart stayed blank.
+Schema v24 now records awake time and keeps valid-reading counts, means, and
+bounds in minute and hour history. The card and detail chart use these records,
+with a fixed 0-100% scale. Old logs have no awake-time data and stay gaps.
+New history builds as the updated app records samples.
+
+## Memory and Bandwidth (20 September 2026)
+
+GPU Memory now has a recorded chart in both its card and detail sheet. Before
+this fix, the live value worked but the card had no history feed. The detail
+sheet therefore stayed on "Building history" with no way to fill it.
+
+Schema v23 stores GPU memory bytes on each GPU sample. Minute and hour rows
+keep the mean, minimum, maximum, and count of valid readings. Chart means use
+those counts. Old rows stay unknown, not zero. History grows as the updated app
+records samples; it cannot recover GPU memory values from older logs.
+
+The **GPU memory bandwidth** panel shows Total, Reads, and Writes on one history
+chart, using GB/s and the same time range as GPU utilization. Compact values
+below the plot show the latest sample. Clock-state bars remain in the right-hand
+rail. The data comes from the GPU's `AGX RD`, `AGX WR`, and `AGX RD+WR` channels
+under IOReport `PMP / DCS BW`. The reader adds only these three channels to the
+existing GPU sampling path. It does not start another process or request helper
+access. It shares the GPU sampling gates and cadence.
+
+These counters are histograms with event counts, not exact byte totals. On the
+tested M3 Pro, macOS labels the bins from 1GB/s through 32GB/s. The estimate
+weights each label's rate by its share of the reported events. It does not divide
+by the sample duration again: the labels already represent rates. Each channel
+uses its own counts. The combined estimate is not the sum of the other estimates.
+
+This is a mean of band labels, not exact throughput, a time-weighted mean, or a
+percent of GPU capacity. The readout uses an approximate sign and at most one
+decimal place. If every event is in the lowest band, it says **Below resolution**;
+that band can include no traffic. The chart is marked **Preview** and carries
+one quiet caption explaining that actual bandwidth may be higher. This warning
+does not repeat under Total, Reads, or Writes. Faster traffic can fall in the top band.
+Neither edge band gives a precise bound from which to infer an exact mean.
+
+Schema v25 stores the three estimated rates with each system sample. Minute and
+hour records keep a separate mean, minimum, maximum, and valid-reading count for
+each channel. Chart averages weight those recorded samples, not elapsed time.
+Old records have no bandwidth values. The chart fills as the new build records
+samples; closing the tab or restarting does not discard recorded history.
+
+The shared chart renderer draws fixed-interval averages over the recorded range,
+with all three series on one scale. Hover shows the selected interval's values,
+bounds, and counts. The scale resets when the time range changes and only grows
+during live updates. Colors stay fixed. Total uses the combined counter, not a
+sum that could hide missing reads or writes.
+
+The info popover and chart caption explain the limits. Missing channels,
+unresolved lowest-band readings, invalid data, and stale readings remain gaps,
+not zero. Upper-band traffic can be understated. Existing GPU sampling and
+history queries supply the data; no separate timer or helper is needed.
+Tests cover recording, restart, weighted rollups, chart range changes, live
+updates, hover, and narrow and wide layouts. A native test confirmed all three
+channels reach system samples on this Mac. Other hardware may not expose them.
+
+## Ranges and Clock Help (18 September 2026)
+
+The GPU tab starts at 30 minutes, like the other dashboard range selectors.
+Each page keeps its own choice when you switch tabs, close a window,
+or restart the app. Explorer also keeps the time span you chose by zooming.
+Opening an alert does not replace that saved span.
+
+The headline cards keep ANE Time and ANE Power next to each other in both the
+wide row and compact grid. Their units and data sources remain separate.
+
+Clock states now have a short explanation and an info popover:
+
+- OFF means the GPU was powered down for that share of the latest sample.
+- P states are speed levels, from lower to higher clock speeds.
+- Each percent shows time in a state, not GPU load or a mean for the chosen
+  history range. P3 at 25% means one quarter of the latest sample was spent in P3.
+- Low states alone do not mean the GPU has hit a heat or power limit. Check
+  Thermal limit and Power cap for limits. State names are not GHz values.
+  This source does not give the exact clock speed for each state.
+
+## ANE Power (18 September 2026)
+
+**ANE power** now appears beside ANE Time, with its own card and history chart.
+The menu-bar panel, Explorer, and Ask's energy-history tool also show watts.
+Power remains separate from accounted time. It is not converted to a percentage,
+and a zero-power reading does not prove that no inference ran.
+
+Enable **Show every process** under **Settings > Advanced > Full Coverage**
+and approve the helper in macOS if prompted. The helper must match this app
+build. The main app never runs as root or handles your administrator password.
+ANE Time still works without the helper. Missing power shows as unavailable,
+not zero; older history is not relabeled as helper-backed power.
+
+The signed helper runs Apple's tool with fixed arguments:
+
+```sh
+/usr/bin/powermetrics --samplers cpu_power,gpu_power,thermal -f plist -i 1000 -n 60 -b 0
+```
+
+This is the power source used by asitop. The app does not install or run asitop.
+It divides `processor.ane_energy` (millijoules) by the actual `elapsed_ns`
+interval to get watts. If energy is absent, it accepts the native `ane_power`
+field in milliwatts. It rejects invalid values, incomplete frames, and stale
+readings. It does not assume an 8 W maximum or an exact one-second interval.
+
+There is one root sampler shared by helper connections, not one per chart.
+Sampling runs while GPU monitoring, GPU alerts, or history recording needs it.
+The app renews a short lease once a second, even with a slower UI refresh rate.
+Disabling coverage, pausing sampling, or removing all demand releases the lease.
+Disconnects release it too; a lost client expires after about five seconds.
+Each child takes at most 60 samples, then a new one can serve ongoing demand.
+A watchdog stops silent or overlong children. Failures back off before retrying.
+
+The child has a fixed path and arguments, no shell, and a restricted environment.
+The helper accepts no executable, file path, sample interval, or command from
+the caller. It parses bounded plist frames in memory and returns only ANE watts,
+the source timestamp, and the sample interval. It saves no raw powermetrics
+output. Replies expire after five seconds. The app's sampling queue never waits
+for the helper or child process.
+
+Schema v22 records the source timestamp and interval with new power readings.
+Minute and hour history retain valid-reading counts and true minimum/maximum
+values. Chart averages use those counts; cached copies count as recorded rows,
+not separate hardware measurements. Samples without a helper source remain
+gaps in the new power charts. Historical source power is an OS estimate, not
+a calibrated measurement of electrical draw.
+
+Tests cover the parser, the real XPC bridge, stale replies, lease expiry,
+shared-child shutdown, bad output, and failed child starts or exits. A replay
+of this Mac's asitop capture yielded nonzero ANE watts through the same parser.
+Live root collection in the updated signed helper still needs an installed-app
+check; non-root fixtures do not prove helper approval or launchd registration.
+
+## ANE Activity Preview (18 September 2026)
+
+This build replaces the power-derived ANE percentage with **ANE time**, in
+milliseconds per second (`ms/s`). For example, 750 ms/s means macOS accounted
+for 750 milliseconds of ANE work per elapsed second. It is not a percentage
+of compute capacity, and it is not capped at 1,000 ms/s.
+
+The GPU tab, its metric detail sheet, the menu-bar panel, and Explorer show
+this measure. Ask can read it through its GPU-history tool. New samples no
+longer use ANE power to infer activity. Old power columns remain in the
+database, but this build does not use them to declare the ANE idle.
+
+The reader polls unique resource coalitions at most once a second. A coalition
+is a kernel resource group, not necessarily one app. It subtracts each group's
+cumulative ANE ticks, converts the delta with the Mach timebase, and divides
+by the elapsed interval. Shared Apple inference services prevent reliable
+attribution to the app that made a request. No helper, root access, model
+download, or Instruments installation is needed to read the counter.
+
+This is a guarded private interface. The current preview enables it on macOS
+27 only and checks the returned record layout. Other OS versions, missing
+symbols, unknown layouts, failed reads, and counter resets produce unavailable
+readings. Pauses and long gaps start a new baseline. This is not a claim of
+support for every Apple silicon chip: live tests used an M3 Pro on macOS 27.
+
+New groups start with a baseline. A group that disappears or cannot be read
+makes the result partial. Such values are lower bounds, shown as **At least**
+with **Partial coverage**. A partial zero is not evidence of inactivity.
+The empty resource group that returns `EINVAL` has no tasks and is ignored.
+
+Schema v21 adds nullable ANE time and coverage columns. Old rows stay unknown.
+Minute and hour records retain valid-reading counts, minimum, maximum, and
+coverage. Means use valid sample counts, not elapsed time or all system rows.
+Repeated cached readings count as recorded samples. Charts keep missing data
+as gaps and use fixed time intervals for their average line.
+
+The isolated reader agreed with Instruments' prediction intervals within about
+1.5 percent for a single request and two concurrent requests. CPU-only and
+GPU-only controls added no ANE time. It also worked with hardened-runtime
+signing and no profiler attached. A warm full read of about 850 coalitions took
+1.37 ms at the median; this is a reader benchmark, not an app energy budget.
+The production sampler has a separate opt-in live test in GPUAttributionTests.
+
+Later testing found nonzero ANE power in asitop 0.0.24's native plist capture.
+Our IOReport probe also began receiving ANE energy while asitop's privileged
+powermetrics sampler was running. The earlier zero readings therefore do not
+establish that this Mac cannot report ANE power. The exact activation or refresh
+condition is still unknown. asitop divides reported energy by its configured
+interval and an assumed 8 W maximum to estimate a percentage. That remains a
+power-based estimate, distinct from the accounted ANE time shown in this build.
+The new reader was verified without a running profiler or root sampler.
+
+The older implementation notes below describe the GPU surfaces that remain
+unchanged. Their ANE power assumptions are superseded by this section.
+
+## Earlier GPU Implementation
+
 Status: implemented on 2026-08-23 (phases 1 and 2 below, plus the
 sustained-GPU alert from phase 2): `GPUProcessReader` (Core/System),
 `GPUWorkload` and the alert (Core/Analysis), the IOReport state channels in
@@ -7,8 +211,9 @@ sustained-GPU alert from phase 2): `GPUProcessReader` (Core/System),
 columns on `ProcessOutlineTable`. Research verified on this Mac (Apple M3
 Pro, macOS 26.6) on 2026-08-23 with `ioreg`, the SDK headers and a small
 probe of the private IOReport library. Still open from phase 3: per-process
-GPU history charts in the inspector, MHz labels after a per-chip validation,
-and the optional helper-side coalition probe for per-process ANE. The app is Apple Silicon only, so everything
+GPU history charts in the inspector and MHz labels after a per-chip validation.
+The ANE accounting preview above now covers the earlier coalition probe proposal.
+The app is Apple Silicon only, so everything
 below assumes the AGX (Apple GPU) driver stack. The GPU menu bar dropdown lists the top GPU
 processes too, and an open GPU panel (the tab or the dropdown) reads the
 device at the dial rate rather than once a second.
@@ -101,7 +306,7 @@ enumerated 9,215 channels; the useful groups for this tab:
 | `GPU Stats` / `PPM Target as % of Max GPU Power` | `GPU_PPM` | power cap in effect |
 | `GPU Stats` / `GPU Discrete Power Zone Residency` | `PZRSDNCY` | power-zone residency |
 | `Energy Model` | `GPU` (mJ), `GPU Energy` (nJ), `GPU SRAM` | 3,556 mJ over the second = 3.6 W GPU power |
-| `Energy Model` | `ANE` (mJ) | Neural Engine energy, 0 when idle: the ANE activity signal |
+| `Energy Model` | `ANE` (mJ) | Legacy reported energy; observed staying zero during real ANE execution on macOS 27 |
 | `Energy Model` | `CPU Energy`, `DRAM`, `DISP` | context for an energy view |
 | `ANE` / `IOP State` | `status` | ANE controller state residency |
 | `GPU Stats` / `Temperature` | `Tg*` | all zero without root; treat as unavailable |
@@ -136,22 +341,21 @@ are CPU-drawn; this should read near zero) and for nothing else.
   `com.apple.security.cs.debugger` entitlement on the helper and still fails
   for platform binaries (WindowServer, Safari) under SIP. Superseded by
   `AppUsage`.
-- Coalition resource usage (`coalition_info_resource_usage`: `gpu_time`,
-  and in recent kernels `ane_mach_time` and `gpu_energy_nj`): the header is
-  not in the SDK, so it would be a private syscall. It is the only known
-  per-process Neural Engine accounting. Park it as a possible helper-only
-  probe for a later phase, behind a feature flag.
+- Coalition resource usage (`coalition_info_resource_usage`, `ane_mach_time`):
+  used by the ANE activity preview above. It is a private interface, but the
+  tested read-only path does not require a helper. A coalition is not a promise
+  of per-app attribution.
 - `powermetrics` (root): nothing it reports about the GPU is missing from the
   sudoless IOReport channels; keep it as a one-off validation tool.
 
 ### 6. The Neural Engine
 
-The registry shows one ANE device (`H11ANEIn`) with a single client, `aned`:
-every Core ML workload is proxied through the daemon, so per-process ANE
-attribution is not available from the registry. What we can show: ANE energy
-and state residency (device level), and heuristics for who is likely driving
-it (Core ML apps, `mediaanalysisd`, `photoanalysisd`, Apple Intelligence
-services) by correlating ANE activity with those processes' CPU.
+The earlier registry probe showed one ANE device (`H11ANEIn`) with a daemon
+client. Current Apple model requests accrue time in shared inference-service
+coalitions. Neither observation reliably identifies the requesting app.
+Controller state is separate from execution: in the September test it stayed
+Running after predictions ended. The current preview uses accounted ANE time,
+not controller state or correlations with process CPU.
 
 ## Attribution model
 

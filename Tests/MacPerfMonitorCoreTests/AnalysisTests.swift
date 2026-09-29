@@ -20,7 +20,7 @@ final class LeakDetectorTests: XCTestCase {
     }
 
     func testIgnoresFlatNoisySeries() {
-        let series: [(Date, UInt64)] = (0..<20).map { i in
+        let series: [(Date, UInt64)] = (0..<40).map { i in
             let noise: UInt64 = (i % 2 == 0) ? 1_000_000 : 0
             return (start.addingTimeInterval(Double(i) * 40), 100 * 1024 * 1024 + noise)
         }
@@ -42,6 +42,37 @@ final class LeakDetectorTests: XCTestCase {
             base: 100 * 1024 * 1024, stepBytes: 50 * 1024 * 1024
         )
         XCTAssertNil(LeakDetector.analyze(series: series))
+    }
+
+    func testRejectsPlateauSmallRelativeGrowthAndSamplingGaps() {
+        let mib: UInt64 = 1024 * 1024
+        let plateau = (0...45).map { minute in
+            (
+                start.addingTimeInterval(Double(minute) * 60),
+                1024 * mib + UInt64(min(minute, 30)) * 16 * mib
+            )
+        }
+        XCTAssertNil(LeakDetector.analyze(series: plateau))
+        let small = (0...20).map { minute in
+            (start.addingTimeInterval(Double(minute) * 60), 4096 * mib + UInt64(minute) * 2 * mib)
+        }
+        XCTAssertNil(LeakDetector.analyze(series: small))
+        let sparse = (0...11).map { index in
+            let seconds = index < 6 ? Double(index) * 60 : 3600 + Double(index - 6) * 60
+            return (start.addingTimeInterval(seconds), 1024 * mib + UInt64(seconds) * 65536)
+        }
+        XCTAssertNil(LeakDetector.analyze(series: sparse))
+    }
+
+    func testFindsARisingBaselineThroughCyclicReleases() {
+        let mib: UInt64 = 1024 * 1024
+        let series: [(Date, UInt64)] = (0...60).map { minute in
+            let date = start.addingTimeInterval(Double(minute) * 60)
+            let baseline = (1024 + UInt64(minute) * 2) * mib
+            let cycle = UInt64(minute % 10) * 50 * mib
+            return (date, baseline + cycle)
+        }
+        XCTAssertNotNil(LeakDetector.analyze(series: series))
     }
 }
 

@@ -852,9 +852,7 @@ enum HardwareNativeReaders {
         if let host = Sysctl.string("kern.hostname") {
             properties.append(HardwareProperty("Host name", host))
         }
-        var boot = timeval()
-        if Sysctl.raw("kern.boottime", into: &boot), boot.tv_sec > 0 {
-            let bootDate = Date(timeIntervalSince1970: TimeInterval(boot.tv_sec))
+        if let bootDate = SystemBootTime.read() {
             let formatter = DateFormatter()
             formatter.dateStyle = .medium
             formatter.timeStyle = .short

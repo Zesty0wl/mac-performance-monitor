@@ -73,6 +73,8 @@ final class ThermalHistoryTests: XCTestCase {
         sample.gpuUtilization = 61
         sample.gpuPowerWatts = 2.75
         sample.anePowerWatts = 0.5
+        sample.anePowerSampledAt = now
+        sample.anePowerSampleInterval = 1.02
         try store.insert(systemSample: sample)
 
         let latest = try XCTUnwrap(store.latestSystemSample())
@@ -82,6 +84,10 @@ final class ThermalHistoryTests: XCTestCase {
         XCTAssertEqual(latest.gpuUtilization ?? -1, 61, accuracy: 0.001)
         XCTAssertEqual(latest.gpuPowerWatts ?? -1, 2.75, accuracy: 0.001)
         XCTAssertEqual(latest.anePowerWatts ?? -1, 0.5, accuracy: 0.001)
+        XCTAssertEqual(
+            try XCTUnwrap(latest.anePowerSampledAt).timeIntervalSince1970,
+            now.timeIntervalSince1970, accuracy: 0.000001)
+        XCTAssertEqual(latest.anePowerSampleInterval, 1.02)
     }
 
     // MARK: - Rollups

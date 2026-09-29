@@ -103,4 +103,107 @@ final class SystemHistoryTests: XCTestCase {
         XCTAssertEqual(HistoryWindow.oneDay.granularity, .minute)
         XCTAssertEqual(HistoryWindow.sevenDays.granularity, .hour)
     }
+
+    // MARK: - Tiers carry their peaks and run up to the last raw row
+
+    func testMinuteAggregatesCarryTheBucketPeak() throws {
+        try insert(at: anchor.addingTimeInterval(6), pressure: 10)
+        try insert(at: anchor.addingTimeInterval(12), pressure: 50)
+        try Retention.run(store.databasePool, now: anchor.addingTimeInterval(600))
+
+        let points = try store.systemHistory(.oneDay, now: anchor.addingTimeInterval(600))
+        let minute = try XCTUnwrap(points.first)
+        XCTAssertEqual(minute.pressurePercent, 30, accuracy: 0.001, "the line gets the mean")
+        XCTAssertEqual(minute.peaks?.pressurePercent ?? 0, 50, accuracy: 0.001)
+        XCTAssertEqual(minute.effectivePeaks.pressurePercent, 50, accuracy: 0.001)
+    }
+
+    func testLongRangesTopUpFromTheRawRowsPastTheWatermark() throws {
+        // Two complete minutes, rolled into the minute tier...
+        for i in 0..<20 {
+            try insert(at: anchor.addingTimeInterval(Double(i) * 6), pressure: 30)
+        }
+        try Retention.run(store.databasePool, now: anchor.addingTimeInterval(120))
+        // ...then raw samples retention has not seen yet.
+        try insert(at: anchor.addingTimeInterval(130), pressure: 70)
+        try insert(at: anchor.addingTimeInterval(140), pressure: 80)
+
+        let points = try store.systemHistory(.sixHours, now: anchor.addingTimeInterval(150))
+        let dates = points.map(\.date)
+        XCTAssertEqual(dates, dates.sorted())
+        XCTAssertEqual(Set(dates).count, dates.count, "no row is served twice")
+        XCTAssertEqual(points.count, 4, "two minute rows, then the two raw rows after them")
+        XCTAssertNotNil(points[0].peaks)
+        XCTAssertNotNil(points[1].peaks)
+        XCTAssertNil(points[2].peaks, "a raw row has no stored peak")
+        XCTAssertEqual(points[2].pressurePercent, 70)
+        XCTAssertEqual(points[3].pressurePercent, 80)
+        XCTAssertEqual(
+            points[2].date.timeIntervalSince(points[1].date), 70, accuracy: 0.001,
+            "the raw tail starts at the minute watermark, not inside a rolled minute")
+    }
+
+    func testRawSamplesAlreadyRolledUpAreNotServedTwice() throws {
+        for i in 0..<10 {
+            try insert(at: anchor.addingTimeInterval(Double(i) * 6), pressure: 30)
+        }
+        try Retention.run(store.databasePool, now: anchor.addingTimeInterval(60))
+        let points = try store.systemHistory(.sixHours, now: anchor.addingTimeInterval(70))
+        XCTAssertEqual(points.count, 1, "the minute row stands in for its ten raw samples")
+    }
+
+    func testStoredSpacingPerTier() {
+        XCTAssertNil(HistoryWindow.oneHour.granularity.storedSpacing)
+        XCTAssertEqual(HistoryWindow.sixHours.granularity.storedSpacing, 60)
+        XCTAssertEqual(HistoryWindow.oneDay.granularity.storedSpacing, 60)
+        XCTAssertEqual(HistoryWindow.sevenDays.granularity.storedSpacing, 3600)
+    }
+
+    // MARK: - Load averages
+
+    func testLoadAveragesRoundTripThroughTheRawAndMinuteTiers() throws {
+        for (i, load) in [2.0, 4.0].enumerated() {
+            var sample = Make.system(timestamp: anchor.addingTimeInterval(Double(i) * 6 + 6))
+            sample.loadAverage1 = load
+            sample.loadAverage5 = load / 2
+            sample.loadAverage15 = load / 4
+            try store.insert(systemSample: sample)
+        }
+
+        let raw = try store.systemHistory(.oneHour, now: anchor.addingTimeInterval(60))
+        XCTAssertEqual(raw.map(\.loadAverage1), [2, 4])
+        XCTAssertEqual(raw.map(\.loadAverage5), [1, 2])
+        XCTAssertEqual(raw.map(\.loadAverage15), [0.5, 1])
+
+        try Retention.run(store.databasePool, now: anchor.addingTimeInterval(600))
+        let minute = try XCTUnwrap(
+            try store.systemHistory(.oneDay, now: anchor.addingTimeInterval(600)).first)
+        XCTAssertEqual(minute.loadAverage1, 3, accuracy: 0.001, "the line gets the mean")
+        XCTAssertEqual(minute.loadAverage5, 1.5, accuracy: 0.001)
+        XCTAssertEqual(minute.loadAverage15, 0.75, accuracy: 0.001)
+        XCTAssertEqual(
+            minute.peaks?.loadAverage1 ?? 0, 4, accuracy: 0.001, "the band gets the peak")
+    }
+
+    func testRowsWrittenBeforeLoadAveragesReadAsZero() throws {
+        try databaseWrite { db in
+            try db.execute(
+                sql: """
+                    INSERT INTO system_samples (timestamp, total_ram, free, active, inactive, wired,
+                        speculative, compressed, app_memory, cached_files, swap_total, swap_used,
+                        pressure_level, pressure_percent, page_ins, page_outs, compressions,
+                        decompressions, page_ins_delta, page_outs_delta, compressions_delta,
+                        decompressions_delta, cpu_load)
+                    VALUES (?, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0.1)
+                    """, arguments: [anchor.timeIntervalSince1970 + 6])
+        }
+        let raw = try store.systemHistory(.oneHour, now: anchor.addingTimeInterval(60))
+        XCTAssertEqual(raw.count, 1)
+        XCTAssertEqual(raw[0].loadAverage1, 0)
+        XCTAssertNil(raw[0].peaks)
+    }
+
+    private func databaseWrite(_ body: (Database) throws -> Void) throws {
+        try store.databasePool.write(body)
+    }
 }

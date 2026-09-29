@@ -18,7 +18,7 @@ struct GPUView: View {
     @Environment(\.samplerModel) private var model
     @EnvironmentObject private var appState: AppState
     @StateObject private var timeline = GPUTimelineStore()
-    @State private var range: HistoryWindow = .oneHour
+    @StoredHistoryWindow("historyRange.gpu") private var range
     @State private var loadedRange: HistoryWindow?
     @State private var rows: [ProcessNode] = []
     @State private var rowsRevision = 0
@@ -43,6 +43,9 @@ struct GPUView: View {
                 pageHeader
                 headlineCards
                 utilizationPanel
+                GPUBandwidthPanel(timeline: timeline)
+                ANEActivityPanel(timeline: timeline)
+                ANEPowerPanel(timeline: timeline)
                 powerPanel
                 temperaturePanel
                 processesPanel
@@ -92,8 +95,7 @@ struct GPUView: View {
     private func reload() {
         guard let model else { return }
         let requested = range
-        let pointLimit = requested.granularity == .raw ? nil : 720
-        model.loadSystemHistory(requested, downsampledTo: pointLimit) { points in
+        model.loadSystemHistory(requested) { points in
             guard range == requested else { return }
             timeline.replace(
                 points, span: requested.seconds, live: model.liveSystem, gpu: model.latestGPU)
@@ -194,11 +196,11 @@ struct GPUView: View {
                     liveStat("DEVICE", timeline.utilizationText, NSColor.labelColor)
                     liveStat("RENDERER", timeline.rendererText, NSColor.labelColor)
                     liveStat("TILER", timeline.tilerText, NSColor.labelColor)
-                    liveStat("ACTIVE", timeline.activeText, NSColor.labelColor)
+                    liveStat("GPU awake", timeline.activeText, NSColor.labelColor)
                     Spacer()
                 }
                 Text(
-                    "Device utilization is the share of the interval the GPU was busy with any work. The renderer and tiler figures are the two halves of the pipeline; the active figure is how much of the interval the GPU was powered and clocked at all."
+                    "Device utilization shows how much the GPU was busy. Renderer and tiler are parts of its graphics pipeline. GPU awake shows time powered and clocked, including time waiting for work."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -213,12 +215,11 @@ struct GPUView: View {
                     .frame(height: 140)
                 HStack(spacing: 22) {
                     liveStat("GPU", timeline.gpuWattsText, NSColor(DiskStyle.read))
-                    liveStat("NEURAL ENGINE", timeline.aneWattsText, NSColor(.purple))
                     liveStat("CPU", timeline.cpuWattsText, NSColor.secondaryLabelColor)
                     Spacer()
                 }
                 Text(
-                    "From the chip's energy counters (the same source as powermetrics), averaged over each tick. Neural Engine power is the signal that a Core ML model is running: it reads zero when the ANE is idle."
+                    "Reported chip power, averaged over the sampling interval. ANE activity is measured separately from kernel time accounting, not inferred from power."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -306,16 +307,7 @@ struct GPUView: View {
                     detailRow("Power cap", timeline.capText)
                     detailRow("GPU recoveries", timeline.recoveryText)
                 }
-                Text("CLOCK STATES")
-                    .font(.caption2.weight(.semibold))
-                    .tracking(0.6)
-                    .foregroundStyle(.tertiary)
-                GPUStatesSurface(feed: timeline.statesFeed)
-                Text(
-                    "How the interval split across the GPU's performance states, lowest clock first; OFF is the share it was powered down. A thermal limit or a power cap shows here before it shows as lost frames."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                GPUClockStatesSection(feed: timeline.statesFeed)
             }
         }
     }
@@ -356,7 +348,7 @@ struct GPUView: View {
                     .frame(width: 150, alignment: .trailing)
                 }
                 Text(
-                    "Recognised by name: Ollama, llama.cpp, MLX, LM Studio, Core ML hosts, Apple Intelligence and the media analysis daemons, plus a bare Python or Node whose command line loads a model framework. Neural Engine work is proxied through a system daemon, so it cannot be attributed to a process; its power is the signal."
+                    "GPU runtimes are identified by name. ANE time is counted separately across resource groups. Shared inference services can perform work for several apps, so this is not per-app ANE attribution."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -500,6 +492,84 @@ private struct GPUPanel<Content: View>: View {
     }
 }
 
+enum ANEActivityPresentation {
+    static func value(_ gpu: GPUSample?) -> String? {
+        guard let rate = gpu?.aneTimeMillisecondsPerSecond, rate.isFinite, rate >= 0 else {
+            return nil
+        }
+        let value = MetricUnit.millisecondsPerSecond.format(rate)
+        return gpu?.aneSampleIsPartial == false ? value : t("At least %@", value)
+    }
+
+    static func status(_ gpu: GPUSample?) -> String {
+        guard let rate = gpu?.aneTimeMillisecondsPerSecond, rate.isFinite, rate >= 0 else {
+            return t("Unavailable")
+        }
+        if gpu?.aneSampleIsPartial != false { return t("Partial coverage") }
+        return rate > 0 ? t("Active") : t("No activity recorded")
+    }
+}
+
+struct ANEActivityPanel: View {
+    @ObservedObject var timeline: GPUTimelineStore
+
+    var body: some View {
+        GPUPanel("Neural Engine activity", systemImage: "brain") {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    LiveText(feed: timeline.aneTimeText)
+                        .frame(width: 210, alignment: .leading)
+                    Spacer()
+                    LiveText(
+                        feed: timeline.aneStatusText, font: .systemFont(ofSize: 12),
+                        alignment: .right
+                    )
+                    .frame(width: 210, alignment: .trailing)
+                }
+                LiveTrendChart(feed: timeline.aneFeed, scrubbable: true)
+                    .frame(height: 140)
+                TrendStatisticsCaption(model: timeline.aneFeed.model)
+            }
+        }
+    }
+}
+
+enum ANEPowerPresentation {
+    static func value(_ gpu: GPUSample?) -> String? {
+        if gpu?.anePowerRequiresHelper == true { return t("Helper required") }
+        return gpu?.reportedANEPowerWatts.map(MetricUnit.watts.format)
+    }
+
+    static func status(_ gpu: GPUSample?) -> String {
+        if gpu?.anePowerRequiresHelper == true { return t("Enable elevated coverage") }
+        return gpu?.reportedANEPowerWatts == nil ? t("Unavailable") : t("powermetrics (root)")
+    }
+}
+
+struct ANEPowerPanel: View {
+    @ObservedObject var timeline: GPUTimelineStore
+
+    var body: some View {
+        GPUPanel("ANE power", systemImage: "bolt") {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    LiveText(feed: timeline.anePowerText)
+                        .frame(width: 210, alignment: .leading)
+                    Spacer()
+                    LiveText(
+                        feed: timeline.anePowerStatusText, font: .systemFont(ofSize: 12),
+                        alignment: .right
+                    )
+                    .frame(width: 210, alignment: .trailing)
+                }
+                LiveTrendChart(feed: timeline.anePowerFeed, scrubbable: true)
+                    .frame(height: 140)
+                TrendStatisticsCaption(model: timeline.anePowerFeed.model)
+            }
+        }
+    }
+}
+
 // MARK: - Store
 
 /// Owns the GPU page's window of system samples and every feed its surfaces
@@ -513,11 +583,20 @@ final class GPUTimelineStore: ObservableObject {
 
     private var window = SystemHistoryWindow(span: 3600)
     private var powerTop: Double = 5
+    private var aneTop: Double = 1000
+    private var anePowerTop: Double = 1
+    private var memoryTop: Double = 1
+    private var bandwidthTop: Double = 1
+    @Published private(set) var aneStatisticsInterval: TimeInterval = 30
+    private var aneGapThreshold: TimeInterval = 15
     private var didDescribeDevice = false
 
     let utilizationFeed = TrendFeed()
     let powerFeed = TrendFeed()
-    let cardFeeds: [MetricCardFeed] = (0..<5).map { _ in MetricCardFeed() }
+    let aneFeed = TrendFeed()
+    let anePowerFeed = TrendFeed()
+    let bandwidthChartFeed = TrendFeed()
+    let cardFeeds: [MetricCardFeed] = (0..<6).map { _ in MetricCardFeed() }
     private(set) var cardTemplates: [MetricCardData] = []
 
     let utilizationText = TextFeed()
@@ -525,7 +604,9 @@ final class GPUTimelineStore: ObservableObject {
     let tilerText = TextFeed()
     let activeText = TextFeed()
     let gpuWattsText = TextFeed()
-    let aneWattsText = TextFeed()
+    let aneTimeText = TextFeed()
+    let anePowerText = TextFeed()
+    let anePowerStatusText = TextFeed()
     let cpuWattsText = TextFeed()
     let chipText = TextFeed()
     let coresText = TextFeed()
@@ -538,6 +619,7 @@ final class GPUTimelineStore: ObservableObject {
     let recoveryText = TextFeed()
     let aneStatusText = TextFeed()
     let statesFeed = GPUStatesFeed()
+    let bandwidthFeed = GPUBandwidthFeed()
     let shareFeed = GPUShareFeed()
 
     init() {
@@ -549,8 +631,15 @@ final class GPUTimelineStore: ObservableObject {
     ) {
         window.replace(points, span: span)
         if let live { window.append(Self.point(from: live)) }
+        let sourceSpacing = window.values(.bucketDuration).filter(\.isFinite).max() ?? 0
+        aneStatisticsInterval = ChartStatistics.interval(span: span, minimum: sourceSpacing)
+        aneGapThreshold = max(15, sourceSpacing * 3)
+        aneTop = 1000
+        anePowerTop = 1
+        memoryTop = 1
+        bandwidthTop = 1
         refreshPowerTop()
-        publish(gpu)
+        publish(gpu, replacingHistory: true)
     }
 
     func append(_ system: SystemSample?, gpu: GPUSample?) {
@@ -580,11 +669,25 @@ final class GPUTimelineStore: ObservableObject {
     }
 
     private func refreshPowerTop() {
-        let peak = max(window.peak(.gpuPowerWatts) ?? 0, window.peak(.anePowerWatts) ?? 0)
+        let peak = window.peak(.gpuPowerWatts) ?? 0
         powerTop = LiveChartGeometry.niceCeiling(max(peak * 1.15, 1))
+        let anePeak = window.values(.aneTimePeak).filter(\.isFinite).max() ?? 0
+        aneTop = max(aneTop, LiveChartGeometry.niceCeiling(max(anePeak * 1.1, 1000)))
+        let powerPeak = window.values(.anePowerPeak).reduce(0.0) { $1.isFinite ? max($0, $1) : $0 }
+        anePowerTop = max(anePowerTop, LiveChartGeometry.niceCeiling(max(powerPeak * 1.15, 1)))
+        let memoryPeak = window.values(.gpuMemoryPeak).reduce(0.0) {
+            $1.isFinite ? max($0, $1) : $0
+        }
+        memoryTop = max(memoryTop, LiveChartGeometry.niceCeiling(max(memoryPeak * 1.12, 1)))
+        for direction in GPUBandwidthDirection.allCases {
+            let peak = window.values(direction.columns.peak).reduce(0.0) {
+                $1.isFinite ? max($0, $1) : $0
+            }
+            bandwidthTop = max(bandwidthTop, LiveChartGeometry.niceCeiling(max(peak * 1.12, 1)))
+        }
     }
 
-    private func publish(_ gpu: GPUSample?) {
+    private func publish(_ gpu: GPUSample?, replacingHistory: Bool = false) {
         let domain = window.xDomain
         let level = CPULevel(fraction: (gpu?.utilization ?? 0) / 100)
 
@@ -604,24 +707,96 @@ final class GPUTimelineStore: ObservableObject {
             ?? t("No data yet.")
         utilizationFeed.publish(utilization)
 
+        var bandwidth = TrendModel()
+        bandwidth.series = GPUBandwidthDirection.allCases.map { direction in
+            let columns = direction.columns
+            var column = LiveColumn(
+                window, columns.value, peak: columns.peak, minimum: columns.minimum)
+            column.weights = window.values(columns.count)
+            return TrendSurfaceSeries(column: column, color: direction.color, name: direction.title)
+        }
+        bandwidth.xDomain = domain
+        bandwidth.yDomain = 0...bandwidthTop
+        bandwidth.yFormat = {
+            t("%@ GB/s", $0.formatted(.number.precision(.fractionLength(0...1))))
+        }
+        bandwidth.detailFormat = {
+            t("~%@ GB/s", $0.formatted(.number.precision(.fractionLength(0...1))))
+        }
+        bandwidth.valueUnit = "GB/s"
+        bandwidth.showsTimeAxis = true
+        bandwidth.leftGutter = 72
+        bandwidth.plotBorder = true
+        bandwidth.statisticsInterval = aneStatisticsInterval
+        bandwidth.gapThreshold = 15
+        bandwidth.statisticsNote = t(
+            "Approximate GPU memory bandwidth based on buckets reported by macOS. Actual bandwidth may be higher. Missing readings and older logs are gaps."
+        )
+        bandwidth.accessibilityLabel = t("GPU bandwidth history")
+        bandwidth.accessibilityValue = bandwidth.statisticsNote ?? ""
+        bandwidthChartFeed.publish(bandwidth, replacingHistory: replacingHistory)
+
         var power = TrendModel()
         power.series = [
             TrendSurfaceSeries(
-                column: LiveColumn(window, .gpuPowerWatts), color: DiskStyle.read, filled: true),
-            TrendSurfaceSeries(
-                column: LiveColumn(window, .anePowerWatts), color: .purple, filled: false,
-                lineWidth: 1.8),
+                column: LiveColumn(window, .gpuPowerWatts), color: DiskStyle.read, filled: true)
         ]
         power.xDomain = domain
         power.yDomain = 0...powerTop
         power.yFormat = { String(format: "%.1f W", $0) }
         power.showsTimeAxis = true
         power.leftGutter = 48
-        power.accessibilityLabel = t("GPU and Neural Engine power timeline")
+        power.accessibilityLabel = t("GPU power timeline")
         power.accessibilityValue =
             gpu?.gpuPowerWatts.map { t("GPU %@ watts.", String(format: "%.2f", $0)) }
             ?? t("No data yet.")
         powerFeed.publish(power)
+
+        var aneColumn = LiveColumn(
+            window, .aneTimeMillisecondsPerSecond, peak: .aneTimePeak, minimum: .aneTimeMinimum)
+        aneColumn.weights = window.values(.aneTimeSampleCount)
+        var ane = TrendModel()
+        ane.series = [TrendSurfaceSeries(column: aneColumn, color: .purple, name: t("ANE time"))]
+        ane.xDomain = domain
+        ane.yDomain = 0...aneTop
+        ane.yFormat = MetricUnit.millisecondsPerSecond.format
+        ane.detailFormat = MetricUnit.millisecondsPerSecond.format
+        ane.valueUnit = "ms/s"
+        ane.showsTimeAxis = true
+        ane.leftGutter = 78
+        ane.plotBorder = true
+        ane.statisticsInterval = aneStatisticsInterval
+        ane.gapThreshold = aneGapThreshold
+        ane.statisticsNote = t(
+            "Accounted ANE time per second, not percent of compute capacity. Partial readings are lower bounds. Missing readings are gaps."
+        )
+        ane.accessibilityLabel = t("Neural Engine activity timeline")
+        ane.accessibilityValue = ANEActivityPresentation.value(gpu) ?? t("Unavailable")
+        aneFeed.publish(ane)
+
+        var anePowerColumn = LiveColumn(
+            window, .anePowerWatts, peak: .anePowerPeak, minimum: .anePowerMinimum)
+        anePowerColumn.weights = window.values(.anePowerSampleCount)
+        var anePower = TrendModel()
+        anePower.series = [
+            TrendSurfaceSeries(column: anePowerColumn, color: .pink, name: t("ANE power"))
+        ]
+        anePower.xDomain = domain
+        anePower.yDomain = 0...anePowerTop
+        anePower.yFormat = MetricUnit.watts.format
+        anePower.detailFormat = MetricUnit.watts.format
+        anePower.valueUnit = "W"
+        anePower.showsTimeAxis = true
+        anePower.leftGutter = 62
+        anePower.plotBorder = true
+        anePower.statisticsInterval = aneStatisticsInterval
+        anePower.gapThreshold = aneGapThreshold
+        anePower.statisticsNote = t(
+            "Reported ANE power from powermetrics through the privileged helper. This is an estimate, not utilization. Gaps mean no fresh power reading."
+        )
+        anePower.accessibilityLabel = t("Neural Engine power timeline")
+        anePower.accessibilityValue = ANEPowerPresentation.value(gpu) ?? t("Unavailable")
+        anePowerFeed.publish(anePower)
 
         // Cards.
         let watts: (Double?) -> String? = { $0.map { String(format: "%.2f W", $0) } }
@@ -631,18 +806,41 @@ final class GPUTimelineStore: ObservableObject {
         cardFeeds[1].publish(
             value: watts(gpu?.gpuPowerWatts), tint: NSColor(DiskStyle.read),
             column: LiveColumn(window, .gpuPowerWatts), xDomain: domain, yDomain: 0...powerTop)
-        let aneWatts = gpu?.anePowerWatts
         cardFeeds[2].publish(
-            value: aneWatts.map { $0 < 0.01 ? "Idle" : String(format: "%.2f W", $0) },
-            tint: NSColor(.purple), column: LiveColumn(window, .anePowerWatts), xDomain: domain,
-            yDomain: 0...powerTop)
+            value: ANEActivityPresentation.value(gpu), tint: NSColor(.purple), column: aneColumn,
+            xDomain: domain, yDomain: 0...aneTop,
+            peak: t("Axis max %@", MetricUnit.millisecondsPerSecond.format(aneTop)),
+            statisticsInterval: aneStatisticsInterval, gapThreshold: aneGapThreshold,
+            name: t("ANE time"), format: MetricUnit.millisecondsPerSecond.format,
+            statisticsNote: ane.statisticsNote)
+        var memoryColumn = LiveColumn(
+            window, .gpuMemoryBytes, peak: .gpuMemoryPeak, minimum: .gpuMemoryMinimum)
+        memoryColumn.weights = window.values(.gpuMemorySampleCount)
         cardFeeds[3].publish(
             value: gpu?.inUseMemoryBytes.map { ByteFormat.string($0) }, tint: NSColor(.teal),
-            column: nil, xDomain: nil, yDomain: nil)
+            column: memoryColumn, xDomain: domain, yDomain: 0...memoryTop,
+            statisticsInterval: aneStatisticsInterval, gapThreshold: 15,
+            name: t("GPU memory"), format: MetricUnit.bytes.format,
+            statisticsNote: t(
+                "GPU clients use the same RAM as the CPU. This is not a separate bank of video memory. Older logs have no GPU memory data."
+            ))
+        var activeColumn = LiveColumn(
+            window, .gpuActiveResidency, peak: .gpuActivePeak, minimum: .gpuActiveMinimum)
+        activeColumn.weights = window.values(.gpuActiveSampleCount)
         cardFeeds[4].publish(
-            value: gpu?.activeResidency.map { "\(Int($0.rounded()))%" }
-                ?? gpu.map { _ in "--" }, tint: NSColor(.orange), column: nil, xDomain: nil,
-            yDomain: nil)
+            value: gpu?.activeResidency.map(MetricUnit.percent.format), tint: NSColor(.orange),
+            column: activeColumn, xDomain: domain, yDomain: 0...100,
+            statisticsInterval: aneStatisticsInterval, gapThreshold: 15,
+            name: t("GPU awake"), format: MetricUnit.percent.format,
+            statisticsNote: t(
+                "Powered and clocked time, not GPU workload. Missing readings are gaps."))
+        cardFeeds[5].publish(
+            value: ANEPowerPresentation.value(gpu), tint: .systemPink, column: anePowerColumn,
+            xDomain: domain, yDomain: 0...anePowerTop,
+            peak: t("Axis max %@", MetricUnit.watts.format(anePowerTop)),
+            statisticsInterval: aneStatisticsInterval, gapThreshold: aneGapThreshold,
+            name: t("ANE power"), format: MetricUnit.watts.format,
+            statisticsNote: anePower.statisticsNote)
 
         // Read-outs.
         utilizationText.publish(gpu.map { "\(Int($0.utilization.rounded()))%" } ?? "--")
@@ -650,7 +848,9 @@ final class GPUTimelineStore: ObservableObject {
         tilerText.publish(gpu?.tilerUtilization.map { "\(Int($0.rounded()))%" } ?? "--")
         activeText.publish(gpu?.activeResidency.map { "\(Int($0.rounded()))%" } ?? "--")
         gpuWattsText.publish(watts(gpu?.gpuPowerWatts) ?? "--")
-        aneWattsText.publish(watts(gpu?.anePowerWatts) ?? "--")
+        aneTimeText.publish(ANEActivityPresentation.value(gpu) ?? t("Unavailable"))
+        anePowerText.publish(ANEPowerPresentation.value(gpu) ?? t("Unavailable"))
+        anePowerStatusText.publish(ANEPowerPresentation.status(gpu))
         cpuWattsText.publish(watts(gpu?.cpuPowerWatts) ?? "--")
         memoryText.publish(gpu?.inUseMemoryBytes.map { ByteFormat.string($0) } ?? "--")
         allocatedText.publish(gpu?.allocatedMemoryBytes.map { ByteFormat.string($0) } ?? "--")
@@ -673,16 +873,9 @@ final class GPUTimelineStore: ObservableObject {
                 $0 >= 99.5 ? t("Power cap none") : t("%@%% of max", String(Int($0.rounded())))
             } ?? "--")
         recoveryText.publish(gpu?.recoveryCount.map { "\($0)" } ?? "--")
-        if let aneWatts {
-            aneStatusText.publish(
-                aneWatts < 0.01
-                    ? t("Idle")
-                    : t("Active · %@ W", String(format: "%.2f", aneWatts)),
-                color: aneWatts < 0.01 ? nil : .systemPurple)
-        } else {
-            aneStatusText.publish("--")
-        }
+        aneStatusText.publish(ANEActivityPresentation.status(gpu))
         statesFeed.publish(gpu?.performanceStates ?? [], active: gpu?.activeResidency)
+        bandwidthFeed.publish(gpu?.bandwidth)
 
         if !didDescribeDevice, let gpu {
             didDescribeDevice = true
@@ -717,7 +910,21 @@ final class GPUTimelineStore: ObservableObject {
             cpuLoad: s.cpuLoad,
             gpuUtilization: s.gpuUtilization,
             gpuPowerWatts: s.gpuPowerWatts,
-            anePowerWatts: s.anePowerWatts
+            gpuMemoryBytes: s.gpuMemoryBytes.map { Double($0) },
+            gpuMemorySampleCount: s.gpuMemoryBytes == nil ? 0 : 1,
+            gpuActiveResidency: s.gpuActiveResidency,
+            gpuActiveSampleCount: s.gpuActiveResidency == nil ? 0 : 1,
+            gpuReadBandwidthGBps: s.gpuReadBandwidthGBps,
+            gpuReadBandwidthSampleCount: s.gpuReadBandwidthGBps == nil ? 0 : 1,
+            gpuWriteBandwidthGBps: s.gpuWriteBandwidthGBps,
+            gpuWriteBandwidthSampleCount: s.gpuWriteBandwidthGBps == nil ? 0 : 1,
+            gpuTotalBandwidthGBps: s.gpuTotalBandwidthGBps,
+            gpuTotalBandwidthSampleCount: s.gpuTotalBandwidthGBps == nil ? 0 : 1,
+            anePowerWatts: s.reportedANEPowerWatts,
+            anePowerSampleCount: s.reportedANEPowerWatts == nil ? 0 : 1,
+            aneTimeMillisecondsPerSecond: s.aneTimeMillisecondsPerSecond,
+            aneSampleIsPartial: s.aneSampleIsPartial,
+            aneSampleCount: s.aneTimeMillisecondsPerSecond == nil ? 0 : 1
         )
     }
 
@@ -749,16 +956,16 @@ final class GPUTimelineStore: ObservableObject {
                 )
             ),
             MetricCardData(
-                label: "Neural Engine",
+                label: "ANE time",
                 tint: .purple,
-                unit: .watts,
+                unit: .millisecondsPerSecond,
                 help:
-                    "Neural Engine power; zero when no Core ML model is running. Click for details.",
+                    "Accounted Neural Engine time per second, not percent of compute capacity. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "Power drawn by the Apple Neural Engine, the block Core ML runs models on. It reads zero when idle, so any reading means an on-device model is executing. Its work is proxied through a system daemon, so it cannot be attributed to a single process.",
+                        "Milliseconds of Neural Engine work accounted by macOS per second. This is not a percentage of compute capacity or a power reading. Shared services prevent reliable per-app attribution. Partial readings are lower bounds; unavailable readings are not zero.",
                     calculation:
-                        "The chip's ANE energy counter (IOReport `Energy Model`) differenced between ticks."
+                        "The change in ANE time across unique resource groups, converted from Mach ticks to milliseconds and divided by elapsed time. Read at most once a second. New groups start with a baseline; missing groups make coverage partial."
                 )
             ),
             MetricCardData(
@@ -774,27 +981,350 @@ final class GPUTimelineStore: ObservableObject {
                 )
             ),
             MetricCardData(
-                label: "Active",
+                label: "GPU awake",
                 tint: .orange,
                 unit: .percent,
                 yDomain: 0...100,
-                help: "Share of the time the GPU was powered and clocked. Click for details.",
+                help: "Time the GPU was powered and clocked, including waiting. Click for details.",
                 explanation: MetricExplanation(
                     meaning:
-                        "How much of the interval the GPU was powered on at all. The difference between this and utilisation is time the GPU was awake but waiting; the Device panel shows which clock states it ran in.",
+                        "Time the GPU was awake, with power and its clock on. It can stay awake while waiting for work. A GPU that is 100% awake may be much less busy. The GPU card shows how busy it was.",
                     calculation:
-                        "100 minus the residency of the OFF state in IOReport's GPU performance-state channel."
+                        "macOS IOReport gives the share of time in the OFF state. We subtract this from 100. If OFF is missing, the value is unknown. The chart uses saved readings. Old logs have no awake-time data."
                 )
             ),
         ]
+        cards.append(
+            MetricCardData(
+                label: "ANE power", tint: .pink, unit: .watts,
+                help: "Reported Neural Engine power from the privileged helper. Click for details.",
+                explanation: MetricExplanation(
+                    meaning:
+                        "The Neural Engine's reported power draw in watts. This estimate comes from macOS power accounting and is separate from ANE Time. Zero watts is not proof that no inference ran.",
+                    calculation:
+                        "The privileged helper runs Apple's powermetrics with fixed one-second sampling. Reported ANE energy is divided by the actual sample duration. Missing or stale replies are unavailable, not zero. Elevated coverage is required."
+                )))
         for index in cards.indices where index < feeds.count {
             cards[index].live = feeds[index]
         }
-        return cards
+        return [cards[0], cards[1], cards[3], cards[4], cards[2], cards[5]]
     }
 }
 
 // MARK: - Clock-state bars
+
+enum GPUBandwidthDirection: CaseIterable {
+    case combined, read, write
+
+    var title: String {
+        switch self {
+        case .combined: return t("Total")
+        case .read: return t("Reads")
+        case .write: return t("Writes")
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .combined: return .teal
+        case .read: return DiskStyle.read
+        case .write: return DiskStyle.write
+        }
+    }
+
+    var columns:
+        (
+            value: SystemHistoryWindow.Column, minimum: SystemHistoryWindow.Column,
+            peak: SystemHistoryWindow.Column, count: SystemHistoryWindow.Column
+        )
+    {
+        switch self {
+        case .combined:
+            return (
+                .gpuTotalBandwidthGBps, .gpuTotalBandwidthMinimum, .gpuTotalBandwidthPeak,
+                .gpuTotalBandwidthSampleCount
+            )
+        case .read:
+            return (
+                .gpuReadBandwidthGBps, .gpuReadBandwidthMinimum, .gpuReadBandwidthPeak,
+                .gpuReadBandwidthSampleCount
+            )
+        case .write:
+            return (
+                .gpuWriteBandwidthGBps, .gpuWriteBandwidthMinimum, .gpuWriteBandwidthPeak,
+                .gpuWriteBandwidthSampleCount
+            )
+        }
+    }
+
+    func histogram(in sample: GPUBandwidthSample?) -> GPUBandwidthHistogram? {
+        switch self {
+        case .combined: return sample?.combined
+        case .read: return sample?.read
+        case .write: return sample?.write
+        }
+    }
+}
+
+struct GPUBandwidthPanel: View {
+    @ObservedObject var timeline: GPUTimelineStore
+    @State private var showsExplanation = false
+
+    var body: some View {
+        GPUPanel("GPU memory bandwidth", systemImage: "arrow.left.arrow.right") {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Text("Estimated average").font(.caption.weight(.medium))
+                    Text("Preview")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("gpu.bandwidth.preview")
+                    Button {
+                        showsExplanation = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("About estimated GPU bandwidth")
+                    .accessibilityLabel("About estimated GPU bandwidth")
+                    .popover(isPresented: $showsExplanation) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Estimated GPU bandwidth").font(.headline)
+                            Text(
+                                "macOS groups GPU traffic into bandwidth buckets. We weight each bucket's rate by its event count to find a mean. This estimates GB/s, not GPU load or exact bytes moved."
+                            )
+                            Text(
+                                "The lowest bucket can include no traffic. If all events fall there, we cannot give a mean. The top bucket can include higher rates, so the estimate may be low."
+                            )
+                            Text("Source: IOReport PMP / DCS BW.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        .padding(16)
+                        .frame(width: 360)
+                    }
+                    Spacer(minLength: 8)
+                }
+                LiveTrendChart(feed: timeline.bandwidthChartFeed, scrubbable: true)
+                    .frame(height: 170)
+                GPUBandwidthSurface(feed: timeline.bandwidthFeed)
+                    .frame(height: 100)
+                TrendStatisticsCaption(model: timeline.bandwidthChartFeed.model)
+            }
+        }
+    }
+}
+
+final class GPUBandwidthFeed {
+    private(set) var sample: GPUBandwidthSample?
+    private var observers: [UUID: () -> Void] = [:]
+
+    func publish(_ sample: GPUBandwidthSample?, at now: Date = Date()) {
+        let current = sample.flatMap { $0.isFresh(at: now) ? $0 : nil }
+        guard current != self.sample else { return }
+        self.sample = current
+        for observer in observers.values { observer() }
+    }
+
+    func observe(_ handler: @escaping () -> Void) -> UUID {
+        let identifier = UUID()
+        observers[identifier] = handler
+        return identifier
+    }
+
+    func stopObserving(_ identifier: UUID) { observers.removeValue(forKey: identifier) }
+}
+
+struct GPUBandwidthSurface: NSViewRepresentable {
+    let feed: GPUBandwidthFeed
+
+    func makeNSView(context: Context) -> GPUBandwidthSurfaceView {
+        let view = GPUBandwidthSurfaceView()
+        view.attach(feed)
+        return view
+    }
+
+    func updateNSView(_ view: GPUBandwidthSurfaceView, context: Context) {
+        if view.feed !== feed { view.attach(feed) }
+    }
+
+    static func dismantleNSView(_ view: GPUBandwidthSurfaceView, coordinator: ()) { view.detach() }
+}
+
+final class GPUBandwidthSurfaceView: NSView {
+    private(set) var feed: GPUBandwidthFeed?
+    private var observation: UUID?
+    private var headings: [NSTextField] = []
+    private var values: [NSTextField] = []
+    private var notes: [NSTextField] = []
+
+    var displayedEstimates: [GPUBandwidthHistogram.AverageEstimate?] {
+        GPUBandwidthDirection.allCases.map { $0.histogram(in: feed?.sample)?.estimatedAverage }
+    }
+
+    var displayedValues: [String] { values.map(\.stringValue) }
+    var displayedNotes: [String] { notes.map(\.stringValue) }
+    override var isFlipped: Bool { true }
+
+    init() {
+        super.init(frame: .zero)
+        for direction in GPUBandwidthDirection.allCases {
+            let heading = NSTextField(labelWithString: direction.title)
+            heading.font = .systemFont(ofSize: 12, weight: .medium)
+            heading.textColor = NSColor(direction.color)
+            let value = NSTextField(wrappingLabelWithString: "")
+            value.font = .monospacedDigitSystemFont(ofSize: 22, weight: .medium)
+            value.maximumNumberOfLines = 2
+            let note = NSTextField(wrappingLabelWithString: "")
+            note.font = .systemFont(ofSize: 11)
+            note.maximumNumberOfLines = 3
+            for field in [heading, value, note] { addSubview(field) }
+            headings.append(heading)
+            values.append(value)
+            notes.append(note)
+        }
+        setAccessibilityElement(true)
+        setAccessibilityRole(.group)
+        setAccessibilityLabel(t("Estimated GPU bandwidth"))
+        refresh()
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    deinit { detach() }
+
+    func attach(_ feed: GPUBandwidthFeed) {
+        detach()
+        self.feed = feed
+        observation = feed.observe { [weak self] in self?.refresh() }
+        refresh()
+    }
+
+    func detach() {
+        if let observation { feed?.stopObserving(observation) }
+        observation = nil
+        feed = nil
+    }
+
+    override func layout() {
+        super.layout()
+        let width = max(1, (bounds.width - 32) / 3)
+        for index in values.indices {
+            let horizontal = Double(index) * (width + 16)
+            headings[index].frame = CGRect(x: horizontal, y: 0, width: width, height: 18)
+            values[index].frame = CGRect(x: horizontal, y: 20, width: width, height: 32)
+            notes[index].frame = CGRect(x: horizontal, y: 52, width: width, height: 48)
+        }
+    }
+
+    private func refresh() {
+        for (index, estimate) in displayedEstimates.enumerated() {
+            let value: String
+            let note: String
+            if let estimate {
+                if estimate.onlyLowestBin {
+                    value = t("Below resolution")
+                    note = t("May include zero traffic")
+                } else {
+                    value = t(
+                        "~%@ GB/s",
+                        estimate.gigabytesPerSecond.formatted(
+                            .number.precision(.fractionLength(0...1))))
+                    note = ""
+                }
+            } else {
+                value = t("Unavailable")
+                note = ""
+            }
+            values[index].stringValue = value
+            values[index].font =
+                estimate?.onlyLowestBin == false
+                ? .monospacedDigitSystemFont(ofSize: 15, weight: .medium)
+                : .systemFont(ofSize: 12, weight: .medium)
+            notes[index].stringValue = note
+            notes[index].textColor = .secondaryLabelColor
+            values[index].toolTip =
+                headings[index].stringValue + ": " + value + (note.isEmpty ? "" : ". " + note)
+        }
+        setAccessibilityValue(values.compactMap(\.toolTip).joined(separator: ", "))
+    }
+}
+
+struct GPUClockStatesSection: View {
+    let feed: GPUStatesFeed
+    @State private var showsExplanation = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("CLOCK STATES")
+                    .font(.caption2.weight(.semibold))
+                    .tracking(0.6)
+                    .foregroundStyle(.tertiary)
+                Spacer()
+                Button {
+                    showsExplanation = true
+                } label: {
+                    Image(systemName: "info.circle")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("About GPU clock states")
+                .accessibilityLabel("About GPU clock states")
+                .popover(isPresented: $showsExplanation) {
+                    GPUClockStatesExplanation()
+                        .padding(16)
+                        .frame(width: 360)
+                }
+            }
+            GPUStatesSurface(feed: feed)
+            Text(
+                "Clock states are GPU speed levels. Percentages show time in each state in the latest sample, not GPU load or history-range averages."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+struct GPUClockStatesExplanation: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("GPU clock states").font(.headline)
+            definition(
+                "OFF",
+                "Time with the GPU powered down. A large OFF share is normal when little graphics work is needed."
+            )
+            definition(
+                "P states",
+                "Speed levels, ordered from lower to higher clock speeds. Higher states can finish work faster but usually use more power."
+            )
+            definition(
+                "Time, not load",
+                "P3 at 25% means the GPU spent one quarter of the latest sample in P3. It does not mean 25% of GPU capacity."
+            )
+            definition(
+                "Reading the pattern",
+                "macOS changes states to balance work, power and heat. Low states alone do not mean the GPU is being throttled. Check Thermal limit and Power cap for limits."
+            )
+            Text(
+                "The state names are not GHz values. This source does not report an exact frequency for each state."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .font(.callout)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func definition(_ title: LocalizedStringKey, _ text: LocalizedStringKey) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title).fontWeight(.semibold)
+            Text(text)
+        }
+    }
+}
 
 /// The GPU's performance-state residency, for a small bar-per-state surface.
 final class GPUStatesFeed {
@@ -864,7 +1394,11 @@ final class GPUStatesSurfaceView: LiveSurfaceView {
         super.init(frame: .zero)
         setAccessibilityElement(true)
         setAccessibilityRole(.image)
-        setAccessibilityLabel("GPU clock states")
+        setAccessibilityLabel(t("GPU clock states"))
+        setAccessibilityHelp(
+            t(
+                "Clock states are GPU speed levels. Percentages show time in each state in the latest sample, not GPU load or history-range averages."
+            ))
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -890,9 +1424,14 @@ final class GPUStatesSurfaceView: LiveSurfaceView {
             shownCount = feed.states.count
             invalidateIntrinsicContentSize()
         }
+        var readings = feed.states.map { ($0.name, $0.residency) }
+        if let active = feed.activeResidency {
+            readings.insert(("OFF", max(0, 100 - active)), at: 0)
+        }
         setAccessibilityValue(
-            feed.states.map { "\($0.name) \(Int($0.residency.rounded())) percent" }
-                .joined(separator: ", "))
+            readings.map {
+                t("%1$@: %2$@ of the latest sample", $0.0, MetricUnit.percent.format($0.1))
+            }.joined(separator: ", "))
         invalidateContent()
     }
 

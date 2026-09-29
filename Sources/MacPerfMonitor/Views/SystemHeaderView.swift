@@ -21,7 +21,7 @@ struct SystemHeaderView: View {
         // Prefer the smoothed live CPU (matches the Dashboard's Processor panel),
         // falling back to the snapshot's raw sample before the first smooth lands.
         let cpu = model.smoothedCPU ?? snapshot?.cpu
-        var cards = CPUMetrics.cards(cpu: cpu, history: [], span: 2 * 3600)
+        var cards = CPUMetrics.cards(cpu: cpu, history: [], span: ProcessHeaderStore.headerSpan)
         if !cards.isEmpty { cards[0].live = live.usageFeed }
         if cards.count > 1 { cards[1].live = live.loadFeed }
         return VStack(alignment: .leading, spacing: 10) {
@@ -63,14 +63,20 @@ struct SystemHeaderView: View {
         // The window grows in place at the dial rate; nothing here re-renders
         // for it (the feeds repaint their AppKit surfaces).
         .onReceive(model.liveTick) {
-            guard appState.mainWindowVisible else { return }
-            live.append(model.liveSystem, cpu: model.smoothedCPU)
+            // Collect while covered, draw only when visible: see the same
+            // change in DashboardView. A hidden window must not punch a hole in
+            // the history it shows when it comes back.
+            live.append(
+                model.liveSystem, cpu: model.smoothedCPU, liveCPU: model.liveCPU,
+                publish: appState.mainWindowVisible)
         }
     }
 
     private func reload() {
-        model.loadRecentSystemHistory(seconds: 2 * 3600) { points in
-            live.replace(points, live: model.liveSystem, cpu: model.smoothedCPU)
+        model.loadRecentSystemHistory(seconds: ProcessHeaderStore.headerSpan) { points in
+            live.replace(
+                points, live: model.liveSystem, cpu: model.smoothedCPU,
+                liveCPU: model.liveCPU)
         }
     }
 
@@ -165,7 +171,7 @@ private struct CPUCoreCard: View {
                     .lineLimit(1)
                 Spacer(minLength: 4)
             }
-            CoreGridSurface(feed: feed, barHeight: 40)
+            CoreGridSurface(feed: feed, barHeight: 50)
         }
         // Match the metric cards' fill so all three header cards are one height.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -190,7 +196,17 @@ private struct CPUCoreCard: View {
 /// dial rate without re-rendering any SwiftUI view. Main thread only.
 @MainActor
 final class ProcessHeaderStore: ObservableObject {
-    private var window = SystemHistoryWindow(span: 2 * 3600)
+    /// Ten minutes, not two hours. The strip is about 350 points wide, so a two
+    /// hour window at the sampler's cadence put roughly twenty samples in every
+    /// pixel column and painted the spike from each one: the result read as a
+    /// band of noise whose height was worst case, not typical. Ten minutes is
+    /// close to one sample per column, which is what makes the charts on the
+    /// right legible.
+    private var window = SystemHistoryWindow(span: ProcessHeaderStore.headerSpan)
+
+    /// Shared by the window and the history load so they cannot drift apart.
+    static let headerSpan: TimeInterval = 10 * 60
+
     let usageFeed = MetricCardFeed()
     let loadFeed = MetricCardFeed()
     let coreFeed = CoreGridFeed()
@@ -199,36 +215,89 @@ final class ProcessHeaderStore: ObservableObject {
     /// grows the fourth card on machines that actually report one.
     @Published private(set) var hasTemperature = false
 
-    func replace(_ points: [SystemHistoryPoint], live: SystemSample?, cpu: CPUSample?) {
+    func replace(
+        _ points: [SystemHistoryPoint], live: SystemSample?, cpu: CPUSample?,
+        liveCPU: CPUSample?
+    ) {
         window.replace(points)
         if let live { window.append(Self.point(from: live)) }
-        publish(cpu, system: live)
+        publish(cpu, system: live, liveCPU: liveCPU)
     }
 
-    func append(_ system: SystemSample?, cpu: CPUSample?) {
+    func append(
+        _ system: SystemSample?, cpu: CPUSample?, liveCPU: CPUSample?, publish shouldPublish: Bool
+    ) {
         if let system { window.append(Self.point(from: system)) }
-        publish(cpu, system: system)
+        guard shouldPublish else { return }
+        publish(cpu, system: system, liveCPU: liveCPU)
     }
 
-    private func publish(_ cpu: CPUSample?, system: SystemSample?) {
+    private func publish(_ cpu: CPUSample?, system: SystemSample?, liveCPU: CPUSample?) {
         let level = CPULevel(fraction: cpu?.totalUsage ?? 0)
         usageFeed.publish(
             value: cpu.map { "\(Int(($0.totalUsage * 100).rounded()))%" },
             tint: NSColor(level.color), column: LiveColumn(window, .cpuLoad), scale: 100,
-            xDomain: window.xDomain, yDomain: 0...100)
+            xDomain: window.xDomain, yDomain: 0...100,
+            peak: window.peak(.cpuLoad).map { t("peak %@%%", String(Int(($0 * 100).rounded()))) })
+        // The load averages come from the window like every other metric, so
+        // the card shows history the moment the tab opens and the detail sheet
+        // has the same series. All three are drawn: the 1 minute figure as the
+        // line, the 5 and 15 minute figures as fainter lines behind it, the way
+        // beszel draws load, so a spike and the trend it sits on read together.
+        let (loadTimes, load1, load5, load15) = Self.recordedLoad(window)
+        let loadColumn = LiveColumn(
+            times: loadTimes, values: load1.values, highs: load1.highs)
+        let load5Column = LiveColumn(times: loadTimes, values: load5)
+        let load15Column = LiveColumn(times: loadTimes, values: load15)
+        // Full height is one process per core, so the chart reads as "how close
+        // to fully subscribed", and it stretches when load goes past that.
+        let loadTop = max(
+            Double(cpu?.cores.count ?? 0), loadColumn.range?.max ?? 0,
+            load5Column.range?.max ?? 0, load15Column.range?.max ?? 0, 1)
         loadFeed.publish(
-            value: cpu.map { String(format: "%.2f", $0.loadAverage1) }, tint: .labelColor,
-            column: nil, xDomain: nil, yDomain: nil)
-        coreFeed.publish(cpu?.cores ?? [])
+            value: cpu.map { String(format: "%.2f", $0.loadAverage1) },
+            tint: NSColor(CPUMetrics.loadColor(cpu)), column: loadColumn, scale: 1,
+            xDomain: window.xDomain, yDomain: 0...loadTop,
+            peak: loadColumn.range.map { t("peak %@", String(format: "%.2f", $0.max)) },
+            // The card's second line labels these two, so the fainter lines
+            // read without a legend the strip has no room for; the detail
+            // sheet draws the legend.
+            companions: [
+                MetricCardCompanion(
+                    label: "5 min", column: load5Column, alpha: 0.6, lineWidth: 1.2),
+                MetricCardCompanion(
+                    label: "15 min", column: load15Column, alpha: 0.35, lineWidth: 1),
+            ])
+        // The bars show the sample as measured. The cards above them stay
+        // smoothed: a jittering percentage is unreadable, a still core grid is
+        // uninformative.
+        coreFeed.publish((liveCPU ?? cpu)?.cores ?? [])
         // The temperature card: hottest die sensor, tinted by macOS's own
         // thermal pressure verdict (green means "hot but working as designed").
         let die = system?.cpuDieC ?? window.peakLatestCPUDie
         if die != nil, !hasTemperature { hasTemperature = true }
         let pressure = system?.thermalPressure ?? .nominal
+        // Zoom to the readings rather than 0 to 110: a die that lives between 60
+        // and 75 degrees drew a flat line across the bottom sixth of the strip.
+        // A minimum span keeps a steady temperature from being magnified into
+        // noise, and the padding stops the line touching the edges.
+        let dieColumn = LiveColumn(window, .cpuDieC)
+        let dieRange = dieColumn.range
+        let dieDomain =
+            dieRange.map {
+                ChartDomain.fitted(
+                    min: $0.min, max: $0.max, minimumSpan: 10, padding: 2, floor: 0)
+            } ?? 20...90
         temperatureFeed.publish(
             value: die.map { "\(Int($0.rounded()))°C" },
-            tint: NSColor(pressure.color), column: LiveColumn(window, .cpuDieC), scale: 1,
-            xDomain: window.xDomain, yDomain: 0...110)
+            tint: NSColor(pressure.color), column: dieColumn, scale: 1,
+            xDomain: window.xDomain, yDomain: dieDomain,
+            peak: window.peak(.cpuDieC).flatMap {
+                $0 > 0 ? t("peak %@°C", String(Int($0.rounded()))) : nil
+            },
+            // Rule 2: a thermal spike is the event, so the line follows the
+            // bucket maximum rather than its mean.
+            reduction: .maximum)
     }
 
     private static func point(from s: SystemSample) -> SystemHistoryPoint {
@@ -241,8 +310,45 @@ final class ProcessHeaderStore: ObservableObject {
             cachedFiles: s.cachedFiles,
             swapUsed: s.swapUsed,
             cpuLoad: s.cpuLoad,
+            loadAverage1: s.loadAverage1,
+            loadAverage5: s.loadAverage5,
+            loadAverage15: s.loadAverage15,
             cpuDieC: s.cpuDieC
         )
+    }
+
+    /// The window's load averages, without the rows that have none. Rows
+    /// written before the load averages were recorded read as zero, and a load
+    /// average is never zero on a running Mac, so zero means "not recorded"
+    /// rather than "idle"; drawing it would put a false floor under the chart
+    /// for the first ten minutes after the upgrade.
+    private static func recordedLoad(
+        _ window: SystemHistoryWindow
+    ) -> (
+        times: ArraySlice<Double>, load1: (values: ArraySlice<Double>, highs: ArraySlice<Double>),
+        load5: ArraySlice<Double>, load15: ArraySlice<Double>
+    ) {
+        let times = window.timestamps
+        let load1 = window.values(.loadAverage1)
+        let peak1 = window.values(.loadAverage1Peak)
+        let load5 = window.values(.loadAverage5)
+        let load15 = window.values(.loadAverage15)
+        if !load1.contains(0) {
+            return (times, (load1, peak1), load5, load15)
+        }
+        var t: [Double] = []
+        var v1: [Double] = []
+        var h1: [Double] = []
+        var v5: [Double] = []
+        var v15: [Double] = []
+        for (offset, value) in load1.enumerated() where value > 0 {
+            t.append(times[times.startIndex + offset])
+            v1.append(value)
+            h1.append(peak1[peak1.startIndex + offset])
+            v5.append(load5[load5.startIndex + offset])
+            v15.append(load15[load15.startIndex + offset])
+        }
+        return (t[...], (v1[...], h1[...]), v5[...], v15[...])
     }
 }
 

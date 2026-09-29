@@ -85,22 +85,22 @@ final class InsightEngineTests: XCTestCase {
         XCTAssertEqual(insights[0].severity, .allClear)
     }
 
-    func testLeakProducesWarningWithProcessIdentity() {
+    func testModestGrowthProducesAnAdvisoryWithProcessIdentity() {
         let insights = InsightEngine.insights(
             inputs(leaks: [leakEntry(pid: 42, name: "Leaky", confidence: 0.7, growth: 200_000_000)])
         )
         XCTAssertEqual(insights.count, 1)
         XCTAssertEqual(insights[0].kind, .leak)
-        XCTAssertEqual(insights[0].severity, .warning)
+        XCTAssertEqual(insights[0].severity, .advisory)
         XCTAssertEqual(insights[0].identity, identity(pid: 42))
         XCTAssertTrue(insights[0].headline.contains("Leaky"))
     }
 
-    func testConfidentLargeLeakEscalatesToCritical() {
+    func testLargeGrowthDoesNotBecomeCriticalOnFitScoreAlone() {
         let insights = InsightEngine.insights(
             inputs(leaks: [leakEntry(pid: 42, name: "Leaky", confidence: 0.9, growth: gigabyte)])
         )
-        XCTAssertEqual(insights[0].severity, .critical)
+        XCTAssertEqual(insights[0].severity, .warning)
     }
 
     func testPressureEventSeverityTracksCurrentLevel() {

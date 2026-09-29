@@ -12,7 +12,7 @@ struct GroupDetailView: View {
 
     let group: ProcessGroup
 
-    @State private var window: HistoryWindow = .oneHour
+    @StoredHistoryWindow("historyRange.groupDetail") private var window
     @State private var chartMetric: ChartMetric = .memory
     @State private var aggregation: Aggregation = .average
     @State private var report: GroupReport?

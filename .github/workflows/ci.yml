@@ -6,7 +6,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 2.0.0]
   pull_request:
 
 permissions:
@@ -18,22 +18,38 @@ concurrency:
 
 jobs:
   build-test-lint:
-    name: Build, test, lint
-    runs-on: macos-15
+    name: Build, test, lint (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, xcode-27]
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out
         uses: actions/checkout@v4
 
       - name: Show toolchain
-        run: swift --version
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Verify AI build toolchain
+        if: matrix.runner == 'xcode-27'
+        run: xcodebuild -version | grep -E '^Xcode 27([.]|$)'
+
+      - name: Install Metal toolchain for local inference
+        run: |
+          if ! xcrun metal --version > /dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
 
       - name: Cache SwiftPM build
         uses: actions/cache@v4
         with:
           path: .build
-          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          key: spm-${{ matrix.runner }}-${{ runner.arch }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
           restore-keys: |
-            spm-${{ runner.os }}-
+            spm-${{ matrix.runner }}-${{ runner.arch }}-
 
       - name: Build
         run: swift build
@@ -56,4 +72,13 @@ jobs:
           xcrun xcstringstool compile Localizations/Localizable.xcstrings \
             --output-directory "$RUNNER_TEMP/lproj"
           ls -1 "$RUNNER_TEMP/lproj"
+
+      # Ask the compiler which keys the interface actually looks up, and fail
+      # when one of them is not in the catalog. check-localization.py scans
+      # source text, which cannot see the key SwiftUI builds from an
+      # interpolated literal: Text("\(count) inside") looks up "%lld inside".
+      # This rebuilds with -emit-localized-strings, so it is the slow check and
+      # runs last.
+      - name: Check string coverage
+        run: Scripts/check-string-coverage.py
 

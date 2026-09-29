@@ -1,6 +1,6 @@
 <!--
-Thanks for contributing to MacPerfMonitor. Please fill out the sections below.
-Keep user-facing copy and docs free of the em dash (see CONTRIBUTING.md).
+Thanks for contributing to Mac Performance Monitor. Please fill out the sections below.
+Avoid em and en dashes in prose and code comments (see CONTRIBUTING.md).
 -->
 
 ## Summary
@@ -20,5 +20,8 @@ Keep user-facing copy and docs free of the em dash (see CONTRIBUTING.md).
 - [ ] `swift test` passes
 - [ ] `swift format lint --strict --recursive Sources Tests Package.swift` passes
 - [ ] `CHANGELOG.md` updated under "Unreleased" for any user-visible change
-- [ ] No telemetry or network calls introduced
+- [ ] Relevant docs, upgrade notes, and screenshots match the change
+- [ ] New UI strings pass source/compiler coverage and String Catalog compilation
+- [ ] No usage telemetry or upload of recorded history introduced
+- [ ] Any new network access, permissions, or exported data are documented
 - [ ] Data-layer changes keep `MacPerfMonitorCore` free of SwiftUI

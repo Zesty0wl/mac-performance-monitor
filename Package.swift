@@ -12,9 +12,13 @@ let package = Package(
         .executable(name: "macperfmonitor-cli", targets: ["macperfmonitor-cli"]),
         .executable(name: "MacPerfMonitor", targets: ["MacPerfMonitor"]),
         .executable(name: "MacPerfMonitorHelper", targets: ["MacPerfMonitorHelper"]),
+        .executable(name: "MacPerfMonitorInference", targets: ["MacPerfMonitorInference"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0")
+        .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
+        .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "3.31.4"),
+        .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.4"),
+        .package(url: "https://github.com/huggingface/swift-transformers", exact: "1.3.0"),
     ],
     targets: [
         // Thin C shim exposing libproc / mach / sysctl headers and a couple of
@@ -60,6 +64,18 @@ let package = Package(
             dependencies: ["MacPerfMonitorIPC", "MacPerfMonitorCore"]
         ),
 
+        .executableTarget(
+            name: "MacPerfMonitorInference",
+            dependencies: [
+                "MacPerfMonitorCore",
+                "llama",
+                .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "MLXLLM", package: "mlx-swift-lm"),
+                .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
+                .product(name: "Tokenizers", package: "swift-transformers"),
+            ]
+        ),
+
         // The SwiftUI app: menubar, windows, views, view models. Built from the
         // command line via SPM and wrapped into a .app bundle by Scripts/bundle.sh.
         // Uses @main in App/MacPerfMonitorApp.swift (there must be no main.swift here).
@@ -89,6 +105,12 @@ let package = Package(
             name: "Sparkle",
             path: "ThirdParty/Sparkle.xcframework"
         ),
+        .binaryTarget(
+            name: "llama",
+            url:
+                "https://github.com/ggml-org/llama.cpp/releases/download/b10964/llama-b10964-xcframework.zip",
+            checksum: "b342a31c3160095d02777cbf1719013d4e6ff7556a1d46ab9eb5df0a93d13c47"
+        ),
 
         .testTarget(
             name: "MacPerfMonitorCoreTests",
@@ -101,6 +123,10 @@ let package = Package(
         .testTarget(
             name: "MacPerfMonitorIPCTests",
             dependencies: ["MacPerfMonitorIPC", "MacPerfMonitorCore"]
+        ),
+        .testTarget(
+            name: "MacPerfMonitorTests",
+            dependencies: ["MacPerfMonitor", "MacPerfMonitorCore"]
         ),
     ],
     swiftLanguageModes: [.v5]

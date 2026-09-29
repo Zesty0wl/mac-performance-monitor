@@ -20,6 +20,14 @@ public struct SystemSample: Sendable, Codable {
 
     public var swapTotal: UInt64
     public var swapUsed: UInt64
+    public var swapSampleValid: Bool?
+    public var pressureSampleValid: Bool?
+    public var swapInBytesPerSecond: Double?
+    public var swapOutBytesPerSecond: Double?
+    public var swapInPagesDelta: UInt64?
+    public var swapOutPagesDelta: UInt64?
+    public var memoryPageSize: UInt64?
+    public var memorySampleInterval: TimeInterval?
 
     public var pressureLevel: PressureLevel
     /// Continuous 0...100 index for smooth charting. See docs/pressure-index.md.
@@ -40,6 +48,11 @@ public struct SystemSample: Sendable, Codable {
 
     /// System-wide CPU load as a fraction (0...1 per core averaged), best-effort.
     public var cpuLoad: Double
+    /// The kernel's load averages (run-queue length over 1, 5 and 15 minutes,
+    /// the figures `uptime` reports), persisted so the load card has history.
+    public var loadAverage1: Double
+    public var loadAverage5: Double
+    public var loadAverage15: Double
 
     // Battery state, persisted so the dashboard battery timelines work over the
     // long ranges. Only the chartable scalars live here; the richer live-only
@@ -96,7 +109,16 @@ public struct SystemSample: Sendable, Codable {
     // older samples decode and "not sampled" stays distinct from 0.
     public var gpuUtilization: Double?
     public var gpuPowerWatts: Double?
+    public var gpuMemoryBytes: UInt64?
+    public var gpuActiveResidency: Double?
+    public var gpuReadBandwidthGBps: Double?
+    public var gpuWriteBandwidthGBps: Double?
+    public var gpuTotalBandwidthGBps: Double?
     public var anePowerWatts: Double?
+    public var anePowerSampledAt: Date?
+    public var anePowerSampleInterval: TimeInterval?
+    public var aneTimeMillisecondsPerSecond: Double?
+    public var aneSampleIsPartial: Bool?
     // Thermal figures (v14), read from the SMC on the same ticks as the GPU
     // figures. Optional for the same reason: "not sampled" stays distinct
     // from 0. cpuDieC and gpuDieC are the hottest sensor of their domain;
@@ -119,6 +141,15 @@ public struct SystemSample: Sendable, Codable {
     /// macOS's own thermal pressure verdict, read every tick (public API, no
     /// SMC involved), so throttling history survives even without sensors.
     public var thermalPressure: ThermalPressureState?
+
+    public var reportedANEPowerWatts: Double? {
+        guard let anePowerSampledAt, let anePowerSampleInterval, let anePowerWatts else {
+            return nil
+        }
+        let reading = ANEPowerReading(
+            timestamp: anePowerSampledAt, interval: anePowerSampleInterval, watts: anePowerWatts)
+        return reading.isFresh(at: timestamp) ? anePowerWatts : nil
+    }
 
     public init(
         timestamp: Date,
@@ -144,6 +175,9 @@ public struct SystemSample: Sendable, Codable {
         compressionsDelta: UInt64 = 0,
         decompressionsDelta: UInt64 = 0,
         cpuLoad: Double = 0,
+        loadAverage1: Double = 0,
+        loadAverage5: Double = 0,
+        loadAverage15: Double = 0,
         batteryPresent: Bool = false,
         batteryCharge: Double = 0,
         batteryPowerWatts: Double = 0,
@@ -165,7 +199,16 @@ public struct SystemSample: Sendable, Codable {
         bootVolumeFreeBytes: UInt64? = nil,
         gpuUtilization: Double? = nil,
         gpuPowerWatts: Double? = nil,
+        gpuMemoryBytes: UInt64? = nil,
+        gpuActiveResidency: Double? = nil,
+        gpuReadBandwidthGBps: Double? = nil,
+        gpuWriteBandwidthGBps: Double? = nil,
+        gpuTotalBandwidthGBps: Double? = nil,
         anePowerWatts: Double? = nil,
+        anePowerSampledAt: Date? = nil,
+        anePowerSampleInterval: TimeInterval? = nil,
+        aneTimeMillisecondsPerSecond: Double? = nil,
+        aneSampleIsPartial: Bool? = nil,
         cpuDieC: Double? = nil,
         gpuDieC: Double? = nil,
         ssdTemperatureC: Double? = nil,
@@ -177,7 +220,15 @@ public struct SystemSample: Sendable, Codable {
         skinC: Double? = nil,
         wirelessC: Double? = nil,
         voltageRailC: Double? = nil,
-        otherSensorC: Double? = nil
+        otherSensorC: Double? = nil,
+        swapSampleValid: Bool? = nil,
+        pressureSampleValid: Bool? = nil,
+        swapInBytesPerSecond: Double? = nil,
+        swapOutBytesPerSecond: Double? = nil,
+        swapInPagesDelta: UInt64? = nil,
+        swapOutPagesDelta: UInt64? = nil,
+        memoryPageSize: UInt64? = nil,
+        memorySampleInterval: TimeInterval? = nil
     ) {
         self.timestamp = timestamp
         self.totalRAM = totalRAM
@@ -191,6 +242,14 @@ public struct SystemSample: Sendable, Codable {
         self.cachedFiles = cachedFiles
         self.swapTotal = swapTotal
         self.swapUsed = swapUsed
+        self.swapSampleValid = swapSampleValid
+        self.pressureSampleValid = pressureSampleValid
+        self.swapInBytesPerSecond = swapInBytesPerSecond
+        self.swapOutBytesPerSecond = swapOutBytesPerSecond
+        self.swapInPagesDelta = swapInPagesDelta
+        self.swapOutPagesDelta = swapOutPagesDelta
+        self.memoryPageSize = memoryPageSize
+        self.memorySampleInterval = memorySampleInterval
         self.pressureLevel = pressureLevel
         self.pressurePercent = pressurePercent
         self.pageIns = pageIns
@@ -202,6 +261,9 @@ public struct SystemSample: Sendable, Codable {
         self.compressionsDelta = compressionsDelta
         self.decompressionsDelta = decompressionsDelta
         self.cpuLoad = cpuLoad
+        self.loadAverage1 = loadAverage1
+        self.loadAverage5 = loadAverage5
+        self.loadAverage15 = loadAverage15
         self.batteryPresent = batteryPresent
         self.batteryCharge = batteryCharge
         self.batteryPowerWatts = batteryPowerWatts
@@ -223,7 +285,16 @@ public struct SystemSample: Sendable, Codable {
         self.bootVolumeFreeBytes = bootVolumeFreeBytes
         self.gpuUtilization = gpuUtilization
         self.gpuPowerWatts = gpuPowerWatts
+        self.gpuMemoryBytes = gpuMemoryBytes
+        self.gpuActiveResidency = gpuActiveResidency
+        self.gpuReadBandwidthGBps = gpuReadBandwidthGBps
+        self.gpuWriteBandwidthGBps = gpuWriteBandwidthGBps
+        self.gpuTotalBandwidthGBps = gpuTotalBandwidthGBps
         self.anePowerWatts = anePowerWatts
+        self.anePowerSampledAt = anePowerSampledAt
+        self.anePowerSampleInterval = anePowerSampleInterval
+        self.aneTimeMillisecondsPerSecond = aneTimeMillisecondsPerSecond
+        self.aneSampleIsPartial = aneSampleIsPartial
         self.cpuDieC = cpuDieC
         self.gpuDieC = gpuDieC
         self.ssdTemperatureC = ssdTemperatureC

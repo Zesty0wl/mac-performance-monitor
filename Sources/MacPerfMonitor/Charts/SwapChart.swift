@@ -41,9 +41,7 @@ struct SwapChart: View {
     var body: some View {
         TrendChart(
             series: [
-                TrendSeries(
-                    points: LiveTrend.points(swap, xDomain: xDomain),
-                    color: .indigo, filled: true)
+                TrendSeries(points: LiveTrend.allPoints(swap), color: .indigo, filled: true)
             ],
             xDomain: xDomain,
             yDomain: yDomain,

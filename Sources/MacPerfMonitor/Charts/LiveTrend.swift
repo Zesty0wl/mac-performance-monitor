@@ -10,28 +10,77 @@ struct LiveColumn {
     /// `timeIntervalSinceReferenceDate` seconds, oldest first.
     var times: ArraySlice<Double>
     var values: ArraySlice<Double>
+    /// Each sample's own peak, where the samples are stored means with the
+    /// bucket maximum beside them (`SystemHistoryWindow.Column` peak columns).
+    /// The band rises to these; the line ignores them.
+    var highs: ArraySlice<Double>?
+    var lows: ArraySlice<Double>?
+    var weights: ArraySlice<Double>?
+    var durations: ArraySlice<Double>?
 
-    init(times: ArraySlice<Double>, values: ArraySlice<Double>) {
+    init(
+        times: ArraySlice<Double>, values: ArraySlice<Double>, highs: ArraySlice<Double>? = nil,
+        lows: ArraySlice<Double>? = nil, weights: ArraySlice<Double>? = nil,
+        durations: ArraySlice<Double>? = nil
+    ) {
         self.times = times
         self.values = values
+        self.highs = highs
+        self.lows = lows
+        self.weights = weights
+        self.durations = durations
     }
 
-    init(_ window: SystemHistoryWindow, _ column: SystemHistoryWindow.Column) {
+    init(
+        _ window: SystemHistoryWindow, _ column: SystemHistoryWindow.Column,
+        peak: SystemHistoryWindow.Column? = nil, minimum: SystemHistoryWindow.Column? = nil
+    ) {
         times = window.timestamps
         values = window.values(column)
+        highs = peak.map { window.values($0) }
+        lows = minimum.map { window.values($0) }
+        weights = window.values(.sampleCount)
+        durations = window.values(.bucketDuration)
     }
 
-    init(_ points: [SystemHistoryPoint], value: (SystemHistoryPoint) -> Double) {
+    /// `high`, when given, reads each point's stored peak (see
+    /// `SystemHistoryPoint.effectivePeaks`) so the band reaches it.
+    init(
+        _ points: [SystemHistoryPoint], value: (SystemHistoryPoint) -> Double,
+        high: ((SystemHistoryPoint) -> Double)? = nil
+    ) {
+        var t: [Double] = []
+        var v: [Double] = []
+        var h: [Double] = []
+        t.reserveCapacity(points.count)
+        v.reserveCapacity(points.count)
+        if high != nil { h.reserveCapacity(points.count) }
+        for point in points {
+            t.append(point.date.timeIntervalSinceReferenceDate)
+            v.append(value(point))
+            if let high { h.append(high(point)) }
+        }
+        times = t[...]
+        values = v[...]
+        highs = high == nil ? nil : h[...]
+    }
+
+    /// The Canvas charts' input, as a column. Highs are carried only when some
+    /// point has one; a series of raw samples has none.
+    init(_ points: [TrendPoint]) {
         var t: [Double] = []
         var v: [Double] = []
         t.reserveCapacity(points.count)
         v.reserveCapacity(points.count)
         for point in points {
             t.append(point.date.timeIntervalSinceReferenceDate)
-            v.append(value(point))
+            v.append(point.value)
         }
         times = t[...]
         values = v[...]
+        if points.contains(where: { $0.high != nil }) {
+            highs = points.map { $0.high ?? $0.value }[...]
+        }
     }
 
     var count: Int { times.count }
@@ -41,13 +90,22 @@ struct LiveColumn {
 
     /// The smallest and largest value, without allocating.
     var range: (min: Double, max: Double)? {
-        guard var lo = values.first else { return nil }
+        guard var lo = values.first(where: \.isFinite) else { return nil }
         var hi = lo
-        for v in values {
+        for v in values where v.isFinite {
             if v < lo { lo = v }
             if v > hi { hi = v }
         }
         return (lo, hi)
+    }
+
+    func statistics(
+        width: Double, range: ClosedRange<Double>, gapThreshold: Double, scale: Double = 1
+    ) -> [ChartStatistics.Bucket] {
+        ChartStatistics.buckets(
+            times: times, values: values, lows: lows, highs: highs,
+            weights: weights, durations: durations, width: width,
+            range: range, gapThreshold: gapThreshold, scale: scale)
     }
 }
 
@@ -65,8 +123,34 @@ enum LiveTrend {
     /// this is about one bucket per point, so nothing visible is lost.
     static let buckets = 720
 
+    /// Every sample of a column as chart points, peaks included. The chart
+    /// reduces at draw time (docs/chart-rules.md, rule 1), so nothing is
+    /// thinned here.
+    static func allPoints(_ column: LiveColumn) -> [TrendPoint] {
+        var out: [TrendPoint] = []
+        out.reserveCapacity(column.count)
+        var ti = column.times.startIndex
+        var vi = column.values.startIndex
+        var hi = column.highs?.startIndex
+        while ti < column.times.endIndex {
+            var point = TrendPoint(
+                date: Date(timeIntervalSinceReferenceDate: column.times[ti]),
+                value: column.values[vi])
+            if let highs = column.highs, let h = hi {
+                point.high = highs[h]
+                hi = h + 1
+            }
+            out.append(point)
+            ti += 1
+            vi += 1
+        }
+        return out
+    }
+
     /// Decimated points for one metric. `xDomain` anchors the buckets; without
-    /// one (a static chart) the data's own extent is used.
+    /// one (a static chart) the data's own extent is used. Used by the card
+    /// strips' fallback path; the charts take `allPoints` and reduce at draw
+    /// time.
     static func points(
         _ column: LiveColumn, xDomain: ClosedRange<Date>?, buckets: Int = LiveTrend.buckets
     ) -> [TrendPoint] {

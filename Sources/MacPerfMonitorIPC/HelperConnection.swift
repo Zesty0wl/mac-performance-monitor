@@ -63,6 +63,55 @@ public final class HelperConnection: PrivilegedReader, @unchecked Sendable {
         connection?.invalidate()
     }
 
+    public func readANEPower(reply: @escaping @Sendable (ANEPowerReading?) -> Void) {
+        guard let connection = currentConnection() else {
+            reply(nil)
+            return
+        }
+        let response = PowerReply(reply)
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + timeout) {
+            response.finish(nil)
+        }
+        let proxy = connection.remoteObjectProxyWithErrorHandler { _ in response.finish(nil) }
+        guard let helper = proxy as? MacPerfMonitorHelperProtocol else {
+            response.finish(nil)
+            return
+        }
+        helper.readANEPower { data in
+            guard let data, data.count <= 4096,
+                let reading = try? JSONDecoder().decode(ANEPowerReading.self, from: data),
+                reading.isFresh(at: Date())
+            else {
+                response.finish(nil)
+                return
+            }
+            response.finish(reading)
+        }
+    }
+
+    public func stopANEPower() {
+        let connection = lock.withLock { cached }
+        guard let connection else { return }
+        let proxy = connection.remoteObjectProxyWithErrorHandler { _ in }
+        (proxy as? MacPerfMonitorHelperProtocol)?.stopANEPower(reply: {})
+    }
+
+    private final class PowerReply: @unchecked Sendable {
+        private let lock = NSLock()
+        private var reply: (@Sendable (ANEPowerReading?) -> Void)?
+
+        init(_ reply: @escaping @Sendable (ANEPowerReading?) -> Void) { self.reply = reply }
+
+        func finish(_ reading: ANEPowerReading?) {
+            let callback = lock.withLock {
+                let callback = reply
+                reply = nil
+                return callback
+            }
+            callback?(reading)
+        }
+    }
+
     public func readProcesses(pids: [Int32]) -> [Int32: RawProcessRead] {
         guard !pids.isEmpty, let connection = currentConnection() else { return [:] }
 

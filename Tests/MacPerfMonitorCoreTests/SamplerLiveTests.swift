@@ -102,4 +102,13 @@ final class SamplerLiveTests: XCTestCase {
         let after = try XCTUnwrap(reader.fdCount(pid, scratch: scratch))
         XCTAssertLessThan(after, baseline + 50)
     }
+
+    func testHasBaselineOnlyAfterAFirstTick() {
+        let sampler = Sampler()
+        XCTAssertFalse(sampler.hasBaseline, "nothing to difference against before the first tick")
+        _ = sampler.tickSystem()
+        XCTAssertTrue(sampler.hasBaseline)
+        sampler.reset()
+        XCTAssertFalse(sampler.hasBaseline, "a reset drops the baseline with the deltas")
+    }
 }

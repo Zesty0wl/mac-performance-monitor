@@ -1,5 +1,41 @@
 # Temperature monitoring: sources and surfacing design
 
+## GPU gaps: September 2026 follow-up
+
+The Dashboard's short-range GPU line can have gaps while CPU data remains
+present. Missing GPU readings are independent of CPU readings. A long-range
+aggregate can contain a valid GPU maximum even when many raw readings were
+missing, which makes the gap pattern less obvious at longer ranges.
+
+The reader had a discovery defect: it kept only keys whose first value looked
+like a valid temperature. A recognized GPU die key that initially returned
+zero or no payload could be excluded for the rest of that reader's lifetime.
+
+`SMCReader` now retains recognized CPU and GPU die candidates based on valid
+type and size metadata. Each read still validates the actual value. Missing
+domains and incomplete discovery retry at most once per five minutes. A
+temporarily invalid value does not trigger a full rescan or erase a known key.
+The reader also checks SMC result codes and response sizes, so a failed read
+cannot become a successful zero-valued response.
+
+This does not make every GPU reading available. Firmware can still return no
+valid value. We neither substitute CPU temperature nor carry an old reading
+across a failed sensor sweep. Existing missing history stays missing.
+
+The Dashboard now preserves explicit missing rows through drawing and hover
+selection. Temperature lines show temporal averages with known observed
+bounds. Stored sensor-specific counts weight those averages. The previous
+maximum-only temperature policy remains in other tabs until they migrate.
+See [Dashboard chart standard](dashboard-chart-standard.md) for the full rules.
+
+`SMCReaderTests` exercises discovery recovery, metadata errors, malformed
+payloads, invalid readings, and the five-minute retry limit through an injected
+transport. `DashboardChartTests` verifies independent GPU gaps and sensor
+counts, including a check that a missing GPU span has no painted line pixels.
+Hardware-dependent tests also exercise the live reader where SMC is available.
+
+## Original research
+
 Research notes from probing an M3 Pro (Mac15,6, macOS 26.6.2) with a standalone
 tool that enumerated every readable temperature source. This doc records what is
 available, what it costs to read, a bug the probe uncovered in the shipping die

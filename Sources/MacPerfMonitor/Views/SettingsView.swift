@@ -30,11 +30,12 @@ struct SettingsView: View {
 
 // MARK: - General
 
-/// Launch-at-login, function mode, language, and the privacy/about footnotes.
+/// Launch-at-login, history recording, language, and the privacy/about
+/// footnotes.
 private struct GeneralSettingsView: View {
     @EnvironmentObject private var loginItem: LoginItemManager
     @EnvironmentObject private var model: SamplerModel
-    @EnvironmentObject private var appMode: AppModeManager
+    @EnvironmentObject private var components: AppComponentsManager
     @EnvironmentObject private var languageManager: AppLanguageManager
     /// The process-table, chart, and live sampler refresh interval.
     @AppStorage(SamplerModel.tableIntervalKey) private var tableInterval =
@@ -50,6 +51,9 @@ private struct GeneralSettingsView: View {
                 if let error = loginItem.lastError {
                     caption("Last error: \(error)")
                 }
+                Toggle("Start minimised", isOn: $loginItem.startMinimised)
+                    .disabled(!components.menuBarItem)
+                    .help("Keep the main window closed at startup when the menu bar is enabled.")
             } header: {
                 Text("Startup")
             }
@@ -71,15 +75,12 @@ private struct GeneralSettingsView: View {
             }
 
             Section {
-                Picker("Mode", selection: $appMode.mode) {
-                    ForEach(AppMode.allCases, id: \.self) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                caption(LocalizedStringKey(appMode.mode.summary))
+                Toggle("Record history", isOn: $components.historyLogging)
+                caption(
+                    "Samples are written to a local database, which is what the dashboard's history ranges, the leak board and the pressure events read. With it off nothing is written to disk and those ranges stay unavailable until you turn it back on."
+                )
             } header: {
-                Text("Mode")
+                Text("History")
             }
 
             Section {
@@ -113,6 +114,7 @@ private struct GeneralSettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
+            AskPreviewSettingsSection()
         }
         .formStyle(.grouped)
     }
@@ -138,12 +140,27 @@ private struct GeneralSettingsView: View {
 private struct MenuBarDockSettingsView: View {
     @EnvironmentObject private var model: SamplerModel
     @EnvironmentObject private var menuBar: CombinedMenuBarConfiguration
-    /// Shared with `DockIconController`, so toggling shows or hides the Dock icon
-    /// live. Off by default — the app is menubar-first.
-    @AppStorage(DockIconController.defaultsKey) private var showDockIcon = false
+    @EnvironmentObject private var components: AppComponentsManager
+    /// Shared with `PresenceController`. Off by default: the Dock icon comes and
+    /// goes with the windows unless the user asks for it to stay.
+    @AppStorage(PresenceController.pinDefaultsKey) private var pinDockIcon = false
 
     var body: some View {
         Form {
+            Section {
+                Toggle("Show in the menu bar", isOn: $components.menuBarItem)
+                caption(
+                    "The read-out sits near the clock, and clicking it opens the panel. With it off, \(AppInfo.displayName) keeps monitoring and recording; open its window again from the Dock, Spotlight or Launchpad."
+                )
+                if !components.menuBarItem && !components.historyLogging {
+                    caption(
+                        "With the menu bar item and history recording both off, closing the window quits \(AppInfo.displayName)."
+                    )
+                }
+            } header: {
+                Text("Menu bar")
+            }
+
             Section {
                 Picker("Presentation", selection: presentationBinding) {
                     ForEach(MenuBarPresentation.allCases) { presentation in
@@ -182,6 +199,7 @@ private struct MenuBarDockSettingsView: View {
                     "Read-outs follow the menu bar appearance. Active alarms add a red warning marker."
                 )
             }
+            .disabled(!components.menuBarItem)
 
             Section {
                 ForEach(menuBar.selectedMetrics) { metric in
@@ -193,14 +211,14 @@ private struct MenuBarDockSettingsView: View {
             } header: {
                 Text("Read-outs")
             } footer: {
-                Text(
-                    "Choose any combination and order. At least one read-out must remain selected.")
+                Text("Choose any combination and order.")
             }
+            .disabled(!components.menuBarItem)
 
             Section {
-                Toggle("Show icon in the Dock", isOn: $showDockIcon)
+                Toggle("Keep in the Dock in the background", isOn: $pinDockIcon)
                 caption(
-                    "Also show \(AppInfo.displayName) in the Dock while it's running, as a second way to open it: handy if your menu bar is too crowded to see the menu bar items. It still runs from the menu bar either way."
+                    "\(AppInfo.displayName) appears in the Dock whenever one of its windows is open, which is also what gives it the usual menus. Turn this on to keep it in the Dock while it runs in the background with no window open."
                 )
             } header: {
                 Text("Dock")
@@ -271,7 +289,7 @@ private struct MenuBarDockSettingsView: View {
 /// Every alert, each in its own headed section so the group reads as one set of
 /// related controls (the old layout left four of them headerless). Thresholded
 /// alerts reveal their stepper only when enabled.
-private struct AlertsSettingsView: View {
+struct AlertsSettingsView: View {
     @EnvironmentObject private var alertSettings: AlertSettings
 
     var body: some View {
@@ -286,18 +304,19 @@ private struct AlertsSettingsView: View {
                 Text("Critical Memory Pressure")
             } footer: {
                 Text(
-                    "All alerts are off by default except critical pressure and runaway processes. \(AppInfo.displayName) never sends anything off your Mac."
+                    "By default, only critical pressure and process memory growth alerts are enabled. All analysis stays on your Mac."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
 
             Section {
-                Toggle("Runaway process", isOn: $alertSettings.config.leakEnabled)
+                Toggle("Process memory growth", isOn: $alertSettings.config.leakEnabled)
                 caption(
-                    "Notify when a process keeps growing in a way that looks like a memory leak.")
+                    "Watch sustained memory growth quietly. Notify for material, continuing growth or rapid runaway use, not a brief rise or a settled cache."
+                )
             } header: {
-                Text("Runaway Process")
+                Text("Process Memory Growth")
             }
 
             Section {
@@ -310,15 +329,23 @@ private struct AlertsSettingsView: View {
             }
 
             Section {
-                Toggle("Heavy swap use", isOn: $alertSettings.config.swapEnabled)
-                if alertSettings.config.swapEnabled {
-                    gigabyteStepper(
-                        "Swap above", bytes: $alertSettings.config.swapThresholdBytes, range: 1...32
-                    )
-                }
-                caption("Notify when the system writes more than the chosen amount to swap.")
+                Toggle("Swap growth and paging", isOn: $alertSettings.config.swapEnabled)
+                caption(
+                    "Notify for sustained swap growth or heavy swap activity under memory pressure. Stable swap usage alone does not trigger an alert."
+                )
             } header: {
-                Text("Heavy Swap Use")
+                Text("Swap Growth And Paging")
+            }
+
+            Section {
+                Toggle(
+                    "Observe growth without notifications",
+                    isOn: $alertSettings.config.observeGrowthOnly)
+                caption(
+                    "Keep swap and process growth in Observations while evaluating the rules. Critical pressure and explicit resource budgets keep their own settings."
+                )
+            } header: {
+                Text("Quiet Evaluation")
             }
 
             Section {
@@ -361,6 +388,24 @@ private struct AlertsSettingsView: View {
                 )
             } header: {
                 Text("Sustained High GPU")
+            }
+
+            Section {
+                Toggle("Low accessory battery", isOn: $alertSettings.config.accessoryBatteryEnabled)
+                    .accessibilityIdentifier("accessory-battery-alerts")
+                if alertSettings.config.accessoryBatteryEnabled {
+                    percentStepper(
+                        t("Notify at or below"),
+                        percent: $alertSettings.config.accessoryBatteryThresholdPercent,
+                        range: 5...50
+                    )
+                    .accessibilityIdentifier("accessory-battery-threshold")
+                }
+                caption(
+                    "Checks once a minute while the app is running, even with Energy hidden. One quiet alert until charge recovers. macOS may report cached levels."
+                )
+            } header: {
+                Text("Accessory Batteries")
             }
         }
         .formStyle(.grouped)
@@ -429,7 +474,7 @@ private struct AdvancedSettingsView: View {
             Section {
                 Toggle("Track per-app network usage", isOn: $trackPerAppNetwork)
                 caption(
-                    "Attribute network traffic to individual apps, so the Analytics tab and the network menu can show which apps are using the network. It samples the system's \u{201C}nettop\u{201D} tool briefly each refresh; the overall download and upload rates are always shown regardless."
+                    "Attribute network traffic to individual apps, so Explorer and the network menu can show which apps are using the network. It samples the system's nettop tool briefly each refresh; the overall download and upload rates are always shown regardless."
                 )
                 LabeledContent("Latency ping host") {
                     TextField(LatencyMonitor.defaultHost, text: $latencyHost)
@@ -457,7 +502,7 @@ private struct AdvancedSettingsView: View {
                 Text("Full Coverage")
             } footer: {
                 Text(
-                    "\(AppInfo.displayName) can install a small privileged helper so it can read the memory of system and other-user processes (such as WindowServer) that it otherwise cannot see. The helper runs only to read memory statistics and sends nothing off your Mac."
+                    "\(AppInfo.displayName) uses a privileged helper to read system processes and ANE power. Power sampling runs while GPU monitoring or history recording is active. Readings stay on your Mac."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)

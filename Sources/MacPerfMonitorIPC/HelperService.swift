@@ -14,10 +14,32 @@ public final class HelperService: NSObject, MacPerfMonitorHelperProtocol {
     private let reader = ProcessReader()
     private let log = Logger(subsystem: "uk.co.bzwrd.macperfmonitor", category: "helper")
     private let version: String
+    private let power: any ANEPowerProviding
+    private let powerClient = UUID()
 
-    public init(version: String = "1") {
+    public convenience init(version: String = "1") {
+        self.init(version: version, power: ANEPowerSampler())
+    }
+
+    init(version: String, power: any ANEPowerProviding) {
         self.version = version
+        self.power = power
         super.init()
+    }
+
+    deinit { power.stop(for: powerClient) }
+
+    func disconnected() { power.stop(for: powerClient) }
+
+    public func readANEPower(reply: @escaping @Sendable (Data?) -> Void) {
+        power.read(for: powerClient) { reading in
+            reply(reading.flatMap { try? JSONEncoder().encode($0) })
+        }
+    }
+
+    public func stopANEPower(reply: @escaping () -> Void) {
+        power.stop(for: powerClient)
+        reply()
     }
 
     public func readProcesses(_ pids: [NSNumber], reply: @escaping (Data?) -> Void) {
@@ -109,6 +131,7 @@ public final class HelperService: NSObject, MacPerfMonitorHelperProtocol {
 
     public func terminateForUpdate(reply: @escaping () -> Void) {
         log.notice("terminateForUpdate: exiting so an app update can replace the helper binary")
+        power.shutdown()
         reply()
         // Give the reply a moment to flush over XPC, then exit so launchd
         // demand-launches the fresh binary on the next connection. No KeepAlive,
@@ -123,13 +146,19 @@ public final class HelperService: NSObject, MacPerfMonitorHelperProtocol {
 public final class HelperListenerDelegate: NSObject, NSXPCListenerDelegate {
     private let clientRequirement: String?
     private let version: String
+    private let power: any ANEPowerProviding
 
     /// - Parameter clientRequirement: a code-signing requirement string the
     ///   connecting client must satisfy, or `nil` to accept any client (used by
     ///   the in-process tests, never by the real root daemon).
-    public init(clientRequirement: String?, version: String = "1") {
+    public convenience init(clientRequirement: String?, version: String = "1") {
+        self.init(clientRequirement: clientRequirement, version: version, power: ANEPowerSampler())
+    }
+
+    init(clientRequirement: String?, version: String = "1", power: any ANEPowerProviding) {
         self.clientRequirement = clientRequirement
         self.version = version
+        self.power = power
         super.init()
     }
 
@@ -143,7 +172,10 @@ public final class HelperListenerDelegate: NSObject, NSXPCListenerDelegate {
             connection.setCodeSigningRequirement(clientRequirement)
         }
         connection.exportedInterface = NSXPCInterface(with: MacPerfMonitorHelperProtocol.self)
-        connection.exportedObject = HelperService(version: version)
+        let service = HelperService(version: version, power: power)
+        connection.exportedObject = service
+        connection.invalidationHandler = { service.disconnected() }
+        connection.interruptionHandler = { service.disconnected() }
         connection.resume()
         return true
     }

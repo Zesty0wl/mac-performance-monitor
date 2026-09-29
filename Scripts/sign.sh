@@ -42,6 +42,17 @@ if [[ -f "$HELPER" ]]; then
     "$HELPER"
 fi
 
+LLAMA="$APP/Contents/Frameworks/llama.framework"
+if [[ -d "$LLAMA" ]]; then
+  codesign --force --options runtime --timestamp --sign "$IDENTITY" "$LLAMA"
+fi
+
+INFERENCE="$APP/Contents/MacOS/MacPerfMonitorInference"
+if [[ -x "$INFERENCE" ]]; then
+  codesign --force --options runtime --timestamp \
+    --identifier "uk.co.bzwrd.macperfmonitor.inference" --sign "$IDENTITY" "$INFERENCE"
+fi
+
 # Sparkle.framework: sign inside-out — the XPC services, the Updater.app progress
 # UI, and the Autoupdate helper, then the framework bundle itself — all before the
 # enclosing app, or codesign rejects the app as containing unsigned nested code.

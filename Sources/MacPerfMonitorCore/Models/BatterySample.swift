@@ -27,6 +27,7 @@ public struct BatterySample: Sendable, Codable, Equatable {
     public var timeToEmptyMinutes: Int?
     /// Minutes until fully charged, or nil when discharging / still calculating.
     public var timeToFullMinutes: Int?
+    public var runtimeEstimate: BatteryRuntimeEstimate?
 
     // MARK: Instantaneous electrical
     /// Power flow magnitude in watts (always >= 0; `isCharging` gives direction).
@@ -90,6 +91,7 @@ public struct BatterySample: Sendable, Codable, Equatable {
         isLowPowerMode: Bool = false,
         timeToEmptyMinutes: Int? = nil,
         timeToFullMinutes: Int? = nil,
+        runtimeEstimate: BatteryRuntimeEstimate? = nil,
         powerWatts: Double = 0,
         systemPowerWatts: Double = 0,
         amperageMilliAmps: Int = 0,
@@ -120,6 +122,7 @@ public struct BatterySample: Sendable, Codable, Equatable {
         self.isLowPowerMode = isLowPowerMode
         self.timeToEmptyMinutes = timeToEmptyMinutes
         self.timeToFullMinutes = timeToFullMinutes
+        self.runtimeEstimate = runtimeEstimate
         self.powerWatts = powerWatts
         self.systemPowerWatts = systemPowerWatts
         self.amperageMilliAmps = amperageMilliAmps

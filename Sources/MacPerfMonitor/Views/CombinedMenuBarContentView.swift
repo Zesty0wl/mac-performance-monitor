@@ -2,12 +2,17 @@ import AppKit
 import MacPerfMonitorCore
 import SwiftUI
 
+enum CombinedMenuBarPanel: Hashable {
+    case metric(MenuBarMetric)
+    case alerts
+}
+
 @MainActor
 final class CombinedMenuBarPanelSelection: ObservableObject {
-    @Published var metric: MenuBarMetric
+    @Published var panel: CombinedMenuBarPanel
 
-    init(metric: MenuBarMetric) {
-        self.metric = metric
+    init(panel: CombinedMenuBarPanel) {
+        self.panel = panel
     }
 }
 
@@ -17,17 +22,17 @@ struct CombinedMenuBarContentView: View {
     @EnvironmentObject private var configuration: CombinedMenuBarConfiguration
     @EnvironmentObject private var updateController: UpdateController
     @EnvironmentObject private var menuClock: MenuClock
-    @EnvironmentObject private var appMode: AppModeManager
+    @EnvironmentObject private var components: AppComponentsManager
     @EnvironmentObject private var notchDisplay: NotchDisplayController
 
     @ObservedObject var selection: CombinedMenuBarPanelSelection
 
-    let selectionChanged: (MenuBarMetric) -> Void
+    let selectionChanged: (CombinedMenuBarPanel) -> Void
     let dismiss: () -> Void
 
     init(
         selection: CombinedMenuBarPanelSelection,
-        selectionChanged: @escaping (MenuBarMetric) -> Void,
+        selectionChanged: @escaping (CombinedMenuBarPanel) -> Void,
         dismiss: @escaping () -> Void
     ) {
         self.selection = selection
@@ -39,12 +44,10 @@ struct CombinedMenuBarContentView: View {
         _ = menuClock.tick
         return VStack(alignment: .leading, spacing: 10) {
             metricSelector
-            if !model.activeAlertKinds.isEmpty {
-                alarmSummary
-            }
+            alarmSummary
             Divider()
             metricContent
-                .id(selection.metric)
+                .id(selection.panel)
             Divider()
             commandBar
             MenuVersionFooter()
@@ -53,10 +56,10 @@ struct CombinedMenuBarContentView: View {
         .frame(width: 404)
         .onAppear {
             menuClock.open()
-            selectionChanged(selection.metric)
+            selectionChanged(selection.panel)
         }
         .onDisappear { menuClock.close() }
-        .onChange(of: selection.metric) { _, metric in selectionChanged(metric) }
+        .onChange(of: selection.panel) { _, panel in selectionChanged(panel) }
     }
 
     private var metricSelector: some View {
@@ -68,7 +71,7 @@ struct CombinedMenuBarContentView: View {
             ForEach(MenuBarMetric.allCases) { metric in
                 let readout = readouts[metric]
                 Button {
-                    selection.metric = metric
+                    selection.panel = .metric(metric)
                 } label: {
                     VStack(spacing: 3) {
                         HStack(spacing: 3) {
@@ -101,7 +104,8 @@ struct CombinedMenuBarContentView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
                     .background(
-                        selection.metric == metric ? Color.accentColor.opacity(0.16) : .clear
+                        selection.panel == .metric(metric)
+                            ? Color.accentColor.opacity(0.16) : .clear
                     )
                     .contentShape(Rectangle())
                 }
@@ -126,51 +130,79 @@ struct CombinedMenuBarContentView: View {
     }
 
     private var alarmSummary: some View {
-        HStack(spacing: 7) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
-            Text(alarmText)
-                .lineLimit(2)
-                .foregroundStyle(.primary)
-            Spacer(minLength: 0)
+        Button {
+            selection.panel = .alerts
+        } label: {
+            HStack(spacing: 7) {
+                Image(
+                    systemName: model.activeAlerts.isEmpty
+                        ? (model.alertObservations.isEmpty ? "checkmark.circle" : "eye")
+                        : "exclamationmark.triangle.fill"
+                )
+                .foregroundStyle(model.activeAlerts.isEmpty ? Color.secondary : .red)
+                Text("Alerts")
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 0)
+                if !model.alertObservations.isEmpty {
+                    Text(t("Observations: %@", String(model.alertObservations.count)))
+                        .foregroundStyle(.secondary)
+                }
+                Text(model.activeAlerts.count, format: .number)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
         }
-        .font(.caption)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
-    }
-
-    private var alarmText: String {
-        let kinds = model.activeAlertKinds
-        var labels: [String] = []
-        if kinds.contains(.criticalPressure) {
-            labels.append(String(localized: "critical memory pressure"))
-        }
-        if kinds.contains(.swap) { labels.append(String(localized: "heavy swap use")) }
-        if kinds.contains(.processCeiling) { labels.append(String(localized: "memory ceiling")) }
-        if kinds.contains(.leak) { labels.append(String(localized: "possible memory leak")) }
-        if kinds.contains(.highCPU) { labels.append(String(localized: "sustained high CPU")) }
-        if kinds.contains(.thermalThrottle) {
-            labels.append(String(localized: "thermal throttling"))
-        }
-        return labels.joined(separator: " · ")
+        .buttonStyle(.plain)
+        .background(
+            selection.panel == .alerts
+                ? Color.accentColor.opacity(0.12)
+                : Color.red.opacity(model.activeAlerts.isEmpty ? 0 : 0.08),
+            in: RoundedRectangle(cornerRadius: 6)
+        )
+        .accessibilityIdentifier("menubar.alerts.open")
     }
 
     @ViewBuilder private var metricContent: some View {
-        switch selection.metric {
-        case .pressure:
+        switch selection.panel {
+        case .alerts:
+            AlertsMenuBarContentView(
+                alerts: model.activeAlerts, processes: model.displayProcesses,
+                observations: model.alertObservations,
+                inspectAlert: { alert in
+                    guard let request = AlertInvestigation(alerts: [alert]) else { return }
+                    dismiss()
+                    appState.alertInvestigation = request
+                    appState.requestedMainTab = .analytics
+                    NotificationCenter.default.post(
+                        name: .macperfmonitorShowMainWindow, object: nil)
+                    NSApp.activate(ignoringOtherApps: true)
+                }, snooze: { id, seconds in model.snoozeAlert(id, seconds: seconds) }
+            ) { identity in
+                dismiss()
+                appState.navigationTarget = identity
+                appState.requestedMainTab = .processes
+                NotificationCenter.default.post(name: .macperfmonitorShowMainWindow, object: nil)
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        case .metric(.pressure):
             MenuBarContentView(embedded: true)
-        case .cpu:
+        case .metric(.cpu):
             CPUMenuBarContentView(dismiss: dismiss, embedded: true)
-        case .gpu:
+        case .metric(.gpu):
             GPUMenuBarContentView(dismiss: dismiss, embedded: true)
-        case .energy:
+        case .metric(.energy):
             BatteryMenuBarContentView(dismiss: dismiss, embedded: true)
-        case .network:
+        case .metric(.network):
             NetworkMenuBarContentView(dismiss: dismiss, embedded: true)
-        case .disk:
+        case .metric(.disk):
             DiskMenuBarContentView(dismiss: dismiss)
-        case .temperature:
+        case .metric(.temperature):
             TemperatureMenuBarContentView(embedded: true)
         }
     }
@@ -197,12 +229,18 @@ struct CombinedMenuBarContentView: View {
             Spacer()
 
             Menu {
+                Button("Ask About This Mac (Preview)", systemImage: "sparkles") {
+                    dismiss()
+                    WindowOpenBridge.shared.open(id: WindowID.ask)
+                }
+                Divider()
                 Button(
                     LocalizedStringKey(
-                        appMode.mode == .full ? "Pause history logging" : "Resume history logging"),
-                    systemImage: appMode.mode == .full ? "pause.circle" : "record.circle"
+                        components.historyLogging
+                            ? "Pause history logging" : "Resume history logging"),
+                    systemImage: components.historyLogging ? "pause.circle" : "record.circle"
                 ) {
-                    appMode.mode = appMode.mode == .full ? .menuBarOnly : .full
+                    components.historyLogging.toggle()
                 }
                 // Only on Macs that have a notch to hide. Status items are confined
                 // to the menu bar right of it, so on a crowded bar this is what
@@ -227,7 +265,7 @@ struct CombinedMenuBarContentView: View {
                     dismiss()
                     showStandardAboutPanel()
                 }
-                Button("Check for Updates...", systemImage: "arrow.down.circle") {
+                Button("Check for Updates\u{2026}", systemImage: "arrow.down.circle") {
                     dismiss()
                     NSApp.activate(ignoringOtherApps: true)
                     updateController.checkForUpdates()
@@ -248,15 +286,16 @@ struct CombinedMenuBarContentView: View {
     }
 
     private var openDestination: MainWindowTab {
-        switch selection.metric {
-        case .cpu: return .processes
-        case .energy: return .battery
-        case .network: return .network
-        case .disk: return .diskUsage
-        case .gpu: return .gpu
-        case .pressure: return .dashboard
+        switch selection.panel {
+        case .alerts: return .insights
+        case .metric(.cpu): return .processes
+        case .metric(.energy): return .battery
+        case .metric(.network): return .network
+        case .metric(.disk): return .diskUsage
+        case .metric(.gpu): return .gpu
+        case .metric(.pressure): return .dashboard
         // The Thermals section lives on the Energy tab.
-        case .temperature: return .battery
+        case .metric(.temperature): return .battery
         }
     }
 
@@ -268,6 +307,7 @@ struct CombinedMenuBarContentView: View {
         case .diskUsage: return "Open Disk"
         case .gpu: return "Open GPU"
         case .dashboard: return "Open Dashboard"
+        case .insights: return "Open Insights"
         default: return "Open"
         }
     }

@@ -5,6 +5,7 @@ import GRDB
 /// tick) and reads them back for the UI. Holds an in-memory identity -> row-id
 /// cache so each process needs at most one upsert per session, unless its
 /// identity fields change underneath the cache (see `CachedProcessRow`).
+/// The database writer serializes every read and mutation of both caches.
 public final class SampleStore {
     private let pool: DatabasePool
 
@@ -77,6 +78,8 @@ public final class SampleStore {
     public func insert(_ snapshot: Sampler.Snapshot) throws {
         try writeRecoveringCaches { db in
             try self.insertSystem(snapshot.system, db: db)
+            try Self.recordBatteryHistory(
+                snapshot.battery, timestamp: snapshot.system.timestamp, db: db)
             for sample in snapshot.processes {
                 let processID = try self.processID(for: sample, db: db)
                 try self.insertProcessSample(sample, processID: processID, db: db)
@@ -87,9 +90,10 @@ public final class SampleStore {
     /// Persist only the system-level row for one tick. Used by the live app on
     /// the dashboard path, where per-process history is not yet needed and the
     /// 60 MB / 2% budget rewards writing a single row rather than ~600.
-    public func insert(systemSample: SystemSample) throws {
+    public func insert(systemSample: SystemSample, battery: BatterySample? = nil) throws {
         try writeRecoveringCaches { db in
             try self.insertSystem(systemSample, db: db)
+            try Self.recordBatteryHistory(battery, timestamp: systemSample.timestamp, db: db)
         }
     }
 
@@ -124,12 +128,14 @@ public final class SampleStore {
     /// retention `standardResBucket`.
     @discardableResult
     public func insertChanged(
-        _ system: SystemSample, processes: [ProcessSample], bucket: Double
+        _ system: SystemSample, processes: [ProcessSample], bucket: Double,
+        battery: BatterySample? = nil
     )
         throws -> Int
     {
         try writeRecoveringCaches { db in
             try self.insertSystem(system, db: db)
+            try Self.recordBatteryHistory(battery, timestamp: system.timestamp, db: db)
             var written = 0
             for sample in processes where self.shouldWrite(sample, bucket: bucket) {
                 let processID = try self.processID(for: sample, db: db)
@@ -154,15 +160,23 @@ public final class SampleStore {
     /// Cache entries are created while the SQL transaction is still open. If a
     /// later row aborts that transaction, those IDs and change-gate snapshots no
     /// longer describe committed state, so discard them before the next tick.
+    /// Transaction execution, commit, and error recovery all stay on the writer.
     private func writeRecoveringCaches<T>(
         _ updates: (Database) throws -> T
     ) throws -> T {
-        do {
-            return try pool.write(updates)
-        } catch {
-            processIDCache.removeAll(keepingCapacity: true)
-            lastWritten.removeAll(keepingCapacity: true)
-            throw error
+        try pool.writeWithoutTransaction { db in
+            do {
+                var result: T?
+                try db.inTransaction {
+                    result = try updates(db)
+                    return .commit
+                }
+                return result!
+            } catch {
+                self.processIDCache.removeAll(keepingCapacity: true)
+                self.lastWritten.removeAll(keepingCapacity: true)
+                throw error
+            }
         }
     }
 
@@ -194,27 +208,32 @@ public final class SampleStore {
 
     private func absDiff(_ a: UInt64, _ b: UInt64) -> UInt64 { a > b ? a - b : b - a }
 
-    /// Drop the in-memory identity → row-id cache. Called after retention may
+    /// Drop the in-memory identity -> row-id cache on the database writer.
+    /// Called after retention may
     /// have removed process dimension rows, so the next insert re-resolves ids
     /// rather than trusting a row id that no longer exists.
     public func clearProcessIDCache() {
-        processIDCache.removeAll(keepingCapacity: true)
-        lastWritten.removeAll(keepingCapacity: true)
+        pool.writeWithoutTransaction { _ in
+            self.processIDCache.removeAll(keepingCapacity: true)
+            self.lastWritten.removeAll(keepingCapacity: true)
+        }
     }
 
-    /// Evict cached identity → row-id mappings except the given live set.
+    /// Evict cached identity -> row-id mappings except the given live set.
     /// Called after each retention pass instead of `clearProcessIDCache()`: the
     /// dimension prune only ever deletes rows for processes gone longer than
     /// the whole hour-tier window, so an id for a currently-live process can
-    /// never be stale — while wholesale clearing forced ~600 `processes`
-    /// re-upserts on the next persist tick, every minute. Like the cache
-    /// itself, must be called on the writer's queue.
+    /// never be stale, while wholesale clearing forced ~600 `processes`
+    /// re-upserts on the next persist tick, every minute. Cache access is
+    /// serialized on the database writer, regardless of the caller's queue.
     public func pruneProcessIDCache(keeping live: Set<ProcessIdentity>) {
-        processIDCache = processIDCache.filter { live.contains($0.key) }
-        // The change-gate's last-written snapshots follow the same lifecycle: a
-        // dead process will never be sampled again, so its entry only wastes
-        // memory. Keeping the live set bounds it exactly like the id cache.
-        lastWritten = lastWritten.filter { live.contains($0.key) }
+        pool.writeWithoutTransaction { _ in
+            self.processIDCache = self.processIDCache.filter { live.contains($0.key) }
+            // The change-gate's last-written snapshots follow the same lifecycle: a
+            // dead process will never be sampled again, so its entry only wastes
+            // memory. Keeping the live set bounds it exactly like the id cache.
+            self.lastWritten = self.lastWritten.filter { live.contains($0.key) }
+        }
     }
 
     /// Refresh `last_seen` for live processes whose dimension upsert the id
@@ -224,12 +243,12 @@ public final class SampleStore {
     /// running process falls out of every group once the app has been up
     /// longer than the group window. One batched UPDATE per retention pass
     /// replaces the ~600 re-upserts the old wholesale cache clear forced every
-    /// minute. Like the cache itself, must be called on the writer's queue.
+    /// minute. Cache lookup and the SQL update share the database writer.
     public func touchLastSeen(keeping live: Set<ProcessIdentity>, now: Date = Date()) {
-        let ids = live.compactMap { processIDCache[$0]?.id }
-        guard !ids.isEmpty else { return }
         let ts = now.timeIntervalSince1970
         try? pool.write { db in
+            let ids = live.compactMap { self.processIDCache[$0]?.id }
+            guard !ids.isEmpty else { return }
             var start = 0
             while start < ids.count {
                 let chunk = Array(ids[start..<min(start + 500, ids.count)])
@@ -276,9 +295,13 @@ public final class SampleStore {
                  gpu_util, gpu_power, ane_power,
                  cpu_die, gpu_die, ssd_temp, fan_rpm, thermal_state,
                  cpu_p_die, cpu_e_die, airflow_temp, skin_temp, wireless_temp, vrail_temp,
-                 other_temp)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
-                        ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                   other_temp, load_1, load_5, load_15,
+                   swap_sample_valid, pressure_sample_valid, swap_in_rate, swap_out_rate,
+                   swap_in_pages_delta, swap_out_pages_delta, memory_page_size, memory_interval,
+                   ane_time, ane_partial, ane_power_observed_at, ane_power_interval, gpu_memory, gpu_active,
+                   gpu_bw_read, gpu_bw_write, gpu_bw_total)
+                VALUES (?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?,
+                    ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?)
                 """)
         try statement.execute(
             arguments: [
@@ -300,11 +323,23 @@ public final class SampleStore {
                 s.diskReadOperationsPerSec, s.diskWriteOperationsPerSec,
                 s.diskReadLatencyMs, s.diskWriteLatencyMs, s.diskUtilizationPercent,
                 s.bootVolumeFreeBytes.map(SQLInt.store), s.bootVolumeTotalBytes.map(SQLInt.store),
-                s.gpuUtilization, s.gpuPowerWatts, s.anePowerWatts,
+                s.gpuUtilization, s.gpuPowerWatts, s.reportedANEPowerWatts,
                 s.cpuDieC, s.gpuDieC, s.ssdTemperatureC, s.fanRPM,
                 s.thermalPressure?.rawValue,
                 s.cpuPCoreDieC, s.cpuECoreDieC, s.airflowC, s.skinC, s.wirelessC,
                 s.voltageRailC, s.otherSensorC,
+                s.loadAverage1, s.loadAverage5, s.loadAverage15,
+                s.swapSampleValid, s.pressureSampleValid, s.swapInBytesPerSecond,
+                s.swapOutBytesPerSecond,
+                s.swapInPagesDelta.map(SQLInt.store), s.swapOutPagesDelta.map(SQLInt.store),
+                s.memoryPageSize.map(SQLInt.store), s.memorySampleInterval,
+                s.aneTimeMillisecondsPerSecond, s.aneSampleIsPartial,
+                s.anePowerSampledAt?.timeIntervalSince1970, s.anePowerSampleInterval,
+                s.gpuMemoryBytes.map(SQLInt.store),
+                s.gpuActiveResidency.flatMap { $0.isFinite && (0...100).contains($0) ? $0 : nil },
+                s.gpuReadBandwidthGBps.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil },
+                s.gpuWriteBandwidthGBps.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil },
+                s.gpuTotalBandwidthGBps.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil },
             ])
     }
 
@@ -513,6 +548,9 @@ public final class SampleStore {
             compressionsDelta: SQLInt.read(row["compressions_delta"]),
             decompressionsDelta: SQLInt.read(row["decompressions_delta"]),
             cpuLoad: row["cpu_load"],
+            loadAverage1: (row["load_1"] as Double?) ?? 0,
+            loadAverage5: (row["load_5"] as Double?) ?? 0,
+            loadAverage15: (row["load_15"] as Double?) ?? 0,
             batteryPresent: (row["battery_present"] as Int64) != 0,
             batteryCharge: row["battery_charge"],
             batteryPowerWatts: row["battery_power"],
@@ -533,7 +571,17 @@ public final class SampleStore {
             bootVolumeFreeBytes: (row["boot_free"] as Int64?).map(SQLInt.read),
             gpuUtilization: row["gpu_util"],
             gpuPowerWatts: row["gpu_power"],
+            gpuMemoryBytes: (row["gpu_memory"] as Int64?).map(SQLInt.read),
+            gpuActiveResidency: row["gpu_active"],
+            gpuReadBandwidthGBps: row["gpu_bw_read"],
+            gpuWriteBandwidthGBps: row["gpu_bw_write"],
+            gpuTotalBandwidthGBps: row["gpu_bw_total"],
             anePowerWatts: row["ane_power"],
+            anePowerSampledAt: (row["ane_power_observed_at"] as Double?).map(
+                Date.init(timeIntervalSince1970:)),
+            anePowerSampleInterval: row["ane_power_interval"],
+            aneTimeMillisecondsPerSecond: row["ane_time"],
+            aneSampleIsPartial: row["ane_partial"],
             cpuDieC: row["cpu_die"],
             gpuDieC: row["gpu_die"],
             ssdTemperatureC: row["ssd_temp"],
@@ -546,7 +594,15 @@ public final class SampleStore {
             skinC: row["skin_temp"],
             wirelessC: row["wireless_temp"],
             voltageRailC: row["vrail_temp"],
-            otherSensorC: row["other_temp"]
+            otherSensorC: row["other_temp"],
+            swapSampleValid: row["swap_sample_valid"],
+            pressureSampleValid: row["pressure_sample_valid"],
+            swapInBytesPerSecond: row["swap_in_rate"],
+            swapOutBytesPerSecond: row["swap_out_rate"],
+            swapInPagesDelta: (row["swap_in_pages_delta"] as Int64?).map(SQLInt.read),
+            swapOutPagesDelta: (row["swap_out_pages_delta"] as Int64?).map(SQLInt.read),
+            memoryPageSize: (row["memory_page_size"] as Int64?).map(SQLInt.read),
+            memorySampleInterval: row["memory_interval"]
         )
     }
 

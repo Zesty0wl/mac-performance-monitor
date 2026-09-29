@@ -31,14 +31,17 @@ final class TaxonomyFeed {
 
 struct TaxonomySurface: NSViewRepresentable {
     let feed: TaxonomyFeed
+    var barHeight: CGFloat = 30
 
     func makeNSView(context: Context) -> TaxonomySurfaceView {
         let view = TaxonomySurfaceView()
+        view.stackHeight = barHeight
         view.attach(feed)
         return view
     }
 
     func updateNSView(_ view: TaxonomySurfaceView, context: Context) {
+        view.stackHeight = barHeight
         if view.feed !== feed { view.attach(feed) }
     }
 
@@ -54,11 +57,12 @@ struct TaxonomySurface: NSViewRepresentable {
         let width = proposal.width ?? 260
         return CGSize(
             width: width,
-            height: TaxonomySurfaceView.height(forWidth: width, slices: feed.slices.count))
+            height: TaxonomySurfaceView.height(
+                forWidth: width, slices: feed.slices.count, barHeight: barHeight))
     }
 }
 
-final class TaxonomySurfaceView: LiveSurfaceView {
+final class TaxonomySurfaceView: LiveSurfaceView, NSViewToolTipOwner {
     static let barHeight: CGFloat = 30
     static let legendSpacing: CGFloat = 12
     static let rowHeight: CGFloat = 28
@@ -66,10 +70,11 @@ final class TaxonomySurfaceView: LiveSurfaceView {
     static let minColumnWidth: CGFloat = 132
 
     static func columns(forWidth width: CGFloat) -> Int {
-        max(1, Int((width + rowSpacing) / (minColumnWidth + rowSpacing)))
+        guard width.isFinite, width > 0 else { return 1 }
+        return max(1, Int((width + rowSpacing) / (minColumnWidth + rowSpacing)))
     }
 
-    static func height(forWidth width: CGFloat, slices: Int) -> CGFloat {
+    static func height(forWidth width: CGFloat, slices: Int, barHeight: CGFloat = 30) -> CGFloat {
         guard slices > 0 else { return 16 }
         let rows = Int(ceil(Double(slices) / Double(columns(forWidth: width))))
         return barHeight + legendSpacing + CGFloat(rows) * rowHeight + CGFloat(max(0, rows - 1))
@@ -80,6 +85,21 @@ final class TaxonomySurfaceView: LiveSurfaceView {
     private var observation: UUID?
     private let labels = ChartLabelCache()
     private var shownSliceCount = -1
+    var stackHeight: CGFloat = TaxonomySurfaceView.barHeight {
+        didSet {
+            guard stackHeight != oldValue else { return }
+            refreshToolTips()
+            invalidateContent()
+        }
+    }
+
+    private struct ToolTipRegion: Equatable {
+        let category: TaxonomyCategory
+        let rect: CGRect
+    }
+    private var toolTipRegions: [ToolTipRegion] = []
+    private var registeredToolTips: [(region: ToolTipRegion, tag: NSView.ToolTipTag)] = []
+    private var toolTipCategories: [NSView.ToolTipTag: TaxonomyCategory] = [:]
 
     init() {
         super.init(frame: .zero)
@@ -103,6 +123,11 @@ final class TaxonomySurfaceView: LiveSurfaceView {
         if let feed, let observation { feed.stopObserving(observation) }
         observation = nil
         feed = nil
+        shownSliceCount = -1
+        toolTipRegions = []
+        registeredToolTips = []
+        toolTipCategories.removeAll()
+        removeAllToolTips()
     }
 
     private func feedDidPublish() {
@@ -110,12 +135,16 @@ final class TaxonomySurfaceView: LiveSurfaceView {
         if feed.slices.count != shownSliceCount {
             shownSliceCount = feed.slices.count
             invalidateIntrinsicContentSize()
-            refreshToolTips()
         }
+        // Segment widths change with the readings, not just with layout. Only
+        // replace the native hit regions; never request layout for a new value.
+        refreshToolTips()
         setAccessibilityValue(
             t(
                 "Memory taxonomy: %@",
-                feed.slices.map { "\($0.name) \(percent($0.bytes))" }.joined(separator: ", ")))
+                feed.slices.map {
+                    "\($0.name) \(ByteFormat.string($0.bytes)), \(percent($0.bytes))"
+                }.joined(separator: ", ")))
         invalidateContent()
     }
 
@@ -124,14 +153,36 @@ final class TaxonomySurfaceView: LiveSurfaceView {
         refreshToolTips()
     }
 
+    override func sizeDidChange() {
+        super.sizeDidChange()
+        refreshToolTips()
+    }
+
     private func percent(_ bytes: UInt64) -> String {
-        guard let total = feed?.total, total > 0 else { return "0%" }
+        guard let total = feed?.total, total > 0 else { return t("Share unavailable") }
         return String(format: "%.0f%%", Double(bytes) / Double(total) * 100)
+    }
+
+    /// One rect per slice, including zero-width slices so zip stays aligned.
+    /// Both the paint path and the native hover regions use these boundaries.
+    private func segmentRects() -> [CGRect] {
+        guard let feed, feed.total > 0, bounds.width.isFinite, bounds.width > 0,
+            stackHeight.isFinite, stackHeight > 0
+        else { return [] }
+        var x: CGFloat = 0
+        return feed.slices.map { slice in
+            let width = min(
+                bounds.width * CGFloat(Double(slice.bytes) / Double(feed.total)),
+                max(0, bounds.width - x))
+            let rect = CGRect(x: x, y: 0, width: width, height: stackHeight)
+            x += width
+            return rect
+        }
     }
 
     /// Legend cell rects in reading order, for drawing and tooltips.
     private func legendRects() -> [CGRect] {
-        guard let feed else { return [] }
+        guard let feed, bounds.width.isFinite, bounds.width > 0 else { return [] }
         let columns = Self.columns(forWidth: bounds.width)
         let cellWidth = (bounds.width - Self.rowSpacing * CGFloat(columns - 1)) / CGFloat(columns)
         return feed.slices.indices.map { i in
@@ -139,18 +190,64 @@ final class TaxonomySurfaceView: LiveSurfaceView {
             let column = i % columns
             return CGRect(
                 x: CGFloat(column) * (cellWidth + Self.rowSpacing),
-                y: Self.barHeight + Self.legendSpacing + CGFloat(row)
+                y: stackHeight + Self.legendSpacing + CGFloat(row)
                     * (Self.rowHeight + Self.rowSpacing),
                 width: cellWidth, height: Self.rowHeight)
         }
     }
 
     private func refreshToolTips() {
-        removeAllToolTips()
         guard let feed else { return }
-        for (slice, rect) in zip(feed.slices, legendRects()) {
-            addToolTip(rect, owner: slice.explanation as NSString, userData: nil)
+        var regions: [ToolTipRegion] = []
+        for rects in [segmentRects(), legendRects()] {
+            for (slice, rect) in zip(feed.slices, rects) {
+                // Subpixel changes must not keep restarting AppKit's hover
+                // delay. Native targets follow the visible pixel boundaries.
+                let aligned = CGRect(
+                    x: snap(rect.minX), y: snap(rect.minY),
+                    width: max(0, snap(rect.maxX) - snap(rect.minX)),
+                    height: max(0, snap(rect.maxY) - snap(rect.minY)))
+                let hitRect = aligned.intersection(bounds)
+                guard !hitRect.isNull, hitRect.width > 0, hitRect.height > 0 else { continue }
+                regions.append(ToolTipRegion(category: slice.category, rect: hitRect))
+            }
         }
+        guard regions != toolTipRegions else { return }
+        toolTipRegions = regions
+        var next: [(region: ToolTipRegion, tag: NSView.ToolTipTag)] = []
+        for region in regions {
+            if let existing = registeredToolTips.first(where: { $0.region == region }) {
+                next.append(existing)
+            } else {
+                let tag = addToolTip(region.rect, owner: self, userData: nil)
+                toolTipCategories[tag] = region.category
+                next.append((region: region, tag: tag))
+            }
+        }
+        let kept = Set(next.map(\.tag))
+        for existing in registeredToolTips where !kept.contains(existing.tag) {
+            removeToolTip(existing.tag)
+            toolTipCategories.removeValue(forKey: existing.tag)
+        }
+        // In particular, stable legend targets survive changes to the stack.
+        registeredToolTips = next
+    }
+
+    func view(
+        _ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint,
+        userData data: UnsafeMutableRawPointer?
+    ) -> String {
+        guard let feed, let category = toolTipCategories[tag],
+            let slice = feed.slices.first(where: { $0.category == category })
+        else { return "" }
+        let share =
+            feed.total > 0
+            ? String(format: "%.1f%%", Double(slice.bytes) / Double(feed.total) * 100)
+            : t("Share unavailable")
+        return t(
+            "%1$@: %2$@ (%3$@ bytes)\n%4$@ of %5$@ total RAM\n%6$@",
+            slice.name, ByteFormat.string(slice.bytes), slice.bytes.formatted(), share,
+            ByteFormat.string(feed.total), slice.explanation)
     }
 
     /// The label cache holds colours resolved for one appearance.
@@ -168,17 +265,13 @@ final class TaxonomySurfaceView: LiveSurfaceView {
             return
         }
         // The stacked bar, clipped to a rounded rect.
-        let bar = CGRect(x: 0, y: 0, width: bounds.width, height: Self.barHeight)
+        let bar = CGRect(x: 0, y: 0, width: bounds.width, height: stackHeight)
         context.saveGState()
         context.addPath(CGPath(roundedRect: bar, cornerWidth: 6, cornerHeight: 6, transform: nil))
         context.clip()
-        let total = Double(max(feed.total, 1))
-        var x: CGFloat = 0
-        for slice in feed.slices {
-            let width = bounds.width * CGFloat(Double(slice.bytes) / total)
+        for (slice, rect) in zip(feed.slices, segmentRects()) {
             context.setFillColor(NSColor(slice.category.color).cgColor)
-            context.fill(CGRect(x: x, y: 0, width: width, height: Self.barHeight))
-            x += width
+            context.fill(rect)
         }
         context.restoreGState()
 

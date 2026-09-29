@@ -36,7 +36,7 @@ public enum ByteFormat {
     /// Sub-kilobyte rates read as a whole number of bytes per second.
     public static func rate(_ bytesPerSecond: Double, fractionDigits: Int = 1) -> String {
         let units = ["B/s", "KB/s", "MB/s", "GB/s", "TB/s"]
-        var value = max(bytesPerSecond, 0)
+        var value = displayableRate(bytesPerSecond)
         var unitIndex = 0
         while value >= 1024, unitIndex < units.count - 1 {
             value /= 1024
@@ -53,7 +53,7 @@ public enum ByteFormat {
     /// One decimal below 10 so small movers stay legible, whole numbers above.
     public static func rateCompact(_ bytesPerSecond: Double) -> String {
         let units = ["", "K", "M", "G", "T"]
-        var value = max(bytesPerSecond, 0)
+        var value = displayableRate(bytesPerSecond)
         var unitIndex = 0
         while value >= 1024, unitIndex < units.count - 1 {
             value /= 1024
@@ -64,5 +64,14 @@ public enum ByteFormat {
             return String(format: "%.1f%@", locale: .current, value, units[unitIndex])
         }
         return String(format: "%.0f%@", locale: .current, value, units[unitIndex])
+    }
+
+    /// A rate that is safe to scale and round: negative, NaN, and infinite
+    /// inputs read as zero. `max(_:_:)` alone is not enough, because
+    /// `max(.nan, 0)` returns NaN, which skips the unit loop and traps in the
+    /// `Int` conversion. Charts use NaN on purpose to mark gaps, so a gap
+    /// sample reaching a label must not crash the app.
+    private static func displayableRate(_ bytesPerSecond: Double) -> Double {
+        bytesPerSecond.isFinite ? max(bytesPerSecond, 0) : 0
     }
 }

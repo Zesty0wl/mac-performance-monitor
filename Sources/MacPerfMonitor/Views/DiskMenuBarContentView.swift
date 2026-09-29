@@ -66,7 +66,10 @@ struct DiskMenuBarContentView: View {
     }
 
     @ViewBuilder private var devices: some View {
-        let items = model.latestDisk?.devices ?? []
+        let items = (model.latestDisk?.devices ?? []).sorted {
+            if $0.bsdName == $1.bsdName { return $0.registryEntryID < $1.registryEntryID }
+            return $0.bsdName.localizedStandardCompare($1.bsdName) == .orderedAscending
+        }
         VStack(alignment: .leading, spacing: 5) {
             Text("Physical devices")
                 .font(.caption)
@@ -75,47 +78,10 @@ struct DiskMenuBarContentView: View {
                 Text("Reading storage devices...")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                    .frame(height: DiskMenuDeviceRow.height, alignment: .top)
             } else {
                 ForEach(items) { device in
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack {
-                            Text(device.model).lineLimit(1)
-                            Spacer()
-                            Text(device.bsdName)
-                                .font(.caption.monospaced())
-                                .foregroundStyle(.secondary)
-                        }
-                        HStack(spacing: 10) {
-                            Text("\(ByteFormat.rate(device.readBytesPerSec)) R")
-                            Text("\(ByteFormat.rate(device.writeBytesPerSec)) W")
-                            if let size = device.sizeBytes { Text(ByteFormat.string(size)) }
-                            if let internalDisk = device.isInternal {
-                                Text(internalDisk ? "Internal" : "External")
-                            }
-                            if let protocolName = device.protocolName { Text(protocolName) }
-                            if let readTime = device.averageReadTimeMilliseconds {
-                                Text(String(format: "%.2f ms R", readTime))
-                            }
-                            if let writeTime = device.averageWriteTimeMilliseconds {
-                                Text(String(format: "%.2f ms W", writeTime))
-                            }
-                            if device.readErrors + device.writeErrors > 0 {
-                                Label(
-                                    t("%@ errors", String(device.readErrors + device.writeErrors)),
-                                    systemImage: "exclamationmark.triangle.fill"
-                                )
-                                .foregroundStyle(.red)
-                            }
-                            let retries = device.readRetries + device.writeRetries
-                            if retries > 0 {
-                                Text(t("%@ retries", String(retries)))
-                                    .foregroundStyle(.orange)
-                            }
-                            Spacer()
-                        }
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                    }
+                    DiskMenuDeviceRow(device: device)
                 }
             }
         }
@@ -166,6 +132,131 @@ struct DiskMenuBarContentView: View {
         }
         .font(.caption.monospacedDigit())
         .frame(height: Self.processRowHeight)
+    }
+}
+
+struct DiskMenuDeviceRow: View {
+    static let height: CGFloat = 92
+
+    let device: DiskDeviceSample
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text(device.model)
+                    .font(.callout.weight(.medium))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                    .help(device.model)
+                Text(device.bsdName)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .frame(width: 56, alignment: .trailing)
+            }
+            .frame(height: 18)
+
+            HStack(spacing: 6) {
+                Text(metadata)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                    .help(metadata)
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                    .frame(width: 14, height: 14)
+                    .opacity(hasErrors ? 1 : 0)
+                    .help(
+                        counterSummary(
+                            "%@ errors", read: device.readErrors, write: device.writeErrors)
+                    )
+                    .accessibilityLabel(
+                        counterSummary(
+                            "%@ errors", read: device.readErrors, write: device.writeErrors)
+                    )
+                    .accessibilityHidden(!hasErrors)
+                Image(systemName: "arrow.clockwise")
+                    .foregroundStyle(.orange)
+                    .frame(width: 14, height: 14)
+                    .opacity(hasRetries ? 1 : 0)
+                    .help(
+                        counterSummary(
+                            "%@ retries", read: device.readRetries, write: device.writeRetries)
+                    )
+                    .accessibilityLabel(
+                        counterSummary(
+                            "%@ retries", read: device.readRetries, write: device.writeRetries)
+                    )
+                    .accessibilityHidden(!hasRetries)
+            }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .frame(height: 16)
+
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Color.clear.frame(height: 14)
+                    Text("Throughput").frame(height: 14)
+                    Text("Service time").frame(height: 14)
+                }
+                .foregroundStyle(.secondary)
+                .frame(width: 88, alignment: .leading)
+                direction(
+                    "Read", rate: device.readBytesPerSec,
+                    serviceTime: device.averageReadTimeMilliseconds, tint: DiskStyle.read)
+                direction(
+                    "Write", rate: device.writeBytesPerSec,
+                    serviceTime: device.averageWriteTimeMilliseconds, tint: DiskStyle.write)
+            }
+            .font(.caption.monospacedDigit())
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(height: 50)
+        }
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+        .frame(height: Self.height, alignment: .top)
+        .transaction { $0.animation = nil }
+    }
+
+    private var metadata: String {
+        let parts = [
+            device.sizeBytes.map { ByteFormat.string($0) },
+            device.isInternal.map { $0 ? t("Internal") : t("External") },
+            device.protocolName,
+        ].compactMap { $0 }.filter { !$0.isEmpty }
+        return parts.isEmpty ? t("Unavailable") : parts.joined(separator: " / ")
+    }
+
+    private var hasErrors: Bool { device.readErrors > 0 || device.writeErrors > 0 }
+    private var hasRetries: Bool { device.readRetries > 0 || device.writeRetries > 0 }
+
+    private func direction(
+        _ title: LocalizedStringKey, rate: Double, serviceTime: Double?, tint: Color
+    ) -> some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            Text(title).foregroundStyle(tint).frame(height: 14)
+            Text(rate.isFinite && rate >= 0 ? ByteFormat.rate(rate) : "--")
+                .foregroundStyle(tint)
+                .frame(height: 14)
+            Text(Self.serviceTimeText(serviceTime))
+                .foregroundStyle(.secondary)
+                .frame(height: 14)
+        }
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .trailing)
+        .accessibilityElement(children: .combine)
+    }
+
+    static func serviceTimeText(_ milliseconds: Double?) -> String {
+        guard let milliseconds, milliseconds.isFinite, milliseconds >= 0 else { return "--" }
+        return String(format: "%.2f ms", milliseconds)
+    }
+
+    private func counterSummary(_ key: String, read: UInt64, write: UInt64) -> String {
+        [
+            t("%1$@: %2$@", t("Read"), t(key, String(read))),
+            t("%1$@: %2$@", t("Write"), t(key, String(write))),
+        ].joined(separator: "\n")
     }
 }
 

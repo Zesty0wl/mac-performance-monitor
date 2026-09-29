@@ -300,6 +300,18 @@ final class NetworkTests: XCTestCase {
         XCTAssertEqual(ByteFormat.rateCompact(15 * 1024 * 1024), "15M")
     }
 
+    /// Charts mark gaps with NaN, and a gap sample can reach a rate label
+    /// (the Disk I/O charts end on one after a process restart). These used to
+    /// trap converting NaN to Int.
+    func testRateFormattingTreatsNonFiniteAsZero() {
+        XCTAssertEqual(ByteFormat.rate(.nan), "0 B/s")
+        XCTAssertEqual(ByteFormat.rate(.infinity), "0 B/s")
+        XCTAssertEqual(ByteFormat.rate(-.infinity), "0 B/s")
+        XCTAssertEqual(ByteFormat.rate(-5), "0 B/s")
+        XCTAssertEqual(ByteFormat.rateCompact(.nan), "0")
+        XCTAssertEqual(ByteFormat.rateCompact(.infinity), "0")
+    }
+
     // MARK: - v6 persistence round-trip
 
     func testNetworkFieldsRoundTripThroughSystemSamples() throws {

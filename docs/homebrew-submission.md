@@ -1,115 +1,135 @@
-# Homebrew submission
+# Homebrew Distribution
 
-How Mac Performance Monitor got into Homebrew, and how the cask stays current
-afterwards. The cask was accepted into
-[Homebrew/homebrew-cask](https://github.com/Homebrew/homebrew-cask) on
-2026-09-03 ([PR #283646](https://github.com/Homebrew/homebrew-cask/pull/283646)),
-so `brew install --cask mac-performance-monitor` works without a tap. The
-canonical cask still lives in this repository at
-`Casks/mac-performance-monitor.rb`; the homebrew-cask copy is identical.
+Users can install the app from Homebrew's official catalog without adding a tap:
 
-## Why a cask (not a formula)
+```sh
+brew install --cask mac-performance-monitor
+```
 
-This is a signed, notarized GUI app distributed as a binary `.pkg`. Homebrew
-ships apps like this as casks. A formula (building from source) is not
-appropriate: the release artifact is the notarized bundle with the embedded
-privileged helper, Sparkle framework and stapled Gatekeeper ticket, none of
-which a source build reproduces.
+The catalog can lag a new release while Homebrew's bot updates the cask.
+Sparkle and the direct installer can offer the new version sooner.
 
-## Acceptance criteria, checked
+The cask in this repository is
+[Casks/mac-performance-monitor.rb](../Casks/mac-performance-monitor.rb).
+Homebrew keeps its own copy. Check both when the version, install steps, or
+supported Mac models change.
 
-Homebrew/homebrew-cask requires new casks to be notable and installable
-without surprises:
+## Prepare A Release
 
-- **Notability:** the GitHub repository passes Homebrew's popularity bar
-  (over 75 stars; 239 at submission time).
-- **Stable, versioned download:** each release tag hosts
-  `MacPerformanceMonitor.pkg` as a GitHub Release asset, so
-  `releases/download/v<version>/MacPerformanceMonitor.pkg` is a permanent
-  per-version URL. The cask pins it with a checksum.
-- **Signed and notarized:** the pkg and the app inside it are Developer ID
-  signed, notarized and stapled (Gatekeeper passes offline).
-- **No conflicting token:** `brew info --cask mac-performance-monitor`
-  reports no existing cask.
+Keep the cask on the latest published package while the next version is in development.
+Do not point its version or URL at a test build with no public download.
+The final build number and hash must come from the published signed package.
 
-## What the cask declares
+Use the hash after signing, notarization, and stapling. Publish those exact bytes.
+A `--skip-upload` package is suitable if you upload it without rebuilding it.
+Running `deploy.sh --resume` again recreates the package and can change its hash.
+Follow the [release checklist](release-checklist.md) for the source and tag checks.
 
-- `pkg` install from the per-tag release asset. The old `verified:`
-  parameter (once required when the download domain differed from the
-  homepage) is deprecated in current Homebrew and must be omitted; their CI
-  rejects casks that still carry it.
-- `auto_updates true`: the app updates itself via Sparkle, so
-  `brew upgrade` skips it unless `--greedy`.
-- `depends_on arch: :arm64` and `macos: :sequoia`: the app is Apple silicon
-  only and needs macOS 15 or later (the bare symbol means "at least" in the
-  current cask DSL; `maximum_macos` is the capping stanza).
-- `uninstall`: unloads the privileged helper LaunchDaemon
-  (`uk.co.bzwrd.macperfmonitor.helper`), quits the app by bundle id, and
-  forgets the pkg receipt (`uk.co.bzwrd.macperfmonitor`).
-- `zap`: removes the sample database and settings
-  (`~/Library/Application Support/MacPerformanceMonitor` plus the standard
-  per-bundle-id preference, cache and saved-state paths).
-- No `livecheck` block: Homebrew's default strategy for a GitHub release
-  URL already follows the latest release, and this repo tags nothing
-  without a release (maintainer feedback on the submission PR; an explicit
-  block is only for repos with pre-releases or release-less tags). The
-  release tags are 4-part (`v1.5.0.198`: marketing version plus build
-  number), so the cask `version` is the 4-part string and the URL
-  interpolates it directly.
+## What The Cask Does
 
-## Local validation (run before submitting)
+Homebrew uses a cask for a packaged app. Building from source is a different
+path: it does not produce the signed release package or Apple's notary ticket.
+The release includes the app, its helper, and Sparkle for updates.
+
+- `pkg` installs the package from its release tag. The checksum pins that
+  file. Keep the old `verified:` option out; Homebrew rejected it during the
+  original review.
+
+- `auto_updates true` tells Homebrew that Sparkle can update the app.
+  A normal `brew upgrade` skips it; `--greedy` includes it.
+
+- `depends_on` limits installs to Apple silicon and macOS 15 or later.
+
+- `uninstall` stops the helper, quits the app, and forgets the package receipt.
+  It does not erase the user's history.
+
+- `zap` removes local app data. This includes history, settings, caches, and
+  the new alert files in `~/Library/Application Support/MacPerformanceMonitor`.
+  Treat this as data deletion, not routine cleanup after a test.
+
+- The cask has no `livecheck` block. Homebrew's GitHub release strategy follows
+  published releases. The four-part version is the app version plus its build
+  number, for example `2.2.0.260`.
+
+## Check An Update
+
+Check style from the repository root:
 
 ```sh
 brew style Casks/mac-performance-monitor.rb
+```
+
+For an audit, use a local test tap. The following commands create that tap and
+copy the cask into it. The audit needs network access, but does not install the
+app. Use a fresh tap name if `local/test` already exists.
+
+```sh
 brew tap-new local/test --no-git
+mkdir -p "$(brew --repository)/Library/Taps/local/homebrew-test/Casks"
 cp Casks/mac-performance-monitor.rb "$(brew --repository)/Library/Taps/local/homebrew-test/Casks/"
-brew audit --cask --online --new local/test/mac-performance-monitor
-brew install --cask local/test/mac-performance-monitor   # optional end-to-end test
+brew audit --cask --online local/test/mac-performance-monitor
+brew fetch --cask local/test/mac-performance-monitor
+```
+
+Test the package on a test Mac or with backed-up app data. These commands
+install and remove the app; they are not read-only checks:
+
+```sh
+brew install --cask local/test/mac-performance-monitor
 brew uninstall --cask local/test/mac-performance-monitor
 brew untap local/test
 ```
 
-## Submitting to Homebrew/homebrew-cask
+## After Each Release
 
-1. Fork `Homebrew/homebrew-cask` and clone the fork.
-2. Copy `Casks/mac-performance-monitor.rb` to `Casks/m/mac-performance-monitor.rb`
-   (homebrew-cask shards casks by first letter).
-3. Branch, commit as `mac-performance-monitor 1.5.0.198 (new cask)`.
-4. Run their checks from the tap checkout:
-   `brew audit --cask --online --new mac-performance-monitor` and
-   `brew style Casks/m/mac-performance-monitor.rb`.
-5. Open the PR. The template asks to confirm the audit and style runs and
-   that the app installs cleanly; maintainers usually respond within days.
-6. One point worth volunteering in the PR description: the author of the app
-   is submitting it, the pkg is notarized, and the tag scheme is
-   deliberately 4-part so GitHub never mistakes a build for a pre-release.
+Update this repository's cask with the final version and hash. Check the public
+download, then commit and push to the branch the tap reads.
 
-## After acceptance
+Homebrew's bot handles version bumps for the official cask. Its CLI rejects
+manual bump PRs for this cask. Check that release detection finds the new version:
 
-- Users install with `brew install --cask mac-performance-monitor`.
-- Homebrew's bump bot (BrewTestBot) follows the GitHub release URL and opens
-  version-bump PRs on its own when a new release appears. No `livecheck`
-  block is needed: the bot bumped 1.5.0.198 to 1.7.0.205 about five hours
-  after the new cask merged. A normal `Scripts/deploy.sh` release therefore
-  needs no manual Homebrew work. If a bump is ever needed by hand:
-  `brew bump-cask-pr mac-performance-monitor --version <X.Y.Z.B>`.
-- Keep `Casks/mac-performance-monitor.rb` in this repo in sync when the
-  stanzas change (new uninstall paths, changed minimum macOS), and mirror
-  such changes into homebrew-cask with a PR.
+```sh
+brew livecheck --cask --autobump mac-performance-monitor
+```
 
-## The tap in this repository
+Wait for the bot's PR to merge and the catalog to refresh. Release detection
+alone does not mean the official install command will fetch the new version.
+Check `brew info --cask mac-performance-monitor` before claiming it is available.
 
-The cask here is still installable through the tap, and `Scripts/deploy.sh`
-rewrites its version and checksum on every release, so it is always the
-first place a new build appears:
+To upgrade an existing install after the catalog refreshes:
+
+```sh
+brew update
+brew upgrade --cask --greedy mac-performance-monitor
+```
+
+Changes to install rules, minimum macOS, or uninstall paths also need a PR in
+Homebrew's copy. A version bump alone will not carry those edits across.
+
+## This Repository's Tap
+
+The separate tap remains available:
 
 ```sh
 brew tap zesty0wl/mac-performance-monitor https://github.com/Zesty0wl/mac-performance-monitor
 brew install --cask zesty0wl/mac-performance-monitor/mac-performance-monitor
 ```
 
-People who installed from the tap before the homebrew-cask merge need do
-nothing. Homebrew resolves a bare cask name to homebrew-cask first and never
-treats it as ambiguous with a third-party tap (`Cask::CaskLoader::FromNameLoader`),
-and `auto_updates true` means Sparkle keeps existing installs current
-regardless of which tap they came from.
+Existing tap installs can still receive Sparkle updates. Users do not need to
+reinstall to change where Homebrew finds the cask.
+
+## Original Submission
+
+Homebrew accepted the cask on 3 September 2026 in
+[PR #283646](https://github.com/Homebrew/homebrew-cask/pull/283646).
+The repository had 239 stars, the cask name was free, and the package passed
+the signing and install checks. These are facts about that submission, not
+proof that a future package passes.
+
+The original PR added `Casks/m/mac-performance-monitor.rb` to Homebrew's fork.
+It used the title `mac-performance-monitor 1.5.0.198 (new cask)` and ran
+`brew style` plus `brew audit --cask --online --new`. Future releases update
+that existing cask, not submit a second new one.
+
+The bot moved the cask to 1.7.0.205 about five hours after the first merge.
+That was one observed update, not a promise about the next release.

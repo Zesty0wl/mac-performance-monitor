@@ -60,10 +60,14 @@ struct CPUChart: View {
         TrendChart(
             series: [
                 TrendSeries(
-                    points: LiveTrend.points(cpu, xDomain: xDomain).map {
-                        scale == 1 ? $0 : TrendPoint(date: $0.date, value: $0.value * scale)
+                    points: LiveTrend.allPoints(cpu).map {
+                        scale == 1
+                            ? $0
+                            : TrendPoint(
+                                date: $0.date, value: $0.value * scale,
+                                high: $0.high.map { $0 * scale })
                     },
-                    color: currentLevel.color, filled: true)
+                    color: currentLevel.color)
             ],
             xDomain: xDomain,
             yDomain: 0...100,

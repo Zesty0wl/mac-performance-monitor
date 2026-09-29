@@ -119,4 +119,26 @@ final class HistoryDownsampleTests: XCTestCase {
         XCTAssertEqual(frees, frees.sorted(by: >))
         XCTAssertEqual(downsampled.last?.bootTotalBytes, 2_000_000)
     }
+
+    func testDownsampleCarriesTheHighestPeakOfTheBucket() {
+        func point(_ seconds: Double, cpu: Double, peak: Double? = nil) -> SystemHistoryPoint {
+            var p = SystemHistoryPoint(
+                date: Date(timeIntervalSince1970: seconds), pressurePercent: cpu * 100,
+                appMemory: 1, wired: 1, compressed: 1, cachedFiles: 1, swapUsed: 0, cpuLoad: cpu)
+            if let peak {
+                p.peaks = SystemHistoryPeaks(
+                    pressurePercent: peak * 100, cpuLoad: peak, networkInBytesPerSec: 0,
+                    networkOutBytesPerSec: 0, diskReadBytesPerSec: 0, diskWriteBytesPerSec: 0)
+            }
+            return p
+        }
+        let points = [point(0, cpu: 0.2), point(10, cpu: 0.4, peak: 0.9), point(20, cpu: 0.3)]
+        let reduced = points.chartDownsampled(span: 60, to: 1)
+        XCTAssertEqual(reduced.count, 1)
+        XCTAssertEqual(reduced[0].cpuLoad, 0.3, accuracy: 1e-9, "the value stays a mean")
+        XCTAssertEqual(reduced[0].peaks?.cpuLoad ?? 0, 0.9, accuracy: 1e-9)
+        XCTAssertEqual(
+            reduced[0].peaks?.pressurePercent ?? 0, 90, accuracy: 1e-9,
+            "a raw member's peak is itself, so the stored peak wins here too")
+    }
 }

@@ -4,6 +4,346 @@ import XCTest
 @testable import MacPerfMonitorCore
 
 final class BatteryTests: XCTestCase {
+    func testEnergyRollupsDoNotMixPacksOrOpposingRuntimeStates() throws {
+        let start = Date(timeIntervalSince1970: 1_700_006_400)
+        var battery = BatterySample(
+            timestamp: start, isPresent: true, chargePercent: 50, timeToEmptyMinutes: 120,
+            systemPowerWatts: 20, serialNumber: "first")
+        try store.insert(systemSample: Make.system(timestamp: start), battery: battery)
+        battery.timestamp = start.addingTimeInterval(10)
+        battery.serialNumber = "replacement"
+        battery.chargePercent = 100
+        try store.insert(systemSample: Make.system(timestamp: battery.timestamp), battery: battery)
+        battery.timestamp = start.addingTimeInterval(60)
+        try store.insert(systemSample: Make.system(timestamp: battery.timestamp), battery: battery)
+        battery.timestamp = start.addingTimeInterval(70)
+        battery.isOnAC = true
+        battery.isCharging = true
+        battery.timeToFullMinutes = 30
+        try store.insert(systemSample: Make.system(timestamp: battery.timestamp), battery: battery)
+        try Retention.run(store.databasePool, now: start.addingTimeInterval(120))
+        let history = try store.batteryHistory(.oneDay, now: start.addingTimeInterval(120))
+        XCTAssertEqual(history.count, 2)
+        XCTAssertNil(history[0].batteryID)
+        XCTAssertNil(history[0].values[.charge])
+        XCTAssertNil(history[0].values[.runtime])
+        XCTAssertEqual(history[0].values[.power], 20)
+        XCTAssertNil(history[1].state)
+        XCTAssertNil(history[1].values[.runtime])
+        XCTAssertNil(history[1].values[.timeToFull])
+    }
+
+    func testEnergyRecorderRejectsStaleBatteryAndDoesNotWriteLifetimeWithoutSnapshot() throws {
+        let now = Date()
+        let stale = BatterySample(
+            timestamp: now.addingTimeInterval(-120), isPresent: true, chargePercent: 50,
+            cycleCount: 100, healthPercent: 95, serialNumber: "pack")
+        try store.insert(systemSample: Make.system(timestamp: now), battery: stale)
+        try store.insertChanged(
+            Make.system(timestamp: now.addingTimeInterval(5)), processes: [], bucket: 60)
+        let history = try store.batteryHistory(.oneHour, now: now.addingTimeInterval(10))
+        XCTAssertTrue(history.allSatisfy { $0.values.isEmpty })
+        let identifier = try XCTUnwrap(BatteryIdentity.identifier(for: "pack"))
+        XCTAssertTrue(try store.batteryDailyHistory(for: identifier).isEmpty)
+    }
+
+    func testEnergyHistoryKeepsKnownLegacyChargeWithoutInventingNewMetrics() throws {
+        let start = Date(timeIntervalSince1970: 1_700_006_400)
+        var system = Make.system(timestamp: start)
+        system.batteryPresent = true
+        system.batteryCharge = 75
+        system.batteryHealthPercent = 94
+        system.batteryTemperatureCelsius = 30
+        try store.insert(systemSample: system)
+        let raw = try XCTUnwrap(try store.batteryHistory(.oneHour, now: start).first)
+        XCTAssertEqual(raw.values[.charge], 75)
+        XCTAssertEqual(raw.values[.temperature], 30)
+        XCTAssertNil(raw.values[.power])
+        XCTAssertNil(raw.values[.runtime])
+        XCTAssertNil(raw.batteryID)
+        XCTAssertNil(raw.state)
+        try Retention.run(store.databasePool, now: start.addingTimeInterval(300))
+        let minute = try XCTUnwrap(
+            try store.batteryHistory(.oneDay, now: start.addingTimeInterval(300)).first)
+        XCTAssertEqual(minute.values[.charge], 75)
+        XCTAssertNil(minute.minima[.charge])
+        XCTAssertNil(minute.maxima[.temperature])
+        XCTAssertNil(minute.counts[.temperature])
+    }
+
+    func testUpgradeFromVersionTwoPreservesRecordedHistory() throws {
+        let directory = tempURL.appendingPathExtension("upgrade")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let legacyURL = directory.appendingPathComponent("history.sqlite")
+        let timestamp = Date(timeIntervalSince1970: 1_700_006_400)
+        do {
+            let pool = try DatabasePool(path: legacyURL.path)
+            try MacPerfMonitorDatabase.migrator.migrate(pool, upTo: "v18-swap-activity")
+            try pool.write { db in
+                try db.execute(
+                    sql: """
+                        INSERT INTO system_samples
+                        (timestamp, total_ram, free, active, inactive, wired, speculative, compressed,
+                         app_memory, cached_files, swap_total, swap_used, pressure_level, pressure_percent,
+                         page_ins, page_outs, compressions, decompressions,
+                         page_ins_delta, page_outs_delta, compressions_delta, decompressions_delta, cpu_load,
+                         battery_present, battery_charge, battery_health, battery_temp)
+                        VALUES (?,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,75,94,30)
+                        """, arguments: [timestamp.timeIntervalSince1970])
+            }
+        }
+
+        let migratedStore = try SampleStore(url: legacyURL)
+        let latest = try XCTUnwrap(try migratedStore.latestSystemSample())
+        XCTAssertNil(latest.aneTimeMillisecondsPerSecond)
+        XCTAssertNil(latest.aneSampleIsPartial)
+        let history = try migratedStore.batteryHistory(.oneHour, now: timestamp)
+        XCTAssertEqual(history.count, 1)
+        let point = try XCTUnwrap(history.first)
+        XCTAssertEqual(point.date, timestamp)
+        XCTAssertEqual(point.values[.charge], 75)
+        XCTAssertEqual(point.values[.temperature], 30)
+        XCTAssertNil(point.values[.power])
+        XCTAssertNil(point.values[.runtime])
+        XCTAssertNil(point.batteryID)
+        let dailyCount = try migratedStore.databasePool.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM battery_daily")
+        }
+        XCTAssertEqual(dailyCount, 0)
+        let sample = BatterySample(
+            timestamp: timestamp.addingTimeInterval(5), isPresent: true, chargePercent: 74,
+            cycleCount: 100, healthPercent: 94, serialNumber: "upgrade-pack")
+        try migratedStore.insert(
+            systemSample: Make.system(timestamp: sample.timestamp), battery: sample)
+        let identifier = try XCTUnwrap(BatteryIdentity.identifier(for: sample.serialNumber))
+        let daily = try migratedStore.batteryDailyHistory(
+            for: identifier, through: sample.timestamp)
+        XCTAssertEqual(daily.count, 1)
+        XCTAssertEqual(daily.first?.cycleCount, 100)
+    }
+
+    func testEnergyHistoryIncludesOlderWideBucketAcrossPolicyChanges() throws {
+        let start = Date(timeIntervalSince1970: 1_700_006_400)
+        let battery = BatterySample(timestamp: start, isPresent: true, chargePercent: 75)
+        try store.insert(systemSample: Make.system(timestamp: start), battery: battery)
+        try Retention.run(
+            store.databasePool, now: start.addingTimeInterval(600),
+            policy: RetentionPolicy(standardResBucket: 300))
+        try store.databasePool.write { db in try Retention.setMeta(db, "minute_bucket_seconds", 60)
+        }
+        let now = start.addingTimeInterval(86_400 + 180)
+        let point = try XCTUnwrap(try store.batteryHistory(.oneDay, now: now).first)
+        XCTAssertEqual(point.duration, 300)
+        XCTAssertEqual(point.values[.charge], 75)
+    }
+
+    func testEnergyHistoryPreservesPowerAndRuntimeAcrossAllTiers() throws {
+        let start = Date(timeIntervalSince1970: 1_700_006_400)
+        for (offset, power, runtime) in [(0.0, 10.0, 120.0), (10, 30, 100)] {
+            let date = start.addingTimeInterval(offset)
+            let battery = BatterySample(
+                timestamp: date, isPresent: true, chargePercent: 50,
+                runtimeEstimate: BatteryRuntimeEstimate(
+                    minutesRemaining: runtime, fullChargeMinutes: runtime * 2, source: .recentUse),
+                powerWatts: power, systemPowerWatts: power + 5,
+                voltageMilliVolts: 12_000, temperatureCelsius: 31, cycleCount: 200,
+                healthPercent: 95, serialNumber: "pack")
+            try store.insert(systemSample: Make.system(timestamp: date), battery: battery)
+        }
+        let raw = try store.batteryHistory(.oneHour, now: start.addingTimeInterval(20))
+        XCTAssertEqual(raw.compactMap { $0.values[.power] }, [15, 35])
+        XCTAssertEqual(raw.compactMap { $0.values[.flow] }, [-10, -30])
+        XCTAssertEqual(raw.compactMap { $0.values[.runtime] }, [120, 100])
+        XCTAssertEqual(raw.first?.estimateSource, .recentUse)
+        try Retention.run(store.databasePool, now: start.addingTimeInterval(120))
+        let minute = try XCTUnwrap(
+            try store.batteryHistory(.oneDay, now: start.addingTimeInterval(120)).first)
+        XCTAssertEqual(minute.values[.power], 25)
+        XCTAssertEqual(minute.minima[.power], 15)
+        XCTAssertEqual(minute.maxima[.power], 35)
+        XCTAssertEqual(minute.values[.runtime], 110)
+        XCTAssertEqual(minute.counts[.runtime], 2)
+        try Retention.run(store.databasePool, now: start.addingTimeInterval(7200))
+        let hour = try XCTUnwrap(
+            try store.batteryHistory(.sevenDays, now: start.addingTimeInterval(7200)).first)
+        XCTAssertEqual(hour.values[.power], 25)
+        XCTAssertEqual(hour.values[.runtime], 110)
+        XCTAssertEqual(hour.maxima[.power], 35)
+        XCTAssertEqual(hour.state, .battery)
+        let identifier = try XCTUnwrap(BatteryIdentity.identifier(for: "pack"))
+        XCTAssertEqual(try store.batteryDailyHistory(for: identifier).count, 1)
+    }
+
+    func testEnergyHistoryLeavesLegacyAndUnavailableReadingsMissing() throws {
+        let start = Date(timeIntervalSince1970: 1_700_006_400)
+        try store.insert(systemSample: Make.system(timestamp: start))
+        let legacy = try XCTUnwrap(try store.batteryHistory(.oneHour, now: start).first)
+        XCTAssertTrue(legacy.values.isEmpty)
+        let desktop = BatterySample(timestamp: start.addingTimeInterval(10), systemPowerWatts: 20)
+        try store.insert(systemSample: Make.system(timestamp: desktop.timestamp), battery: desktop)
+        let newest = try XCTUnwrap(try store.batteryHistory(.oneHour, now: desktop.timestamp).last)
+        XCTAssertEqual(newest.values[.power], 20)
+        XCTAssertNil(newest.values[.charge])
+        XCTAssertNil(newest.values[.runtime])
+        XCTAssertEqual(newest.state, .noBattery)
+        try Retention.run(store.databasePool, now: start.addingTimeInterval(120))
+        let minute = try XCTUnwrap(
+            try store.batteryHistory(.oneDay, now: start.addingTimeInterval(120)).first)
+        XCTAssertEqual(minute.values[.power], 20)
+        XCTAssertNil(minute.values[.charge])
+    }
+
+    func testRuntimeEstimatorPrefersTheReportedEstimate() throws {
+        var estimator = BatteryRuntimeEstimator()
+        let sample = BatterySample(
+            timestamp: Date(), isPresent: true, chargePercent: 50, timeToEmptyMinutes: 120,
+            maxCapacitymAh: 6000, currentCapacitymAh: 3000)
+        let estimate = try XCTUnwrap(estimator.update(sample))
+        XCTAssertEqual(estimate.source, .macOS)
+        XCTAssertEqual(estimate.minutesRemaining, 120)
+        XCTAssertEqual(estimate.fullChargeMinutes, 240)
+    }
+
+    func testRuntimeEstimatorNeedsSustainedDischargeAndResetsAcrossGapsAndCharging() throws {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        var estimator = BatteryRuntimeEstimator()
+        var sample = BatterySample(
+            timestamp: start, isPresent: true, chargePercent: 50,
+            amperageMilliAmps: -1000, voltageMilliVolts: 12_000,
+            maxCapacitymAh: 6000, currentCapacitymAh: 3000, serialNumber: "pack")
+        for offset in stride(from: 0.0, to: 180, by: 10) {
+            sample.timestamp = start.addingTimeInterval(offset)
+            XCTAssertNil(estimator.update(sample))
+        }
+        sample.timestamp = start.addingTimeInterval(180)
+        let estimate = try XCTUnwrap(estimator.update(sample))
+        XCTAssertEqual(estimate.source, .recentUse)
+        XCTAssertEqual(estimate.minutesRemaining, 180, accuracy: 0.01)
+        XCTAssertEqual(try XCTUnwrap(estimate.fullChargeMinutes), 360, accuracy: 0.01)
+        sample.timestamp = start.addingTimeInterval(300)
+        XCTAssertNil(estimator.update(sample))
+        sample.isCharging = true
+        sample.timeToEmptyMinutes = 120
+        XCTAssertNil(estimator.update(sample))
+        sample.isCharging = false
+        sample.isOnAC = true
+        XCTAssertNil(estimator.update(sample))
+        XCTAssertNil(estimator.update(nil))
+    }
+
+    func testRuntimeEstimatorRejectsUnstableLoadAndBatteryReplacement() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        var estimator = BatteryRuntimeEstimator()
+        var sample = BatterySample(
+            timestamp: start, isPresent: true, chargePercent: 50,
+            amperageMilliAmps: -100, voltageMilliVolts: 12_000,
+            maxCapacitymAh: 6000, currentCapacitymAh: 3000, serialNumber: "pack")
+        for index in 0...30 {
+            sample.timestamp = start.addingTimeInterval(Double(index) * 10)
+            sample.amperageMilliAmps = index < 25 ? -100 : -8000
+            _ = estimator.update(sample)
+        }
+        sample.timestamp = start.addingTimeInterval(310)
+        XCTAssertNil(estimator.update(sample))
+        sample.serialNumber = "replacement"
+        sample.timestamp = start.addingTimeInterval(320)
+        XCTAssertNil(estimator.update(sample))
+    }
+
+    func testRuntimeEstimatorRejectsAlternatingLoadAndRecoversAfterItSettles() throws {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        var estimator = BatteryRuntimeEstimator()
+        var sample = BatterySample(
+            timestamp: start, isPresent: true, chargePercent: 50,
+            voltageMilliVolts: 12_000, maxCapacitymAh: 6000, currentCapacitymAh: 3000,
+            serialNumber: "pack")
+        for index in 0...30 {
+            sample.timestamp = start.addingTimeInterval(Double(index) * 10)
+            sample.amperageMilliAmps = index.isMultiple(of: 2) ? -100 : -1900
+            XCTAssertNil(estimator.update(sample))
+        }
+        for index in 31...60 {
+            sample.timestamp = start.addingTimeInterval(Double(index) * 10)
+            sample.amperageMilliAmps = -1000
+            _ = estimator.update(sample)
+        }
+        sample.timestamp = start.addingTimeInterval(610)
+        let estimate = try XCTUnwrap(estimator.update(sample))
+        XCTAssertEqual(estimate.source, .recentUse)
+        XCTAssertEqual(estimate.minutesRemaining, 180, accuracy: 0.01)
+    }
+
+    func testDailyBatteryHistoryKeepsLatestValidValuesAndSeparatesPacks() throws {
+        let day = Date(timeIntervalSince1970: 1_700_006_400)
+        var sample = BatterySample(
+            timestamp: day, isPresent: true, cycleCount: 100, designCapacitymAh: 6000,
+            maxCapacitymAh: 5700, healthPercent: 95, serialNumber: "pack-one")
+        try store.recordDailyBattery(sample)
+        sample.timestamp = day.addingTimeInterval(3600)
+        sample.cycleCount = 101
+        sample.healthPercent = nil
+        try store.recordDailyBattery(sample)
+        sample.timestamp = day.addingTimeInterval(10)
+        sample.cycleCount = 99
+        try store.recordDailyBattery(sample)
+        sample.timestamp = day.addingTimeInterval(7200)
+        sample.serialNumber = "pack-two"
+        sample.cycleCount = 0
+        sample.healthPercent = 100
+        try store.recordDailyBattery(sample)
+
+        let firstID = try XCTUnwrap(BatteryIdentity.identifier(for: "pack-one"))
+        let secondID = try XCTUnwrap(BatteryIdentity.identifier(for: "pack-two"))
+        XCTAssertNotEqual(firstID, secondID)
+        XCTAssertFalse(firstID.contains("pack-one"))
+        let history = try store.batteryDailyHistory(for: firstID, through: sample.timestamp)
+        XCTAssertEqual(history.count, 1)
+        XCTAssertEqual(history.first?.cycleCount, 101)
+        XCTAssertEqual(history.first?.healthPercent, 95)
+        XCTAssertEqual(history.first?.fullCapacitymAh, 5700)
+        XCTAssertEqual(history.first?.date, day.addingTimeInterval(3600))
+        let replacement = try store.batteryDailyHistory(for: secondID, through: sample.timestamp)
+        XCTAssertEqual(replacement.first?.cycleCount, 0)
+    }
+
+    func testDailyBatteryHistorySurvivesOrdinaryRetentionAndRespectsDates() throws {
+        let first = Date(timeIntervalSince1970: 1_650_067_200)
+        var sample = BatterySample(
+            timestamp: first, isPresent: true, cycleCount: 100, healthPercent: 95,
+            serialNumber: "pack")
+        try store.recordDailyBattery(sample)
+        sample.timestamp = first.addingTimeInterval(400 * 86_400)
+        sample.cycleCount = 220
+        try store.recordDailyBattery(sample)
+        try Retention.run(store.databasePool, now: sample.timestamp)
+        let identifier = try XCTUnwrap(BatteryIdentity.identifier(for: "pack"))
+        let all = try store.batteryDailyHistory(for: identifier, through: sample.timestamp)
+        XCTAssertEqual(all.map(\.cycleCount), [100, 220])
+        let recent = try store.batteryDailyHistory(
+            for: identifier, since: sample.timestamp.addingTimeInterval(-90 * 86_400),
+            through: sample.timestamp)
+        XCTAssertEqual(recent.map(\.cycleCount), [220])
+        let earlier = try store.batteryDailyHistory(
+            for: identifier, through: first.addingTimeInterval(1))
+        XCTAssertEqual(earlier.map(\.cycleCount), [100])
+    }
+
+    func testDailyBatteryHistoryIgnoresMissingIdentityAndInvalidValues() throws {
+        var sample = BatterySample(timestamp: Date(), isPresent: true, cycleCount: 10)
+        try store.recordDailyBattery(sample)
+        sample.serialNumber = "pack"
+        sample.isPresent = false
+        try store.recordDailyBattery(sample)
+        sample.isPresent = true
+        sample.cycleCount = -1
+        sample.healthPercent = .nan
+        try store.recordDailyBattery(sample)
+        let identifier = try XCTUnwrap(BatteryIdentity.identifier(for: "pack"))
+        XCTAssertTrue(try store.batteryDailyHistory(for: identifier).isEmpty)
+        XCTAssertNil(BatteryIdentity.identifier(for: "  "))
+    }
+
     private var tempURL: URL!
     private var store: SampleStore!
 

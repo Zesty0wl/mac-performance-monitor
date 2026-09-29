@@ -12,7 +12,7 @@ enum TraceFileType {
         UTType(filenameExtension: ProcessTraceCodec.fileExtension, conformingTo: .data) ?? .data
 }
 
-/// A decoded trace the Analytics tab is currently displaying, plus the file name
+/// A decoded trace Explorer is currently displaying, plus the file name
 /// it came from (for the viewer's banner).
 struct ImportedTrace: Identifiable, Sendable {
     let id = UUID()
@@ -281,6 +281,7 @@ enum TraceFileExporter {
         histories: [ProcessIdentity: [ProcessHistoryPoint]],
         orderedIdentities: [ProcessIdentity],
         samples: [ProcessIdentity: ProcessSample],
+        recorded: [ProcessIdentity: ExplorerProcess] = [:],
         window: ClosedRange<Date>,
         resolutionSeconds: Double,
         exportedAt: Date,
@@ -295,10 +296,12 @@ enum TraceFileExporter {
                 series.reserveCapacity(orderedIdentities.count)
                 for identity in orderedIdentities {
                     guard !operation.isCancelled else { return }
-                    guard let sample = samples[identity],
-                        let points = histories[identity], !points.isEmpty
-                    else { continue }
-                    series.append(TraceExportBuilder.makeSeries(from: sample, points: points))
+                    guard let points = histories[identity], !points.isEmpty else { continue }
+                    if let sample = samples[identity] {
+                        series.append(TraceExportBuilder.makeSeries(from: sample, points: points))
+                    } else if let process = recorded[identity] {
+                        series.append(TraceExportBuilder.makeSeries(from: process, points: points))
+                    }
                 }
 
                 guard !series.isEmpty else { throw TraceExportError.noHistory }
@@ -419,6 +422,18 @@ enum ExportResolution: String, CaseIterable, Identifiable {
 /// samples and stored history to the shareable `ProcessTraceDocument` lives in
 /// one place.
 enum TraceExportBuilder {
+    static func makeSeries(
+        from process: ExplorerProcess, points: [ProcessHistoryPoint]
+    ) -> ProcessTraceSeries {
+        let architecture = Architecture(rawValue: process.architecture) ?? .unknown
+        return ProcessTraceSeries(
+            pid: process.id.pid, startTime: process.id.startTime, name: process.name,
+            executablePath: process.executablePath, bundleID: process.bundleID,
+            teamID: process.teamID,
+            architecture: architecture == .unknown ? nil : architecture.label,
+            isTranslated: process.isTranslated, points: points.map(ProcessTracePoint.init))
+    }
+
     /// "Mac Performance Monitor 1.2.0 (127)".
     static func generator() -> String {
         "\(AppInfo.displayName) \(AppInfo.version) (\(AppInfo.build))"

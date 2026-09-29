@@ -196,6 +196,131 @@ public enum MacPerfMonitorDatabase {
         migrator.registerMigration("v15-sensor-domains") { db in
             try db.execute(sql: Schema.v15)
         }
+        // The kernel's 1, 5 and 15 minute load averages. Until now the load
+        // card drew them from a ring in memory, which emptied every time the
+        // Processes tab was remounted and never reached the longer ranges.
+        // The 1 minute figure keeps its bucket maximum for the band; the 5 and
+        // 15 minute figures are already averages, so a mean is enough.
+        migrator.registerMigration("v16-load-averages") { db in
+            try db.execute(sql: Schema.v16)
+        }
+        // Keep full ranges, sensor-valid weights and the actual bucket width.
+        // These columns deliberately have no defaults or backfill: a legacy
+        // average cannot recover a discarded minimum or a sensor sample count.
+        migrator.registerMigration("v17-system-history-statistics") { db in
+            try db.execute(sql: Schema.v17)
+        }
+        migrator.registerMigration("v18-swap-activity") { db in
+            for (column, type) in [
+                ("swap_sample_valid", "INTEGER"), ("pressure_sample_valid", "INTEGER"),
+                ("swap_in_rate", "REAL"), ("swap_out_rate", "REAL"),
+                ("swap_in_pages_delta", "INTEGER"), ("swap_out_pages_delta", "INTEGER"),
+                ("memory_page_size", "INTEGER"), ("memory_interval", "REAL"),
+            ] {
+                try db.execute(sql: "ALTER TABLE system_samples ADD COLUMN \(column) \(type)")
+            }
+            for table in ["system_minute", "system_hour"] {
+                for column in [
+                    "swap_in_avg", "swap_out_avg", "swap_in_max", "swap_out_max",
+                    "swap_activity_seconds",
+                ] {
+                    try db.execute(sql: "ALTER TABLE \(table) ADD COLUMN \(column) REAL")
+                }
+            }
+        }
+        migrator.registerMigration("v19-battery-lifetime") { db in
+            try db.execute(
+                sql: """
+                    CREATE TABLE battery_daily (
+                        battery_id TEXT NOT NULL,
+                        day REAL NOT NULL,
+                        observed_at REAL NOT NULL,
+                        health_percent REAL,
+                        cycle_count INTEGER,
+                        full_capacity_mah INTEGER,
+                        design_capacity_mah INTEGER,
+                        PRIMARY KEY (battery_id, day)
+                    );
+                    CREATE INDEX idx_battery_daily_day ON battery_daily(day);
+                    """)
+        }
+        migrator.registerMigration("v20-energy-history") { db in
+            for table in ["system_samples", "system_minute", "system_hour"] {
+                for (column, type) in [
+                    ("energy_battery_id", "TEXT"), ("energy_state", "TEXT"),
+                    ("energy_estimate_source", "TEXT"), ("energy_observed_at", "REAL"),
+                ] {
+                    try db.execute(sql: "ALTER TABLE \(table) ADD COLUMN \(column) \(type)")
+                }
+                for metric in [
+                    "charge", "power", "flow", "temperature", "runtime", "full_runtime", "to_full",
+                ] {
+                    try db.execute(sql: "ALTER TABLE \(table) ADD COLUMN energy_\(metric) REAL")
+                    if table != "system_samples" {
+                        for suffix in ["min", "max", "samples"] {
+                            try db.execute(
+                                sql:
+                                    "ALTER TABLE \(table) ADD COLUMN energy_\(metric)_\(suffix) REAL"
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        migrator.registerMigration("v21-ane-accounting") { db in
+            try db.execute(sql: "ALTER TABLE system_samples ADD COLUMN ane_time REAL")
+            try db.execute(sql: "ALTER TABLE system_samples ADD COLUMN ane_partial INTEGER")
+            for table in ["system_minute", "system_hour"] {
+                for (column, type) in [
+                    ("ane_time_avg", "REAL"), ("ane_time_min", "REAL"), ("ane_time_max", "REAL"),
+                    ("ane_time_samples", "INTEGER"), ("ane_partial", "INTEGER"),
+                ] {
+                    try db.execute(sql: "ALTER TABLE \(table) ADD COLUMN \(column) \(type)")
+                }
+            }
+        }
+        migrator.registerMigration("v22-ane-power-source") { db in
+            try db.execute(sql: "ALTER TABLE system_samples ADD COLUMN ane_power_observed_at REAL")
+            try db.execute(sql: "ALTER TABLE system_samples ADD COLUMN ane_power_interval REAL")
+            for table in ["system_minute", "system_hour"] {
+                try db.execute(sql: "ALTER TABLE \(table) ADD COLUMN ane_power_min REAL")
+                try db.execute(sql: "ALTER TABLE \(table) ADD COLUMN ane_power_samples INTEGER")
+            }
+        }
+        migrator.registerMigration("v23-gpu-memory-history") { db in
+            try db.execute(sql: "ALTER TABLE system_samples ADD COLUMN gpu_memory INTEGER")
+            for table in ["system_minute", "system_hour"] {
+                for (column, type) in [
+                    ("gpu_memory_avg", "REAL"), ("gpu_memory_min", "REAL"),
+                    ("gpu_memory_max", "REAL"), ("gpu_memory_samples", "INTEGER"),
+                ] {
+                    try db.execute(sql: "ALTER TABLE \(table) ADD COLUMN \(column) \(type)")
+                }
+            }
+        }
+        migrator.registerMigration("v24-gpu-awake-history") { db in
+            try db.execute(sql: "ALTER TABLE system_samples ADD COLUMN gpu_active REAL")
+            for table in ["system_minute", "system_hour"] {
+                for (column, type) in [
+                    ("gpu_active_avg", "REAL"), ("gpu_active_min", "REAL"),
+                    ("gpu_active_max", "REAL"), ("gpu_active_samples", "INTEGER"),
+                ] {
+                    try db.execute(sql: "ALTER TABLE \(table) ADD COLUMN \(column) \(type)")
+                }
+            }
+        }
+        migrator.registerMigration("v25-gpu-bandwidth-history") { db in
+            for metric in ["gpu_bw_read", "gpu_bw_write", "gpu_bw_total"] {
+                try db.execute(sql: "ALTER TABLE system_samples ADD COLUMN \(metric) REAL")
+                for table in ["system_minute", "system_hour"] {
+                    for suffix in ["avg", "min", "max", "samples"] {
+                        let type = suffix == "samples" ? "INTEGER" : "REAL"
+                        try db.execute(
+                            sql: "ALTER TABLE \(table) ADD COLUMN \(metric)_\(suffix) \(type)")
+                    }
+                }
+            }
+        }
         return migrator
     }
 }
@@ -617,6 +742,72 @@ enum Schema {
         ALTER TABLE system_hour ADD COLUMN wireless_temp_max REAL;
         ALTER TABLE system_hour ADD COLUMN vrail_temp_max REAL;
         ALTER TABLE system_hour ADD COLUMN other_temp_max REAL;
+        """
+
+    static let v16 = """
+        ALTER TABLE system_samples ADD COLUMN load_1 REAL;
+        ALTER TABLE system_samples ADD COLUMN load_5 REAL;
+        ALTER TABLE system_samples ADD COLUMN load_15 REAL;
+
+        ALTER TABLE system_minute ADD COLUMN load_1_avg REAL;
+        ALTER TABLE system_minute ADD COLUMN load_1_max REAL;
+        ALTER TABLE system_minute ADD COLUMN load_5_avg REAL;
+        ALTER TABLE system_minute ADD COLUMN load_15_avg REAL;
+
+        ALTER TABLE system_hour ADD COLUMN load_1_avg REAL;
+        ALTER TABLE system_hour ADD COLUMN load_1_max REAL;
+        ALTER TABLE system_hour ADD COLUMN load_5_avg REAL;
+        ALTER TABLE system_hour ADD COLUMN load_15_avg REAL;
+        """
+
+    static let v17 = """
+        ALTER TABLE system_minute ADD COLUMN pressure_min REAL;
+        ALTER TABLE system_minute ADD COLUMN cpu_min REAL;
+        ALTER TABLE system_minute ADD COLUMN net_in_min REAL;
+        ALTER TABLE system_minute ADD COLUMN net_out_min REAL;
+        ALTER TABLE system_minute ADD COLUMN disk_read_min REAL;
+        ALTER TABLE system_minute ADD COLUMN disk_write_min REAL;
+        ALTER TABLE system_minute ADD COLUMN gpu_util_min REAL;
+        ALTER TABLE system_minute ADD COLUMN load_1_min REAL;
+        ALTER TABLE system_minute ADD COLUMN app_min INTEGER;
+        ALTER TABLE system_minute ADD COLUMN wired_min INTEGER;
+        ALTER TABLE system_minute ADD COLUMN compressed_min INTEGER;
+        ALTER TABLE system_minute ADD COLUMN cached_min INTEGER;
+        ALTER TABLE system_minute ADD COLUMN swap_used_min INTEGER;
+        ALTER TABLE system_minute ADD COLUMN cpu_die_min REAL;
+        ALTER TABLE system_minute ADD COLUMN gpu_die_min REAL;
+        ALTER TABLE system_minute ADD COLUMN app_max INTEGER;
+        ALTER TABLE system_minute ADD COLUMN wired_max INTEGER;
+        ALTER TABLE system_minute ADD COLUMN compressed_max INTEGER;
+        ALTER TABLE system_minute ADD COLUMN cached_max INTEGER;
+        ALTER TABLE system_minute ADD COLUMN swap_used_max INTEGER;
+        ALTER TABLE system_minute ADD COLUMN cpu_die_samples INTEGER;
+        ALTER TABLE system_minute ADD COLUMN gpu_die_samples INTEGER;
+        ALTER TABLE system_minute ADD COLUMN bucket_seconds REAL;
+
+        ALTER TABLE system_hour ADD COLUMN pressure_min REAL;
+        ALTER TABLE system_hour ADD COLUMN cpu_min REAL;
+        ALTER TABLE system_hour ADD COLUMN net_in_min REAL;
+        ALTER TABLE system_hour ADD COLUMN net_out_min REAL;
+        ALTER TABLE system_hour ADD COLUMN disk_read_min REAL;
+        ALTER TABLE system_hour ADD COLUMN disk_write_min REAL;
+        ALTER TABLE system_hour ADD COLUMN gpu_util_min REAL;
+        ALTER TABLE system_hour ADD COLUMN load_1_min REAL;
+        ALTER TABLE system_hour ADD COLUMN app_min INTEGER;
+        ALTER TABLE system_hour ADD COLUMN wired_min INTEGER;
+        ALTER TABLE system_hour ADD COLUMN compressed_min INTEGER;
+        ALTER TABLE system_hour ADD COLUMN cached_min INTEGER;
+        ALTER TABLE system_hour ADD COLUMN swap_used_min INTEGER;
+        ALTER TABLE system_hour ADD COLUMN cpu_die_min REAL;
+        ALTER TABLE system_hour ADD COLUMN gpu_die_min REAL;
+        ALTER TABLE system_hour ADD COLUMN app_max INTEGER;
+        ALTER TABLE system_hour ADD COLUMN wired_max INTEGER;
+        ALTER TABLE system_hour ADD COLUMN compressed_max INTEGER;
+        ALTER TABLE system_hour ADD COLUMN cached_max INTEGER;
+        ALTER TABLE system_hour ADD COLUMN swap_used_max INTEGER;
+        ALTER TABLE system_hour ADD COLUMN cpu_die_samples INTEGER;
+        ALTER TABLE system_hour ADD COLUMN gpu_die_samples INTEGER;
+        ALTER TABLE system_hour ADD COLUMN bucket_seconds REAL;
         """
 }
 

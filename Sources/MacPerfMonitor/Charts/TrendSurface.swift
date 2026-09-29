@@ -8,11 +8,27 @@ import SwiftUI
 /// (see `TrendSurfaceView`). `scale` multiplies every value (CPU load 0...1
 /// is shown as a percentage).
 struct TrendSurfaceSeries {
+    /// What the line through a bucket of samples should be. See rule 2 in
+    /// docs/chart-rules.md: the reduction belongs to the metric, not the chart.
+    enum Reduction {
+        /// "How loaded was it": the mean, with the extremes drawn as a band.
+        case mean
+        /// "Did it spike": the maximum. Temperatures and fan speeds, where an
+        /// average erases the event worth seeing.
+        case maximum
+    }
+
     var column: LiveColumn
     var scale: Double = 1
     var color: Color
     var filled = false
     var lineWidth: CGFloat = 2
+    var reduction: Reduction = .mean
+    /// Whether the spread of each bucket is drawn behind the line. Off for a
+    /// companion line (the 5 and 15 minute load averages beside the 1 minute
+    /// one), where three overlapping bands would only muddy the strip.
+    var band = true
+    var name = ""
 }
 
 /// What a live chart surface draws: the same inputs as `TrendChart`, as a
@@ -33,6 +49,14 @@ struct TrendModel {
     var bare = false
     var accessibilityLabel = "Trend"
     var accessibilityValue = ""
+    var statisticsInterval: TimeInterval?
+    var statisticsNote: String?
+    var detailFormat: ((Double) -> String)?
+    var discrete = false
+    var valueUnit: String?
+    /// A spike the auto-scaled axis chose not to fit (see
+    /// `LiveChartGeometry.outlierCeiling`), whether or not it is on scale now.
+    var outlierPeak: Double?
 }
 
 /// A live chart's data channel: the current model and the surfaces listening
@@ -42,9 +66,11 @@ struct TrendModel {
 /// SwiftUI view, it repaints a few pixels. Main thread only.
 final class TrendFeed {
     private(set) var model = TrendModel()
+    private(set) var historyRevision: UInt64 = 0
     private var observers: [UUID: () -> Void] = [:]
 
-    func publish(_ model: TrendModel) {
+    func publish(_ model: TrendModel, replacingHistory: Bool = false) {
+        if replacingHistory { historyRevision &+= 1 }
         self.model = model
         for observer in observers.values { observer() }
     }
@@ -120,6 +146,25 @@ final class TrendSurfaceView: LiveSurfaceView {
     private var scrubFraction: CGFloat?
     private var trackingArea: NSTrackingArea?
     private let labels = ChartLabelCache()
+    private var hoverPopover: NSPopover?
+    private var hoverController: NSHostingController<TrendHoverView>?
+    var showsHoverPopover = true
+    var onTimeHover: ((Date?) -> Void)?
+    var onTimePin: ((Date) -> Void)?
+    var onTimeZoom: ((Double, Double) -> Void)?
+    private var inspectionDate: Date?
+
+    func setInspectionDate(_ date: Date?) {
+        inspectionDate = date
+        if let date, tick.hasTime {
+            let fraction = date.timeIntervalSinceReferenceDate - tick.tMin
+            scrubFraction = (0...tick.span).contains(fraction) ? CGFloat(fraction / tick.span) : nil
+        } else {
+            scrubFraction = nil
+        }
+        overlayLayer.isHidden = scrubFraction == nil
+        overlayLayer.setNeedsDisplay()
+    }
 
     private let clipLayer = CALayer()
     private let stripLayer = CALayer()
@@ -184,6 +229,8 @@ final class TrendSurfaceView: LiveSurfaceView {
         var clockGrid: Bool
         var appearance: NSAppearance.Name
         var contentsScale: CGFloat
+        var statisticsInterval: Double?
+        var historyRevision: UInt64
     }
 
     /// The current tick's frame of reference, shared by the painters.
@@ -211,6 +258,7 @@ final class TrendSurfaceView: LiveSurfaceView {
     var scrubbable = false {
         didSet { if scrubbable != oldValue { updateTrackingAreas() } }
     }
+    var onActivate: (() -> Void)?
 
     init() {
         super.init(frame: .zero)
@@ -236,6 +284,7 @@ final class TrendSurfaceView: LiveSurfaceView {
         if let feed, let observation { feed.stopObserving(observation) }
         observation = nil
         feed = nil
+        hoverPopover?.close()
     }
 
     private func feedDidPublish() {
@@ -333,6 +382,7 @@ final class TrendSurfaceView: LiveSurfaceView {
         tick = TickFrame(
             tMin: tMin, tMax: tMax, span: span, domain: domain, gapThreshold: gapThreshold,
             hasTime: hasTime)
+        if onTimeHover != nil { setInspectionDate(inspectionDate) }
 
         let ticks = model.yTicks ?? TrendChart.defaultTicks(domain)
         let newStatic = StaticKey(
@@ -378,7 +428,8 @@ final class TrendSurfaceView: LiveSurfaceView {
                     color: $0.color, filled: $0.filled, lineWidth: $0.lineWidth, scale: $0.scale)
             },
             clockGrid: clockGrid, appearance: effectiveAppearance.name,
-            contentsScale: deviceScale)
+            contentsScale: deviceScale, statisticsInterval: model.statisticsInterval,
+            historyRevision: feed?.historyRevision ?? 0)
 
         var dirtyFrom: Int?
         if var current = strip, newKey == stripKey, live >= current.home,
@@ -386,7 +437,14 @@ final class TrendSurfaceView: LiveSurfaceView {
         {
             // Extend: the bucket still filling plus its neighbours, whose
             // joins depend on it, are repainted; everything older is final.
-            dirtyFrom = max(current.drawnThrough - 3, current.home)
+            // The line is a curve whose slope at a point depends on both
+            // neighbours, so a new sample also reshapes the segment before the
+            // previous one: repaint back past two sample spacings (the gap
+            // threshold is three) so that segment gets its final tangent.
+            let reach = Int(
+                (max(2 * gapThreshold / 3, 2 * (model.statisticsInterval ?? 0))
+                    / bucketWidth).rounded(.up))
+            dirtyFrom = max(current.drawnThrough - 3 - reach, current.home)
             current.drawnThrough = live
             strip = current
         } else {
@@ -410,6 +468,12 @@ final class TrendSurfaceView: LiveSurfaceView {
             let x0 = CGFloat(dirtyFrom - strip.home)
             let x1 = CGFloat(live - strip.home + 1)
             stripLayer.setNeedsDisplay(CGRect(x: x0, y: 0, width: x1 - x0, height: plot.height))
+            if let interval = model.statisticsInterval {
+                let left = CGFloat(tMin / bucketWidth - Double(strip.home))
+                let width = CGFloat(2 * interval / bucketWidth) + 4
+                stripLayer.setNeedsDisplay(
+                    CGRect(x: floor(left) - 2, y: 0, width: width, height: plot.height))
+            }
         }
 
         // Slide: the live edge (tMax) sits at the plot's right edge.
@@ -418,7 +482,7 @@ final class TrendSurfaceView: LiveSurfaceView {
 
         if clockGrid {
             axisLayer.isHidden = false
-            let step = TrendChart.clockTickStep(forSpan: span)
+            let step = TrendRenderer.clockStep(span: span, width: plot.width)
             var newLabels: [AxisLabel] = []
             for t in TrendChart.clockTickTimes(from: tMin, to: tMax, step: step) {
                 let text: String
@@ -439,12 +503,44 @@ final class TrendSurfaceView: LiveSurfaceView {
         } else {
             axisLayer.isHidden = true
         }
-        if scrubFraction != nil { overlayLayer.setNeedsDisplay() }
+        if let scrubFraction {
+            overlayLayer.setNeedsDisplay()
+            updateHover(model, fraction: scrubFraction)
+        }
     }
 
     /// Place the live-edge dot on the first series' newest raw sample.
     private func updateMarker(_ model: TrendModel, domain: ClosedRange<Double>) {
-        guard !model.bare, let first = model.series.first, let last = first.column.values.last
+        if model.discrete {
+            markerLayer.isHidden = true
+            return
+        }
+        if let interval = model.statisticsInterval, interval > 0,
+            let series = model.series.first
+        {
+            let buckets = series.column.statistics(
+                width: interval, range: max(tick.tMin, tick.tMax - 2 * interval)...tick.tMax,
+                gapThreshold: tick.gapThreshold, scale: series.scale)
+            guard let last = buckets.last, tick.tMax - last.lastTime <= tick.gapThreshold else {
+                markerLayer.isHidden = true
+                return
+            }
+            let position = TrendStatistics.position(last)
+            markerLayer.backgroundColor = NSColor(series.color).cgColor
+            markerLayer.borderColor = NSColor.windowBackgroundColor.withAlphaComponent(0.9).cgColor
+            markerLayer.position = CGPoint(
+                x: snap(
+                    plot.minX + CGFloat((position - tick.tMin) / tick.span) * plot.width
+                        - Self.markerRadius),
+                y: snap(
+                    plot.maxY - CGFloat(LiveChartGeometry.normalizedY(last.mean, in: domain))
+                        * plot.height - Self.markerRadius))
+            markerLayer.isHidden = false
+            return
+        }
+        guard !model.bare, let first = model.series.first,
+            let last = TrendRenderer.lineEndValue(
+                first, smoothingSeconds: TrendRenderer.smoothingSeconds(span: tick.span))
         else {
             markerLayer.isHidden = true
             return
@@ -455,7 +551,7 @@ final class TrendSurfaceView: LiveSurfaceView {
             markerLayer.backgroundColor = color.cgColor
             markerLayer.borderColor = NSColor.windowBackgroundColor.withAlphaComponent(0.9).cgColor
         }
-        let value = last * first.scale
+        let value = last
         let y = plot.maxY - CGFloat(LiveChartGeometry.normalizedY(value, in: domain)) * plot.height
         let r = Self.markerRadius
         markerLayer.position = CGPoint(x: snap(plot.maxX - r), y: snap(y - r))
@@ -518,6 +614,17 @@ final class TrendSurfaceView: LiveSurfaceView {
     }
 
     private func paintOverlay(in ctx: CGContext) {
+        if let model = feed?.model, model.statisticsInterval != nil,
+            let scrubFraction, tick.hasTime
+        {
+            let horizontal = scrubFraction * overlayLayer.bounds.width
+            ctx.setStrokeColor(NSColor.secondaryLabelColor.withAlphaComponent(0.6).cgColor)
+            ctx.setLineWidth(1)
+            ctx.move(to: CGPoint(x: horizontal, y: 0))
+            ctx.addLine(to: CGPoint(x: horizontal, y: overlayLayer.bounds.height))
+            ctx.strokePath()
+            return
+        }
         guard let model = feed?.model, let scrubFraction, tick.hasTime,
             let point = TrendRenderer.nearestPoint(model, fraction: scrubFraction, tick: tick)
         else { return }
@@ -543,37 +650,113 @@ final class TrendSurfaceView: LiveSurfaceView {
 
     override func mouseMoved(with event: NSEvent) { scrub(to: event) }
     override func mouseDragged(with event: NSEvent) { scrub(to: event) }
-    override func mouseDown(with event: NSEvent) { scrub(to: event) }
+    override func scrollWheel(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let delta = Double(event.scrollingDeltaY)
+        guard event.modifierFlags.contains(.command),
+            let onTimeZoom, tick.hasTime, plot.width > 0, plot.contains(point),
+            delta.isFinite, delta != 0,
+            abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX)
+        else {
+            super.scrollWheel(with: event)
+            return
+        }
+        let sensitivity = event.hasPreciseScrollingDeltas ? 0.01 : 0.15
+        let factor = exp(-min(max(delta * sensitivity, -0.7), 0.7))
+        let fraction = Double((point.x - plot.minX) / plot.width)
+        onTimeZoom(factor, fraction)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if let onTimePin, plot.contains(convert(event.locationInWindow, from: nil)), tick.hasTime {
+            let point = convert(event.locationInWindow, from: nil)
+            let fraction = min(max((point.x - plot.minX) / max(plot.width, 1), 0), 1)
+            onTimePin(
+                Date(timeIntervalSinceReferenceDate: tick.tMin + Double(fraction) * tick.span))
+        } else if let onActivate {
+            scrubFraction = nil
+            overlayLayer.isHidden = true
+            hoverPopover?.close()
+            onActivate()
+        } else {
+            scrub(to: event)
+        }
+    }
 
     override func mouseExited(with event: NSEvent) {
+        if let onTimeHover {
+            onTimeHover(nil)
+            return
+        }
         guard scrubFraction != nil else { return }
         scrubFraction = nil
         overlayLayer.isHidden = true
+        hoverPopover?.close()
     }
 
     private func scrub(to event: NSEvent) {
         guard scrubbable, feed?.model != nil, plot.width > 0 else { return }
         let point = convert(event.locationInWindow, from: nil)
+        guard plot.contains(point) else {
+            if let onTimeHover {
+                onTimeHover(nil)
+                return
+            }
+            scrubFraction = nil
+            overlayLayer.isHidden = true
+            hoverPopover?.close()
+            return
+        }
         let fraction = min(max((point.x - plot.minX) / max(plot.width, 1), 0), 1)
+        if let onTimeHover {
+            onTimeHover(
+                Date(timeIntervalSinceReferenceDate: tick.tMin + Double(fraction) * tick.span))
+            return
+        }
         if scrubFraction != fraction {
             scrubFraction = fraction
             overlayLayer.isHidden = false
             overlayLayer.setNeedsDisplay()
+            if let model = feed?.model { updateHover(model, fraction: fraction) }
+        }
+    }
+
+    private func updateHover(_ model: TrendModel, fraction: CGFloat) {
+        guard showsHoverPopover, model.statisticsInterval != nil, window != nil else { return }
+        let content = TrendHoverView(
+            model: model, time: tick.tMin + Double(fraction) * tick.span)
+        if let hoverController {
+            hoverController.rootView = content
+        } else {
+            hoverController = NSHostingController(rootView: content)
+        }
+        if hoverPopover == nil {
+            let popover = NSPopover()
+            popover.animates = false
+            popover.behavior = .applicationDefined
+            popover.contentViewController = hoverController
+            hoverPopover = popover
+        }
+        if hoverPopover?.isShown == false {
+            hoverPopover?.show(relativeTo: plot, of: self, preferredEdge: .maxX)
         }
     }
 
     // MARK: Model helpers
 
-    fileprivate static func resolvedDomain(_ model: TrendModel) -> ClosedRange<Double> {
+    nonisolated static func resolvedDomain(_ model: TrendModel) -> ClosedRange<Double> {
         if let yDomain = model.yDomain { return yDomain }
         var peak = 0.0
         for s in model.series {
             if let top = s.column.range?.max { peak = max(peak, top * s.scale) }
+            if let highs = s.column.highs {
+                for value in highs where value.isFinite { peak = max(peak, value * s.scale) }
+            }
         }
         return 0...LiveChartGeometry.niceCeiling(max(peak * 1.1, 1))
     }
 
-    fileprivate static func timeBounds(_ model: TrendModel) -> (Double, Double) {
+    static func timeBounds(_ model: TrendModel) -> (Double, Double) {
         if let xDomain = model.xDomain {
             return (
                 xDomain.lowerBound.timeIntervalSinceReferenceDate,
@@ -703,6 +886,12 @@ struct ChartLabel {
 /// Core Graphics painters for the surface's layers, all in flipped (y down)
 /// coordinates.
 enum TrendRenderer {
+    static func clockStep(span: Double, width: CGFloat) -> Double {
+        let base = TrendChart.clockTickStep(forSpan: span)
+        let labelCount = max(2, floor(Double(width) / 80))
+        return base * max(1, ceil(span / labelCount / base))
+    }
+
     /// A point on the scrubbed series.
     struct Nearest {
         var time: Double
@@ -789,6 +978,121 @@ enum TrendRenderer {
     /// points, y is the plot height flipped. The caller has clipped the
     /// context to the columns being repainted; the path is built from a couple
     /// of buckets either side so joins at the clip edges match a full repaint.
+    /// Where the line actually ends: the same trailing reduction the line is
+    /// drawn with, so the dot that marks the latest value sits on it rather
+    /// than beside it at the raw sample.
+    static func lineEndValue(_ series: TrendSurfaceSeries, smoothingSeconds: Double) -> Double? {
+        let values = series.column.values
+        let times = series.column.times
+        guard let lastTime = times.last, !values.isEmpty else { return nil }
+        guard smoothingSeconds > 0 else { return values.last.map { $0 * series.scale } }
+        let cutoff = lastTime - smoothingSeconds
+        var sum = 0.0
+        var count = 0
+        var peak = -Double.greatestFiniteMagnitude
+        var i = times.endIndex - 1
+        let valueOffset = values.startIndex - times.startIndex
+        while i >= times.startIndex, times[i] >= cutoff {
+            let v = values[i + valueOffset]
+            sum += v
+            peak = Swift.max(peak, v)
+            count += 1
+            i -= 1
+        }
+        guard count > 0 else { return values.last.map { $0 * series.scale } }
+        let reduced = series.reduction == .maximum ? peak : sum / Double(count)
+        return reduced * series.scale
+    }
+
+    /// Seconds of history behind each point of the line, aiming for about 120
+    /// points across the whole span whatever the range.
+    static func smoothingSeconds(span: Double) -> Double {
+        span > 0 ? span / 120 : 0
+    }
+
+    /// A trailing average of `value` over `seconds` of history, reset at every
+    /// gap so a pause does not drag an average across it.
+    ///
+    /// The window is a duration, not a number of buckets. Buckets are per
+    /// column and only exist where a sample landed, so at short ranges most
+    /// columns are empty: counting buckets made the window five times longer
+    /// than intended and, worse, longer than the history the renderer fetches
+    /// for it, so the live edge averaged over less than the rest of the line and
+    /// drew a step.
+    static func smoothed(
+        _ buckets: [LiveStripBuckets.Bucket], seconds: Double, width: Double,
+        value: (LiveStripBuckets.Bucket) -> Double
+    ) -> [Double] {
+        guard seconds > 0, width > 0, buckets.count > 1 else { return buckets.map(value) }
+        var out: [Double] = []
+        out.reserveCapacity(buckets.count)
+        var start = 0
+        var sum = 0.0
+        var runStart = 0
+        for (i, bucket) in buckets.enumerated() {
+            if bucket.gapBefore {
+                runStart = i
+                start = i
+                sum = 0
+            }
+            sum += value(bucket)
+            let cutoff = bucketMidTime(bucket, width: width) - seconds
+            while start < i, start < buckets.count,
+                bucketMidTime(buckets[start], width: width) < cutoff, start >= runStart
+            {
+                sum -= value(buckets[start])
+                start += 1
+            }
+            out.append(sum / Double(i - start + 1))
+        }
+        return out
+    }
+
+    /// The middle of a bucket in absolute time, so an aggregated line sits at
+    /// the centre of the column it summarises rather than at whichever sample
+    /// happened to be the extreme.
+    fileprivate static func bucketMidTime(
+        _ bucket: LiveStripBuckets.Bucket, width: Double
+    )
+        -> Double
+    {
+        (Double(bucket.index) + 0.5) * width
+    }
+
+    /// The minimum-to-maximum spread of each bucket, as one translucent shape
+    /// behind the line. Runs break at gaps, exactly like the line does.
+    fileprivate static func drawBand(
+        _ buckets: [LiveStripBuckets.Bucket], width: Double, color: NSColor,
+        x: (Double) -> CGFloat, y: (Double) -> CGFloat, context ctx: CGContext
+    ) {
+        var run: [LiveStripBuckets.Bucket] = []
+        func flush() {
+            defer { run = [] }
+            guard run.count > 1 else { return }
+            var top: [CGPoint] = []
+            var bottom: [CGPoint] = []
+            top.reserveCapacity(run.count)
+            bottom.reserveCapacity(run.count)
+            for bucket in run {
+                let px = x(bucketMidTime(bucket, width: width))
+                top.append(CGPoint(x: px, y: y(bucket.maxValue)))
+                bottom.append(CGPoint(x: px, y: y(bucket.minValue)))
+            }
+            let path = CGMutablePath()
+            MonotoneCurve.add(top, to: path)
+            MonotoneCurve.add(bottom, to: path, reversed: true, move: false)
+            path.closeSubpath()
+            ctx.addPath(path)
+            ctx.setFillColor(color.withAlphaComponent(0.22).cgColor)
+            ctx.fillPath()
+        }
+        for bucket in buckets {
+            if bucket.gapBefore { flush() }
+            run.append(bucket)
+        }
+        flush()
+    }
+
     fileprivate static func drawColumns(
         _ model: TrendModel, tick: TickFrame, bucketWidth: Double, home: Int,
         buckets: ClosedRange<Int>, height: CGFloat, context ctx: CGContext,
@@ -800,7 +1104,7 @@ enum TrendRenderer {
         }
 
         if model.showsTimeAxis, model.timeAxis == .clock {
-            let step = TrendChart.clockTickStep(forSpan: tick.span)
+            let step = clockStep(span: tick.span, width: CGFloat(tick.span / bucketWidth))
             let from = Double(buckets.lowerBound) * bucketWidth
             let to = Double(buckets.upperBound + 1) * bucketWidth
             ctx.setStrokeColor(NSColor.secondaryLabelColor.withAlphaComponent(0.12).cgColor)
@@ -813,59 +1117,289 @@ enum TrendRenderer {
             ctx.strokePath()
         }
 
-        for s in model.series {
-            let extremes = LiveStripBuckets.buckets(
-                times: s.column.times, values: s.column.values, width: bucketWidth,
-                from: buckets.lowerBound, through: buckets.upperBound,
-                gapThreshold: tick.gapThreshold, scale: s.scale)
-            guard !extremes.isEmpty else { continue }
-            let color = NSColor(s.color)
+        if model.discrete {
+            for series in model.series {
+                drawDiscrete(
+                    series, through: tick.tMax, gapThreshold: tick.gapThreshold, x: x, y: y,
+                    context: ctx)
+            }
+            return
+        }
 
-            // Gap-free runs of points in time order.
-            var runs: [[CGPoint]] = []
-            var current: [CGPoint] = []
-            for bucket in extremes {
-                if bucket.gapBefore, !current.isEmpty {
-                    runs.append(current)
-                    current = []
+        if let interval = model.statisticsInterval, interval > 0 {
+            let from = Double(buckets.lowerBound) * bucketWidth
+            let to = Double(buckets.upperBound + 1) * bucketWidth
+            let lower = max(
+                tick.tMin, floor(from / interval) * interval - max(interval, tick.gapThreshold))
+            let upper = min(tick.tMax, ceil(to / interval) * interval + interval)
+            guard lower <= upper else { return }
+            let prepared = model.series.map { series in
+                (
+                    series: series,
+                    buckets: statisticsBuckets(
+                        series, interval: interval, secondsPerPoint: bucketWidth,
+                        range: lower...upper, gapThreshold: tick.gapThreshold)
+                )
+            }
+            for layer in [StatisticsLayer.range, .average] {
+                for item in prepared {
+                    drawStatistics(
+                        layer == .range ? item.buckets.range : item.buckets.average,
+                        series: item.series, layer: layer, x: x, y: y, context: ctx)
                 }
+            }
+            return
+        }
+
+        // Columns of extra history to the left, so a repaint of a few live
+        // columns matches a full one exactly. The first visible curve segment
+        // takes its shape from the two points before it, each at most a gap
+        // threshold back (further and it is a new run), and each of those needs
+        // the full trailing window behind it for its averaged value to agree.
+        let smoothing = smoothingColumns(span: tick.span, bucketWidth: bucketWidth)
+        let gapColumns = bucketWidth > 0 ? Int((tick.gapThreshold / bucketWidth).rounded(.up)) : 1
+        let context = 2 * gapColumns + smoothing + 2
+
+        for s in model.series {
+            drawSeries(
+                s, span: tick.span, bucketWidth: bucketWidth,
+                buckets: (buckets.lowerBound - context)...buckets.upperBound,
+                gapThreshold: tick.gapThreshold, x: x, y: y, fillTop: 0, fillBaseline: height,
+                context: ctx, gradients: &gradients)
+        }
+    }
+
+    enum StatisticsLayer {
+        case range
+        case average
+    }
+
+    static func drawDiscrete(
+        _ series: TrendSurfaceSeries, through end: Double, gapThreshold: Double,
+        x: (Double) -> CGFloat, y: (Double) -> CGFloat, context: CGContext
+    ) {
+        context.saveGState()
+        defer { context.restoreGState() }
+        let column = series.column
+        context.setStrokeColor(NSColor(series.color).cgColor)
+        context.setLineWidth(series.lineWidth)
+        var previousEnd: Double?
+        for index in 0..<column.count {
+            let time = column.times[column.times.startIndex + index]
+            if time > end { break }
+            let value = column.values[column.values.startIndex + index] * series.scale
+            guard value.isFinite else {
+                context.strokePath()
+                previousEnd = nil
+                continue
+            }
+            let duration = column.durations.map { $0[$0.startIndex + index] } ?? 0
+            let next =
+                index + 1 < column.count ? column.times[column.times.startIndex + index + 1] : end
+            let through = min(end, time + (duration > 0 ? duration : gapThreshold), next)
+            let start = CGPoint(x: x(time), y: y(value))
+            if previousEnd == time {
+                context.addLine(to: start)
+            } else {
+                context.strokePath()
+                context.move(to: start)
+            }
+            context.addLine(to: CGPoint(x: x(max(time, through)), y: y(value)))
+            previousEnd = through
+        }
+        context.strokePath()
+    }
+
+    static func statisticsBuckets(
+        _ series: TrendSurfaceSeries, interval: Double, secondsPerPoint: Double,
+        range: ClosedRange<Double>, gapThreshold: Double
+    ) -> (average: [ChartStatistics.Bucket], range: [ChartStatistics.Bucket]) {
+        (
+            average: series.column.statistics(
+                width: interval, range: range, gapThreshold: gapThreshold, scale: series.scale),
+            range: series.column.statistics(
+                width: min(interval, secondsPerPoint), range: range,
+                gapThreshold: gapThreshold, scale: series.scale)
+        )
+    }
+
+    static func drawStatistics(
+        _ buckets: [ChartStatistics.Bucket], series: TrendSurfaceSeries,
+        layer: StatisticsLayer? = nil,
+        x: (Double) -> CGFloat, y: (Double) -> CGFloat, context: CGContext
+    ) {
+        context.saveGState()
+        defer { context.restoreGState() }
+        let color = NSColor(series.color)
+        context.setLineCap(.round)
+        context.setLineJoin(.round)
+
+        func trace(
+            value: (ChartStatistics.Bucket) -> Double?, tint: NSColor,
+            lineWidth: CGFloat, radius: CGFloat
+        ) {
+            context.setStrokeColor(tint.cgColor)
+            context.setFillColor(tint.cgColor)
+            context.setLineWidth(lineWidth)
+            var run: [CGPoint] = []
+            func flush() {
+                guard let first = run.first else { return }
+                if run.count == 1 {
+                    context.fillEllipse(
+                        in: CGRect(
+                            x: first.x - radius, y: first.y - radius,
+                            width: 2 * radius, height: 2 * radius))
+                } else {
+                    context.move(to: first)
+                    for point in run.dropFirst() { context.addLine(to: point) }
+                    context.strokePath()
+                }
+                run.removeAll(keepingCapacity: true)
+            }
+            for bucket in buckets {
+                if bucket.gapBefore { flush() }
+                guard let reading = value(bucket), reading.isFinite else {
+                    flush()
+                    continue
+                }
+                run.append(CGPoint(x: x(TrendStatistics.position(bucket)), y: y(reading)))
+            }
+            flush()
+        }
+
+        if layer != .average, series.band {
+            var upper: [CGPoint] = []
+            var lower: [CGPoint] = []
+            func fillRange() {
+                defer {
+                    upper.removeAll(keepingCapacity: true)
+                    lower.removeAll(keepingCapacity: true)
+                }
+                guard let first = upper.first, let last = lower.last else { return }
+                if upper.count == 1 {
+                    context.setFillColor(color.withAlphaComponent(0.3).cgColor)
+                    for point in [first, last] {
+                        context.fillEllipse(
+                            in: CGRect(x: point.x - 0.8, y: point.y - 0.8, width: 1.6, height: 1.6))
+                    }
+                    return
+                }
+                let path = CGMutablePath()
+                path.move(to: first)
+                for point in upper.dropFirst() { path.addLine(to: point) }
+                for point in lower.reversed() { path.addLine(to: point) }
+                path.closeSubpath()
+                context.addPath(path)
+                context.setFillColor(color.withAlphaComponent(0.14).cgColor)
+                context.fillPath()
+            }
+            for bucket in buckets {
+                if bucket.gapBefore { fillRange() }
+                let horizontal = x(TrendStatistics.position(bucket))
+                upper.append(CGPoint(x: horizontal, y: y(bucket.maximum ?? bucket.mean)))
+                lower.append(CGPoint(x: horizontal, y: y(bucket.minimum ?? bucket.mean)))
+            }
+            fillRange()
+            trace(
+                value: { $0.mean }, tint: color.withAlphaComponent(0.28), lineWidth: 0.9,
+                radius: 0.8)
+        }
+        if layer != .range {
+            trace(value: { $0.mean }, tint: color, lineWidth: series.lineWidth, radius: 1.8)
+        }
+    }
+
+    /// How many columns of history the line averages over. One column holds
+    /// two or three samples at an hour's span, and the mean of three noisy
+    /// samples is still noisy, so bucketing to pixels barely smooths at all.
+    /// Averaging over a window sized from the span does: a target of about
+    /// 120 points across the plot puts thirty seconds behind each point at an
+    /// hour, three minutes at six hours, and two seconds at five minutes,
+    /// where the detail is still the point. See docs/chart-rules.md.
+    static func smoothingColumns(span: Double, bucketWidth: Double) -> Int {
+        bucketWidth > 0 ? max(1, Int((smoothingSeconds(span: span) / bucketWidth).rounded())) : 1
+    }
+
+    /// One series over `buckets`: the band of each column's spread, the
+    /// smoothed line as a monotone curve, the optional fill, and a dot for an
+    /// isolated reading. This is the whole of how a series is drawn, shared by
+    /// the strip (which widens `buckets` to the left so a partial repaint
+    /// agrees with a full one) and the Canvas charts (a full redraw of the
+    /// visible buckets), so every chart in the app follows the same rules.
+    static func drawSeries(
+        _ s: TrendSurfaceSeries, span: Double, bucketWidth: Double, buckets: ClosedRange<Int>,
+        gapThreshold: Double, x: (Double) -> CGFloat, y: (Double) -> CGFloat, fillTop: CGFloat,
+        fillBaseline: CGFloat, context ctx: CGContext, gradients: inout [String: CGGradient]
+    ) {
+        let smoothingSeconds = smoothingSeconds(span: span)
+        let smoothing = smoothingColumns(span: span, bucketWidth: bucketWidth)
+        let extremes = LiveStripBuckets.buckets(
+            times: s.column.times, values: s.column.values, highs: s.column.highs,
+            width: bucketWidth, from: buckets.lowerBound, through: buckets.upperBound,
+            gapThreshold: gapThreshold, scale: s.scale)
+        guard !extremes.isEmpty else { return }
+        let color = NSColor(s.color)
+
+        // More than one sample per column means the samples cannot all be
+        // drawn honestly. Rule 3: the line becomes the bucket's reduction
+        // and the spread goes behind it as a band, instead of a spike per
+        // column that turns a busy metric into a solid block.
+        let aggregated = extremes.contains(where: \.isAggregate) || smoothing > 1
+        if aggregated, s.band {
+            drawBand(extremes, width: bucketWidth, color: color, x: x, y: y, context: ctx)
+        }
+        let line = TrendRenderer.smoothed(
+            extremes, seconds: smoothingSeconds, width: bucketWidth,
+            value: { s.reduction == .maximum ? $0.maxValue : $0.mean })
+
+        // Gap-free runs of points in time order.
+        var runs: [[CGPoint]] = []
+        var current: [CGPoint] = []
+        for (bucket, value) in zip(extremes, line) {
+            if bucket.gapBefore, !current.isEmpty {
+                runs.append(current)
+                current = []
+            }
+            if aggregated {
+                current.append(
+                    CGPoint(x: x(bucketMidTime(bucket, width: bucketWidth)), y: y(value)))
+            } else {
                 for point in bucket.orderedPoints {
                     current.append(CGPoint(x: x(point.time), y: y(point.value)))
                 }
             }
-            if !current.isEmpty { runs.append(current) }
+        }
+        if !current.isEmpty { runs.append(current) }
 
-            for run in runs {
-                guard let first = run.first, let last = run.last else { continue }
-                if run.count == 1 {
-                    ctx.setFillColor(color.cgColor)
-                    let r: CGFloat = 1.6
-                    ctx.fillEllipse(
-                        in: CGRect(x: first.x - r, y: first.y - r, width: 2 * r, height: 2 * r))
-                    continue
-                }
-                let path = CGMutablePath()
-                path.addLines(between: run)
-                if s.filled, let gradient = gradient(for: color, cache: &gradients) {
-                    let fill = path.mutableCopy() ?? CGMutablePath()
-                    fill.addLine(to: CGPoint(x: last.x, y: height))
-                    fill.addLine(to: CGPoint(x: first.x, y: height))
-                    fill.closeSubpath()
-                    ctx.saveGState()
-                    ctx.addPath(fill)
-                    ctx.clip()
-                    ctx.drawLinearGradient(
-                        gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: 0, y: height),
-                        options: [])
-                    ctx.restoreGState()
-                }
-                ctx.addPath(path)
-                ctx.setStrokeColor(color.cgColor)
-                ctx.setLineWidth(s.lineWidth)
-                ctx.setLineCap(.butt)
-                ctx.setLineJoin(.bevel)
-                ctx.strokePath()
+        for run in runs {
+            guard let first = run.first, let last = run.last else { continue }
+            if run.count == 1 {
+                ctx.setFillColor(color.cgColor)
+                let r: CGFloat = 1.6
+                ctx.fillEllipse(
+                    in: CGRect(x: first.x - r, y: first.y - r, width: 2 * r, height: 2 * r))
+                continue
             }
+            let path = MonotoneCurve.path(run)
+            if s.filled, let gradient = gradient(for: color, cache: &gradients) {
+                let fill = path.mutableCopy() ?? CGMutablePath()
+                fill.addLine(to: CGPoint(x: last.x, y: fillBaseline))
+                fill.addLine(to: CGPoint(x: first.x, y: fillBaseline))
+                fill.closeSubpath()
+                ctx.saveGState()
+                ctx.addPath(fill)
+                ctx.clip()
+                ctx.drawLinearGradient(
+                    gradient, start: CGPoint(x: 0, y: fillTop),
+                    end: CGPoint(x: 0, y: fillBaseline), options: [])
+                ctx.restoreGState()
+            }
+            ctx.addPath(path)
+            ctx.setStrokeColor(color.cgColor)
+            ctx.setLineWidth(s.lineWidth)
+            ctx.setLineCap(.butt)
+            ctx.setLineJoin(.bevel)
+            ctx.strokePath()
         }
     }
 
@@ -960,7 +1494,7 @@ enum TrendRenderer {
     private static let scrubTimeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = .autoupdatingCurrent
-        formatter.setLocalizedDateFormatFromTemplate("Hmmss")
+        formatter.setLocalizedDateFormatFromTemplate("MMMdHmmss")
         return formatter
     }()
 }

@@ -226,15 +226,14 @@ public enum InsightEngine {
             let finding = entry.finding
             let minutes = Int((finding.durationSeconds / 60).rounded())
             let rate = ByteFormat.string(UInt64(max(finding.slopeBytesPerSecond, 0)))
-            let critical =
-                finding.confidence >= 0.85 && finding.totalGrowth >= 512 * 1024 * 1024
+            let material = finding.totalGrowth >= 512 * 1024 * 1024
             return Insight(
                 id: "leak-\(entry.identity.pid)-\(entry.identity.startTime.timeIntervalSince1970)",
                 kind: .leak,
-                severity: critical ? .critical : .warning,
-                headline: t("%@ looks like it's leaking", entry.displayName),
+                severity: material ? .warning : .advisory,
+                headline: t("%@ has sustained memory growth", entry.displayName),
                 detail: t(
-                    "Grew %1$@ over %2$@ min at a steady ~%3$@/s, with no sign of levelling off.",
+                    "Grew %1$@ over %2$@ min at about %3$@/s. Recent growth continues; this is not a leak diagnosis.",
                     ByteFormat.string(finding.totalGrowth), String(minutes), rate),
                 metricText: "+\(ByteFormat.string(finding.totalGrowth))",
                 identity: entry.identity,

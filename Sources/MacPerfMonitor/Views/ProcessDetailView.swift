@@ -18,7 +18,7 @@ struct ProcessDetailView: View {
     @Environment(\.samplerModel) private var model
     let identity: ProcessIdentity
 
-    @State private var range: HistoryWindow = .oneHour
+    @StoredHistoryWindow("historyRange.processDetail") private var range
     /// The chart series, owned here as a stable reference and observed only by
     /// the charts leaf.
     @State private var store = ProcessDetailStore()
@@ -88,8 +88,10 @@ struct ProcessDetailView: View {
         guard let model else { return }
         if spinner { store.isLoading = true }
         lastAggregateReload = Date()
-        model.loadProcessHistory(identity, window: range) { points in
-            store.replace(history: points, trail: model.trailSamples(for: identity))
+        model.loadProcessLineageHistory(identity, window: range) { points in
+            store.replace(
+                history: points, trail: model.trailSamples(for: identity),
+                currentStartTime: identity.startTime)
         }
     }
 
@@ -137,6 +139,7 @@ private final class ProcessDetailStore: ObservableObject {
     @Published private(set) var version = 0
     private(set) var history: [ProcessHistoryPoint] = []
     private var trail: [ProcessHistoryPoint] = []
+    private var currentStartTime = Date.distantPast
     /// Memoized leak verdict, refreshed once per data change rather than on
     /// every body evaluation (`LeakDetector.analyze` sorts the whole series).
     private(set) var leakFinding: LeakDetector.Finding?
@@ -149,13 +152,31 @@ private final class ProcessDetailStore: ObservableObject {
     }
 
     var chartPoints: [ProcessHistoryPoint] {
-        if history.count >= 2 { return history }
-        return trail.count >= 2 ? trail : history
+        let currentStoredCount: Int
+        if let boundary = history.lastIndex(where: \.startsNewRun) {
+            currentStoredCount = history.distance(from: boundary, to: history.endIndex)
+        } else if history.last.map({ $0.date >= currentStartTime }) == true {
+            currentStoredCount = history.count
+        } else {
+            currentStoredCount = 0
+        }
+        guard currentStoredCount < 2 else { return history }
+
+        let cutoff = history.last?.date ?? .distantPast
+        var liveTail = trail.filter { $0.date > cutoff }
+        if currentStoredCount == 0, !history.isEmpty, !liveTail.isEmpty {
+            liveTail[0].startsNewRun = true
+        }
+        let combined = history + liveTail
+        return combined.count >= 2 ? combined : (trail.count >= 2 ? trail : combined)
     }
 
-    func replace(history: [ProcessHistoryPoint], trail: [ProcessHistoryPoint]) {
+    func replace(
+        history: [ProcessHistoryPoint], trail: [ProcessHistoryPoint], currentStartTime: Date
+    ) {
         self.history = history
         self.trail = trail
+        self.currentStartTime = currentStartTime
         isLoading = false
         refreshLeakFinding()
         version &+= 1
@@ -172,7 +193,9 @@ private final class ProcessDetailStore: ObservableObject {
     }
 
     private func refreshLeakFinding() {
-        let series = chartPoints.map { ($0.date, $0.footprint) }
+        let points = chartPoints
+        let latestRunStart = points.lastIndex(where: \.startsNewRun) ?? points.startIndex
+        let series = points[latestRunStart...].map { ($0.date, $0.footprint) }
         leakFinding = LeakDetector.analyze(series: series)
     }
 }
@@ -343,7 +366,7 @@ private struct ProcessDetailCharts: View {
                 title: "Memory footprint",
                 systemImage: "memorychip",
                 caption: "phys_footprint, the headline \"Memory\" figure.",
-                samples: points.map { MetricSample(date: $0.date, value: Double($0.footprint)) },
+                samples: Self.restartSeparatedSamples(points) { Double($0.footprint) },
                 tint: .blue,
                 isLeaking: leak != nil,
                 leakDetail: leak.map(leakDetailText),
@@ -354,7 +377,7 @@ private struct ProcessDetailCharts: View {
                 title: "CPU",
                 systemImage: "cpu",
                 caption: "Percent of one core, from the CPU-time delta between ticks.",
-                samples: points.map { MetricSample(date: $0.date, value: $0.cpuPercent) },
+                samples: Self.restartSeparatedSamples(points, value: \.cpuPercent),
                 tint: .green,
                 minTop: 5,
                 yFormat: { String(format: "%.0f%%", max($0, 0)) }
@@ -364,7 +387,7 @@ private struct ProcessDetailCharts: View {
                 title: "File descriptors",
                 systemImage: "doc.on.doc",
                 caption: "Open files, sockets, and pipes. A steady climb can signal a handle leak.",
-                samples: points.map { MetricSample(date: $0.date, value: Double($0.fdTotal)) },
+                samples: Self.restartSeparatedSamples(points) { Double($0.fdTotal) },
                 tint: .purple,
                 minTop: 10,
                 yFormat: { String(format: "%.0f", max($0, 0)) }
@@ -460,8 +483,30 @@ private struct ProcessDetailCharts: View {
         }
     }
 
+    private static func restartSeparatedSamples(
+        _ points: [ProcessHistoryPoint], value: (ProcessHistoryPoint) -> Double
+    ) -> [MetricSample] {
+        var samples: [MetricSample] = []
+        samples.reserveCapacity(points.count + points.lazy.filter(\.startsNewRun).count)
+        for index in points.indices {
+            if index > points.startIndex, points[index].startsNewRun {
+                samples.append(
+                    MetricSample(
+                        date: restartGapDate(points[index - 1].date, points[index].date),
+                        value: .nan))
+            }
+            samples.append(MetricSample(date: points[index].date, value: value(points[index])))
+        }
+        return samples
+    }
+
+    private static func restartGapDate(_ previous: Date, _ current: Date) -> Date {
+        previous.addingTimeInterval(max(0, current.timeIntervalSince(previous)) / 2)
+    }
+
     /// Disk throughput (bytes/second) from the difference between consecutive
-    /// cumulative counters. Counter resets (process replaced) clamp to zero.
+    /// cumulative counters. Restart boundaries break the line; other counter
+    /// resets clamp to zero.
     private static func diskRateSamples(
         _ points: [ProcessHistoryPoint]
     ) -> (read: [MetricSample], write: [MetricSample]) {
@@ -471,6 +516,12 @@ private struct ProcessDetailCharts: View {
         read.reserveCapacity(points.count - 1)
         write.reserveCapacity(points.count - 1)
         for i in 1..<points.count {
+            if points[i].startsNewRun {
+                let date = restartGapDate(points[i - 1].date, points[i].date)
+                read.append(MetricSample(date: date, value: .nan))
+                write.append(MetricSample(date: date, value: .nan))
+                continue
+            }
             let dt = points[i].date.timeIntervalSince(points[i - 1].date)
             guard dt > 0 else { continue }
             let readDelta =

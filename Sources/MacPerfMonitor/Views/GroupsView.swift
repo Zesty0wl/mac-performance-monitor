@@ -10,7 +10,7 @@ struct GroupsView: View {
     @EnvironmentObject private var groupStore: ProcessGroupStore
     @EnvironmentObject private var appState: AppState
 
-    @State private var window: HistoryWindow = .oneHour
+    @StoredHistoryWindow("historyRange.groups") private var window
     @State private var reports: [ProcessGroup.ID: GroupReport] = [:]
     @State private var loading = false
     @State private var editorTarget: GroupEditorTarget?

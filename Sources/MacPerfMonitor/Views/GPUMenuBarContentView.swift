@@ -3,6 +3,130 @@ import Charts
 import MacPerfMonitorCore
 import SwiftUI
 
+struct ANEMenuHistory {
+    static let duration: TimeInterval = 60
+
+    let domain: ClosedRange<Date>
+    let time: [TrendPoint]
+    let power: [TrendPoint]
+    let hasPartialTime: Bool
+
+    init(samples: some Sequence<SystemSample>, now: Date) {
+        let domain = now.addingTimeInterval(-Self.duration)...now
+        self.domain = domain
+        let recent = samples.filter { domain.contains($0.timestamp) }
+        time = recent.map { sample in
+            let value = sample.aneTimeMillisecondsPerSecond
+            return TrendPoint(
+                date: sample.timestamp,
+                value: value.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil } ?? .nan)
+        }
+        power = recent.map {
+            TrendPoint(date: $0.timestamp, value: $0.reportedANEPowerWatts ?? .nan)
+        }
+        hasPartialTime = recent.contains {
+            guard let value = $0.aneTimeMillisecondsPerSecond, value.isFinite, value >= 0 else {
+                return false
+            }
+            return $0.aneSampleIsPartial != false
+        }
+    }
+
+    var timeChart: TrendModel {
+        chart(
+            points: time, name: t("ANE time"), unit: .millisecondsPerSecond, color: .purple,
+            minimumTop: 1000)
+    }
+
+    var powerChart: TrendModel {
+        chart(points: power, name: t("ANE power"), unit: .watts, color: .pink, minimumTop: 1)
+    }
+
+    private func chart(
+        points: [TrendPoint], name: String, unit: MetricUnit, color: Color, minimumTop: Double
+    ) -> TrendModel {
+        let peak = points.map(\.value).filter(\.isFinite).max() ?? 0
+        let top = MenuChart.niceUpperBound(max(minimumTop, peak * 1.1))
+        var model = TrendModel()
+        model.series = [
+            TrendSurfaceSeries(
+                column: LiveColumn(
+                    times: points.map { $0.date.timeIntervalSinceReferenceDate }[...],
+                    values: points.map(\.value)[...]),
+                color: color, lineWidth: MenuChart.lineWidth, name: name)
+        ]
+        model.xDomain = domain
+        model.yDomain = 0...top
+        model.yTicks = [0, top / 2, top]
+        model.yFormat = unit.format
+        model.detailFormat = unit.format
+        model.leftGutter = 68
+        model.statisticsInterval = 1
+        model.gapThreshold = 3
+        model.accessibilityLabel = name
+        return model
+    }
+}
+
+struct ANEMenuCharts: View {
+    let history: ANEMenuHistory
+    let gpu: GPUSample
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            metric(
+                "ANE time", value: ANEActivityPresentation.value(gpu) ?? t("Unavailable"),
+                status: history.hasPartialTime
+                    ? t("Partial coverage") : ANEActivityPresentation.status(gpu),
+                chart: history.timeChart, color: .purple
+            )
+            .help(
+                "Accounted ANE time per second, not percent of compute capacity. Partial readings are lower bounds. Missing readings are gaps."
+            )
+            metric(
+                "ANE power", value: ANEPowerPresentation.value(gpu) ?? t("Unavailable"),
+                status: ANEPowerPresentation.status(gpu), chart: history.powerChart, color: .pink
+            )
+            .help("ANE power requires elevated coverage. ANE Time works without it.")
+            Text("Last 60 seconds")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func metric(
+        _ title: LocalizedStringKey, value: String, status: String, chart: TrendModel, color: Color
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title).foregroundStyle(color)
+                Spacer(minLength: 8)
+                Text(value).monospacedDigit().multilineTextAlignment(.trailing)
+            }
+            .font(.caption)
+            .frame(height: 17)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            TrendSnapshotChart(model: chart)
+                .frame(height: 62)
+                .overlay {
+                    if !chart.series.contains(where: {
+                        $0.column.values.contains(where: \.isFinite)
+                    }) {
+                        Text("Unavailable").font(.caption2).foregroundStyle(.secondary)
+                            .padding(.leading, chart.leftGutter)
+                    }
+                }
+            Text(status)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(height: 14)
+        }
+    }
+}
+
 /// The GPU menubar dropdown. Headline utilization and a usage-history sparkline,
 /// device / renderer / tiler / Neural-Engine activity bars, a details block
 /// with GPU + ANE + CPU power (IOReport), in-use / allocated memory, die
@@ -30,14 +154,30 @@ struct GPUMenuBarContentView: View {
     private var panel: some View {
         VStack(alignment: .leading, spacing: 10) {
             if let gpu = model.latestGPU {
-                header(gpu)
-                sparkline
-                Divider()
-                bars(gpu)
-                Divider()
-                details(gpu)
-                Divider()
-                topProcesses
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 10) {
+                        header(gpu)
+                        sparkline
+                        Divider()
+                        bars(gpu)
+                        Divider()
+                        ANEMenuCharts(
+                            history: ANEMenuHistory(
+                                samples: model.systemHistory.elements(), now: Date()),
+                            gpu: gpu)
+                        Divider()
+                        details(gpu)
+                        Divider()
+                        topProcesses
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.trailing, 18)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .frame(
+                    height: Self.contentHeight(
+                        screenHeight: NSScreen.main?.visibleFrame.height ?? 900, embedded: embedded)
+                )
             } else {
                 Text("Reading GPU\u{2026}")
                     .font(.callout).foregroundStyle(.secondary)
@@ -47,6 +187,10 @@ struct GPUMenuBarContentView: View {
         }
         .padding(embedded ? 0 : 12)
         .frame(width: embedded ? nil : 300)
+    }
+
+    static func contentHeight(screenHeight: CGFloat, embedded: Bool) -> CGFloat {
+        min(600, max(200, screenHeight - (embedded ? 210 : 70)))
     }
 
     // MARK: - Header + sparkline
@@ -95,9 +239,6 @@ struct GPUMenuBarContentView: View {
             bar("Device", gpu.utilization)
             if let render = gpu.renderUtilization { bar("Renderer", render) }
             if let tiler = gpu.tilerUtilization { bar("Tiler", tiler) }
-            if let ane = gpu.aneUtilization {
-                bar("Neural Engine", ane, trailing: wattsString(gpu.anePowerWatts))
-            }
         }
     }
 

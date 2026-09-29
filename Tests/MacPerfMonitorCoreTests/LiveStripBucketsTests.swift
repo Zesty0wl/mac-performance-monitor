@@ -119,4 +119,196 @@ final class LiveStripBucketsTests: XCTestCase {
                 times: t[...], values: v[...], width: 0, from: 0, through: 10, gapThreshold: 30
             ).isEmpty)
     }
+    // MARK: Rule 2 and 3: a bucket carries its mean as well as its extremes
+
+    func testBucketCarriesMeanAndCount() {
+        let times: [Double] = [0, 1, 2, 3]
+        let values: [Double] = [10, 20, 30, 40]
+        let buckets = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], width: 10,
+            from: 0, through: 0, gapThreshold: 100)
+        XCTAssertEqual(buckets.count, 1)
+        let bucket = try! XCTUnwrap(buckets.first)
+        XCTAssertEqual(bucket.count, 4)
+        XCTAssertEqual(bucket.mean, 25, accuracy: 0.0001)
+        XCTAssertEqual(bucket.minValue, 10)
+        XCTAssertEqual(bucket.maxValue, 40)
+        XCTAssertTrue(bucket.isAggregate)
+    }
+
+    func testSingleSampleBucketIsNotAggregate() {
+        let times: [Double] = [0]
+        let values: [Double] = [42]
+        let buckets = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], width: 10,
+            from: 0, through: 0, gapThreshold: 100)
+        let bucket = try! XCTUnwrap(buckets.first)
+        XCTAssertEqual(bucket.mean, 42)
+        XCTAssertEqual(bucket.count, 1)
+        XCTAssertFalse(bucket.isAggregate, "one sample has no spread to band")
+    }
+
+    func testMeanIgnoresBucketBoundariesCorrectly() {
+        // Two buckets of two samples each: means 15 and 35, not one mean of 25.
+        let times: [Double] = [0, 1, 10, 11]
+        let values: [Double] = [10, 20, 30, 40]
+        let buckets = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], width: 10,
+            from: 0, through: 1, gapThreshold: 100)
+        XCTAssertEqual(buckets.count, 2)
+        XCTAssertEqual(buckets[0].mean, 15, accuracy: 0.0001)
+        XCTAssertEqual(buckets[1].mean, 35, accuracy: 0.0001)
+    }
+
+    func testScaleAppliesToTheMeanToo() {
+        let times: [Double] = [0, 1]
+        let values: [Double] = [0.1, 0.3]
+        let buckets = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], width: 10,
+            from: 0, through: 0, gapThreshold: 100, scale: 100)
+        let bucket = try! XCTUnwrap(buckets.first)
+        XCTAssertEqual(bucket.mean, 20, accuracy: 0.0001)
+    }
+
+    // MARK: The smoothing window is a duration, not a bucket count
+
+    /// Buckets exist only where a sample landed, so at short ranges most
+    /// columns are empty. A window counted in buckets then covers far more time
+    /// than intended, and more than the history a live repaint fetches for it,
+    /// which drew a step at the right-hand edge.
+    func testSparseBucketsCoverTheIntendedDuration() {
+        // One sample a second, columns a fifth of a second wide: one column in
+        // five holds a sample.
+        let width = 0.2
+        let times = (0..<60).map { Double($0) }
+        let values = [Double](repeating: 1, count: 60)
+        let buckets = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], width: width,
+            from: 0, through: Int(60 / width), gapThreshold: 1000)
+        XCTAssertEqual(buckets.count, 60, "one bucket per sample, not per column")
+
+        // Two and a half seconds of history is two or three samples, not twelve.
+        let seconds = 2.5
+        let spanned = buckets.filter {
+            let t = (Double($0.index) + 0.5) * width
+            return t >= 55 - seconds && t <= 55
+        }
+        XCTAssertLessThanOrEqual(spanned.count, 4)
+        XCTAssertGreaterThanOrEqual(spanned.count, 2)
+    }
+
+    // MARK: Rule 7, a gap means "we were not looking"
+
+    func testGapThresholdFollowsTheCadenceNotTheWindow() {
+        // Ten second logging: a minute with nothing recorded is a hole.
+        let threshold = ChartGap.threshold(expectedSpacing: 10)
+        XCTAssertEqual(threshold, 30)
+        XCTAssertLessThan(threshold, 60, "an app not running for a minute must break the line")
+        // The old rule derived it from the span: an hour's view allowed a two
+        // and a half minute hole to be drawn as a straight line.
+        XCTAssertLessThan(threshold, max(3600 / 24, 30))
+    }
+
+    func testGapThresholdHasAFloor() {
+        // One second sampling must not break the line on a single late tick.
+        XCTAssertEqual(ChartGap.threshold(expectedSpacing: 1), 15)
+    }
+
+    func testCoarseTiersGetAProportionateThreshold() {
+        XCTAssertEqual(ChartGap.threshold(expectedSpacing: 60), 180)
+        XCTAssertEqual(ChartGap.threshold(expectedSpacing: 3600), 10800)
+    }
+
+    // MARK: - Stored peaks
+
+    func testHighsRaiseTheMaximumButNotTheMean() {
+        let times: [Double] = [100, 101, 102]
+        let values: [Double] = [0.2, 0.4, 0.3]
+        let highs: [Double] = [0.2, 0.9, 0.3]
+        let buckets = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], highs: highs[...], width: 10, from: 10,
+            through: 10, gapThreshold: 5)
+        XCTAssertEqual(buckets.count, 1)
+        XCTAssertEqual(buckets[0].maxValue, 0.9)
+        XCTAssertEqual(buckets[0].maxTime, 101)
+        XCTAssertEqual(buckets[0].minValue, 0.2)
+        XCTAssertEqual(buckets[0].mean, 0.3, accuracy: 1e-9, "the line still follows the means")
+        XCTAssertEqual(buckets[0].count, 3)
+    }
+
+    func testAStoredMeanWithAPeakIsAggregateOnItsOwn() {
+        // One minute-tier row per column: a mean with the bucket peak beside it
+        // has a spread worth a band even though it is a single sample.
+        let times: [Double] = [100]
+        let values: [Double] = [0.2]
+        let highs: [Double] = [0.6]
+        let buckets = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], highs: highs[...], width: 10, from: 10,
+            through: 10, gapThreshold: 5)
+        XCTAssertEqual(buckets.count, 1)
+        XCTAssertEqual(buckets[0].count, 1)
+        XCTAssertEqual(buckets[0].maxValue, 0.6)
+        XCTAssertEqual(buckets[0].minValue, 0.2)
+        XCTAssertTrue(buckets[0].isAggregate)
+        XCTAssertEqual(buckets[0].mean, 0.2)
+    }
+
+    func testHighsScaleWithTheValuesAndMismatchedHighsAreIgnored() {
+        let times: [Double] = [100, 101]
+        let values: [Double] = [0.2, 0.4]
+        let scaled = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], highs: [0.5, 0.5][...], width: 10, from: 10,
+            through: 10, gapThreshold: 5, scale: 100)
+        XCTAssertEqual(scaled[0].maxValue, 50)
+        let mismatched = LiveStripBuckets.buckets(
+            times: times[...], values: values[...], highs: [0.9][...], width: 10, from: 10,
+            through: 10, gapThreshold: 5)
+        XCTAssertEqual(mismatched[0].maxValue, 0.4, "a highs slice of the wrong length is dropped")
+    }
+
+    // MARK: - Expected spacing
+
+    func testExpectedSpacingOfAUniformSeriesIsItsCadence() {
+        let times = (0..<100).map { Double($0) * 10 }
+        XCTAssertEqual(ChartGap.expectedSpacing(times: times[...]), 10)
+    }
+
+    func testExpectedSpacingFollowsTheCoarseTierWhenTiersMix() {
+        // A week of hour rows, topped up with an hour of minute rows and two
+        // minutes of one second rows: the fine tail outnumbers the hour rows,
+        // so a median would break the hour rows into islands.
+        var times: [Double] = []
+        var t = 0.0
+        for _ in 0..<168 {
+            times.append(t)
+            t += 3600
+        }
+        for _ in 0..<60 {
+            times.append(t)
+            t += 60
+        }
+        for _ in 0..<120 {
+            times.append(t)
+            t += 1
+        }
+        XCTAssertEqual(ChartGap.expectedSpacing(times: times[...]), 3600)
+    }
+
+    func testExpectedSpacingIgnoresAFewRealHoles() {
+        var times: [Double] = []
+        var t = 0.0
+        for i in 0..<200 {
+            times.append(t)
+            t += i == 100 ? 1800 : 60
+        }
+        XCTAssertEqual(ChartGap.expectedSpacing(times: times[...]), 60)
+        XCTAssertLessThan(
+            ChartGap.threshold(expectedSpacing: ChartGap.expectedSpacing(times: times[...])),
+            1800, "the hole is still a gap")
+    }
+
+    func testExpectedSpacingOfTooFewSamplesIsZero() {
+        XCTAssertEqual(ChartGap.expectedSpacing(times: [][...]), 0)
+        XCTAssertEqual(ChartGap.expectedSpacing(times: [5][...]), 0)
+    }
 }

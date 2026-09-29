@@ -89,8 +89,8 @@ final class ThermalAlertTests: XCTestCase {
         Make.process(timestamp: date, pid: 42, name: "Burner", cpu: 250)
     }
 
-    func testThermalAlertFiresOnlyAfterSustainedThrottlingThenRearms() {
-        let engine = AlertEngine(refireCooldown: 0)
+    func testThermalAlertFiresOnlyAfterSustainedThrottlingThenRearms() throws {
+        let engine = AlertEngine(refireCooldown: 0, notificationSpacing: 0)
         let config = AlertConfig(thermalEnabled: true)
         let base = Date(timeIntervalSince1970: 1_700_000_000)
 
@@ -101,24 +101,31 @@ final class ThermalAlertTests: XCTestCase {
             now: base)
         XCTAssertTrue(fired.isEmpty)
 
-        // Still serious 30 s later: fires once, naming the top CPU process.
+        _ = engine.evaluate(
+            system: system(.serious, at: base.addingTimeInterval(15)),
+            processes: [], config: config)
         let sustained = base.addingTimeInterval(30)
         fired = engine.evaluate(
             system: system(.serious, at: sustained), processes: [burner(at: sustained)],
             config: config, now: sustained)
         XCTAssertEqual(fired.count, 1)
-        XCTAssertEqual(fired[0].kind, .thermalThrottle)
-        XCTAssertEqual(fired[0].id, "thermal.throttle")
-        XCTAssertTrue(fired[0].body.contains("Burner"))
-        XCTAssertNotNil(fired[0].identity)
+        let alert = try XCTUnwrap(fired.first)
+        XCTAssertEqual(alert.kind, .thermalThrottle)
+        XCTAssertEqual(alert.id, "thermal.throttle")
+        XCTAssertTrue(alert.body.contains("macOS"))
+        XCTAssertNil(alert.identity)
         XCTAssertTrue(engine.activeKinds.contains(.thermalThrottle))
 
-        // Continuing to throttle does not re-fire.
         let later = sustained.addingTimeInterval(10)
         fired = engine.evaluate(
             system: system(.critical, at: later), processes: [burner(at: later)], config: config,
             now: later)
-        XCTAssertTrue(fired.isEmpty)
+        XCTAssertEqual(fired.first?.severity, .critical)
+        XCTAssertTrue(
+            engine.evaluate(
+                system: system(.critical, at: later.addingTimeInterval(1)),
+                processes: [], config: config
+            ).isEmpty)
 
         // Recovery clears the active kind and re-arms; a new sustained spell
         // fires again.
@@ -129,6 +136,9 @@ final class ThermalAlertTests: XCTestCase {
         let again = recovered.addingTimeInterval(10)
         _ = engine.evaluate(
             system: system(.serious, at: again), processes: [], config: config, now: again)
+        _ = engine.evaluate(
+            system: system(.serious, at: again.addingTimeInterval(15)),
+            processes: [], config: config)
         let againSustained = again.addingTimeInterval(30)
         fired = engine.evaluate(
             system: system(.serious, at: againSustained), processes: [], config: config,

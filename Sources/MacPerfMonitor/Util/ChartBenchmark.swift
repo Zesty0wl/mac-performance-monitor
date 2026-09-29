@@ -120,7 +120,7 @@ enum ChartBenchmark {
             let gb: UInt64 = 1_073_741_824
             let wave = 0.5 + 0.5 * sin(Double(index) / 180)
             let spike = next() < 0.01 ? 0.8 : 0
-            return SystemHistoryPoint(
+            var point = SystemHistoryPoint(
                 date: date,
                 pressurePercent: min(100, 25 + 40 * wave + 30 * spike),
                 appMemory: UInt64(8 * Double(gb) + 2 * Double(gb) * wave),
@@ -137,7 +137,21 @@ enum ChartBenchmark {
                 diskWriteOperationsPerSec: 40 * next(),
                 gpuUtilization: min(100, 15 + 55 * wave + 80 * spike),
                 gpuPowerWatts: 1.5 + 6 * wave + 10 * spike,
-                anePowerWatts: spike > 0 ? 2.5 : 0.02)
+                aneTimeMillisecondsPerSecond: spike > 0 ? 750 : 0,
+                aneSampleIsPartial: false, aneSampleCount: 1)
+            point.gpuMemoryBytes = 2_500_000_000 + wave * 500_000_000
+            point.gpuMemorySampleCount = 1
+            point.gpuActiveResidency = min(100, 30 + wave * 60 + spike * 10)
+            point.gpuActiveSampleCount = 1
+            point.gpuReadBandwidthGBps = 2 + 8 * wave + 6 * spike
+            point.gpuWriteBandwidthGBps = 1 + 3 * wave + 2 * spike
+            point.gpuTotalBandwidthGBps = 3.5 + 11 * wave + 8 * spike
+            point.gpuReadBandwidthSampleCount = 1
+            point.gpuWriteBandwidthSampleCount = 1
+            point.gpuTotalBandwidthSampleCount = 1
+            point.anePowerWatts = spike > 0 ? 3.2 : 0
+            point.anePowerSampleCount = 1
+            return point
         }
     }
 
@@ -372,7 +386,7 @@ enum ChartBenchmark {
             .environmentObject(store.monitor)
             .environmentObject(store.groupStore)
             .environmentObject(store.helper)
-            .environmentObject(store.appMode)
+            .environmentObject(store.components)
         }
     }
 
@@ -400,7 +414,7 @@ enum ChartBenchmark {
         let monitor = MonitorSelection()
         let groupStore = ProcessGroupStore()
         let helper = HelperManager()
-        let appMode = AppModeManager()
+        let components = AppComponentsManager()
         private var generator = Generator()
         private var processes: [ProcessSample] = []
         private let base: Sampler.Snapshot
@@ -521,7 +535,27 @@ enum ChartBenchmark {
             gpu.allocatedMemoryBytes = 9_100_000_000
             gpu.coreCount = 14
             gpu.gpuPowerWatts = 2 + 4 * (gpu.utilization / 100)
-            gpu.anePowerWatts = tickIndex % 40 < 20 ? 1.8 : 0
+            gpu.sampledAt = now
+            gpu.anePowerWatts = tickIndex % 40 < 20 ? 3.2 : 0
+            gpu.anePowerSampledAt = now
+            gpu.anePowerSampleInterval = interval
+            gpu.anePowerRequiresHelper = false
+            let bandwidthLabels = (1...32).map { "\($0)GB/s" }
+            gpu.bandwidth = GPUBandwidthSample(
+                timestamp: now, interval: interval,
+                read: GPUBandwidthHistogram(
+                    labels: bandwidthLabels,
+                    counts: (0..<32).map { $0 == 6 ? 70 : ($0 == 10 ? 30 : 0) }),
+                write: GPUBandwidthHistogram(
+                    labels: bandwidthLabels,
+                    counts: (0..<32).map { $0 == 2 ? 80 : ($0 == 4 ? 20 : 0) }),
+                combined: GPUBandwidthHistogram(
+                    labels: bandwidthLabels,
+                    counts: (0..<32).map { $0 == 10 ? 65 : ($0 == 15 ? 35 : 0) }))
+            gpu.aneTimeMillisecondsPerSecond = tickIndex % 40 < 20 ? 720 : 0
+            gpu.aneSampleIsPartial = false
+            snapshot.system.aneTimeMillisecondsPerSecond = gpu.aneTimeMillisecondsPerSecond
+            snapshot.system.aneSampleIsPartial = false
             gpu.cpuPowerWatts = 3.1
             gpu.activeResidency = 90
             gpu.performanceStates = [
@@ -534,6 +568,17 @@ enum ChartBenchmark {
             gpu.recoveryCount = 0
             gpu.dieTemperatureC = 61
             gpu.fanRPM = 0
+            snapshot.system.gpuUtilization = gpu.utilization
+            snapshot.system.gpuPowerWatts = gpu.gpuPowerWatts
+            snapshot.system.gpuMemoryBytes = gpu.inUseMemoryBytes
+            snapshot.system.gpuActiveResidency = gpu.activeResidency
+            snapshot.system.anePowerWatts = gpu.anePowerWatts
+            snapshot.system.anePowerSampledAt = now
+            snapshot.system.anePowerSampleInterval = interval
+            let bandwidth = gpu.bandwidth?.estimatedRates(at: now)
+            snapshot.system.gpuReadBandwidthGBps = bandwidth?.read
+            snapshot.system.gpuWriteBandwidthGBps = bandwidth?.write
+            snapshot.system.gpuTotalBandwidthGBps = bandwidth?.total
             model.publishForBenchmark(snapshot, table: tickIndex % tableEvery == 0, gpu: gpu)
         }
     }
@@ -554,7 +599,7 @@ enum ChartBenchmark {
                 .environmentObject(store.monitor)
                 .environmentObject(store.groupStore)
                 .environmentObject(store.helper)
-                .environmentObject(store.appMode)
+                .environmentObject(store.components)
         }
     }
 
@@ -572,7 +617,7 @@ enum ChartBenchmark {
                 .environmentObject(store.monitor)
                 .environmentObject(store.groupStore)
                 .environmentObject(store.helper)
-                .environmentObject(store.appMode)
+                .environmentObject(store.components)
         }
     }
 
@@ -600,7 +645,7 @@ enum ChartBenchmark {
                     .environmentObject(store.monitor)
                     .environmentObject(store.groupStore)
                     .environmentObject(store.helper)
-                    .environmentObject(store.appMode))
+                    .environmentObject(store.components))
             let environment = ProcessInfo.processInfo.environment
             return Scenario(
                 view: view,
@@ -647,7 +692,7 @@ enum ChartBenchmark {
                     .environmentObject(store.monitor)
                     .environmentObject(store.groupStore)
                     .environmentObject(store.helper)
-                    .environmentObject(store.appMode)
+                    .environmentObject(store.components)
                     .environmentObject(fullDiskAccess))
             let environment = ProcessInfo.processInfo.environment
             var tickIndex = 0
@@ -727,7 +772,7 @@ enum ChartBenchmark {
                 .environmentObject(store.monitor)
                 .environmentObject(store.groupStore)
                 .environmentObject(store.helper)
-                .environmentObject(store.appMode)
+                .environmentObject(store.components)
         }
     }
 

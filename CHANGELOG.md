@@ -6,6 +6,242 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- The menu bar item keeps its place after an update ([#120](https://github.com/Zesty0wl/mac-performance-monitor/issues/120)).
+  macOS forgot the position of the unnamed item whenever the app was replaced,
+  so each update put it back beside the notch, where a crowded menu bar hides
+  it. The item now has a stable name, so a spot you Command-drag it to survives
+  updates. The first launch of this version still uses the default spot.
+- The app no longer crashes when a process inspector's Disk I/O charts show a
+  process that has just restarted. The restart gap marker reached the rate
+  label as NaN, which crashed the app when converted to a whole number. Rate
+  labels now treat missing values as zero, and chart summaries skip gap markers.
+
+## [2.2.1] - 2026-09-23
+
+### Fixed
+
+- **Liquid Glass is back on macOS 26 and 27** ([#117](https://github.com/Zesty0wl/mac-performance-monitor/issues/117)).
+  Version 2.2.0 was the first release built with Xcode 27. Its default Swift
+  build engine recorded the macOS 15 deployment target as the app's SDK
+  version, so macOS showed the older, pre-Liquid Glass appearance. The build
+  script now passes the real SDK version to the linker. Bundling fails if the
+  app binary records an SDK older than 26. The minimum macOS stays 15.
+- The main window no longer restores itself at startup. The saved startup
+  setting controls whether it opens. The app no longer relies on macOS launch
+  data. A pinned Dock icon no longer takes focus when no window is open.
+
+### Added
+
+- **Start minimised** in Settings > General > Startup, on by default. With the
+  menu bar on, the app starts without opening its main window, including
+  at login. Turn it off to show the window at startup. The window always opens
+  at startup if the menu bar is off. First-run setup still appears.
+- A one-time request to star the app on GitHub. It waits at least seven days
+  from the first launch this version records. You must also have used a menu
+  bar panel and the main window. The request waits until the main window is in
+  front with no other prompt. Either response stops future requests. These
+  usage flags stay on your Mac.
+
+## [2.2.0] - 2026-09-20
+
+### Added
+
+- **Ask About This Mac (Preview)** provides current reports and opt-in local AI
+  checks. Open Ask from the toolbar, app menu, or menu bar. Turn on explanations
+  separately to share readings with the model. It can request up to four
+  read-only data checks over the past seven days, then cite the readings behind
+  its answer. It cannot run commands, delete files, or change settings.
+
+- **Local model choices:** Apple on-device is the default on supported Macs
+  with macOS 26.4 or later and Apple Intelligence enabled. Optional Qwen3 4B,
+  Qwen3.5 4B, and DeepAnalyze 8B downloads are about 2.3 GB, 3.1 GB, and 5.0 GB.
+  These downloaded models need Apple silicon, at least 16 GiB RAM, and normal
+  memory pressure. Each has its own download and removal controls. Qwen3.5 and
+  DeepAnalyze are experimental and need an explicit download. Existing preview
+  selections remain unchanged; Ask never silently switches models.
+
+- Ask shows model readiness, progress through data checks, cited facts,
+  uncertainty, and a follow-up question. A pause notice explains resource limits.
+  Rejected answers give a specific reason while measured reports remain usable.
+  Closing Ask clears the conversation; no cloud inference or saved chat is used.
+
+- Six preview App Shortcuts open Ask or return current reports. Siri and
+  Shortcuts sharing needs its own consent and follows Apple's processing rules.
+  See the [Ask preview scope](docs/ai-integration-prd.md#generative-preview).
+
+- **GPU bandwidth history (Preview)** charts Total, Reads, and Writes together
+  in GB/s, with the same time range as utilization and hover details. Rates are
+  approximations from macOS bandwidth buckets, not exact byte counters. One quiet
+  caption explains the limits. New samples persist across restarts; missing
+  readings and older logs remain gaps.
+
+- **ANE Time** on macOS 27 uses kernel-accounted Neural Engine time, in ms/s.
+  It is not a percent of compute capacity or per-app attribution. GPU, Explorer,
+  and Ask distinguish partial coverage from missing readings.
+
+- **ANE Power** uses Apple's powermetrics through the approved Full Coverage
+  helper. It has a separate watts card, chart, and Explorer/Ask readings.
+  The GPU menu shows separate ANE time and power charts for the last 60 seconds.
+  Power is an estimate, not utilization; ANE Time does not need the helper.
+
+- **Usage Timeline** shows when the recorder observed a process running.
+  Right-click a process to open it. Optional Apple app and media activity is
+  separate and needs Full Disk Access plus a per-window opt-in. Its device and
+  foreground status are unverified; those optional records stay in memory only.
+
+### Changed
+
+- History views start at 30 minutes when no choice is saved. Each view keeps its
+  own range across tab changes, window closure, and app restarts. Explorer keeps
+  your chosen zoom span; opening alert evidence does not overwrite it.
+
+- The GPU tab's **Active** card is now **GPU awake**. It measures powered and
+  clocked time, including waits, not GPU workload. Clock-state help
+  explains that distinction. ANE Time and ANE Power cards sit next to each other.
+
+### Fixed
+
+- GPU Memory and GPU awake now have recorded card and detail charts. New
+  recordings retain averages, bounds, and valid-reading counts. Old records
+  remain unknown instead of showing invented values.
+
+- Missing or invalid GPU OFF-state readings no longer appear as 100% awake.
+
+- Main-window toolbar controls stay mounted while tab content loads or a window
+  reopens, avoiding the earlier first-open layout problem.
+
+### Build And Preview Limits
+
+- Source app bundles now need Xcode 27 for App Intents metadata and the Metal
+  Toolchain for local inference. Build scripts detect changed Metal toolchain
+  paths. Bundling includes inference resources and licences, preserves Sparkle,
+  and keeps model weights out of the app. The app's macOS 15 baseline is unchanged.
+
+- Generated answers can be wrong even when citations pass checks. Qwen3.5 and
+  DeepAnalyze still need real-model tests. Memory pressure can stop
+  inference on an otherwise eligible Mac. Current measured reports remain available.
+
+- New GPU history starts with new recordings. ANE counters depend on hardware
+  and macOS support. Native translation review, signed Siri/Shortcuts checks,
+  and wider workload testing remain release checks, not claims from unit tests.
+
+## [2.1.0] - 2026-09-11
+
+### Added
+
+- The Dashboard now shows uptime beneath the machine details, with the boot
+  date on hover. It measures time since the Mac restarted, including sleep,
+  and refreshes once a minute.
+- Energy now has an Accessories panel for battery levels from mice, keyboards,
+  AirPods, and other devices. It shows the left earbud, right earbud, and case
+  when macOS reports them. A charging icon appears only when that state is known.
+  The app checks at most once a minute. With battery alerts off, checks stop
+  when Energy is hidden. Missing values stay unknown. If a read fails, the card
+  marks older values as last reported.
+  The command has time and size limits. An unreadable report shows as unavailable.
+- Low accessory battery alerts are now an opt-in under Settings > Alerts.
+  Choose a level from 5% to 50%; the default is 20%. Two low reports confirm
+  the warning. AirPods parts share one quiet notice, which opens Energy.
+  The app remembers notices across restarts and waits for charge to recover
+  before sending another. Enabled alerts keep the same minute-limited reader
+  active while the app is running, even with Energy hidden.
+
+### Changed
+
+- All six Energy cards now open a snapshot with a larger chart and an
+  explanation. Charge, runtime, Mac power draw, and battery temperature
+  use the page's time range. Choose a different range in a pop-out without
+  changing the page. Charge and runtime also offer "Since unplugging" when
+  the app saw the switch to battery power.
+- Health and Cycles now have their own month and year ranges, with daily
+  records for each battery pack. These records survive the usual 90-day limit,
+  but still count toward the database size cap. Trends grow from real readings
+  with history logging enabled; missing older data stays missing.
+- Runtime uses the macOS estimate first, or recent use after at least three
+  minutes of steady discharge. Past estimates stay as recorded. A separate
+  dashed line forecasts charge at the same rate of use; it is not saved as
+  a real reading.
+- Mac power draw and signed battery flow are distinct. Card headings wrap
+  and secondary values sit below the main figure so they fit narrow windows.
+  See the [Energy guide](docs/energy-design.md) for ranges and storage limits.
+- Process detail and Explorer charts can include earlier, non-overlapping
+  instances of the same program. Restart boundaries break the chart lines and
+  disk-rate calculations; concurrent instances are not added together.
+- Accessory percentages match the Dashboard card fonts. Long battery
+  manufacturer names truncate at the end instead of in the middle.
+
+## [2.0.0] - 2026-09-10
+
+See the [2.0.0 release notes](https://github.com/Zesty0wl/mac-performance-monitor/releases/tag/v2.0.0.231) for the short overview.
+
+### Changed
+
+- **Alerts now track growth and worsening conditions.** Stable swap usage no
+  longer triggers a warning just for crossing a fixed number. Growth and paging
+  rules use fresh evidence, confirmation, and recovery windows. Further growth
+  can trigger an escalation without first dropping below the old threshold.
+  Modest process growth stays quiet; plateaus and stale samples no longer count
+  as ongoing growth. Related memory alerts share a notice, and only critical
+  notices request sound. The menu separates observations from active alerts,
+  offers a one-hour snooze, and opens alert evidence in Explorer. Local incident
+  state survives restarts. See [Adaptive alerts](docs/adaptive-alerts.md) for the
+  rules, settings changes, and verification limits.
+- **Analytics becomes Explorer.** The new start screen brings machine, process,
+  and sensor charts into one workspace with a shared cursor and time window.
+  Pin an instant, jump to an exact time, compare up to eight running or exited
+  processes, and inspect recorded values, source intervals, and the full machine
+  row. Choose charts from searchable groups, switch between a grid and a list,
+  or focus one chart. Command-scroll zooms around the pointer across all charts;
+  ordinary scrolling still moves the page. CSV exports the visible data; process trace import/export
+  and the previous process monitor remain available. Current hardware inventory
+  is separate from historical evidence. See the [Explorer guide](docs/explorer-design.md).
+- **The app comes first now, and the menu bar item is optional.** Requested in
+  #21 and #67. Until now the menu bar read-out was the app: it could not be
+  turned off, it was the only thing that could open a window, and it held the
+  only Quit command. Three things change together.
+  - **Show in the menu bar** is a switch in Settings. Turn it off and
+    monitoring, recording and alerts carry on exactly as before. Open the window
+    again from the Dock, Spotlight or Launchpad.
+  - **Record history** is now its own switch rather than half of a Mode picker,
+    so recording and the menu bar item are independent. The old Mode setting
+    carries over: menu-bar-only becomes recording off, and everything else
+    becomes recording on, with the item left on either way.
+  - **The Dock icon follows the window.** Mac Performance Monitor appears in the
+    Dock whenever one of its windows is open, which is also what gives it the
+    standard menus and Command-Q, and drops out of the Dock when the last window
+    closes. A preference keeps it there permanently, replacing the old "show
+    icon in the Dock" toggle, which it inherits.
+- Launching the app now opens its window, rather than appearing to do nothing.
+  Opening at login stays quiet, with no window and no Dock icon.
+- Closing the last window quits the app when neither the menu bar item nor
+  recording is switched on. With either on, it keeps running as before.
+- **Dashboard charts separate averages from bursts.** Each range uses fixed
+  time intervals for the clear average line, with the unsmoothed recorded range
+  in a translucent layer behind it. Range bars and separate outline traces
+  are gone. Short bursts keep their detail rather than being reduced to the
+  average's intervals.
+  Pressure, processor, network, disk, swap, thermals, and the six headline
+  strips use the same statistics. Resizing keeps the averages fixed and can
+  reveal finer detail in the recorded range.
+  New stored history retains minima and sensor-specific counts as well as
+  peaks. Older missing bounds remain unknown, and thermal averages with
+  unknown counts are marked approximate. The standard and app-wide rollout
+  guide are in [Dashboard chart standard](docs/dashboard-chart-standard.md).
+- Tabs other than Dashboard and Explorer share the existing line-and-band
+  renderer and load every stored row instead of thinning history before drawing.
+  Stored ranges include
+  recent finer-resolution rows up to the present. The Processes load card
+  shows the recorded 1, 5, and 15 minute load averages together, including in
+  its enlarged detail chart.
+- Per-core bars show current measured usage, hardware overview panels use the
+  available width, and the process table appears promptly when a window opens.
+- The compiler-driven string-coverage check now fails when the interface uses
+  a key that the catalog does not carry. CI runs it alongside the source-text
+  check and Apple's catalog compiler. A documented allowlist covers strings
+  that are the same in every language, such as units and identifiers.
+
 ### Security
 
 - Sparkle, the updater framework, moved from 2.9.3 to 2.9.6. That picks up two
@@ -20,12 +256,108 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Added
 
+- The new Alerts menu shows all active alerts. Click the red badge to open it.
+  Each process has its own list, with the time each alert began. Click a process
+  name to open its details. Alerts for the whole Mac form a separate group.
+  The badge counts alerts, not alert types.
+- Hover details on the Energy charge, die-temperature, and fan timelines,
+  plus the charge, power, and battery-temperature card charts. Readouts show
+  the date, time, and value in the correct units. Thermal hover identifies
+  CPU and GPU separately and marks a missing sensor reading as unavailable.
+- Hover details on every Dashboard chart, including headline sparklines.
+  Readouts show each series' interval average, known bounds, sample count,
+  source resolution, and missing readings. Every Dashboard card has a detail
+  view with a larger chart or breakdown, captured values, and explanations.
+  Detail views are frozen snapshots so they stay still during investigation.
 - German and French localizations, generated by Claude Fable 5.1, Anthropic's
   AI model, from the English source strings. They have not yet been reviewed
   by native speakers: Settings says so whenever either language is active,
   every string is unapproved on Crowdin until a native speaker approves it, and
   corrections are welcome at https://crowdin.com/project/mac-performance-monitor.
   A language leaves the notice once a native speaker has been through it.
+
+### Fixed
+
+- The network menu now uses fixed columns for interface details, session totals,
+  latency, jitter, and packet loss. Missing readings retain their space, and
+  the app list reserves six rows so traffic changes do not resize the menu.
+- The disk menu no longer jumps as device activity changes. Each physical disk
+  has fixed read/write columns, with throughput and service time on separate
+  rows. Idle readings keep their space, and warning icons show error and retry
+  counts on hover without changing the layout.
+- A cyclic-growth test fixture now uses smaller typed expressions to reduce
+  compiler work after a hosted CI type-checking timeout.
+- The French Explorer capacity warning now describes reaching the comparison
+  limit, not a completed Explorer.
+- Fixed a crash during background history maintenance. Process-cache pruning,
+  clearing, and lookups now share the database writer queue with sample inserts.
+  Cleanup after a failed transaction also finishes on that queue before another
+  write can start.
+- Metric card details no longer open as a small, empty grey sheet on the first
+  click. The captured data now controls sheet presentation directly. Closing
+  and reopening the detail view captures a fresh snapshot.
+- GPU thermal sensor discovery no longer drops a valid die sensor for the
+  whole session when its first value is zero or unavailable. Failed reads
+  remain missing; they are not replaced with zero or CPU temperature.
+  Dashboard thermal charts keep these gaps visible and distinguish missing
+  readings from older records whose full range was never stored.
+- Alerts no longer depend on a visible window or full history recording.
+  System alerts use fresh system samples independently of the display refresh
+  setting. Process alerts request a scan at least once a minute when nothing
+  else needs one, and enabled GPU alerts keep GPU sampling active.
+- With no menu bar item, no window and no panel open, the sampler no longer
+  publishes to the main thread every second for nobody to read.
+- A chart resuming after a gap no longer climbs vertically from zero. The
+  sampler's first tick after launch has nothing to difference against, so its
+  CPU, network and disk figures were zero by construction, and that tick was
+  both recorded and drawn: every restart left a zero at the start of the run.
+  The first tick still seeds the sampler and drives the first process scan, but
+  it is neither recorded nor charted.
+- Long-range charts no longer mistake each stored aggregate for an isolated
+  point. Source intervals describe the time those rows cover; finer live data
+  still uses its own cadence when detecting gaps.
+- Gaps in the recently drawn line, and straight lines across periods when the
+  app was not running: samples kept arriving while the window was covered but
+  were dropped, and the gap threshold grew with the range (two and a half
+  minutes at an hour) so real holes were bridged. Samples are now kept while the
+  window is covered, and a gap is anything beyond three times the cadence.
+- The thermals chart changed shape as it scrolled: its buckets were sized from
+  the data's extent rather than the axis, so every new sample moved every
+  boundary. Buckets are anchored to absolute time now.
+- 99 interface strings were never in the catalog, so they stayed English in
+  every language whatever you chose. They are SwiftUI literals that the
+  source-scanning check cannot see, from the battery detail panels, the network
+  adapter and scan views, the hardware overview, the memory inspector, the menu
+  bar panels, the chart accessibility labels, and a set of messages and hints.
+  All are now translated into Simplified Chinese, German and French. Reported
+  in #60.
+- Six more strings had translations that could never be found, because the
+  catalog stored the key in a form the app never looks up: five carried a
+  literal escape sequence such as `\u{2026}`, which Swift resolves to a
+  character before any lookup happens, and one used three full stops where the
+  app writes an ellipsis. They include the Login Items notice, the Settings
+  explanation of per-app network attribution, two onboarding cards about
+  memory, and the Check for Updates menu item, all of which showed English on
+  an otherwise translated screen. Fourteen further escaped keys duplicated
+  entries that were already correct and have been removed.
+
+### Upgrade Notes
+
+- Existing alert on/off choices and explicit process-memory budgets remain
+  intact. The old fixed swap ceiling no longer controls alerts; swap now uses
+  growth and paging evidence. Quiet Evaluation can observe growth without
+  sending growth notifications.
+- Existing history stays available. New database fields preserve chart bounds,
+  sample counts, and paging evidence from new readings; they cannot restore
+  detail that older versions did not record. Back up the app's data before
+  testing a downgrade.
+- A small local incident checkpoint and delivery log are separate from full
+  performance-history recording. They let alerts retain notification state
+  across restarts, even when full history is off.
+- The menu bar, history recorder, and Dock icon now have separate controls.
+  Existing mode settings carry forward to the new switches.
+- Existing process trace files remain supported. Current hardware inventory is
+  still an on-demand snapshot, not a historical inventory.
 
 ## [1.7.1] - 2026-09-03
 
@@ -710,7 +1042,11 @@ processes behind them.
 - A clean split between a headless, unit-tested data layer and the SwiftUI app. CI
   builds, tests, and lints on every push and pull request.
 
-[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.5.0.198...HEAD
+[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.2.1.261...HEAD
+[2.2.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.2.0.260...v2.2.1.261
+[2.2.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.1.0.236...v2.2.0.260
+[2.1.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.0.0.231...v2.1.0.236
+[2.0.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.7.1.206...v2.0.0.231
 [1.7.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.6.0.204...v1.7.0.205
 [1.6.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.5.0.198...v1.6.0.204
 [1.5.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v1.4.0.197...v1.5.0.198

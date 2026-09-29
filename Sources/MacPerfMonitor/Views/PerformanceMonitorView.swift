@@ -29,7 +29,7 @@ struct PerformanceMonitorView: View {
     @State private var importError: String?
     @State private var importRequestID: UUID?
 
-    @State private var span: PerfSpan = .live
+    @AppStorage("historyRange.performanceMonitor") private var span: PerfSpan = .thirtyMinutes
 
     /// The overlaid processes, in the order they were added. The canonical list
     /// lives in the shared `MonitorSelection`, so other surfaces (the Processes

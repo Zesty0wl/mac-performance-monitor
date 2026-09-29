@@ -46,6 +46,37 @@ public enum LiveChartGeometry {
         return rung * base
     }
 
+    /// An auto-scaled axis top that a few isolated spikes cannot own.
+    public struct OutlierFit: Equatable {
+        /// The axis top to draw with.
+        public var ceiling: Double
+        /// The axis top that clears every sample, as `niceCeiling` would give.
+        public var fullCeiling: Double
+        /// The tallest sample left above `ceiling`, when the fit clipped one.
+        public var outlierPeak: Double?
+    }
+
+    /// Normally the axis clears the tallest of `peaks` (each sample's highest
+    /// value, its band top where it has one). When no more than one positive
+    /// sample in a hundred (at least one) rises far above the rest, the axis
+    /// fits the rest instead, so a single 350% burst no longer flattens an hour
+    /// of 40% into the floor. The fit must at least halve the axis to be worth
+    /// the clipping, and it never drops below a quarter of the outlier, so the
+    /// noise under a spike is not blown up into a mountain range. Fewer than
+    /// twenty positive samples are too few to call any of them an outlier.
+    public static func outlierCeiling(
+        peaks: [Double], headroom: Double = 1.1, minimum: Double = 1
+    ) -> OutlierFit {
+        let positive = peaks.filter { $0.isFinite && $0 > 0 }.sorted(by: >)
+        let full = niceCeiling(max((positive.first ?? 0) * headroom, minimum))
+        let unfitted = OutlierFit(ceiling: full, fullCeiling: full, outlierPeak: nil)
+        let allowed = max(1, positive.count / 100)
+        guard positive.count >= 20, let peak = positive.first else { return unfitted }
+        let fitted = niceCeiling(max(positive[allowed] * headroom, peak / 4, minimum))
+        guard fitted <= full / 2 else { return unfitted }
+        return OutlierFit(ceiling: fitted, fullCeiling: full, outlierPeak: peak)
+    }
+
     /// Horizontal position for a value-only live ring. The newest sample is at
     /// 1, and each retained interval occupies exactly 1 / capacity of the plot.
     public static func normalizedSlot(

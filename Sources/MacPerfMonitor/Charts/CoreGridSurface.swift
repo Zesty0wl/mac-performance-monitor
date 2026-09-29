@@ -56,13 +56,20 @@ struct CoreGridSurface: NSViewRepresentable {
     }
 }
 
-final class CoreGridSurfaceView: LiveSurfaceView {
+final class CoreGridSurfaceView: LiveSurfaceView, NSViewToolTipOwner {
     static let legendHeight: CGFloat = 14
     private(set) var feed: CoreGridFeed?
     private var observation: UUID?
     private let labels = ChartLabelCache()
-    var barHeight: CGFloat = 44 { didSet { invalidateContent() } }
-    private var shownCoreCount = -1
+    var barHeight: CGFloat = 44 {
+        didSet {
+            guard barHeight != oldValue else { return }
+            refreshToolTips(orderedCores)
+            invalidateContent()
+        }
+    }
+    private var shownCoreIndices: [Int] = []
+    private var toolTipCoreIndices: [NSView.ToolTipTag: Int] = [:]
 
     init() {
         super.init(frame: .zero)
@@ -86,6 +93,9 @@ final class CoreGridSurfaceView: LiveSurfaceView {
         if let feed, let observation { feed.stopObserving(observation) }
         observation = nil
         feed = nil
+        shownCoreIndices = []
+        toolTipCoreIndices.removeAll()
+        removeAllToolTips()
     }
 
     private var orderedCores: [CoreUsage] {
@@ -95,13 +105,13 @@ final class CoreGridSurfaceView: LiveSurfaceView {
 
     private func feedDidPublish() {
         let cores = orderedCores
-        if cores.count != shownCoreCount {
-            shownCoreCount = cores.count
+        let indices = cores.map(\.index)
+        if indices != shownCoreIndices {
+            shownCoreIndices = indices
             refreshToolTips(cores)
         }
         setAccessibilityValue(
-            cores.map { "Core \($0.index) \(Int(($0.usage * 100).rounded())) percent" }
-                .joined(separator: ", "))
+            cores.map { coreDescription($0) }.joined(separator: ", "))
         invalidateContent()
     }
 
@@ -110,15 +120,55 @@ final class CoreGridSurfaceView: LiveSurfaceView {
         refreshToolTips(orderedCores)
     }
 
+    override func sizeDidChange() {
+        super.sizeDidChange()
+        refreshToolTips(orderedCores)
+    }
+
     private func refreshToolTips(_ cores: [CoreUsage]) {
         removeAllToolTips()
-        guard !cores.isEmpty else { return }
-        let width = (bounds.width - 3 * CGFloat(cores.count - 1)) / CGFloat(cores.count)
-        for (i, core) in cores.enumerated() {
-            let rect = NSRect(x: CGFloat(i) * (width + 3), y: 0, width: width, height: barHeight)
-            addToolTip(
-                rect, owner: t("Core %1$@ · %2$@", String(core.index), core.kind.label) as NSString,
-                userData: nil)
+        toolTipCoreIndices.removeAll(keepingCapacity: true)
+        for (core, rect) in zip(cores, coreRects(count: cores.count)) {
+            let hitRect = rect.intersection(bounds)
+            guard !hitRect.isNull, hitRect.width > 0, hitRect.height > 0 else { continue }
+            let tag = addToolTip(hitRect, owner: self, userData: nil)
+            toolTipCoreIndices[tag] = core.index
+        }
+    }
+
+    /// The owner reads the current feed when AppKit requests a tooltip. A
+    /// string captured when the core count changed would stay stale forever.
+    func view(
+        _ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint,
+        userData data: UnsafeMutableRawPointer?
+    ) -> String {
+        guard let index = toolTipCoreIndices[tag],
+            let core = feed?.cores.first(where: { $0.index == index })
+        else { return "" }
+        return coreDescription(core)
+    }
+
+    private func coreDescription(_ core: CoreUsage) -> String {
+        func value(_ fraction: Double) -> String {
+            fraction.isFinite
+                ? String(format: "%.1f%%", fraction * 100) : t("Unavailable")
+        }
+        let kind = core.kind == .unknown ? t("Unknown core type") : core.kind.label
+        return t(
+            "Core %1$@ · %2$@\nCurrent busy %3$@ · User %4$@ · System %5$@",
+            String(core.index), kind, value(core.usage), value(core.user), value(core.system))
+    }
+
+    /// Shared geometry keeps the drawn bars and their hover targets aligned,
+    /// including on machines with many cores in a narrow rail.
+    private func coreRects(count: Int) -> [CGRect] {
+        guard count > 0, bounds.width.isFinite, bounds.width > 0,
+            barHeight.isFinite, barHeight > 0
+        else { return [] }
+        let spacing = min(3, bounds.width / CGFloat(count) * 0.2)
+        let width = (bounds.width - spacing * CGFloat(count - 1)) / CGFloat(count)
+        return (0..<count).map { i in
+            CGRect(x: CGFloat(i) * (width + spacing), y: 0, width: width, height: barHeight)
         }
     }
 
@@ -135,18 +185,18 @@ final class CoreGridSurfaceView: LiveSurfaceView {
             labels.label("Measuring cores…", style: .axis).draw(at: .zero, in: context)
             return
         }
-        let spacing: CGFloat = 3
-        let width = (bounds.width - spacing * CGFloat(cores.count - 1)) / CGFloat(cores.count)
-        let track = NSColor.secondaryLabelColor.withAlphaComponent(0.14)
-        for (i, core) in cores.enumerated() {
-            let x = CGFloat(i) * (width + spacing)
-            let full = CGRect(x: x, y: 0, width: width, height: barHeight)
+        // Quiet: eleven empty tracks used to carry more weight on screen than
+        // the fills inside them.
+        let track = NSColor.secondaryLabelColor.withAlphaComponent(0.08)
+        for (core, full) in zip(cores, coreRects(count: cores.count)) {
             context.setFillColor(track.cgColor)
             context.addPath(
                 CGPath(roundedRect: full, cornerWidth: 2.5, cornerHeight: 2.5, transform: nil))
             context.fillPath()
+            guard core.usage.isFinite else { continue }
             let fillHeight = max(2, barHeight * CGFloat(min(max(core.usage, 0), 1)))
-            let fill = CGRect(x: x, y: barHeight - fillHeight, width: width, height: fillHeight)
+            let fill = CGRect(
+                x: full.minX, y: barHeight - fillHeight, width: full.width, height: fillHeight)
             context.setFillColor(NSColor(core.kind.accent).cgColor)
             context.addPath(
                 CGPath(roundedRect: fill, cornerWidth: 2.5, cornerHeight: 2.5, transform: nil))
@@ -158,8 +208,11 @@ final class CoreGridSurfaceView: LiveSurfaceView {
         let performance = cores.filter { $0.kind != .efficiency }
         var items: [(NSColor, String)] = []
         func average(_ group: [CoreUsage]) -> Int {
-            guard !group.isEmpty else { return 0 }
-            return Int((group.reduce(0.0) { $0 + $1.usage } / Double(group.count) * 100).rounded())
+            let measured = group.filter { $0.usage.isFinite }
+            guard !measured.isEmpty else { return 0 }
+            return Int(
+                (measured.reduce(0.0) { $0 + min(max($1.usage, 0), 1) }
+                    / Double(measured.count) * 100).rounded())
         }
         if efficiency.isEmpty {
             items.append(

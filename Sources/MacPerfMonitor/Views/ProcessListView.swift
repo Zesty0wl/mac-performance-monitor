@@ -353,10 +353,10 @@ private struct ProcessTable: View, Equatable {
                     addable > 0
                         ? (addable == 1
                             ? String(
-                                format: String(localized: "Add %d Process to Analytics"), addable)
+                                format: String(localized: "Add %d Process to Explorer"), addable)
                             : String(
-                                format: String(localized: "Add %d Processes to Analytics"), addable))
-                        : String(localized: "Analytics Full"),
+                                format: String(localized: "Add %d Processes to Explorer"), addable))
+                        : String(localized: "Explorer Full"),
                     symbol: "chart.xyaxis.line", enabled: addable > 0
                 ) { addSelectionToMonitor(ids) })
             return menu
@@ -392,6 +392,16 @@ private struct ProcessTable: View, Equatable {
                     String(localized: "Open Files & Sockets\u{2026}"), symbol: "doc.on.doc",
                     handler: openFiles))
         }
+        if let sample = live ?? flatten(rows).first(where: { $0.id == id }) {
+            let target = UsageTimelineTarget(sample: sample)
+            menu.addItem(
+                ClosureMenuItem(
+                    String(localized: "Usage Timeline\u{2026}"), symbol: "timeline.selection"
+                ) {
+                    openWindow(value: target)
+                    NSApp.activate(ignoringOtherApps: true)
+                })
+        }
         if let deepDive = deepDiveAction(for: id) {
             menu.addItem(
                 ClosureMenuItem(
@@ -402,7 +412,7 @@ private struct ProcessTable: View, Equatable {
         menu.addItem(
             ClosureMenuItem(
                 isMonitored
-                    ? String(localized: "In Analytics") : String(localized: "Add to Analytics"),
+                    ? String(localized: "In Explorer") : String(localized: "Add to Explorer"),
                 symbol: "chart.xyaxis.line",
                 enabled: !isMonitored && !monitor.isFull
             ) { monitor.add(id) })

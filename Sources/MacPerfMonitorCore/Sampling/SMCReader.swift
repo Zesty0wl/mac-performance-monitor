@@ -8,9 +8,8 @@ struct FanSample: Sendable, Equatable {
 }
 
 /// Apple silicon temperatures and fan speeds read from the SMC, grouped by
-/// domain. Sensor keys are discovered once by name prefix and then sampled on
-/// an internal throttle (temperatures move slowly, so the SMC is touched at
-/// most every few seconds however often this is called).
+/// domain. Sensor candidates are discovered by name and type, then validated
+/// on each throttled read. Incomplete discovery is retried infrequently.
 struct ThermalSample: Sendable, Equatable {
     /// Hottest CPU die sensor (P or E cluster), degrees Celsius. Max, not
     /// average: "CPU temperature" means the hottest core to a user.
@@ -30,7 +29,7 @@ struct ThermalSample: Sendable, Equatable {
     /// Average across the CPU die sensors, the secondary trend figure.
     var cpuDieAvgC: Double?
 
-    /// Hottest GPU cluster sensor. Nil on chips with no GPU-specific keys.
+    /// Hottest GPU cluster sensor. Nil if no GPU-specific key has a valid reading.
     var gpuDieMaxC: Double?
 
     /// Hottest SSD sensor.
@@ -48,21 +47,31 @@ struct ThermalSample: Sendable, Equatable {
 
 /// Reads die, SSD, and fan telemetry from the AppleSMC user client.
 ///
-/// Discovery is pattern based (prefix plus plausibility), never a per-chip key
-/// table: key names drift between M1/M2/M3/M4 generations but the prefixes
-/// have held. See docs/temperature-design.md for the probed key inventory.
+/// Discovery is pattern based, never a per-chip key table. Recognized die
+/// candidates need decodable metadata, not a plausible first value: a zero or
+/// unavailable first read must not exclude a sensor for the reader's lifetime.
+/// Other groups still require a plausible discovery value.
 final class SMCReader {
 
+    /// Tests supply the user-client transport without opening hardware. Both
+    /// transports use the same response validation, discovery and sampling path.
+    typealias Transport = (inout SMCParamStruct, inout SMCParamStruct, inout Int) -> kern_return_t
+    private let transport: Transport?
     private var connection: io_connect_t = 0
     private var didOpen = false
     private var fanCount = 0
     private var cached = ThermalSample()
     private var lastRead: Date?
     private let minInterval: TimeInterval = 5.0
-    /// Every readable temperature key with its display group, discovered once
-    /// and shared by the sampling read and the full inventory. One list, so a
-    /// sensor is classified the same way wherever it surfaces.
+    /// Temperature candidates shared by sampling and the full inventory. A
+    /// retained key is not itself evidence of an available temperature.
     private var groupedKeys: [(key: UInt32, name: String, group: String)]?
+    private var lastDiscovery: Date?
+    private var discoveryIncomplete = false
+    /// Retry absent domains or failed enumeration/metadata reads at most once
+    /// per five minutes, not every sampling pass. Retained keys need no rescan
+    /// when their values temporarily become unavailable.
+    static let discoveryRetryInterval: TimeInterval = 300
     /// The slow-moving domains' last readings, refreshed on their own longer
     /// cadence (see `slowInterval`) and carried between sweeps.
     private var slowMaxima: [String: Double] = [:]
@@ -75,6 +84,10 @@ final class SMCReader {
     /// at the full read rate.
     private let slowInterval: TimeInterval = 30
 
+    init(transport: Transport? = nil) {
+        self.transport = transport
+    }
+
     deinit {
         if connection != 0 { IOServiceClose(connection) }
     }
@@ -86,7 +99,7 @@ final class SMCReader {
     func read(now: Date) -> ThermalSample? {
         if let lastRead, now.timeIntervalSince(lastRead) < minInterval { return cached }
         guard open() else { return nil }
-        discover()
+        discover(now: now)
 
         let slowDue = lastSlowRead.map { now.timeIntervalSince($0) >= slowInterval } ?? true
         var maxima: [String: Double] = [:]
@@ -152,40 +165,71 @@ final class SMCReader {
         isDieGroup(group) || group == groupSSD || group == groupBattery
     }
 
-    /// Discovery gate: strict, so calibration offsets (0.00 / -3.10 pairs),
-    /// dead zones, and sub-ambient junk never become sampled keys.
+    enum TemperatureKeyPolicy: Equatable {
+        case ignore
+        case retainCandidate
+        case requirePlausibleValue
+    }
+
+    /// Metadata establishes whether a recognized die key should be retried,
+    /// independently of its current value. Case is significant, so neither
+    /// voltage rails nor uppercase TG keys can become die candidates. Ta0*
+    /// keys are the documented calibration-offset family, not temperatures.
+    static func discoveryPolicy(
+        name: String, type: String, dataSize: Int
+    ) -> TemperatureKeyPolicy {
+        guard name.utf8.count == 4, name.hasPrefix("T"), !name.hasPrefix("Ta0"),
+            let expectedSize = scalarByteCount(forType: type), dataSize == expectedSize
+        else { return .ignore }
+        return isDieGroup(sensorGroup(forKeyName: name))
+            ? .retainCandidate : .requirePlausibleValue
+    }
+
+    /// Discovery gate for the non-die groups: zero offsets, dead zones and
+    /// sub-ambient junk must not become sampled keys just because they decode.
     static func isPlausibleDiscoveryTemperature(_ celsius: Double) -> Bool {
         celsius > 10 && celsius < 110
     }
 
-    /// Read-time gate: lenient, so a known-good key still reports from a Mac
-    /// in a cold room while a failed read (0) stays excluded.
+    /// Read-time gate for every temperature candidate. A zero or invalid value
+    /// stays missing even when the key was retained during discovery.
     static func isPlausibleReading(_ celsius: Double) -> Bool {
         celsius > 1 && celsius < 130
     }
 
-    /// Decodes an SMC value by type code. `ioft` is a 64-bit little-endian
-    /// fixed point with 16 fraction bits.
+    /// Decodes an exact-size SMC scalar by type code. `ioft` is a 64-bit
+    /// little-endian fixed point with 16 fraction bits.
     static func decode(type: String, bytes: [UInt8]) -> Double? {
+        guard let byteCount = scalarByteCount(forType: type), bytes.count == byteCount else {
+            return nil
+        }
         switch type {
         case "flt ":
-            guard bytes.count >= 4 else { return nil }
             let bits =
                 UInt32(bytes[0]) | UInt32(bytes[1]) << 8 | UInt32(bytes[2]) << 16
                 | UInt32(bytes[3]) << 24
-            return Double(Float(bitPattern: bits))
+            let value = Double(Float(bitPattern: bits))
+            return value.isFinite ? value : nil
         case "ioft":
-            guard bytes.count >= 8 else { return nil }
             var value: UInt64 = 0
             for index in (0..<8).reversed() { value = value << 8 | UInt64(bytes[index]) }
             return Double(value) / 65536.0
         case "ui16":
-            guard bytes.count >= 2 else { return nil }
             return Double(UInt16(bytes[0]) << 8 | UInt16(bytes[1]))
         case "ui8 ":
-            return bytes.first.map(Double.init)
+            return Double(bytes[0])
         default:
             return nil
+        }
+    }
+
+    private static func scalarByteCount(forType type: String) -> Int? {
+        switch type {
+        case "flt ": return 4
+        case "ioft": return 8
+        case "ui16": return 2
+        case "ui8 ": return 1
+        default: return nil
         }
     }
 
@@ -214,7 +258,7 @@ final class SMCReader {
     /// queue.
     func sensorInventory() -> (sensors: [SensorReading], fans: [FanSample]) {
         guard open() else { return ([], []) }
-        discover()
+        discover(now: Date())
         let sensors = (groupedKeys ?? []).compactMap { entry -> SensorReading? in
             guard let value = readFloat(entry.key), Self.isPlausibleReading(value) else {
                 return nil
@@ -261,6 +305,7 @@ final class SMCReader {
     // MARK: - Connection
 
     private func open() -> Bool {
+        if transport != nil { return true }
         if didOpen { return connection != 0 }
         didOpen = true
         let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSMC"))
@@ -269,24 +314,55 @@ final class SMCReader {
         return IOServiceOpen(service, mach_task_self_, 0, &connection) == kIOReturnSuccess
     }
 
-    /// One-time discovery: a single enumeration classifying every plausible
-    /// temperature key into its display group, plus the fan count from `FNum`
-    /// with a probe of fan 0 as the fallback. The strict gate here is what
-    /// keeps calibration offsets and dead zones out of every later sweep.
-    private func discover() {
-        guard groupedKeys == nil else { return }
-        var found: [(key: UInt32, name: String, group: String)] = []
+    /// Enumerate once in the normal case. A missing die domain or a failed
+    /// enumeration/metadata read warrants a bounded retry. Merge discoveries:
+    /// a failed rescan must never discard candidates already known to exist.
+    private func discover(now: Date) {
+        let groups = Set((groupedKeys ?? []).map { $0.group })
+        let missingDieDomain = [Self.groupCPUPCores, Self.groupCPUECores, Self.groupGPU]
+            .contains { !groups.contains($0) }
+        if let lastDiscovery {
+            guard discoveryIncomplete || missingDieDomain,
+                now.timeIntervalSince(lastDiscovery) >= Self.discoveryRetryInterval
+            else { return }
+        }
+        lastDiscovery = now
+        var found = groupedKeys ?? []
+        var knownKeys = Set(found.map { $0.key })
+        var incomplete = false
         if let total = readUInt32(Self.fourCC("#KEY")), total > 0 {
             for index in 0..<total {
-                guard let key = keyAtIndex(index) else { continue }
+                guard let key = keyAtIndex(index) else {
+                    incomplete = true
+                    continue
+                }
                 let name = Self.toString(key)
-                guard name.hasPrefix("T") else { continue }
-                guard let value = readFloat(key), Self.isPlausibleDiscoveryTemperature(value)
-                else { continue }
+                guard name.hasPrefix("T"), !knownKeys.contains(key) else { continue }
+                guard let info = readKeyInfo(key) else {
+                    if Self.isDieGroup(Self.sensorGroup(forKeyName: name)) { incomplete = true }
+                    continue
+                }
+                switch Self.discoveryPolicy(
+                    name: name, type: Self.toString(info.dataType), dataSize: Int(info.dataSize))
+                {
+                case .ignore:
+                    continue
+                case .retainCandidate:
+                    break
+                case .requirePlausibleValue:
+                    guard let raw = readKey(key, info: info),
+                        let value = Self.decode(type: raw.type, bytes: raw.bytes),
+                        Self.isPlausibleDiscoveryTemperature(value)
+                    else { continue }
+                }
                 found.append((key, name, Self.sensorGroup(forKeyName: name)))
+                knownKeys.insert(key)
             }
+        } else {
+            incomplete = true
         }
         groupedKeys = found
+        discoveryIncomplete = incomplete
         fanCount = readFloat(Self.fourCC("FNum")).map { Int($0) } ?? 0
         if fanCount == 0, (readFloat(Self.fourCC("F0Mx")) ?? 0) > 0 { fanCount = 1 }
     }
@@ -297,8 +373,7 @@ final class SMCReader {
         var input = SMCParamStruct()
         input.data8 = 8  // kSMCGetKeyFromIndex
         input.data32 = index
-        let out = call(&input)
-        return out.result == 0 ? out.key : nil
+        return call(&input)?.key
     }
 
     func readFloat(_ key: UInt32) -> Double? {
@@ -313,29 +388,47 @@ final class SMCReader {
     }
 
     private func readKey(_ key: UInt32) -> (type: String, bytes: [UInt8])? {
+        guard let info = readKeyInfo(key) else { return nil }
+        return readKey(key, info: info)
+    }
+
+    private func readKeyInfo(_ key: UInt32) -> SMCKeyInfoData? {
         var info = SMCParamStruct()
         info.key = key
         info.data8 = 9  // kSMCGetKeyInfo
-        let infoOut = call(&info)
-        guard infoOut.result == 0, infoOut.keyInfo.dataSize > 0 else { return nil }
-
-        var read = SMCParamStruct()
-        read.key = key
-        read.keyInfo = infoOut.keyInfo
-        read.data8 = 5  // kSMCReadKey
-        let readOut = call(&read)
-        guard readOut.result == 0 else { return nil }
-
-        let size = Int(infoOut.keyInfo.dataSize)
-        let bytes = withUnsafeBytes(of: readOut.bytes) { Array($0.prefix(size)) }
-        return (Self.toString(infoOut.keyInfo.dataType), bytes)
+        guard let infoOut = call(&info), infoOut.keyInfo.dataSize > 0,
+            infoOut.keyInfo.dataSize <= UInt32(MemoryLayout<SMCBytes>.size)
+        else { return nil }
+        return infoOut.keyInfo
     }
 
-    private func call(_ input: inout SMCParamStruct) -> SMCParamStruct {
+    private func readKey(_ key: UInt32, info: SMCKeyInfoData) -> (type: String, bytes: [UInt8])? {
+        var read = SMCParamStruct()
+        read.key = key
+        read.keyInfo = info
+        read.data8 = 5  // kSMCReadKey
+        guard let readOut = call(&read) else { return nil }
+
+        let size = Int(info.dataSize)
+        let bytes = withUnsafeBytes(of: readOut.bytes) { Array($0.prefix(size)) }
+        return (Self.toString(info.dataType), bytes)
+    }
+
+    private func call(_ input: inout SMCParamStruct) -> SMCParamStruct? {
         var output = SMCParamStruct()
         var outputSize = MemoryLayout<SMCParamStruct>.stride
-        _ = IOConnectCallStructMethod(
-            connection, 2, &input, MemoryLayout<SMCParamStruct>.stride, &output, &outputSize)
+        let result: kern_return_t
+        if let transport {
+            result = transport(&input, &output, &outputSize)
+        } else {
+            result = IOConnectCallStructMethod(
+                connection, 2, &input, MemoryLayout<SMCParamStruct>.stride, &output, &outputSize)
+        }
+        // A transport failure can leave the zero-initialized result field at
+        // zero. Neither that nor a truncated response is a successful SMC read.
+        guard result == kIOReturnSuccess, outputSize == MemoryLayout<SMCParamStruct>.stride,
+            output.result == 0
+        else { return nil }
         return output
     }
 
@@ -356,7 +449,7 @@ final class SMCReader {
 
 // MARK: - SMC struct layout (must match the kernel's SMCParamStruct, 80 bytes)
 
-private typealias SMCBytes = (
+typealias SMCBytes = (
     UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
     UInt8,
     UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
@@ -364,7 +457,7 @@ private typealias SMCBytes = (
     UInt8, UInt8, UInt8, UInt8
 )
 
-private struct SMCVersion {
+struct SMCVersion {
     var major: UInt8 = 0
     var minor: UInt8 = 0
     var build: UInt8 = 0
@@ -372,7 +465,7 @@ private struct SMCVersion {
     var release: UInt16 = 0
 }
 
-private struct SMCPLimitData {
+struct SMCPLimitData {
     var version: UInt16 = 0
     var length: UInt16 = 0
     var cpuPLimit: UInt32 = 0
@@ -380,7 +473,7 @@ private struct SMCPLimitData {
     var memPLimit: UInt32 = 0
 }
 
-private struct SMCKeyInfoData {
+struct SMCKeyInfoData {
     var dataSize: UInt32 = 0
     var dataType: UInt32 = 0
     var dataAttributes: UInt8 = 0
@@ -389,7 +482,7 @@ private struct SMCKeyInfoData {
 /// `padding` after `keyInfo` is load-bearing: Swift packs the nested `keyInfo`
 /// struct tighter than C, and without it the struct is 76 bytes and the kernel
 /// rejects the call (kIOReturnBadArgument). With it the layout is the kernel's 80.
-private struct SMCParamStruct {
+struct SMCParamStruct {
     var key: UInt32 = 0
     var vers = SMCVersion()
     var pLimitData = SMCPLimitData()

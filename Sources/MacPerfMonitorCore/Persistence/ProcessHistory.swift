@@ -24,6 +24,10 @@ public struct ProcessHistoryPoint: Sendable, Identifiable, Equatable {
     public var networkBytesPerSec: Double
     /// GPU share at this point (percent of one GPU); 0 on rows older than v13.
     public var gpuPercent: Double
+    /// True for the first point from a predecessor or successor process
+    /// instance. Renderers use this to break the line across a restart even
+    /// when the two instances were sampled only seconds apart.
+    public var startsNewRun: Bool
 
     public var id: Date { date }
 
@@ -35,7 +39,8 @@ public struct ProcessHistoryPoint: Sendable, Identifiable, Equatable {
         diskRead: UInt64,
         diskWritten: UInt64,
         networkBytesPerSec: Double = 0,
-        gpuPercent: Double = 0
+        gpuPercent: Double = 0,
+        startsNewRun: Bool = false
     ) {
         self.date = date
         self.footprint = footprint
@@ -45,7 +50,15 @@ public struct ProcessHistoryPoint: Sendable, Identifiable, Equatable {
         self.diskWritten = diskWritten
         self.networkBytesPerSec = networkBytesPerSec
         self.gpuPercent = gpuPercent
+        self.startsNewRun = startsNewRun
     }
+}
+
+struct ProcessHistoryLineageRun {
+    var databaseID: Int64
+    var identity: ProcessIdentity
+    var startTime: Double
+    var lastSeen: Double
 }
 
 public enum ProcessHistoryReadError: Error, LocalizedError, Equatable {
@@ -126,6 +139,77 @@ extension SampleStore {
         try Int64.fetchOne(
             db, sql: "SELECT id FROM processes WHERE pid = ? AND start_time = ?",
             arguments: [identity.pid, identity.startTime.timeIntervalSince1970])
+    }
+
+    /// Resolve the selected process plus its sequential predecessors. Program
+    /// identity follows `programKey`: executable path, then bundle id, then
+    /// name. Walking backward from the selected process admits only an instance
+    /// that ended before the next one started, so concurrent helpers remain
+    /// independent series.
+    static func processLineageRuns(
+        _ db: Database, for identity: ProcessIdentity, from: Double, to: Double
+    ) throws -> [ProcessHistoryLineageRun] {
+        guard
+            let target = try Row.fetchOne(
+                db, sql: "SELECT * FROM processes WHERE pid = ? AND start_time = ?",
+                arguments: [identity.pid, identity.startTime.timeIntervalSince1970])
+        else { return [] }
+
+        let targetID: Int64 = target["id"]
+        let targetStart: Double = target["start_time"]
+        let targetLastSeen: Double = target["last_seen"]
+        let path: String? = target["executable_path"]
+        let bundleID: String? = target["bundle_id"]
+        let name: String = target["name"]
+
+        let predicate: String
+        var arguments: [any DatabaseValueConvertible] = []
+        if let path, !path.isEmpty {
+            predicate = "p.executable_path = ?"
+            arguments.append(path)
+        } else if let bundleID, !bundleID.isEmpty {
+            predicate = "COALESCE(p.executable_path, '') = '' AND p.bundle_id = ?"
+            arguments.append(bundleID)
+        } else {
+            predicate =
+                "COALESCE(p.executable_path, '') = '' AND COALESCE(p.bundle_id, '') = '' AND p.name = ?"
+            arguments.append(name)
+        }
+        arguments.append(to)
+        arguments.append(from)
+
+        let rows = try Row.fetchAll(
+            db,
+            sql: """
+                SELECT p.id, p.pid, p.start_time, p.last_seen
+                FROM processes p
+                WHERE \(predicate) AND p.first_seen <= ? AND p.last_seen >= ?
+                ORDER BY p.last_seen DESC, p.start_time DESC, p.id DESC
+                """, arguments: StatementArguments(arguments))
+        var candidates = rows.map { row in
+            ProcessHistoryLineageRun(
+                databaseID: row["id"],
+                identity: ProcessIdentity(
+                    pid: row["pid"],
+                    startTime: Date(timeIntervalSince1970: row["start_time"])),
+                startTime: row["start_time"], lastSeen: row["last_seen"])
+        }
+        candidates.removeAll { $0.databaseID == targetID }
+
+        var lineage = [
+            ProcessHistoryLineageRun(
+                databaseID: targetID, identity: identity,
+                startTime: targetStart, lastSeen: targetLastSeen)
+        ]
+        var boundary = targetStart
+        while let index = candidates.firstIndex(where: {
+            $0.startTime < boundary && $0.lastSeen <= boundary
+        }) {
+            let predecessor = candidates.remove(at: index)
+            lineage.append(predecessor)
+            boundary = predecessor.startTime
+        }
+        return lineage.reversed()
     }
 
     /// Resolve many stable identities in bounded statements. Two bind variables
@@ -241,6 +325,32 @@ extension SampleStore {
                 db, sql: Self.pointSQL,
                 arguments: [identity.pid, identity.startTime.timeIntervalSince1970, since]
             ).map { Self.decodePoint($0) }
+        }
+    }
+
+    /// The selected process's history plus sequential earlier instances of the
+    /// same executable. The result remains one chronological series, with the
+    /// first point after every restart marked so charts leave an explicit gap.
+    public func processLineageHistory(
+        for identity: ProcessIdentity,
+        window: HistoryWindow,
+        now: Date = Date()
+    ) throws -> [ProcessHistoryPoint] {
+        let since = now.addingTimeInterval(-window.seconds).timeIntervalSince1970
+        let until = now.timeIntervalSince1970
+        let table = Self.processTable(for: window)
+        return try databasePool.read { db in
+            let runs = try Self.processLineageRuns(
+                db, for: identity, from: since, to: until)
+            let histories = try Self.batchedHistories(
+                db, identities: runs.map(\.identity), table: table, from: since, to: until)
+            var result: [ProcessHistoryPoint] = []
+            for run in runs {
+                var points = histories[run.identity] ?? []
+                if !result.isEmpty, !points.isEmpty { points[0].startsNewRun = true }
+                result += points
+            }
+            return result
         }
     }
 

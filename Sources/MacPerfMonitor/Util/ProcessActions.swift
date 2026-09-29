@@ -65,6 +65,7 @@ struct ProcessActionMenu: View {
     /// Supplied only by the Processes list (which has `openWindow` and the live
     /// uid/name to seed the window); when nil the item is omitted.
     var openFiles: (() -> Void)? = nil
+    var usageTimeline: (() -> Void)? = nil
     /// Open the standalone AI deep-dive window: profile the process and have the
     /// on-device model explain what it's doing. Supplied only by the Processes list;
     /// when nil the item is omitted.
@@ -119,6 +120,12 @@ struct ProcessActionMenu: View {
                 Label("Open Files & Sockets…", systemImage: "doc.on.doc")
             }
             .help("List the files, sockets, and pipes this process currently has open.")
+        }
+
+        if let usageTimeline {
+            Button(action: usageTimeline) {
+                Label("Usage Timeline\u{2026}", systemImage: "timeline.selection")
+            }
         }
 
         if let deepDive {

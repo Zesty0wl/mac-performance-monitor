@@ -48,6 +48,113 @@ final class ProcessHistoryTests: XCTestCase {
         try store.insert(snapshot)
     }
 
+    func testUsageTimelineClipsAndMergesWithoutFillingGapsOrMixingSources() {
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        func interval(
+            _ kind: UsageTimeline.Kind, _ start: Double, _ end: Double
+        )
+            -> UsageTimeline.Interval
+        {
+            UsageTimeline.Interval(
+                kind: kind, start: base.addingTimeInterval(start),
+                end: base.addingTimeInterval(end))
+        }
+        let result = UsageTimeline.normalized(
+            [
+                interval(.observedRunning, 80, 120),
+                interval(.appUsage, 10, 90),
+                interval(.observedRunning, -10, 30),
+                interval(.observedRunning, 20, 40),
+                interval(.observedRunning, 20, 40),
+                interval(.observedRunning, 40, 50),
+            ], within: base...base.addingTimeInterval(100))
+
+        XCTAssertEqual(
+            result,
+            [
+                interval(.observedRunning, 0, 50),
+                interval(.observedRunning, 80, 100),
+                interval(.appUsage, 10, 90),
+            ])
+    }
+
+    func testUsageTimelineRejectsInvalidEmptyAndOutOfRangeIntervals() {
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        let result = UsageTimeline.normalized(
+            [
+                .init(kind: .observedRunning, start: base, end: base),
+                .init(kind: .appUsage, start: base.addingTimeInterval(20), end: base),
+                .init(kind: .appUsage, start: base.addingTimeInterval(-20), end: base),
+                .init(
+                    kind: .mediaUsage, start: base,
+                    end: Date(timeIntervalSince1970: .infinity)),
+            ], within: base...base.addingTimeInterval(100))
+
+        XCTAssertTrue(result.isEmpty)
+    }
+
+    func testUsageTimelineUsesObservationBucketsAndDoesNotBorrowAReusedPID() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_040)
+        for offset in [10.0, 20, 150] {
+            try insertTick(base.addingTimeInterval(offset), footprint: 100)
+        }
+        try insertTick(
+            base.addingTimeInterval(190), footprint: 200,
+            startTime: base.addingTimeInterval(180))
+
+        let history = try store.usageTimeline(
+            for: ProcessIdentity(pid: 1000, startTime: startTime), window: .oneDay,
+            now: base.addingTimeInterval(240))
+
+        XCTAssertEqual(history.bucketSeconds, 60)
+        XCTAssertEqual(
+            history.intervals,
+            [
+                .init(kind: .observedRunning, start: base, end: base.addingTimeInterval(60)),
+                .init(
+                    kind: .observedRunning, start: base.addingTimeInterval(120),
+                    end: base.addingTimeInterval(180)),
+            ])
+    }
+
+    func testUsageTimelineIncludesRolledHistoryAndRawTailWithoutDuplicates() throws {
+        let base = Date(timeIntervalSince1970: 1_699_999_200)
+        try insertTick(base.addingTimeInterval(30), footprint: 100)
+        try insertTick(base.addingTimeInterval(7230), footprint: 200)
+        let now = base.addingTimeInterval(10800)
+        try Retention.run(store.databasePool, now: now)
+
+        let history = try store.usageTimeline(
+            for: ProcessIdentity(pid: 1000, startTime: startTime), window: .sevenDays, now: now)
+
+        XCTAssertEqual(history.bucketSeconds, 3600)
+        XCTAssertEqual(
+            history.intervals,
+            [
+                .init(kind: .observedRunning, start: base, end: base.addingTimeInterval(3600)),
+                .init(kind: .observedRunning, start: base.addingTimeInterval(7200), end: now),
+            ])
+    }
+
+    func testUsageTimelineDoesNotExtendBeforeProcessStartOrAfterSnapshot() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_040)
+        let launched = base.addingTimeInterval(10)
+        try insertTick(base.addingTimeInterval(20), footprint: 100, startTime: launched)
+        let now = base.addingTimeInterval(30)
+
+        let history = try store.usageTimeline(
+            for: ProcessIdentity(pid: 1000, startTime: launched), window: .oneHour, now: now)
+        XCTAssertEqual(
+            history.intervals,
+            [
+                .init(kind: .observedRunning, start: launched, end: now)
+            ])
+
+        let missing = try store.usageTimeline(
+            for: ProcessIdentity(pid: 9999, startTime: launched), window: .oneHour, now: now)
+        XCTAssertTrue(missing.intervals.isEmpty)
+    }
+
     func testProcessHistoryReturnsRawSeriesAscendingWithAllFields() throws {
         let base = Date(timeIntervalSince1970: 1_700_000_000)
         try insertTick(base, footprint: 100 * 1024 * 1024, cpu: 5)
@@ -86,6 +193,48 @@ final class ProcessHistoryTests: XCTestCase {
 
         XCTAssertEqual(points.count, 2)
         XCTAssertEqual(points.first?.footprint, 110 * 1024 * 1024)
+    }
+
+    func testProcessLineageHistoryStitchesRestartsButNotConcurrentInstances() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        let oldStart = base.addingTimeInterval(-20)
+        let newStart = base.addingTimeInterval(9)
+
+        for (offset, footprint) in [(0.0, 100), (2.0, 110)] {
+            let timestamp = base.addingTimeInterval(offset)
+            try store.insert(
+                Make.system(timestamp: timestamp),
+                processes: [
+                    Make.process(
+                        timestamp: timestamp, pid: 100, startTime: oldStart, name: "Agent",
+                        footprint: UInt64(footprint) * 1024 * 1024)
+                ])
+        }
+        for (offset, footprint) in [(10.0, 200), (12.0, 210)] {
+            let timestamp = base.addingTimeInterval(offset)
+            try store.insert(
+                Make.system(timestamp: timestamp),
+                processes: [
+                    Make.process(
+                        timestamp: timestamp, pid: 200, startTime: newStart, name: "Agent",
+                        footprint: UInt64(footprint) * 1024 * 1024),
+                    Make.process(
+                        timestamp: timestamp, pid: 201, startTime: newStart, name: "Agent",
+                        footprint: 900 * 1024 * 1024),
+                ])
+        }
+
+        let selected = ProcessIdentity(pid: 200, startTime: newStart)
+        let points = try store.processLineageHistory(
+            for: selected, window: .oneHour, now: base.addingTimeInterval(12))
+
+        XCTAssertEqual(
+            points.map(\.footprint), [100, 110, 200, 210].map { UInt64($0) * 1024 * 1024 })
+        XCTAssertEqual(points.map(\.startsNewRun), [false, false, true, false])
+
+        let exact = try store.processHistory(
+            for: selected, window: .oneHour, now: base.addingTimeInterval(12))
+        XCTAssertEqual(exact.map(\.footprint), [200, 210].map { UInt64($0) * 1024 * 1024 })
     }
 
     func testSubsetInsertWritesOnlyGivenProcesses() throws {

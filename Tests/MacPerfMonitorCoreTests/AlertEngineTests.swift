@@ -3,6 +3,33 @@ import XCTest
 @testable import MacPerfMonitorCore
 
 final class AlertEngineTests: XCTestCase {
+    func testAccessoryAlertPreferencesDefaultOffAndSurviveRoundTrip() throws {
+        let legacy = try JSONDecoder().decode(
+            AlertConfig.self,
+            from: Data(#"{"criticalPressureEnabled":false,"leakEnabled":false}"#.utf8))
+        XCTAssertFalse(legacy.accessoryBatteryEnabled)
+        XCTAssertEqual(legacy.accessoryBatteryThresholdPercent, 20)
+        XCTAssertFalse(legacy.criticalPressureEnabled)
+        XCTAssertFalse(legacy.leakEnabled)
+
+        var configured = legacy
+        configured.accessoryBatteryEnabled = true
+        configured.accessoryBatteryThresholdPercent = 15
+        let restored = try JSONDecoder().decode(
+            AlertConfig.self, from: JSONEncoder().encode(configured))
+        XCTAssertEqual(restored, configured)
+        XCTAssertFalse(restored.anyEnabled)
+    }
+
+    func testAccessoryAlertThresholdIsBoundedWhenLoadingSettings() throws {
+        for (saved, expected) in [(-100, 5), (500, 50), (20, 20)] {
+            let data = try JSONSerialization.data(
+                withJSONObject: ["accessoryBatteryThresholdPercent": saved])
+            let config = try JSONDecoder().decode(AlertConfig.self, from: data)
+            XCTAssertEqual(config.accessoryBatteryThresholdPercent, expected)
+        }
+    }
+
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
     private let gb: UInt64 = 1024 * 1024 * 1024
 
@@ -10,12 +37,81 @@ final class AlertEngineTests: XCTestCase {
         Make.system(timestamp: now, swapUsed: swapUsed, pressure: pressure)
     }
 
+    func testActiveAlertDetailsPersistAndClearPerProcess() {
+        let engine = AlertEngine()
+        let config = AlertConfig(processCeilingEnabled: true, processCeilingBytes: gb)
+        let first = Make.process(timestamp: now, pid: 100, name: "Alpha", footprint: 2 * gb)
+        let second = Make.process(timestamp: now, pid: 200, name: "Beta", footprint: 2 * gb)
+        let fired = engine.evaluate(
+            system: system(), processes: [first, second], config: config, now: now)
+        XCTAssertEqual(Set(engine.activeAlerts.map(\.id)), Set(fired.map(\.id)))
+        XCTAssertTrue(
+            engine.evaluate(
+                system: system(), processes: [first, second], config: config,
+                now: now.addingTimeInterval(2)
+            ).isEmpty)
+        XCTAssertEqual(Set(engine.activeAlerts.compactMap(\.identity)), [first.id, second.id])
+        _ = engine.evaluate(
+            system: system(), processes: [second], config: config, now: now.addingTimeInterval(4))
+        XCTAssertEqual(engine.activeAlerts.map(\.identity), [second.id])
+        XCTAssertTrue(engine.activeAlerts[0].body.contains("Beta"))
+        XCTAssertEqual(engine.activeAlerts[0].processName, "Beta")
+        _ = engine.evaluate(
+            system: system(), processes: [], config: config, now: now.addingTimeInterval(6))
+        XCTAssertTrue(engine.activeAlerts.isEmpty)
+        XCTAssertTrue(engine.activeKinds.isEmpty)
+    }
+
+    func testSuppressedRepeatStillHasActiveAlertDetails() {
+        let engine = AlertEngine(refireCooldown: 300)
+        _ = engine.evaluate(system: system(pressure: .critical), processes: [], now: now)
+        _ = engine.evaluate(system: system(), processes: [], now: now.addingTimeInterval(1))
+        XCTAssertTrue(engine.activeAlerts.isEmpty)
+        XCTAssertTrue(
+            engine.evaluate(
+                system: system(pressure: .critical), processes: [],
+                now: now.addingTimeInterval(2)
+            ).isEmpty)
+        XCTAssertEqual(engine.activeAlerts.map(\.kind), [.criticalPressure])
+        XCTAssertEqual(engine.activeAlerts.first?.date, now.addingTimeInterval(2))
+        engine.reset()
+        XCTAssertTrue(engine.activeAlerts.isEmpty)
+    }
+
+    func testActiveLeakDetailsClearWhenDisabledOrRecovered() {
+        let engine = AlertEngine()
+        var process = Make.process(
+            timestamp: now, pid: 100, startTime: now, name: "Growing", footprint: gb)
+        for offset in stride(from: 0.0, through: 400, by: 10) {
+            process.timestamp = now.addingTimeInterval(offset)
+            process.physFootprint = gb + UInt64(offset) * 20 * 1024 * 1024
+            _ = engine.evaluate(
+                system: Make.system(timestamp: process.timestamp), processes: [process])
+        }
+        XCTAssertEqual(engine.activeAlerts.map(\.kind), [.leak])
+        XCTAssertEqual(engine.activeAlerts.first?.processName, "Growing")
+        for offset in stride(from: 410.0, through: 900, by: 10) {
+            process.timestamp = now.addingTimeInterval(offset)
+            _ = engine.evaluate(
+                system: Make.system(timestamp: process.timestamp), processes: [process])
+        }
+        XCTAssertTrue(engine.activeAlerts.isEmpty)
+        XCTAssertEqual(
+            engine.incidentSnapshot.incidents.values.first(where: {
+                $0.condition.alert.kind == .leak
+            })?.phase, .resolved)
+        _ = engine.evaluate(
+            system: Make.system(timestamp: process.timestamp), processes: [process],
+            config: AlertConfig(leakEnabled: false))
+        XCTAssertTrue(engine.activeAlerts.isEmpty)
+    }
+
     // MARK: - Critical pressure
 
     func testCriticalPressureFiresOnceThenRearmsAfterRecovery() {
         // A cooldown of 0 disables the per-id throttle so the re-arm path can
         // re-fire on the next crossing, which is what this test exercises.
-        let engine = AlertEngine(refireCooldown: 0)
+        let engine = AlertEngine(refireCooldown: 0, notificationSpacing: 0)
         let config = AlertConfig(criticalPressureEnabled: true)
 
         XCTAssertTrue(
@@ -108,36 +204,24 @@ final class AlertEngineTests: XCTestCase {
 
     // MARK: - Swap
 
-    func testSwapThresholdFiresWithHysteresis() {
-        let engine = AlertEngine(refireCooldown: 0)
+    func testLegacySwapCeilingDoesNotAlertForStableOccupancy() {
+        let engine = AlertEngine()
         let config = AlertConfig(swapEnabled: true, swapThresholdBytes: 3 * gb)
-
-        XCTAssertTrue(
-            engine.evaluate(system: system(swapUsed: 1 * gb), processes: [], config: config).isEmpty
-        )
-
-        let fired = engine.evaluate(system: system(swapUsed: 4 * gb), processes: [], config: config)
-        XCTAssertEqual(fired.map(\.kind), [.swap])
-
-        // Still over threshold: no repeat.
-        XCTAssertTrue(
-            engine.evaluate(system: system(swapUsed: 4 * gb), processes: [], config: config).isEmpty
-        )
-        // Dropping to just above the 80% re-arm line (2.4 GB) does not re-arm.
-        XCTAssertTrue(
-            engine.evaluate(system: system(swapUsed: 2_600_000_000), processes: [], config: config)
-                .isEmpty)
-        // Dropping clearly below re-arms; crossing again fires.
-        _ = engine.evaluate(system: system(swapUsed: 1 * gb), processes: [], config: config)
-        XCTAssertEqual(
-            engine.evaluate(system: system(swapUsed: 4 * gb), processes: [], config: config).map(
-                \.kind), [.swap])
+        for offset in stride(from: 0.0, through: 1200, by: 10) {
+            XCTAssertTrue(
+                engine.evaluate(
+                    system: Make.system(
+                        timestamp: now.addingTimeInterval(offset), swapUsed: 4 * gb),
+                    processes: [], config: config
+                ).isEmpty)
+        }
+        XCTAssertTrue(engine.activeKinds.isEmpty)
     }
 
     // MARK: - Process ceiling
 
     func testProcessCeilingFiresPerProcessAndRearms() {
-        let engine = AlertEngine(refireCooldown: 0)
+        let engine = AlertEngine(refireCooldown: 0, notificationSpacing: 0)
         let config = AlertConfig(processCeilingEnabled: true, processCeilingBytes: 1 * gb)
 
         let a = Make.process(timestamp: now, pid: 100, name: "Alpha", footprint: 2 * gb)
@@ -172,8 +256,8 @@ final class AlertEngineTests: XCTestCase {
 
     // MARK: - Leaks
 
-    func testLeakAlertFiresOncePerLeakAndRearms() {
-        let engine = AlertEngine(refireCooldown: 0)
+    func testLeakBoardFlagsAloneDoNotProveOngoingGrowth() {
+        let engine = AlertEngine()
         let config = AlertConfig(leakEnabled: true)
         let a = Make.process(timestamp: now, pid: 100, name: "Leaky", footprint: 1 * gb)
         let b = Make.process(timestamp: now, pid: 200, name: "AlsoLeaky", footprint: 1 * gb)
@@ -183,8 +267,7 @@ final class AlertEngineTests: XCTestCase {
 
         let first = engine.evaluate(
             system: system(), processes: [a, b], leakingProcesses: [idA], config: config)
-        XCTAssertEqual(first.map(\.kind), [.leak])
-        XCTAssertEqual(first.first?.identity, idA)
+        XCTAssertTrue(first.isEmpty)
 
         // Same leak set: no repeat. New leaker B joins: fires for B.
         XCTAssertTrue(
@@ -193,14 +276,14 @@ final class AlertEngineTests: XCTestCase {
             ).isEmpty)
         let second = engine.evaluate(
             system: system(), processes: [a, b], leakingProcesses: [idA, idB], config: config)
-        XCTAssertEqual(second.map(\.identity), [idB])
+        XCTAssertTrue(second.isEmpty)
 
         // A stops leaking then recurs: alerts again.
         _ = engine.evaluate(
             system: system(), processes: [a, b], leakingProcesses: [idB], config: config)
         let third = engine.evaluate(
             system: system(), processes: [a, b], leakingProcesses: [idA, idB], config: config)
-        XCTAssertEqual(third.map(\.identity), [idA])
+        XCTAssertTrue(third.isEmpty)
     }
 
     // MARK: - Combined / forced-pressure scenario (M7 acceptance)
@@ -225,9 +308,9 @@ final class AlertEngineTests: XCTestCase {
             config: config)
 
         let kinds = Set(fired.map(\.kind))
-        XCTAssertEqual(kinds, [.criticalPressure, .swap, .processCeiling, .leak])
+        XCTAssertEqual(kinds, [.criticalPressure, .processCeiling])
         XCTAssertEqual(fired.first(where: { $0.kind == .processCeiling })?.identity?.pid, 100)
-        XCTAssertEqual(fired.first(where: { $0.kind == .leak })?.identity?.pid, 200)
+        XCTAssertFalse(fired.contains { $0.kind == .leak || $0.kind == .swap })
     }
 
     func testStableIdentifiersForDedup() {
@@ -235,21 +318,26 @@ final class AlertEngineTests: XCTestCase {
         XCTAssertEqual(pressure.id, "pressure.critical")
         let id = ProcessIdentity(pid: 42, startTime: Date(timeIntervalSince1970: 1_000_000))
         let leak = Alert(kind: .leak, title: "", body: "", identity: id, date: now)
-        XCTAssertEqual(leak.id, "leak.42.1000000")
+        XCTAssertEqual(
+            leak.id, Alert(kind: .leak, title: "updated", body: "", identity: id, date: now).id)
+        let reused = ProcessIdentity(pid: 42, startTime: id.startTime.addingTimeInterval(0.001))
+        XCTAssertNotEqual(
+            leak.id, Alert(kind: .leak, title: "", body: "", identity: reused, date: now).id)
     }
 
     // MARK: - Sustained high CPU
 
-    private func cpu(_ fraction: Double) -> CPUSample {
+    private func cpu(_ fraction: Double, offset: Double = 0) -> CPUSample {
         CPUSample(
-            timestamp: now, totalUsage: fraction, userFraction: fraction, systemFraction: 0,
+            timestamp: now.addingTimeInterval(offset), totalUsage: fraction, userFraction: fraction,
+            systemFraction: 0,
             idleFraction: 1 - fraction, cores: [], performanceUsage: fraction, efficiencyUsage: 0,
             performanceCoreCount: 8, efficiencyCoreCount: 0,
             loadAverage1: 0, loadAverage5: 0, loadAverage15: 0)
     }
 
     func testHighCPUFiresOnlyAfterSustainedDurationThenRearms() {
-        let engine = AlertEngine(refireCooldown: 0)
+        let engine = AlertEngine(refireCooldown: 0, notificationSpacing: 0)
         let config = AlertConfig(highCPUEnabled: true, highCPUThresholdPercent: 85)
         let t0 = now
 
@@ -260,33 +348,36 @@ final class AlertEngineTests: XCTestCase {
             ).isEmpty)
         XCTAssertTrue(
             engine.evaluate(
-                system: system(), processes: [], config: config, cpu: cpu(0.95),
+                system: system(), processes: [], config: config, cpu: cpu(0.95, offset: 4),
                 now: t0.addingTimeInterval(4)
             ).isEmpty)
         let fired = engine.evaluate(
-            system: system(), processes: [], config: config, cpu: cpu(0.95),
+            system: system(), processes: [], config: config, cpu: cpu(0.95, offset: 8),
             now: t0.addingTimeInterval(8))
         XCTAssertEqual(fired.map(\.kind), [.highCPU])
 
         // Sustained high must not re-fire.
         XCTAssertTrue(
             engine.evaluate(
-                system: system(), processes: [], config: config, cpu: cpu(0.95),
+                system: system(), processes: [], config: config, cpu: cpu(0.95, offset: 12),
                 now: t0.addingTimeInterval(12)
             ).isEmpty)
 
         // Fall below the re-arm fraction (85% × 0.8 = 68%), then a fresh sustained
         // spell fires again only after another full window.
         _ = engine.evaluate(
-            system: system(), processes: [], config: config, cpu: cpu(0.1),
+            system: system(), processes: [], config: config, cpu: cpu(0.1, offset: 13),
             now: t0.addingTimeInterval(13))
         XCTAssertTrue(
             engine.evaluate(
-                system: system(), processes: [], config: config, cpu: cpu(0.95),
+                system: system(), processes: [], config: config, cpu: cpu(0.95, offset: 14),
                 now: t0.addingTimeInterval(14)
             ).isEmpty)
+        _ = engine.evaluate(
+            system: system(), processes: [], config: config, cpu: cpu(0.95, offset: 18),
+            now: t0.addingTimeInterval(18))
         let second = engine.evaluate(
-            system: system(), processes: [], config: config, cpu: cpu(0.95),
+            system: system(), processes: [], config: config, cpu: cpu(0.95, offset: 22),
             now: t0.addingTimeInterval(22))
         XCTAssertEqual(second.map(\.kind), [.highCPU])
     }
@@ -298,10 +389,12 @@ final class AlertEngineTests: XCTestCase {
         for i in 0..<10 {
             let base = now.addingTimeInterval(Double(i) * 10)
             _ = engine.evaluate(
-                system: system(), processes: [], config: config, cpu: cpu(0.95), now: base)
+                system: system(), processes: [], config: config,
+                cpu: cpu(0.95, offset: Double(i) * 10), now: base)
             XCTAssertTrue(
                 engine.evaluate(
-                    system: system(), processes: [], config: config, cpu: cpu(0.2),
+                    system: system(), processes: [], config: config,
+                    cpu: cpu(0.2, offset: Double(i) * 10 + 2),
                     now: base.addingTimeInterval(2)
                 ).isEmpty)
         }
@@ -331,17 +424,20 @@ final class AlertEngineTests: XCTestCase {
             config: config, cpu: cpu(0.95), now: now)
         _ = engine.evaluate(
             system: system(pressure: .critical, swapUsed: 4 * gb), processes: [],
-            config: config, cpu: cpu(0.95), now: now.addingTimeInterval(8))
-        XCTAssertEqual(engine.activeKinds, [.criticalPressure, .swap, .highCPU])
+            config: config, cpu: cpu(0.95, offset: 4), now: now.addingTimeInterval(4))
+        _ = engine.evaluate(
+            system: system(pressure: .critical, swapUsed: 4 * gb), processes: [],
+            config: config, cpu: cpu(0.95, offset: 8), now: now.addingTimeInterval(8))
+        XCTAssertEqual(engine.activeKinds, [.criticalPressure, .highCPU])
 
         _ = engine.evaluate(
             system: system(pressure: .warning, swapUsed: 2_600_000_000), processes: [],
-            config: config, cpu: cpu(0.8), now: now.addingTimeInterval(9))
-        XCTAssertEqual(engine.activeKinds, [.criticalPressure, .swap, .highCPU])
+            config: config, cpu: cpu(0.8, offset: 9), now: now.addingTimeInterval(9))
+        XCTAssertEqual(engine.activeKinds, [.criticalPressure, .highCPU])
 
         _ = engine.evaluate(
             system: system(pressure: .normal, swapUsed: 1 * gb), processes: [],
-            config: config, cpu: cpu(0.1), now: now.addingTimeInterval(10))
+            config: config, cpu: cpu(0.1, offset: 10), now: now.addingTimeInterval(10))
         XCTAssertTrue(engine.activeKinds.isEmpty)
     }
 

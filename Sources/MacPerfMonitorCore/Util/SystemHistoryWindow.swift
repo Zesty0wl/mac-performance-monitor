@@ -5,7 +5,7 @@ import Foundation
 ///
 /// Every chart and card on a live page reads one or two metrics from every
 /// sample in the window, several times a tick. Held as an array of
-/// `SystemHistoryPoint` that meant copying a 200-byte struct (with resilient
+/// `SystemHistoryPoint` that meant copying a large struct (with resilient
 /// `Date` and optional fields, so not a plain memcpy) per metric per sample per
 /// tick, which profiled as the dominant cost once the window held an hour of
 /// 4 Hz samples. Here each metric is a contiguous `[Double]` and timestamps are
@@ -37,11 +37,84 @@ public struct SystemHistoryWindow {
         /// 0 (the columnar store is non-optional); consumers with a floored
         /// y-domain should treat near-zero as "not sampled".
         case cpuDieC
+        /// The bucket peaks behind the metrics above, for points read from
+        /// the stored minute and hour tiers (`SystemHistoryPoint.peaks`). A raw
+        /// sample's peak is the sample itself, so for live data these columns
+        /// equal their metric and cost nothing to read alongside it. A chart
+        /// pairs a metric with its peak column and the band rises to the peak
+        /// where the line is a mean.
+        case pressurePercentPeak
+        case cpuLoadPeak
+        case networkInPeak
+        case networkOutPeak
+        case diskReadPeak
+        case diskWritePeak
+        case gpuUtilizationPeak
+        /// The kernel's load averages, so the Processes header's load card
+        /// reads history like its neighbours instead of a ring that empties
+        /// whenever the tab is remounted.
+        case loadAverage1
+        case loadAverage5
+        case loadAverage15
+        case loadAverage1Peak
+        /// Raw sample counts and source bucket widths, not chart bucket sizes.
+        case sampleCount
+        case bucketDuration
+        /// True bucket minima. Unknown legacy extrema are NaN, never a mean
+        /// substituted for a discarded minimum. Raw extrema equal the value.
+        case pressurePercentMinimum
+        case cpuLoadMinimum
+        case networkInMinimum
+        case networkOutMinimum
+        case diskReadMinimum
+        case diskWriteMinimum
+        case appMemoryMinimum
+        case appMemoryPeak
+        case wiredMinimum
+        case wiredPeak
+        case compressedMinimum
+        case compressedPeak
+        case cachedFilesMinimum
+        case cachedFilesPeak
+        case swapUsedMinimum
+        case swapUsedPeak
+        case aneTimeMillisecondsPerSecond
+        case aneTimeMinimum
+        case aneTimePeak
+        case aneTimeSampleCount
+        case anePowerMinimum
+        case anePowerPeak
+        case anePowerSampleCount
+        case gpuMemoryBytes
+        case gpuMemoryMinimum
+        case gpuMemoryPeak
+        case gpuMemorySampleCount
+        case gpuActiveResidency
+        case gpuActiveMinimum
+        case gpuActivePeak
+        case gpuActiveSampleCount
+        case gpuReadBandwidthGBps
+        case gpuReadBandwidthMinimum
+        case gpuReadBandwidthPeak
+        case gpuReadBandwidthSampleCount
+        case gpuWriteBandwidthGBps
+        case gpuWriteBandwidthMinimum
+        case gpuWriteBandwidthPeak
+        case gpuWriteBandwidthSampleCount
+        case gpuTotalBandwidthGBps
+        case gpuTotalBandwidthMinimum
+        case gpuTotalBandwidthPeak
+        case gpuTotalBandwidthSampleCount
     }
 
     /// Timestamps as `timeIntervalSinceReferenceDate`, oldest first.
     private var times: [Double] = []
     private var columns: [[Double]] = Array(repeating: [], count: Column.allCases.count)
+    /// Lossless snapshots for the occasional points() export. These are copied
+    /// once on append, not scanned per metric on the chart hot path. Keeping
+    /// the originals also preserves optional fields and exact UInt64 values
+    /// that cannot all be reconstructed from the chart's Double columns.
+    private var retainedPoints: [SystemHistoryPoint] = []
     private var head = 0
     public private(set) var span: TimeInterval
     /// The newest sample in full, for the live read-outs.
@@ -85,16 +158,26 @@ public struct SystemHistoryWindow {
         }
         times.removeAll(keepingCapacity: true)
         for i in columns.indices { columns[i].removeAll(keepingCapacity: true) }
+        retainedPoints.removeAll(keepingCapacity: true)
         head = 0
         latest = nil
         times.reserveCapacity(points.count)
         for i in columns.indices { columns[i].reserveCapacity(points.count) }
+        retainedPoints.reserveCapacity(points.count)
         for point in points { push(point) }
         trim()
     }
 
     /// Append a sample newer than the latest one. Returns false, leaving the
     /// window untouched, when it is not.
+    /// Samples are kept as they arrive, at full resolution.
+    ///
+    /// It is tempting to fold them into buckets here, since an hour at a one
+    /// second cadence is 3,600 samples for a plot a fraction that wide. Do not:
+    /// the charts draw a mean line inside a band of the real minimum and
+    /// maximum, and averaging on the way in would throw away the extremes that
+    /// band is made of. The reduction belongs at draw time, where both are
+    /// still available. See docs/chart-rules.md.
     @discardableResult
     public mutating func append(_ point: SystemHistoryPoint) -> Bool {
         if let latest, point.date <= latest.date { return false }
@@ -106,34 +189,25 @@ public struct SystemHistoryWindow {
     /// The window as points, oldest first. Allocates; for occasional use only
     /// (the charts read the columns directly).
     public func points() -> [SystemHistoryPoint] {
-        var out: [SystemHistoryPoint] = []
-        out.reserveCapacity(count)
-        for i in head..<times.count {
-            out.append(
-                SystemHistoryPoint(
-                    date: Date(timeIntervalSinceReferenceDate: times[i]),
-                    pressurePercent: columns[Column.pressurePercent.rawValue][i],
-                    appMemory: UInt64(columns[Column.appMemory.rawValue][i]),
-                    wired: UInt64(columns[Column.wired.rawValue][i]),
-                    compressed: UInt64(columns[Column.compressed.rawValue][i]),
-                    cachedFiles: UInt64(columns[Column.cachedFiles.rawValue][i]),
-                    swapUsed: UInt64(columns[Column.swapUsed.rawValue][i]),
-                    cpuLoad: columns[Column.cpuLoad.rawValue][i],
-                    networkInBytesPerSec: columns[Column.networkInBytesPerSec.rawValue][i],
-                    networkOutBytesPerSec: columns[Column.networkOutBytesPerSec.rawValue][i],
-                    diskReadBytesPerSec: columns[Column.diskReadBytesPerSec.rawValue][i],
-                    diskWriteBytesPerSec: columns[Column.diskWriteBytesPerSec.rawValue][i]))
-        }
-        return out
+        Array(retainedPoints[head...])
     }
 
-    /// The largest value in a column, or nil when the window is empty.
+    /// The largest value in a column, or nil when the window is empty or any
+    /// retained value is unknown. A partial peak must not claim a full range.
     public func peak(_ column: Column) -> Double? {
-        values(column).max()
+        let values = values(column)
+        guard !values.isEmpty else { return nil }
+        var maximum = -Double.infinity
+        for value in values {
+            guard value.isFinite else { return nil }
+            maximum = max(maximum, value)
+        }
+        return maximum
     }
 
     private mutating func push(_ point: SystemHistoryPoint) {
         times.append(point.date.timeIntervalSinceReferenceDate)
+        retainedPoints.append(point)
         columns[Column.pressurePercent.rawValue].append(point.pressurePercent)
         columns[Column.cpuLoad.rawValue].append(point.cpuLoad)
         columns[Column.appMemory.rawValue].append(Double(point.appMemory))
@@ -147,8 +221,86 @@ public struct SystemHistoryWindow {
         columns[Column.diskWriteBytesPerSec.rawValue].append(point.diskWriteBytesPerSec)
         columns[Column.gpuUtilization.rawValue].append(point.gpuUtilization ?? 0)
         columns[Column.gpuPowerWatts.rawValue].append(point.gpuPowerWatts ?? 0)
-        columns[Column.anePowerWatts.rawValue].append(point.anePowerWatts ?? 0)
+        columns[Column.anePowerWatts.rawValue].append(point.anePowerWatts ?? .nan)
         columns[Column.cpuDieC.rawValue].append(point.cpuDieC ?? 0)
+        let peaks = point.effectivePeaks
+        columns[Column.pressurePercentPeak.rawValue].append(peaks.pressurePercent)
+        columns[Column.cpuLoadPeak.rawValue].append(peaks.cpuLoad)
+        columns[Column.networkInPeak.rawValue].append(peaks.networkInBytesPerSec)
+        columns[Column.networkOutPeak.rawValue].append(peaks.networkOutBytesPerSec)
+        columns[Column.diskReadPeak.rawValue].append(peaks.diskReadBytesPerSec)
+        columns[Column.diskWritePeak.rawValue].append(peaks.diskWriteBytesPerSec)
+        columns[Column.gpuUtilizationPeak.rawValue].append(
+            peaks.gpuUtilization ?? point.gpuUtilization ?? 0)
+        columns[Column.loadAverage1.rawValue].append(point.loadAverage1)
+        columns[Column.loadAverage5.rawValue].append(point.loadAverage5)
+        columns[Column.loadAverage15.rawValue].append(point.loadAverage15)
+        columns[Column.loadAverage1Peak.rawValue].append(
+            peaks.loadAverage1 ?? point.loadAverage1)
+        columns[Column.sampleCount.rawValue].append(Double(point.sampleCount))
+        columns[Column.bucketDuration.rawValue].append(point.bucketDuration)
+        // Older callers mark aggregates with peaks but have no bucket width.
+        // Do not mistake those points for raw samples and invent their minima.
+        let isRaw = point.bucketDuration == 0 && point.sampleCount == 1 && point.peaks == nil
+        let minima = point.minima ?? (isRaw ? peaks : nil)
+        let memoryPeaks = point.peaks ?? (isRaw ? peaks : nil)
+        columns[Column.pressurePercentMinimum.rawValue].append(minima?.pressurePercent ?? .nan)
+        columns[Column.cpuLoadMinimum.rawValue].append(minima?.cpuLoad ?? .nan)
+        columns[Column.networkInMinimum.rawValue].append(minima?.networkInBytesPerSec ?? .nan)
+        columns[Column.networkOutMinimum.rawValue].append(minima?.networkOutBytesPerSec ?? .nan)
+        columns[Column.diskReadMinimum.rawValue].append(minima?.diskReadBytesPerSec ?? .nan)
+        columns[Column.diskWriteMinimum.rawValue].append(minima?.diskWriteBytesPerSec ?? .nan)
+        columns[Column.appMemoryMinimum.rawValue].append(minima?.appMemory ?? .nan)
+        columns[Column.appMemoryPeak.rawValue].append(memoryPeaks?.appMemory ?? .nan)
+        columns[Column.wiredMinimum.rawValue].append(minima?.wired ?? .nan)
+        columns[Column.wiredPeak.rawValue].append(memoryPeaks?.wired ?? .nan)
+        columns[Column.compressedMinimum.rawValue].append(minima?.compressed ?? .nan)
+        columns[Column.compressedPeak.rawValue].append(memoryPeaks?.compressed ?? .nan)
+        columns[Column.cachedFilesMinimum.rawValue].append(minima?.cachedFiles ?? .nan)
+        columns[Column.cachedFilesPeak.rawValue].append(memoryPeaks?.cachedFiles ?? .nan)
+        columns[Column.swapUsedMinimum.rawValue].append(minima?.swapUsed ?? .nan)
+        columns[Column.swapUsedPeak.rawValue].append(memoryPeaks?.swapUsed ?? .nan)
+        columns[Column.aneTimeMillisecondsPerSecond.rawValue].append(
+            point.aneTimeMillisecondsPerSecond ?? .nan)
+        columns[Column.aneTimeMinimum.rawValue].append(minima?.aneTimeMillisecondsPerSecond ?? .nan)
+        columns[Column.aneTimePeak.rawValue].append(peaks.aneTimeMillisecondsPerSecond ?? .nan)
+        columns[Column.aneTimeSampleCount.rawValue].append(
+            Double(point.aneSampleCount ?? (point.aneTimeMillisecondsPerSecond == nil ? 0 : 1)))
+        columns[Column.anePowerMinimum.rawValue].append(minima?.anePowerWatts ?? .nan)
+        columns[Column.anePowerPeak.rawValue].append(peaks.anePowerWatts ?? .nan)
+        columns[Column.anePowerSampleCount.rawValue].append(
+            Double(point.anePowerSampleCount ?? (point.anePowerWatts == nil ? 0 : 1)))
+        columns[Column.gpuMemoryBytes.rawValue].append(point.gpuMemoryBytes ?? .nan)
+        columns[Column.gpuMemoryMinimum.rawValue].append(minima?.gpuMemoryBytes ?? .nan)
+        columns[Column.gpuMemoryPeak.rawValue].append(peaks.gpuMemoryBytes ?? .nan)
+        columns[Column.gpuMemorySampleCount.rawValue].append(
+            Double(point.gpuMemorySampleCount ?? (point.gpuMemoryBytes == nil ? 0 : 1)))
+        columns[Column.gpuActiveResidency.rawValue].append(point.gpuActiveResidency ?? .nan)
+        columns[Column.gpuActiveMinimum.rawValue].append(minima?.gpuActiveResidency ?? .nan)
+        columns[Column.gpuActivePeak.rawValue].append(peaks.gpuActiveResidency ?? .nan)
+        columns[Column.gpuActiveSampleCount.rawValue].append(
+            Double(point.gpuActiveSampleCount ?? (point.gpuActiveResidency == nil ? 0 : 1)))
+        columns[Column.gpuReadBandwidthGBps.rawValue].append(point.gpuReadBandwidthGBps ?? .nan)
+        columns[Column.gpuReadBandwidthMinimum.rawValue].append(
+            minima?.gpuReadBandwidthGBps ?? .nan)
+        columns[Column.gpuReadBandwidthPeak.rawValue].append(peaks.gpuReadBandwidthGBps ?? .nan)
+        columns[Column.gpuReadBandwidthSampleCount.rawValue].append(
+            Double(point.gpuReadBandwidthSampleCount ?? (point.gpuReadBandwidthGBps == nil ? 0 : 1))
+        )
+        columns[Column.gpuWriteBandwidthGBps.rawValue].append(point.gpuWriteBandwidthGBps ?? .nan)
+        columns[Column.gpuWriteBandwidthMinimum.rawValue].append(
+            minima?.gpuWriteBandwidthGBps ?? .nan)
+        columns[Column.gpuWriteBandwidthPeak.rawValue].append(peaks.gpuWriteBandwidthGBps ?? .nan)
+        columns[Column.gpuWriteBandwidthSampleCount.rawValue].append(
+            Double(
+                point.gpuWriteBandwidthSampleCount ?? (point.gpuWriteBandwidthGBps == nil ? 0 : 1)))
+        columns[Column.gpuTotalBandwidthGBps.rawValue].append(point.gpuTotalBandwidthGBps ?? .nan)
+        columns[Column.gpuTotalBandwidthMinimum.rawValue].append(
+            minima?.gpuTotalBandwidthGBps ?? .nan)
+        columns[Column.gpuTotalBandwidthPeak.rawValue].append(peaks.gpuTotalBandwidthGBps ?? .nan)
+        columns[Column.gpuTotalBandwidthSampleCount.rawValue].append(
+            Double(
+                point.gpuTotalBandwidthSampleCount ?? (point.gpuTotalBandwidthGBps == nil ? 0 : 1)))
         latest = point
     }
 
@@ -161,6 +313,7 @@ public struct SystemHistoryWindow {
         if head >= Self.compactionThreshold, head >= times.count / 2 {
             times.removeFirst(head)
             for i in columns.indices { columns[i].removeFirst(head) }
+            retainedPoints.removeFirst(head)
             head = 0
         }
     }

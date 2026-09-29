@@ -49,11 +49,12 @@ public enum HelperConstants {
 /// group), so even though it runs as root it cannot be turned into a
 /// general-purpose signal-injection tool.
 ///
-/// `runMemoryTool` is the only method that execs a subprocess as root. It is
-/// constrained the same way: the caller picks only *which* of a fixed set of
+/// `runMemoryTool` lets the caller pick only *which* of a fixed set of
 /// Apple-signed tools to run (by enum raw value), never the path or arguments,
 /// and the sole variable — the PID — is validated and passed as its own
 /// argument with no shell, so it cannot be turned into arbitrary code execution.
+/// `readANEPower` uses a fixed powermetrics command with no caller arguments.
+/// Each client holds a short lease; the shared subprocess stops when leases end.
 ///
 /// PIDs are boxed as `NSNumber` for the Objective-C XPC bridge, and reads reply
 /// with JSON-encoded value types (`[RawProcessRead]`, `[OpenFileDescriptor]`,
@@ -87,6 +88,9 @@ public enum HelperConstants {
     /// (the tools carry the `com.apple.system-task-ports` entitlement, so as root
     /// they can attach where a direct read is denied).
     func runMemoryTool(_ tool: NSNumber, pid: NSNumber, reply: @escaping (Data?) -> Void)
+
+    func readANEPower(reply: @escaping @Sendable (Data?) -> Void)
+    func stopANEPower(reply: @escaping () -> Void)
 
     /// Liveness and version probe.
     func ping(reply: @escaping (String) -> Void)

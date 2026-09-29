@@ -9,11 +9,27 @@ import SwiftUI
 /// The sparkline is a bare `TrendSurfaceView` (no axes, no padding) driven
 /// through `trend`, so it scrolls by sliding pixels like the page's charts
 /// instead of restroking its whole path four times a second.
+/// A secondary line drawn on a card strip in the strip's own tint, fainter and
+/// thinner than the main one: the 5 and 15 minute load averages beside the
+/// 1 minute line, the way beszel shows load.
+struct MetricCardCompanion {
+    /// Legend label for the detail sheet, a catalog key such as "5 min".
+    var label: String
+    var column: LiveColumn
+    var alpha: CGFloat
+    var lineWidth: CGFloat = 1.2
+}
+
 final class MetricCardFeed {
     private(set) var value: String?
+
+    /// The largest value in the window, already formatted. Drawn in the corner
+    /// of the strip so a bare sparkline has something to read against.
+    private(set) var peak: String?
     private(set) var tint: NSColor = .labelColor
     /// The raw window column behind the sparkline, zero-copy.
     private(set) var column: LiveColumn?
+    private(set) var companions: [MetricCardCompanion] = []
     private(set) var scale: Double = 1
     private(set) var xDomain: ClosedRange<Date>?
     private(set) var yDomain: ClosedRange<Double>?
@@ -23,37 +39,70 @@ final class MetricCardFeed {
 
     func publish(
         value: String?, tint: NSColor, column: LiveColumn?, scale: Double = 1,
-        xDomain: ClosedRange<Date>?, yDomain: ClosedRange<Double>?
+        xDomain: ClosedRange<Date>?, yDomain: ClosedRange<Double>?, peak: String? = nil,
+        reduction: TrendSurfaceSeries.Reduction = .mean, companions: [MetricCardCompanion] = [],
+        statisticsInterval: TimeInterval? = nil, gapThreshold: TimeInterval? = nil,
+        name: String = "", format: ((Double) -> String)? = nil, statisticsNote: String? = nil,
+        replacingHistory: Bool = false
     ) {
         self.value = value
+        self.peak = peak
         self.tint = tint
         self.column = column
+        self.companions = companions
         self.scale = scale
         self.xDomain = xDomain
         self.yDomain = yDomain
         var model = TrendModel()
         model.bare = true
         if let column {
-            model.series = [
+            // Companions go first so the main line is drawn over them.
+            model.series = companions.map { companion in
                 TrendSurfaceSeries(
-                    column: column, scale: scale, color: Color(nsColor: tint), lineWidth: 1.5)
-            ]
+                    column: companion.column, scale: scale,
+                    color: Color(nsColor: tint.withAlphaComponent(companion.alpha)),
+                    lineWidth: companion.lineWidth, reduction: reduction, band: false)
+            }
+            model.series.append(
+                TrendSurfaceSeries(
+                    column: column, scale: scale, color: Color(nsColor: tint), lineWidth: 1.5,
+                    reduction: reduction, name: name))
         }
         model.xDomain = xDomain
         model.yDomain = yDomain
-        model.gapThreshold = xDomain.map {
-            max($0.upperBound.timeIntervalSince($0.lowerBound) / 24, 30)
-        }
-        trend.publish(model)
+        model.gapThreshold =
+            gapThreshold
+            ?? xDomain.map {
+                max($0.upperBound.timeIntervalSince($0.lowerBound) / 24, 30)
+            }
+        model.statisticsInterval = statisticsInterval
+        model.statisticsNote = statisticsNote
+        if let format { model.yFormat = format }
+        model.accessibilityLabel = name.isEmpty ? "Trend" : name
+        trend.publish(model, replacingHistory: replacingHistory)
         for observer in observers.values { observer() }
     }
 
     /// The sparkline's series as timestamped samples, for the detail sheet.
-    /// Decimated here, on demand, rather than on every tick.
+    /// Every sample, with its stored peak: the sheet's chart reduces at draw
+    /// time like every other chart (docs/chart-rules.md, rule 1). Built on
+    /// demand, when the sheet opens, not on every tick.
     var samples: [MetricSample] {
         guard let column else { return [] }
-        return LiveTrend.points(column, xDomain: xDomain, buckets: 160).map {
-            MetricSample(date: $0.date, value: $0.value * scale)
+        return Self.samples(column, scale: scale)
+    }
+
+    /// The companion lines the same way, labelled for the sheet's legend.
+    var companionSamples: [MetricCompanionSamples] {
+        companions.map {
+            MetricCompanionSamples(
+                label: $0.label, alpha: $0.alpha, samples: Self.samples($0.column, scale: scale))
+        }
+    }
+
+    private static func samples(_ column: LiveColumn, scale: Double) -> [MetricSample] {
+        LiveTrend.allPoints(column).map {
+            MetricSample(date: $0.date, value: $0.value * scale, high: $0.high.map { $0 * scale })
         }
     }
 
@@ -72,15 +121,21 @@ final class MetricCardFeed {
 struct LiveSparkline: NSViewRepresentable {
     let feed: MetricCardFeed
     var lineWidth: CGFloat = 1.5
+    var scrubbable = false
+    var onActivate: (() -> Void)?
 
     func makeNSView(context: Context) -> TrendSurfaceView {
         let view = TrendSurfaceView()
         view.setAccessibilityElement(false)
+        view.scrubbable = scrubbable || feed.trend.model.statisticsInterval != nil
+        view.onActivate = onActivate
         view.attach(feed.trend)
         return view
     }
 
     func updateNSView(_ view: TrendSurfaceView, context: Context) {
+        view.scrubbable = scrubbable || feed.trend.model.statisticsInterval != nil
+        view.onActivate = onActivate
         if view.feed !== feed.trend { view.attach(feed.trend) }
     }
 

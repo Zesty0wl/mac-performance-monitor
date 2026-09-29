@@ -59,15 +59,13 @@ if [[ ! -w /Applications ]]; then
   exit 1
 fi
 
-# The same lint CI runs, before the ten minutes of build and notarization rather
-# than after. Every CI failure this repository has had has been this check, on a
-# release commit, discovered only once the release was already published. Set
-# SKIP_LINT=1 to bypass.
+# Run the same lint as CI before building and notarizing. This does not replace
+# the other release checks. Set SKIP_LINT=1 to bypass for a local-only build.
 if [[ "${SKIP_LINT:-0}" != "1" ]]; then
   echo "==> Linting (swift format --strict)"
   if ! swift format lint --strict --recursive Sources Tests Package.swift; then
     echo "error: formatting check failed; CI would reject this commit." >&2
-    echo "       Fix: swift format --in-place --recursive Sources Tests Package.swift" >&2
+    echo "       Fix: swift format format --in-place --recursive Sources Tests Package.swift" >&2
     echo "       Bypass for a local-only build: SKIP_LINT=1 Scripts/install.sh" >&2
     exit 1
   fi

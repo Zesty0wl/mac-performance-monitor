@@ -5,6 +5,9 @@ import SwiftUI
 struct TrendPoint: Equatable {
     var date: Date
     var value: Double
+    /// The peak behind a stored mean (a minute or hour row's bucket maximum),
+    /// which the band rises to. Nil for a raw sample, whose peak is itself.
+    var high: Double? = nil
 }
 
 /// One line (with optional area fill) on a `TrendChart`.
@@ -13,6 +16,11 @@ struct TrendSeries: Equatable {
     var color: Color
     var filled: Bool = false
     var lineWidth: CGFloat = 2
+    /// What the line through a bucket of samples follows: the mean for
+    /// utilisation and rates, the maximum for temperatures and fan speeds
+    /// (docs/chart-rules.md, rule 2).
+    var reduction: TrendSurfaceSeries.Reduction = .mean
+    var name: String? = nil
 }
 
 /// A dashed horizontal threshold line with a small leading label (e.g. "Busy").
@@ -70,8 +78,9 @@ struct TrendChart: View {
     var showsTimeAxis: Bool = false
     var timeAxis: TimeAxis = .clock
     /// Two consecutive points further apart than this are not joined. Nil
-    /// derives a threshold from the window (or the median spacing); pass
-    /// `.infinity` for a series the caller has already split.
+    /// derives a threshold from the series' own spacing
+    /// (`ChartGap.expectedSpacing`); pass `.infinity` for a series the caller
+    /// has already split.
     var gapThreshold: TimeInterval? = nil
     /// Draw a hairline frame around the plot.
     var plotBorder: Bool = false
@@ -115,7 +124,7 @@ struct TrendChart: View {
                 domain: domain,
                 tMin: tMin,
                 tMax: tMax,
-                gapThreshold: resolvedGapThreshold(span: span),
+                gapThreshold: gapThreshold,
                 clockTickFractions: clockTicks.map(\.fraction),
                 scrub: scrub
             )
@@ -176,75 +185,31 @@ struct TrendChart: View {
         return lo <= hi ? (lo, hi) : (0, 0)
     }
 
-    /// A jump beyond the window's spacing × 15 (floored at 30 s) is treated as
-    /// missing data, matching the previous Swift Charts behaviour. Nil asks the
-    /// live layer to derive one from the median spacing instead.
-    private func resolvedGapThreshold(span: Double) -> TimeInterval? {
-        if let gapThreshold { return gapThreshold }
-        return xDomain.map { _ in max(span / 360 * 15, 30) }
-    }
-
     /// The point of any series nearest the scrubbed time.
-    private func nearestPoint(fraction: CGFloat, tMin: Double, span: Double) -> TrendScrubPoint? {
+    func nearestPoint(fraction: CGFloat, tMin: Double, span: Double) -> TrendScrubPoint? {
         let target = tMin + Double(fraction) * span
         var best: TrendPoint?
+        var color = Color.accentColor
         var bestDistance = Double.greatestFiniteMagnitude
         for s in series {
-            for p in s.points {
+            for p in s.points where p.value.isFinite {
                 let distance = abs(p.date.timeIntervalSinceReferenceDate - target)
                 if distance < bestDistance {
                     bestDistance = distance
                     best = p
+                    color = s.color
                 }
             }
         }
         guard let best else { return nil }
+        let readings = series.compactMap { series -> TrendScrubReading? in
+            guard let name = series.name else { return nil }
+            let reading = series.points.first { $0.date == best.date && $0.value.isFinite }
+            return TrendScrubReading(name: name, value: reading?.value, color: series.color)
+        }
         return TrendScrubPoint(
             fraction: CGFloat((best.date.timeIntervalSinceReferenceDate - tMin) / span),
-            date: best.date, value: best.value)
-    }
-
-    // MARK: - Gap runs
-
-    /// Split a series into gap-free runs. Live charts pass a fixed threshold
-    /// derived from the window so the split never needs a sort; static charts
-    /// use the median spacing × 15 (floored at 30 s).
-    static func runs(
-        _ points: [TrendPoint], gapThreshold fixedThreshold: TimeInterval?
-    ) -> [[TrendPoint]] {
-        guard points.count > 1 else { return points.isEmpty ? [] : [points] }
-        let threshold: TimeInterval
-        if let fixedThreshold {
-            threshold = fixedThreshold
-        } else {
-            var deltas: [TimeInterval] = []
-            deltas.reserveCapacity(points.count - 1)
-            for i in 1..<points.count {
-                deltas.append(points[i].date.timeIntervalSince(points[i - 1].date))
-            }
-            deltas.sort()
-            threshold = max(deltas[deltas.count / 2] * 15, 30)
-        }
-        // Fast path: no gaps, the whole series is one run and needs no copy.
-        var hasGap = false
-        for i in 1..<points.count
-        where points[i].date.timeIntervalSince(points[i - 1].date) > threshold {
-            hasGap = true
-            break
-        }
-        if !hasGap { return [points] }
-        var result: [[TrendPoint]] = []
-        var current: [TrendPoint] = [points[0]]
-        for pt in points.dropFirst() {
-            if let last = current.last, pt.date.timeIntervalSince(last.date) > threshold {
-                result.append(current)
-                current = [pt]
-            } else {
-                current.append(pt)
-            }
-        }
-        result.append(current)
-        return result
+            date: best.date, value: best.value, color: color, readings: readings)
     }
 
     // MARK: - Time axis ticks
@@ -323,6 +288,7 @@ struct TrendChart: View {
     }
 
     private static func tickFormatter(forStep step: Double) -> DateFormatter {
+        if step >= 28 * 86_400 { return monthTickFormatter }
         if step >= 86_400 { return dayTickFormatter }
         if step >= 60 { return timeTickFormatter }
         return secondsTickFormatter
@@ -353,6 +319,12 @@ struct TrendChart: View {
         fmt.setLocalizedDateFormatFromTemplate("MMMd")
         return fmt
     }()
+    private static let monthTickFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
+        formatter.setLocalizedDateFormatFromTemplate("MMMyyyy")
+        return formatter
+    }()
     private static let timeTickFormatter: DateFormatter = {
         let fmt = DateFormatter()
         fmt.locale = .autoupdatingCurrent
@@ -369,6 +341,32 @@ struct TrendChart: View {
 
 /// The plot rectangle shared by the layers, so gridlines, labels, the series
 /// and the scrub overlay agree on where the axes are.
+/// Y ranges that fit the data without magnifying a flat reading.
+///
+/// A fixed wide axis (0 to 110 for a die sensor, say) is safe but wastes most of
+/// the plot: a CPU that lives between 60 and 90 degrees draws a flat ribbon
+/// across the middle. A tight auto-fit has the opposite problem, turning a
+/// degree of idle noise into a mountain range. `fitted` does both: it wraps the
+/// data with a little air, and refuses to show a span narrower than
+/// `minimumSpan`, so a steady reading stays visibly steady.
+enum ChartDomain {
+    static func fitted(
+        min lo: Double, max hi: Double, minimumSpan: Double, padding: Double,
+        floor: Double = -.greatestFiniteMagnitude
+    ) -> ClosedRange<Double> {
+        var low = lo - padding
+        var high = hi + padding
+        let short = minimumSpan - (high - low)
+        if short > 0 {
+            low -= short / 2
+            high += short / 2
+        }
+        low = Swift.max(floor, low.rounded(.down))
+        high = Swift.max(low + minimumSpan, high.rounded(.up))
+        return low...high
+    }
+}
+
 struct TrendChartGeometry: Equatable {
     var leftGutter: CGFloat
     var showsTimeAxis: Bool
@@ -421,6 +419,14 @@ struct TrendScrubPoint: Equatable {
     var fraction: CGFloat
     var date: Date
     var value: Double
+    var color: Color = .accentColor
+    var readings: [TrendScrubReading] = []
+}
+
+struct TrendScrubReading: Equatable {
+    var name: String
+    var value: Double?
+    var color: Color
 }
 
 /// Y gridlines, their labels, the dashed threshold rules, the optional border,
@@ -525,64 +531,38 @@ private struct TrendLiveLayer: View {
 
             guard tMax > tMin else { return }
 
-            // A series denser than the plot is reduced to per-pixel extremes so
-            // the stroked path never has more segments than there are columns.
-            let columns = max(1, Int(plot.width.rounded(.up)))
-            let plotDomain =
-                Date(
-                    timeIntervalSinceReferenceDate: tMin)...Date(
-                    timeIntervalSinceReferenceDate: tMax)
-
             // Series stay inside the plot: callers retain samples slightly
             // older than the window (so the line enters from the left edge),
             // and unclipped those points stroke through the axis gutter.
             var seriesCtx = ctx
             seriesCtx.clip(to: Path(plot))
 
-            // Each series: gap-aware runs, optional area fill, then the line.
-            for s in series {
-                for rawRun in TrendChart.runs(s.points, gapThreshold: gapThreshold)
-                where !rawRun.isEmpty {
-                    let run: [TrendPoint]
-                    if rawRun.count > 2 * columns {
-                        run = LiveSeriesDecimator.decimate(
-                            rawRun, buckets: columns, domain: plotDomain,
-                            date: { $0.date }, value: { $0.value }
-                        ).map { TrendPoint(date: $0.date, value: $0.value) }
-                    } else {
-                        run = rawRun
-                    }
-                    var linePath = Path()
-                    for (i, pt) in run.enumerated() {
-                        let q = CGPoint(x: x(pt.date), y: y(pt.value))
-                        if i == 0 { linePath.move(to: q) } else { linePath.addLine(to: q) }
-                    }
-                    if s.filled, run.count >= 2 {
-                        var fill = linePath
-                        fill.addLine(to: CGPoint(x: x(run.last!.date), y: plot.maxY))
-                        fill.addLine(to: CGPoint(x: x(run.first!.date), y: plot.maxY))
-                        fill.closeSubpath()
-                        seriesCtx.fill(
-                            fill,
-                            with: .linearGradient(
-                                Gradient(colors: [s.color.opacity(0.42), s.color.opacity(0.04)]),
-                                startPoint: CGPoint(x: 0, y: plot.minY),
-                                endPoint: CGPoint(x: 0, y: plot.maxY)))
-                    }
-                    if run.count >= 2 {
-                        seriesCtx.stroke(
-                            linePath, with: .color(s.color),
-                            style: StrokeStyle(
-                                lineWidth: s.lineWidth, lineCap: .round, lineJoin: .round))
-                    } else if let only = run.first {
-                        // A lone point draws a dot so an isolated reading is visible.
-                        let r: CGFloat = 1.6
-                        let dot = Path(
-                            ellipseIn: CGRect(
-                                x: x(only.date) - r, y: y(only.value) - r, width: 2 * r,
-                                height: 2 * r))
-                        seriesCtx.fill(dot, with: .color(s.color))
-                    }
+            // The same drawing as the live strips (`TrendRenderer.drawSeries`):
+            // one bucket per pixel column, the mean of each as a curve inside
+            // a band of the extremes, gaps left open. Only the gap threshold
+            // is decided here, from the series' own spacing when the caller
+            // did not say.
+            let columns = max(1, Int(plot.width.rounded(.up)))
+            let bucketWidth = tSpan / Double(columns)
+            let first = LiveStripBuckets.index(of: tMin, width: bucketWidth)
+            let last = LiveStripBuckets.index(of: tMax, width: bucketWidth)
+            seriesCtx.withCGContext { cg in
+                var gradients: [String: CGGradient] = [:]
+                for s in series where !s.points.isEmpty {
+                    let column = LiveColumn(s.points)
+                    let threshold =
+                        gapThreshold
+                        ?? ChartGap.threshold(
+                            expectedSpacing: ChartGap.expectedSpacing(times: column.times))
+                    TrendRenderer.drawSeries(
+                        TrendSurfaceSeries(
+                            column: column, color: s.color, filled: s.filled,
+                            lineWidth: s.lineWidth, reduction: s.reduction),
+                        span: tSpan, bucketWidth: bucketWidth, buckets: first...last,
+                        gapThreshold: threshold,
+                        x: { t in plot.minX + CGFloat((t - tMin) / tSpan) * plot.width },
+                        y: y, fillTop: plot.minY, fillBaseline: plot.maxY, context: cg,
+                        gradients: &gradients)
                 }
             }
 
@@ -593,12 +573,18 @@ private struct TrendLiveLayer: View {
                 rule.addLine(to: CGPoint(x: xx, y: plot.maxY))
                 ctx.stroke(rule, with: .color(.secondary.opacity(0.35)), lineWidth: 1)
                 let r: CGFloat = 3
-                let color = series.first?.color ?? .accentColor
-                ctx.fill(
-                    Path(
-                        ellipseIn: CGRect(
-                            x: xx - r, y: y(scrub.value) - r, width: 2 * r, height: 2 * r)),
-                    with: .color(color))
+                let readings =
+                    scrub.readings.isEmpty
+                    ? [TrendScrubReading(name: "", value: scrub.value, color: scrub.color)]
+                    : scrub.readings
+                for reading in readings {
+                    guard let value = reading.value else { continue }
+                    ctx.fill(
+                        Path(
+                            ellipseIn: CGRect(
+                                x: xx - r, y: y(value) - r, width: 2 * r, height: 2 * r)),
+                        with: .color(reading.color))
+                }
             }
         }
     }
@@ -655,11 +641,15 @@ private struct TrendScrubOverlay: View {
                     )
                 if let point {
                     let xx = plot.minX + point.fraction * plot.width
+                    let width = min(plot.width, point.readings.isEmpty ? 160 : 230)
+                    let height = 18 + CGFloat(max(1, point.readings.count)) * 18
                     readout(point)
-                        .fixedSize()
+                        .frame(width: width, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
                         .allowsHitTesting(false)
                         .position(
-                            x: min(max(xx, plot.minX + 44), plot.maxX - 44), y: plot.minY + 16)
+                            x: min(max(xx, plot.minX + width / 2), plot.maxX - width / 2),
+                            y: plot.minY + height / 2 + 2)
                 }
             }
         }
@@ -671,12 +661,25 @@ private struct TrendScrubOverlay: View {
 
     private func readout(_ point: TrendScrubPoint) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(point.date, format: .dateTime.hour().minute().second())
+            Text(point.date, format: .dateTime.month(.abbreviated).day().hour().minute().second())
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-            Text(yFormat(point.value))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.primary)
+            if point.readings.isEmpty {
+                Text(yFormat(point.value))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+            } else {
+                ForEach(Array(point.readings.enumerated()), id: \.offset) { _, reading in
+                    HStack(spacing: 5) {
+                        Circle().fill(reading.color).frame(width: 6, height: 6)
+                        Text(reading.name)
+                        Spacer(minLength: 8)
+                        Text(reading.value.map(yFormat) ?? t("Unavailable"))
+                            .monospacedDigit()
+                    }
+                    .font(.caption)
+                }
+            }
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 3)

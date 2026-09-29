@@ -59,11 +59,14 @@ enum MenuChart {
             return
         }
 
-        var area = Path()
-        area.move(to: CGPoint(x: first.x, y: baselineY))
-        for point in points { area.addLine(to: point) }
-        area.addLine(to: CGPoint(x: points[points.count - 1].x, y: baselineY))
-        area.closeSubpath()
+        // The same monotone curve the main charts draw (docs/chart-rules.md):
+        // smooth, and it cannot overshoot a sample.
+        let outline = CGMutablePath()
+        outline.move(to: CGPoint(x: first.x, y: baselineY))
+        MonotoneCurve.add(points, to: outline, move: false)
+        outline.addLine(to: CGPoint(x: points[points.count - 1].x, y: baselineY))
+        outline.closeSubpath()
+        let area = Path(outline)
         // A light fill gives the line body without becoming a solid block: it
         // fades to fully transparent, so even a steady high line reads as a line
         // with a soft glow under it rather than a filled rectangle.
@@ -74,9 +77,7 @@ enum MenuChart {
                 startPoint: CGPoint(x: 0, y: gradientTop),
                 endPoint: CGPoint(x: 0, y: gradientBottom)))
 
-        var line = Path()
-        line.move(to: first)
-        for point in points.dropFirst() { line.addLine(to: point) }
+        let line = Path(MonotoneCurve.path(points))
         ctx.stroke(
             line, with: .color(color),
             style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))

@@ -41,7 +41,22 @@ public enum HistoryWindow: String, Sendable, CaseIterable, Identifiable {
 
     /// Which stored tier backs queries for this window. The raw tier only holds
     /// two hours (section 6), so anything longer reads the aggregates.
-    public enum Granularity: Sendable, Equatable { case raw, minute, hour }
+    public enum Granularity: Sendable, Equatable {
+        case raw, minute, hour
+
+        /// How far apart the rows of this tier are, nominally: one a minute,
+        /// one an hour. Nil for the raw tier, whose spacing is whatever the
+        /// logging interval is. A chart's gap threshold has to come from this,
+        /// not from the logging cadence, or every stored row is its own island
+        /// and a six hour view draws dots.
+        public var storedSpacing: TimeInterval? {
+            switch self {
+            case .raw: return nil
+            case .minute: return 60
+            case .hour: return 3600
+            }
+        }
+    }
 
     public var granularity: Granularity {
         switch self {

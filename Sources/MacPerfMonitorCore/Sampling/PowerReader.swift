@@ -18,6 +18,7 @@ struct PowerSample: Sendable, Equatable {
     var gpuActiveResidency: Double?
     var gpuThrottled: Bool?
     var gpuPowerCapPercent: Double?
+    var gpuBandwidth: GPUBandwidthSample? = nil
 }
 
 final class PowerReader {
@@ -55,14 +56,26 @@ final class PowerReader {
         var active: Double?
         var throttled: Bool?
         var powerCap: Double?
+        var bandwidthRead: GPUBandwidthHistogram?
+        var bandwidthWrite: GPUBandwidthHistogram?
+        var bandwidthCombined: GPUBandwidthHistogram?
         io.iterate(delta) { channel in
+            if self.io.subGroupName(channel) == Self.bandwidthSubgroup {
+                let histogram = self.io.bandwidthHistogram(channel)
+                switch self.io.channelName(channel) {
+                case "AGX RD": bandwidthRead = histogram
+                case "AGX WR": bandwidthWrite = histogram
+                case "AGX RD+WR": bandwidthCombined = histogram
+                default: break
+                }
+                return
+            }
             if self.io.isStateChannel(channel) {
                 let residency = self.io.stateResidencies(channel)
                 guard !residency.isEmpty else { return }
                 switch self.io.subGroupName(channel) {
                 case Self.performanceStatesSubgroup:
-                    let off = residency.first { $0.name.uppercased() == "OFF" }?.residency ?? 0
-                    active = max(0, 100 - off)
+                    active = Self.activeResidency(in: residency)
                     states = residency.filter { $0.name.uppercased() != "OFF" }
                 case Self.throttleSubgroup:
                     // Any residency outside NO_CLTM means thermal management
@@ -110,7 +123,10 @@ final class PowerReader {
             gpuStates: states,
             gpuActiveResidency: active,
             gpuThrottled: throttled,
-            gpuPowerCapPercent: powerCap)
+            gpuPowerCapPercent: powerCap,
+            gpuBandwidth: GPUBandwidthSample(
+                timestamp: now, interval: dt, read: bandwidthRead, write: bandwidthWrite,
+                combined: bandwidthCombined))
     }
 
     /// "GPU Stats" subgroups worth a subscription: the clock-state residency,
@@ -119,6 +135,15 @@ final class PowerReader {
     static let performanceStatesSubgroup = "GPU Performance States"
     static let throttleSubgroup = "CLTM-induced GPU Performance States"
     static let powerCapSubgroup = "PPM Target as % of Max GPU Power"
+    static let bandwidthSubgroup = "DCS BW"
+
+    static func activeResidency(in states: [GPUPerformanceState]) -> Double? {
+        let offStates = states.filter { $0.name.uppercased() == "OFF" }
+        guard offStates.count == 1, let off = offStates.first?.residency,
+            off.isFinite, (0...100).contains(off)
+        else { return nil }
+        return 100 - off
+    }
 
     private func setUpSubscription() {
         guard let channels = io.copyChannelsInGroup("Energy Model") else { return }
@@ -130,6 +155,13 @@ final class PowerReader {
         ] {
             if let group = io.copyChannelsInGroup("GPU Stats", subgroup: subgroup) {
                 kept += io.channelList(group)
+            }
+        }
+        if let group = io.copyChannelsInGroup("PMP", subgroup: Self.bandwidthSubgroup) {
+            kept += io.channelList(group).filter { entry in
+                guard let channel = entry as? NSDictionary else { return false }
+                return ["AGX RD", "AGX WR", "AGX RD+WR"].contains(
+                    io.channelName(channel as CFDictionary))
             }
         }
         let filtered = io.channels(channels, replacingListWith: kept)
@@ -257,6 +289,25 @@ private final class IOReportBindings {
 
     func subGroupName(_ channel: CFDictionary) -> String {
         subGroupFn?(channel)?.takeUnretainedValue() as String? ?? ""
+    }
+
+    func bandwidthHistogram(_ channel: CFDictionary) -> GPUBandwidthHistogram? {
+        guard isStateChannel(channel),
+            (unitLabelFn?(channel)?.takeUnretainedValue() as String?)?.lowercased() == "events",
+            let stateCountFn, let stateNameFn, let stateResidencyFn
+        else { return nil }
+        let count = stateCountFn(channel)
+        guard count > 0, count <= 128 else { return nil }
+        var names: [String] = []
+        var counts: [Int64] = []
+        for index in 0..<count {
+            guard let name = stateNameFn(channel, index)?.takeUnretainedValue() as String? else {
+                return nil
+            }
+            names.append(name)
+            counts.append(stateResidencyFn(channel, index))
+        }
+        return GPUBandwidthHistogram(labels: names, counts: counts)
     }
 
     /// Each state's share of the sampled interval, 0...100, in state order.

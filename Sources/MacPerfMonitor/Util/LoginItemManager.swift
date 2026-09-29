@@ -15,6 +15,12 @@ import ServiceManagement
 /// so the published state and the `SMAppService` calls stay main-bound without
 /// actor isolation.
 final class LoginItemManager: ObservableObject {
+    static let startMinimisedKey = "startup.startMinimised"
+
+    @Published var startMinimised: Bool {
+        didSet { defaults.set(startMinimised, forKey: Self.startMinimisedKey) }
+    }
+
     /// Whether the app is currently registered to open at login, observed by the
     /// Settings toggle.
     @Published private(set) var isEnabled = false
@@ -23,13 +29,23 @@ final class LoginItemManager: ObservableObject {
 
     private let service = SMAppService.mainApp
     private let decidedKey = "loginItem.decisionMade"
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        startMinimised = defaults.object(forKey: Self.startMinimisedKey) as? Bool ?? true
+    }
+
+    func shouldPresentMainWindow(menuBarEnabled: Bool) -> Bool {
+        !menuBarEnabled || !startMinimised
+    }
 
     /// Whether the user has been asked at least once, so the one-time prompt is
     /// shown only once. The actual choice is the login item's registration state,
     /// not a separate flag.
     private(set) var hasDecided: Bool {
-        get { UserDefaults.standard.bool(forKey: decidedKey) }
-        set { UserDefaults.standard.set(newValue, forKey: decidedKey) }
+        get { defaults.bool(forKey: decidedKey) }
+        set { defaults.set(newValue, forKey: decidedKey) }
     }
 
     /// Surface the one-time first-launch prompt only when the user has not

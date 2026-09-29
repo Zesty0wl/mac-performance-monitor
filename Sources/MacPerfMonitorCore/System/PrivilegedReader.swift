@@ -26,6 +26,25 @@ public struct RawProcessRead: Codable, Sendable {
     }
 }
 
+public struct ANEPowerReading: Codable, Equatable, Sendable {
+    public let timestamp: Date
+    public let interval: TimeInterval
+    public let watts: Double
+
+    public init(timestamp: Date, interval: TimeInterval, watts: Double) {
+        self.timestamp = timestamp
+        self.interval = interval
+        self.watts = watts
+    }
+
+    public func isFresh(at now: Date) -> Bool {
+        let age = now.timeIntervalSince(timestamp)
+        return timestamp.timeIntervalSince1970.isFinite && age >= -1 && age <= 5
+            && interval.isFinite && interval > 0 && interval <= 30
+            && watts.isFinite && watts >= 0
+    }
+}
+
 /// Supplies privilege-gated process reads for the PIDs the unprivileged app
 /// could not read on its own. The concrete implementation in the app talks to
 /// the root helper over XPC; tests inject a fake. Kept in `MacPerfMonitorCore` (with
@@ -35,4 +54,11 @@ public protocol PrivilegedReader: Sendable {
     /// Read whatever root can for the given PIDs. The result is keyed by PID;
     /// missing keys mean the helper could not read that process either.
     func readProcesses(pids: [Int32]) -> [Int32: RawProcessRead]
+    func readANEPower(reply: @escaping @Sendable (ANEPowerReading?) -> Void)
+    func stopANEPower()
+}
+
+extension PrivilegedReader {
+    public func readANEPower(reply: @escaping @Sendable (ANEPowerReading?) -> Void) { reply(nil) }
+    public func stopANEPower() {}
 }

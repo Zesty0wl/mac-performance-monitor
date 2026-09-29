@@ -94,9 +94,13 @@ public struct SystemMemoryReader: Sendable {
 
     /// Current discrete memory pressure level.
     public func pressureLevel() -> PressureLevel {
-        if let raw = Sysctl.integer("kern.memorystatus_vm_pressure_level", as: Int32.self) {
-            return PressureLevel(rawLevel: Int(raw))
-        }
-        return .normal
+        pressureLevelReading() ?? .normal
+    }
+
+    public func pressureLevelReading() -> PressureLevel? {
+        guard let raw = Sysctl.integer("kern.memorystatus_vm_pressure_level", as: Int32.self),
+            [1, 2, 4].contains(raw)
+        else { return nil }
+        return PressureLevel(rawLevel: Int(raw))
     }
 }

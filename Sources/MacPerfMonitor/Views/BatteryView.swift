@@ -14,7 +14,9 @@ struct BatteryView: View {
     @EnvironmentObject private var model: SamplerModel
     @EnvironmentObject private var appState: AppState
 
-    @State private var range: HistoryWindow = .oneHour
+    @StateObject private var accessories = AccessoryBatteryModel.shared
+    @StateObject private var energyHistory = EnergyHistoryModel()
+    @StoredHistoryWindow("historyRange.energy") private var range
     @State private var history: [SystemHistoryPoint] = []
     /// The downsampled timeline + live point, computed once whenever the source
     /// data changes (not on every layout pass). Recomputing this inside a chart's
@@ -49,12 +51,16 @@ struct BatteryView: View {
         }
         .onAppear {
             reload()
+            if appState.mainWindowVisible { accessories.start() }
             // Keep the GPU/SMC read path live while the tab is visible so the
             // thermal panel tracks in real time even when recording is off.
             // Balanced by onDisappear; TabGate unmounts the tab when hidden.
             model.addGPUConsumer()
         }
-        .onDisappear { model.removeGPUConsumer() }
+        .onDisappear {
+            model.removeGPUConsumer()
+            accessories.stop()
+        }
         .onChange(of: range) { reload() }
         .onChange(of: model.displayProcessesVersion) {
             if appState.mainWindowVisible { reload() }
@@ -62,9 +68,19 @@ struct BatteryView: View {
         // Refresh only the live right-edge point as each new sample lands, so the
         // chart tracks the current tick without re-querying the whole window.
         .onReceive(model.liveTick) { _ in
-            if appState.mainWindowVisible { rebuildPoints() }
+            if appState.mainWindowVisible {
+                rebuildPoints()
+                energyHistory.append(currentBattery, range: range)
+            }
         }
-        .onChange(of: appState.mainWindowVisible) { _, visible in if visible { reload() } }
+        .onChange(of: appState.mainWindowVisible) { _, visible in
+            if visible {
+                reload()
+                accessories.start()
+            } else {
+                accessories.stop()
+            }
+        }
     }
 
     @ViewBuilder private var content: some View {
@@ -88,10 +104,13 @@ struct BatteryView: View {
     private var desktopEnergyContent: some View {
         MainRailLayout {
             pageHeader(subtitle: t("on power adapter"))
+            EnergyMetricCards(
+                history: energyHistory, battery: desktopSample, window: range, sampler: model)
             desktopEnergyFlowPanel
             thermalPanel
             topEnergyPanel
         } rail: {
+            AccessoryBatteryPanel(model: accessories)
             desktopPowerPanel
         }
     }
@@ -166,6 +185,7 @@ struct BatteryView: View {
             thermalPanel
             topEnergyPanel
         } rail: {
+            AccessoryBatteryPanel(model: accessories)
             healthPanel(battery)
             electricalPanel(battery)
             adapterPanel(battery)
@@ -215,85 +235,7 @@ struct BatteryView: View {
     // MARK: - Headline numbers
 
     private func headlineNumbers(_ battery: BatterySample) -> some View {
-        MetricCardsRow(
-            cards: batteryCards(battery), xDomain: chartDomain, loading: awaitingData)
-    }
-
-    private func batteryCards(_ battery: BatterySample) -> [MetricCardData] {
-        let level = BatteryLevel(percent: battery.chargePercent)
-        func samples(_ value: @escaping (SystemHistoryPoint) -> Double) -> [MetricSample] {
-            MemoryMetrics.downsample(
-                points.map { MetricSample(date: $0.date, value: value($0)) },
-                span: range.seconds, to: 80)
-        }
-        var cards: [MetricCardData] = [
-            MetricCardData(
-                label: t("Charge"),
-                value: BatteryFormat.percent(battery.chargePercent),
-                tint: level.color,
-                samples: samples { $0.batteryCharge },
-                unit: .percent,
-                detail: battery.isCharging ? t("charging") : nil),
-            MetricCardData(
-                label: t("Power"),
-                value: BatteryFormat.watts(battery.powerWatts),
-                tint: .yellow,
-                samples: samples { $0.batteryPowerWatts },
-                detail: battery.isCharging ? t("in") : t("out")),
-            MetricCardData(
-                label: t("Health"),
-                value: battery.healthPercent.map { BatteryFormat.percent($0) } ?? "—",
-                tint: healthColor(battery.healthPercent),
-                // Health is a slow wear metric, so show a capacity gauge (with the
-                // 80% service threshold) rather than a near-flat sparkline.
-                gauge: battery.healthPercent.map {
-                    MetricGauge(fraction: $0 / 100, threshold: 0.8)
-                },
-                unit: .percent,
-                help:
-                    t(
-                        "Today's full-charge capacity vs the original design. Apple suggests service below 80% (the tick)."
-                    )
-            ),
-            MetricCardData(
-                label: t("Time remaining"),
-                value: timeRemainingValue(battery),
-                tint: .primary),
-            MetricCardData(
-                label: t("Cycles"),
-                value: battery.cycleCount.map { "\($0)" } ?? "—",
-                tint: cycleColor(battery.cycleCount),
-                // Apple silicon batteries are rated for 1,000 cycles, so read the
-                // count against that ceiling as a wear gauge, not a bare number.
-                gauge: battery.cycleCount.map {
-                    MetricGauge(fraction: Double($0) / Double(Self.ratedCycleCount))
-                },
-                detail: battery.cycleCount.map { _ in
-                    t("of %@", Self.ratedCycleCount.formatted())
-                },
-                help:
-                    t(
-                        "Charge cycles used of the %@ this battery is rated for.",
-                        Self.ratedCycleCount.formatted())
-            ),
-        ]
-        if let temp = battery.temperatureCelsius {
-            cards.append(
-                MetricCardData(
-                    label: t("Temperature"),
-                    value: BatteryFormat.celsius(temp),
-                    tint: .teal,
-                    samples: samples { $0.batteryTemperatureCelsius }))
-        }
-        return cards
-    }
-
-    private func timeRemainingValue(_ battery: BatterySample) -> String {
-        if battery.isCharging {
-            return BatteryFormat.duration(minutes: battery.timeToFullMinutes)
-        }
-        if battery.isOnAC { return t("On adapter") }
-        return BatteryFormat.duration(minutes: battery.timeToEmptyMinutes)
+        EnergyMetricCards(history: energyHistory, battery: battery, window: range, sampler: model)
     }
 
     // MARK: - Panels
@@ -431,7 +373,7 @@ struct BatteryView: View {
                 "Condition", battery.isHealthyCondition ? t("Normal") : t("Service"),
                 valueColor: battery.isHealthyCondition ? .green : .orange)
             if let manufacturer = battery.manufacturer {
-                detailRow("Manufacturer", manufacturer)
+                detailRow("Manufacturer", manufacturer, truncationMode: .tail)
             }
             if let manufactured = battery.manufactureDate {
                 detailRow("Manufactured", BatteryFormat.manufactured(manufactured))
@@ -565,7 +507,8 @@ struct BatteryView: View {
     // MARK: - Shared bits
 
     private func detailRow(
-        _ label: LocalizedStringKey, _ value: String, valueColor: Color = .primary
+        _ label: LocalizedStringKey, _ value: String, valueColor: Color = .primary,
+        truncationMode: Text.TruncationMode = .middle
     )
         -> some View
     {
@@ -578,7 +521,7 @@ struct BatteryView: View {
                 .font(.callout.monospacedDigit())
                 .foregroundStyle(valueColor)
                 .lineLimit(1)
-                .truncationMode(.middle)
+                .truncationMode(truncationMode)
         }
     }
 
@@ -615,13 +558,11 @@ struct BatteryView: View {
 
     // MARK: - Derived
 
-    private static let maxChartPoints = 360
-
-    /// Recompute the memoized `points`: the pre-thinned loaded history plus the
-    /// latest live sample on the right edge so the timelines track the current
-    /// tick. The downsampling itself happens on the model's read queue
-    /// (`downsampledTo:`), so this per-tick step is O(chart points). Called only
-    /// when `history` reloads or a new sample lands — never during a layout pass.
+    /// Recompute the memoized `points`: the loaded history plus the latest live
+    /// sample on the right edge so the timelines track the current tick. The
+    /// charts reduce at draw time, so the history is loaded at the resolution
+    /// its tier stores. Called only when `history` reloads or a new sample
+    /// lands, never during a layout pass.
     private func rebuildPoints() {
         var pts = history
         if let system = model.liveSystem, system.batteryPresent {
@@ -659,7 +600,8 @@ struct BatteryView: View {
 
     private func reload() {
         let requested = range
-        model.loadSystemHistory(requested, downsampledTo: Self.maxChartPoints) { pts in
+        energyHistory.reload(model, range: requested, battery: currentBattery)
+        model.loadSystemHistory(requested) { pts in
             self.history = pts
             self.loadedRange = requested
             self.rebuildPoints()
@@ -682,6 +624,123 @@ struct BatteryView: View {
                         executablePath: $0.executablePath, energy: max(0, $0.averageEnergy))
                 }
             }
+        }
+    }
+}
+
+struct AccessoryBatteryPanel: View {
+    @ObservedObject var model: AccessoryBatteryModel
+
+    var body: some View {
+        BatteryPanel("Accessories", systemImage: "battery.100percent") {
+            if model.status == .loading {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .accessibilityLabel(t("Accessories"))
+            } else if model.devices.isEmpty {
+                Text(
+                    model.status == .unavailable
+                        ? t("Battery status unavailable") : t("No accessory batteries reported")
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            } else {
+                ForEach(model.devices) { device in
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Image(systemName: icon(device.kind))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 18)
+                                .accessibilityHidden(true)
+                            Text(verbatim: device.name)
+                                .font(.subheadline.weight(.medium))
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .help(device.name)
+                        }
+                        ForEach(device.parts) { part in
+                            partRow(part)
+                        }
+                        .padding(.leading, 26)
+                    }
+                    if device.id != model.devices.last?.id {
+                        Divider().opacity(0.5)
+                    }
+                }
+                if model.status == .unavailable {
+                    Label("Last reported", systemImage: "exclamationmark.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if let checkedAt = model.checkedAt {
+                Text(t("Checked %@", checkedAt.formatted(date: .omitted, time: .shortened)))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func partRow(_ part: AccessoryBattery.Part) -> some View {
+        let percent = part.percent.flatMap { (0...100).contains($0) ? $0 : nil }
+        return HStack(spacing: 6) {
+            Text(componentLabel(part.component))
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 4)
+            if part.isCharging == true {
+                Image(systemName: "bolt.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.green)
+                    .help(t("Charging"))
+                    .accessibilityLabel(t("Charging"))
+            }
+            Image(systemName: batteryIcon(percent))
+                .foregroundStyle(
+                    percent.map { BatteryLevel(percent: Double($0)).color } ?? .secondary
+                )
+                .frame(width: 20)
+                .accessibilityHidden(true)
+            Text(percent.map { BatteryFormat.percent(Double($0)) } ?? t("Not reported"))
+                .font(percent == nil ? .caption : .title3.weight(.semibold))
+                .monospacedDigit()
+                .multilineTextAlignment(.trailing)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.caption)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func componentLabel(_ component: AccessoryBattery.Component) -> String {
+        switch component {
+        case .battery: return t("Charge")
+        case .left: return t("Left")
+        case .right: return t("Right")
+        case .chargingCase: return t("Case")
+        }
+    }
+
+    private func batteryIcon(_ percent: Int?) -> String {
+        guard let percent else { return "questionmark.circle" }
+        switch percent {
+        case 0..<10: return "battery.0percent"
+        case 10..<35: return "battery.25percent"
+        case 35..<65: return "battery.50percent"
+        case 65..<90: return "battery.75percent"
+        default: return "battery.100percent"
+        }
+    }
+
+    private func icon(_ kind: AccessoryBattery.Kind) -> String {
+        switch kind {
+        case .mouse: return "computermouse"
+        case .keyboard: return "keyboard"
+        case .trackpad: return "rectangle.and.hand.point.up.left"
+        case .headphones: return "headphones"
+        case .speaker: return "hifispeaker"
+        case .gameController: return "gamecontroller"
+        case .other: return "battery.100percent"
         }
     }
 }

@@ -1,19 +1,15 @@
 import MacPerfMonitorCore
 import SwiftUI
 
-/// A small, consistent "possible memory leak" badge shown beside a process
-/// wherever it appears — the process table, the menubar list, the insights
-/// consumers, the dashboard — so a suspected leak is obvious at a glance and
-/// reads the same on every surface (PRD section 8.5).
+/// A shared badge for sustained footprint growth, not a memory-leak diagnosis.
 struct LeakIndicator: View {
-    /// Optional detector confidence (0\u{2026}1) folded into the tooltip; nil
-    /// keeps the help text generic.
+    /// Kept for existing callers; the badge does not present a leak probability.
     var confidence: Double? = nil
     /// The symbol point size, so the badge can match the type around it.
     var size: Font = .caption
 
     var body: some View {
-        Image(systemName: "exclamationmark.triangle.fill")
+        Image(systemName: "arrow.up.right.circle")
             .font(size)
             .foregroundStyle(.orange)
             .symbolRenderingMode(.hierarchical)
@@ -22,19 +18,10 @@ struct LeakIndicator: View {
     }
 
     private var helpText: String {
-        guard let confidence else {
-            return t("Possible memory leak \u{00B7} its memory has been climbing steadily.")
-        }
-        let percent = Int((confidence * 100).rounded())
-        return t(
-            "Possible memory leak \u{00B7} %@%% confidence. Its memory has been climbing steadily.",
-            String(percent))
+        t("Memory has been growing steadily. Growth alone does not prove a memory leak.")
     }
 
     private var accessibilityText: String {
-        guard let confidence else { return t("Possible memory leak") }
-        return t(
-            "Possible memory leak, %@ percent confidence",
-            String(Int((confidence * 100).rounded())))
+        t("Sustained memory growth")
     }
 }

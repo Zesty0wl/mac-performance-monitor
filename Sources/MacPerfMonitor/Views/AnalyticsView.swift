@@ -3,17 +3,17 @@
 import MacPerfMonitorCore
 import SwiftUI
 
-/// The Analytics tab host. It shows the live Performance Monitor by default and
-/// swaps to the read-only `TraceViewerView` while an imported `.mpmtrace` file is
-/// open, so the export/import feature stays entirely inside this tab. Closing the
-/// trace returns to the live view.
+/// Hosts Explorer, the optional process monitor, and imported traces. The
+/// internal tab identity stays unchanged for existing navigation and Finder routes.
 ///
 /// It also consumes a trace opened from Finder (routed through
 /// `AppState.pendingTraceURL`) so a double-clicked file lands here.
 struct AnalyticsView: View {
     @EnvironmentObject private var appState: AppState
 
+    let explorer: DataExplorerModel
     @Binding var imported: ImportedTrace?
+    @State private var legacy = false
     @State private var importError: String?
     @State private var importRequestID: UUID?
 
@@ -22,8 +22,18 @@ struct AnalyticsView: View {
             if let imported {
                 TraceViewerView(trace: imported) { self.imported = nil }
                     .id(imported.id)
+            } else if legacy {
+                VStack(spacing: 0) {
+                    HStack {
+                        Button("Back to Explorer") { legacy = false }
+                        Spacer()
+                    }.padding(12)
+                    Divider()
+                    PerformanceMonitorView(onImport: { imported = $0 })
+                }
             } else {
-                PerformanceMonitorView(onImport: { imported = $0 })
+                DataExplorerView(
+                    explorer: explorer, onImport: { imported = $0 }, onLegacy: { legacy = true })
             }
         }
         .onAppear { consumePendingTrace() }

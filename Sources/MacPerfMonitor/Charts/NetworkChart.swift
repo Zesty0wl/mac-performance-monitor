@@ -16,8 +16,12 @@ struct NetworkChart: View {
         yDomain: ClosedRange<Double>? = nil, showsTimeAxis: Bool = false
     ) {
         self.init(
-            download: LiveColumn(points) { $0.networkInBytesPerSec },
-            upload: LiveColumn(points) { $0.networkOutBytesPerSec },
+            download: LiveColumn(
+                points, value: { $0.networkInBytesPerSec },
+                high: { $0.effectivePeaks.networkInBytesPerSec }),
+            upload: LiveColumn(
+                points, value: { $0.networkOutBytesPerSec },
+                high: { $0.effectivePeaks.networkOutBytesPerSec }),
             xDomain: xDomain, yDomain: yDomain, showsTimeAxis: showsTimeAxis)
     }
 
@@ -27,8 +31,8 @@ struct NetworkChart: View {
         yDomain: ClosedRange<Double>? = nil, showsTimeAxis: Bool = false
     ) {
         self.init(
-            download: LiveColumn(window, .networkInBytesPerSec),
-            upload: LiveColumn(window, .networkOutBytesPerSec),
+            download: LiveColumn(window, .networkInBytesPerSec, peak: .networkInPeak),
+            upload: LiveColumn(window, .networkOutBytesPerSec, peak: .networkOutPeak),
             xDomain: xDomain, yDomain: yDomain, showsTimeAxis: showsTimeAxis)
     }
 
@@ -57,12 +61,10 @@ struct NetworkChart: View {
     var body: some View {
         TrendChart(
             series: [
+                TrendSeries(points: LiveTrend.allPoints(download), color: NetworkStyle.download),
                 TrendSeries(
-                    points: LiveTrend.points(download, xDomain: xDomain),
-                    color: NetworkStyle.download, filled: true),
-                TrendSeries(
-                    points: LiveTrend.points(upload, xDomain: xDomain),
-                    color: NetworkStyle.upload, filled: false, lineWidth: 1.8),
+                    points: LiveTrend.allPoints(upload), color: NetworkStyle.upload,
+                    lineWidth: 1.8),
             ],
             xDomain: xDomain,
             yDomain: yDomain,

@@ -9,7 +9,7 @@ struct MenuBarContentView: View {
     @EnvironmentObject private var menuLists: MenuListsModel
     @EnvironmentObject private var updateController: UpdateController
     @EnvironmentObject private var menuClock: MenuClock
-    @EnvironmentObject private var appMode: AppModeManager
+    @EnvironmentObject private var components: AppComponentsManager
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
     var embedded = false
@@ -126,12 +126,12 @@ struct MenuBarContentView: View {
             // Full logs samples to the on-disk history; menu-bar-only stops all
             // writes and keeps just the live read-outs.
             MenuActionButton(
-                title: appMode.mode == .full
+                title: components.historyLogging
                     ? LocalizedStringKey("Pause history logging")
                     : LocalizedStringKey("Resume history logging"),
-                systemImage: appMode.mode == .full ? "pause.circle" : "record.circle"
+                systemImage: components.historyLogging ? "pause.circle" : "record.circle"
             ) {
-                appMode.mode = appMode.mode == .full ? .menuBarOnly : .full
+                components.historyLogging.toggle()
             }
 
             // A plain SettingsLink does not reliably surface the Settings window

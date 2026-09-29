@@ -1,3 +1,4 @@
+import AppIntents
 import AppKit
 import Combine
 import MacPerfMonitorCore
@@ -55,9 +56,17 @@ private enum SingleInstanceGuard {
             .first { $0.processIdentifier != myPID && !$0.isTerminated }
         guard let existing else { return }
         NSLog(
-            "MacPerfMonitor: another instance (pid \(existing.processIdentifier)) is already running — activating it and exiting"
+            "MacPerfMonitor: another instance (pid \(existing.processIdentifier)) is already running: activating it and exiting"
         )
         existing.activate()
+        // Activating alone only raises whatever is already on screen, and this
+        // app usually has nothing on screen. Tell the surviving instance to open
+        // its window, so launching the app again is always a way back in, even
+        // when it has no menu bar item and no Dock icon. Delivered immediately
+        // because this process is about to exit.
+        DistributedNotificationCenter.default().postNotificationName(
+            .macperfmonitorShowMainWindowFromLaunch, object: nil, userInfo: nil,
+            deliverImmediately: true)
         exit(0)
     }
 }
@@ -92,10 +101,13 @@ private enum ServiceUninstaller {
 
 /// The MacPerfMonitor SwiftUI app.
 ///
-/// The app is menubar-first (`LSUIElement` true, so no Dock icon). Sampling runs
-/// from launch in the app delegate, independent of any window, so the menubar
-/// stays live and within budget while the main window is closed. The window and
-/// settings are opened from the menu.
+/// The window is the app's primary surface; the menu bar item and the history
+/// logger are optional components alongside it (see
+/// `docs/app-presence-design.md`). The bundle declares `LSUIElement` so the
+/// process starts quiet, and `PresenceController` promotes it to a regular
+/// application whenever a window is open. Sampling runs from launch in the app
+/// delegate, independent of any window, so the menu bar item stays live and
+/// within budget while no window is up.
 struct MacPerfMonitorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
@@ -127,12 +139,19 @@ struct MacPerfMonitorApp: App {
                     .environmentObject(appDelegate.loginItemManager)
                     .environmentObject(appDelegate.monitorSelection)
                     .environmentObject(appDelegate.groupStore)
-                    .environmentObject(appDelegate.appModeManager)
+                    .environmentObject(appDelegate.components)
             }
         }
-        .defaultSize(width: 980, height: 640)
+        .defaultSize(width: MainWindowSize.defaultWidth, height: MainWindowSize.defaultHeight)
+        .windowToolbarStyle(.unifiedCompact)
         .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
         .commands {
+            CommandMenu("Ask") {
+                Button("Ask About This Mac (Preview)") {
+                    WindowOpenBridge.shared.open(id: WindowID.ask)
+                }
+            }
             CommandMenu("Network") {
                 Button("Network Scan") {
                     AppLog.ui.notice("Network Scan command invoked")
@@ -161,6 +180,21 @@ struct MacPerfMonitorApp: App {
             }
         }
 
+        Window("Ask About This Mac (Preview)", id: WindowID.ask) {
+            LocaleRootView(languageManager: appDelegate.languageManager) {
+                AskPreviewView(
+                    model: appDelegate.askPreviewModel,
+                    openEvidence: { evidence, topic in
+                        appDelegate.openAskEvidence(evidence, topic: topic)
+                    },
+                    openNextStep: { step, evidence in
+                        appDelegate.openAskNextStep(step, evidence: evidence)
+                    })
+            }
+        }
+        .defaultSize(width: 820, height: 660)
+        .defaultLaunchBehavior(.suppressed)
+
         Settings {
             LocaleRootView(languageManager: appDelegate.languageManager) {
                 SettingsView()
@@ -169,7 +203,7 @@ struct MacPerfMonitorApp: App {
                     .environmentObject(appDelegate.helperManager)
                     .environmentObject(appDelegate.fullDiskAccessManager)
                     .environmentObject(appDelegate.loginItemManager)
-                    .environmentObject(appDelegate.appModeManager)
+                    .environmentObject(appDelegate.components)
                     .environmentObject(appDelegate.menuBarConfiguration)
             }
         }
@@ -178,7 +212,7 @@ struct MacPerfMonitorApp: App {
             LocaleRootView(languageManager: appDelegate.languageManager) {
                 OnboardingView()
                     .environmentObject(appDelegate.onboarding)
-                    .environmentObject(appDelegate.appModeManager)
+                    .environmentObject(appDelegate.components)
                     .environmentObject(appDelegate.loginItemManager)
                     .environmentObject(appDelegate.helperManager)
                     .environmentObject(appDelegate.fullDiskAccessManager)
@@ -222,6 +256,20 @@ struct MacPerfMonitorApp: App {
         }
         .defaultSize(width: 600, height: 560)
 
+        WindowGroup(id: WindowID.usageTimeline, for: UsageTimelineTarget.self) { $target in
+            if let target {
+                LocaleRootView(languageManager: appDelegate.languageManager) {
+                    UsageTimelineView(
+                        model: UsageTimelineModel(
+                            target: target, preferences: .standard,
+                            loadHistory: appDelegate.model.loadUsageTimeline)
+                    )
+                    .environmentObject(appDelegate.fullDiskAccessManager)
+                }
+            }
+        }
+        .defaultSize(width: 840, height: 700)
+
         // AI deep dive: one window per process. Profiles the target with `sample`
         // (via the helper for protected processes) and has the on-device model
         // explain what it is doing. Gets the helper manager (privileged capture);
@@ -260,9 +308,11 @@ enum AppInfo {
 /// Stable scene identifiers used with `openWindow`.
 enum WindowID {
     static let main = "main"
+    static let ask = "ask-preview"
     static let onboarding = "onboarding"
     static let inspector = "inspector"
     static let openFiles = "open-files"
+    static let usageTimeline = "usage-timeline"
     static let deepDive = "deep-dive"
 }
 
@@ -289,6 +339,7 @@ final class AppState: ObservableObject {
     /// alert). The main window observes this to switch to the Processes tab and
     /// select the process, then clears it. Nil when there is nothing pending.
     @Published var navigationTarget: ProcessIdentity?
+    @Published var alertInvestigation: AlertInvestigation?
 
     /// A process awaiting a force-quit confirmation. Any surface that lists a
     /// process sets this; the single confirmation hosted on the main window
@@ -339,6 +390,13 @@ extension Notification.Name {
     static let macperfmonitorShowMainWindow = Notification.Name(
         "uk.co.bzwrd.macperfmonitor.showMainWindow")
 
+    /// Posted between processes by a second copy that found this one already
+    /// running, before it exits. The running instance opens its main window, so
+    /// launching the app again surfaces it even with no menu bar item and no
+    /// Dock icon. Distributed, because the two are separate processes.
+    static let macperfmonitorShowMainWindowFromLaunch = Notification.Name(
+        "uk.co.bzwrd.macperfmonitor.showMainWindowFromLaunch")
+
     /// Posted to surface the first-run education flow (on first launch, or from
     /// the menu's "How MacPerfMonitor works…" action).
     static let macperfmonitorShowOnboarding = Notification.Name(
@@ -364,14 +422,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     @preconcurrency UNUserNotificationCenterDelegate
 {
     let model = SamplerModel()
-    let appModeManager = AppModeManager()
+    lazy var askPreviewModel = AskPreviewModel(
+        readReports: { [weak self] in
+            guard let self else { return [] }
+            var reports = try await self.model.readAskReports()
+            if let scan = DiskMapModel.shared.snapshot, let analysis = DiskMapModel.shared.analysis,
+                let index = reports.firstIndex(where: { $0.topic == .disk })
+            {
+                reports[index].includeDiskMap(scan, analysis: analysis)
+            }
+            return reports
+        },
+        readData: { [weak self] call, capturedAt, process in
+            guard let self else { throw AskInvestigationError.unavailable }
+            return try await self.model.readAskData(call, at: capturedAt, process: process)
+        })
+    lazy var monitorIntentRuntime = MonitorIntentRuntime(read: { [model] topic in
+        try await model.readAskReport(topic: topic)
+    })
+    let components = AppComponentsManager()
     let languageManager = AppLanguageManager()
     let alertSettings = AlertSettings()
     let alertCenter = AlertCenter()
+    let accessoryBatteries = AccessoryBatteryModel.shared
     let appState = AppState()
     let onboarding = OnboardingState()
     let helperManager = HelperManager()
     let loginItemManager = LoginItemManager()
+    private let gitHubStarPrompt = GitHubStarPrompt()
     let fullDiskAccessManager = FullDiskAccessManager()
     let updateController = UpdateController()
     let monitorSelection = MonitorSelection()
@@ -380,28 +458,88 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     /// Owns the menu's "Hide Notch" toggle: whether the built-in display runs in
     /// its notch-free mode, so status items get the whole menu bar width.
     let notchDisplayController = NotchDisplayController()
+    /// Carries SwiftUI's window-opening actions in a window of its own, so that
+    /// opening a window never depends on the menu bar item existing.
+    private let windowRouterHost = WindowRouterHost()
     /// The app's single AppKit-managed menu bar item and combined metric panel.
     private var combinedStatusItem: CombinedStatusItemController?
-    /// Shows/hides the optional Dock icon, in sync with the Settings toggle.
-    private var dockIconController: DockIconController?
+    /// Owns the activation policy: regular while a window is open, accessory
+    /// otherwise, pinned regular if the user asked for a permanent Dock icon.
+    private let presenceController = PresenceController()
     private var cancellables = Set<AnyCancellable>()
+
+    func openAskEvidence(_ evidence: AskEvidence?, topic: AskTopic) {
+        if let identity = evidence?.processIdentity {
+            appState.navigationTarget = identity
+            appState.requestedMainTab = .processes
+        } else {
+            switch topic {
+            case .overview, .cpu: appState.requestedMainTab = .dashboard
+            case .memory: appState.requestedMainTab = .processes
+            case .disk:
+                appState.requestedMainTab = .diskUsage
+                appState.showDiskMap = true
+            case .network: appState.requestedMainTab = .network
+            }
+        }
+        WindowOpenBridge.shared.open(id: WindowID.main)
+    }
+
+    func openAskNextStep(_ step: AskNextStep, evidence: AskEvidence?) {
+        switch step {
+        case .inspectProcesses: openAskEvidence(evidence, topic: .memory)
+        case .openDiskMap: openAskEvidence(nil, topic: .disk)
+        case .openNetwork: openAskEvidence(nil, topic: .network)
+        case .inspectDiskActivity:
+            appState.requestedMainTab = .diskUsage
+            appState.showDiskMap = false
+            WindowOpenBridge.shared.open(id: WindowID.main)
+        case .observe: break
+        }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppLog.ui.notice("app launched (menubar)")
+        gitHubStarPrompt.recordLaunch()
+        let intentRuntime = monitorIntentRuntime
+        AppDependencyManager.shared.add(dependency: intentRuntime)
+        MonitorPreviewShortcuts.updateAppShortcutParameters()
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { _ in
+                if !UserDefaults.standard.bool(forKey: AskPreviewPreferences.enabledKey)
+                    || !UserDefaults.standard.bool(forKey: AskPreviewPreferences.siriKey)
+                {
+                    intentRuntime.clear()
+                }
+            }
+            .store(in: &cancellables)
 
         // Per-app network tracking now uses a cheap one-shot nettop, so it's on by
         // default; a registered default makes the launch read below (and @AppStorage
         // toggles) see ON unless the user has explicitly turned it off.
         UserDefaults.standard.register(defaults: [SamplerModel.perAppNetworkDefaultsKey: true])
 
+        // Mount the window router before anything can ask for a window, so the
+        // bridge drains at once rather than queueing. It lives in its own
+        // off-screen window rather than in the status item's button, so the menu
+        // bar item can be turned off without stranding every window-opening path.
+        windowRouterHost.start()
+        DistributedNotificationCenter.default().addObserver(
+            self, selector: #selector(showMainWindowFromLaunch(_:)),
+            name: .macperfmonitorShowMainWindowFromLaunch, object: nil)
+
         // Install one combined AppKit status item. It owns the shared popover,
         // compact read-out strip, sampling gates, and window-opening router.
         let combinedStatusItem = CombinedStatusItemController(
             model: model, appState: appState, helperManager: helperManager,
             updateController: updateController,
-            appModeManager: appModeManager, languageManager: languageManager,
+            components: components, languageManager: languageManager,
             configuration: menuBarConfiguration,
             notchDisplay: notchDisplayController)
+        combinedStatusItem.onPopoverOpened = { [gitHubStarPrompt] in
+            gitHubStarPrompt.recordUse(.menuBar)
+        }
         combinedStatusItem.start()
         self.combinedStatusItem = combinedStatusItem
 
@@ -435,21 +573,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
             }
             .store(in: &cancellables)
 
-        // Optional Dock icon (off by default). Opt-in for users whose menu bar is
-        // too crowded to see our items. Reads its own state from UserDefaults and
-        // stays in sync with the Settings toggle, applying live.
-        let dockIconController = DockIconController()
-        dockIconController.start()
-        self.dockIconController = dockIconController
+        // Follow the windows: regular application while one is open, background
+        // agent when the last one closes, unless the user pinned the Dock icon.
+        presenceController.start()
+        WindowOpenBridge.shared.onWindowRequested = { [presenceController] in
+            presenceController.scheduleApply()
+        }
 
         // Wire alerting: ask permission once, route fired alerts to notifications,
         // and keep the sampler's alert config in sync with the user's settings.
         alertCenter.setDelegate(self)
         alertCenter.requestAuthorization()
         model.onAlertsFired = { [alertCenter] alerts in alertCenter.deliver(alerts) }
+        alertCenter.onDeliveryOutcome = { [weak model] ids, outcome, attemptedAt in
+            model?.recordAlertDelivery(ids, outcome: outcome, attemptedAt: attemptedAt)
+        }
+        accessoryBatteries.onLowBatteryAlert = { [alertCenter] alert, completion in
+            alertCenter.deliverAccessoryBattery(alert, completion: completion)
+        }
         model.setAlertConfig(alertSettings.config)
         alertSettings.$config
-            .sink { [weak model] config in model?.setAlertConfig(config) }
+            .sink { [weak model, accessoryBatteries] config in
+                model?.setAlertConfig(config)
+                accessoryBatteries.configureAlerts(config)
+            }
             .store(in: &cancellables)
 
         // Track the main window's lifecycle so its heavy content is mounted only
@@ -477,9 +624,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         // writes. The explicit apply matches the store the model already opened at
         // launch (a no-op), and later changes — from Settings, the menu-bar
         // toggle, or the startup wizard — open or close it live.
-        model.setPersistenceEnabled(appModeManager.isLoggingEnabled)
-        appModeManager.$mode
-            .sink { [weak model] mode in model?.setPersistenceEnabled(mode.logsHistory) }
+        model.setPersistenceEnabled(components.historyLogging)
+        model.setMenuBarItemVisible(components.menuBarItem)
+        components.$state
+            .sink { [weak model] state in
+                model?.setPersistenceEnabled(state.historyLogging)
+                model?.setMenuBarItemVisible(state.menuBarItem)
+            }
+            .store(in: &cancellables)
+        // Switching everything off while no window is open is a way of asking
+        // the app to stop, so honour it rather than sitting there invisible.
+        components.$state
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                MainActor.assumeIsolated { self?.terminateIfNothingLeftToDo() }
+            }
             .store(in: &cancellables)
 
         // Wire the privileged helper: read its current status, install the
@@ -521,6 +680,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         if !onboarding.hasCompletedSetup {
             onboarding.autoConfigOnly = onboarding.hasCompleted
             WindowOpenBridge.shared.open(id: WindowID.onboarding)
+        } else if loginItemManager.shouldPresentMainWindow(menuBarEnabled: components.menuBarItem) {
+            presentMainWindowAtLaunch()
         }
 
         // Check for updates on every cold start (silent unless one is available),
@@ -534,6 +695,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         NSWorkspace.shared.notificationCenter.addObserver(
             self, selector: #selector(systemDidWake(_:)),
             name: NSWorkspace.didWakeNotification, object: nil)
+    }
+
+    /// A second copy of the app was launched and handed off to us. Surface the
+    /// main window, which is what the person who launched it was asking for.
+    @objc private func showMainWindowFromLaunch(_ note: Notification) {
+        MainActor.assumeIsolated {
+            WindowOpenBridge.shared.open(id: WindowID.main)
+        }
+    }
+
+    /// Ask for the main window shortly after launch, and keep asking until one
+    /// exists or the attempts run out.
+    ///
+    /// The scene tree is not built while the delegate is still finishing launch,
+    /// and a request made too early is dropped on the floor rather than queued,
+    /// so a single attempt is not reliable. Each retry is cheap, they stop the
+    /// moment a window exists, and the last one logs rather than failing
+    /// silently, which is what a launch that shows nothing would otherwise do.
+    private func presentMainWindowAtLaunch(attempt: Int = 0) {
+        if NSApp.windows.contains(where: { $0.isRealAppWindow }) { return }
+        guard attempt < 6 else {
+            AppLog.ui.error("no window on screen after launch; giving up asking")
+            return
+        }
+        WindowOpenBridge.shared.open(id: WindowID.main)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            MainActor.assumeIsolated { self?.presentMainWindowAtLaunch(attempt: attempt + 1) }
+        }
+    }
+
+    /// Whether the app has any reason to keep running once its last window has
+    /// closed: a menu bar item to show, or history to record.
+    private var hasBackgroundReasonToRun: Bool {
+        components.state.keepsRunningWithoutWindows
+    }
+
+    /// Quit when the last window closes and there is nothing left to do. An app
+    /// with no window, no menu bar item and no logging is running invisibly and
+    /// achieving nothing, which is worse than closing.
+    private func terminateIfNothingLeftToDo() {
+        guard !NSApp.windows.contains(where: { $0.isRealAppWindow }) else { return }
+        guard !hasBackgroundReasonToRun else { return }
+        AppLog.ui.notice("last window closed with nothing left to do: quitting")
+        NSApp.terminate(nil)
+    }
+
+    /// Never let AppKit make this decision. Closing the last window usually
+    /// leaves the app running on purpose, to keep the menu bar item live and the
+    /// logger recording; the one case where it should quit is handled by
+    /// `terminateIfNothingLeftToDo`, which knows about both.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 
     /// The Mac woke from sleep: run a silent update check (no UI unless an update
@@ -605,12 +818,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         // (and, after a grace period, on occlusion).
         occlusionReleaseTimer?.invalidate()
         occlusionReleaseTimer = nil
+        model.setWindowOpen(true)
         if !mainWindowProcessConsumerActive {
             mainWindowProcessConsumerActive = true
             model.addProcessConsumer()
             // The UI-side publishes idle while nothing consumes them, so refresh
             // immediately rather than showing data as stale as the idle stretch.
             model.requestImmediateTick()
+        }
+        considerGitHubStarPrompt()
+    }
+
+    private func considerGitHubStarPrompt() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.onboarding.hasCompletedSetup,
+                NSApp.isActive, let window = NSApp.keyWindow,
+                window.title == AppInfo.displayName
+            else { return }
+            self.gitHubStarPrompt.recordUse(.mainWindow)
+            self.gitHubStarPrompt.presentIfEligible(
+                in: window, isAppActive: NSApp.isActive,
+                otherPromptPending: self.appState.helperPromptPending
+                    || self.appState.loginItemPromptPending
+                    || self.appState.pendingForceQuit != nil
+                    || self.appState.codesignTarget != nil)
         }
     }
 
@@ -654,6 +885,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         if title == AppInfo.displayName {
             MainActor.assumeIsolated {
                 appState.mainWindowOpen = false
+                model.setWindowOpen(false)
                 occlusionReleaseTimer?.invalidate()
                 occlusionReleaseTimer = nil
                 MemoryReclaim.runAfterWindowClose()
@@ -668,6 +900,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
             // Help doesn't leave a footprint bump behind.
             MainActor.assumeIsolated { MemoryReclaim.runAfterWindowClose() }
         }
+        // Any window closing might have been the last one. Decide on the next
+        // turn of the run loop, once this window has left `NSApp.windows`.
+        DispatchQueue.main.async { [weak self] in
+            MainActor.assumeIsolated { self?.terminateIfNothingLeftToDo() }
+        }
     }
 
     /// "Reopening" (relaunching from Finder/Spotlight/`open`, or clicking the
@@ -678,10 +915,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     func applicationShouldHandleReopen(
         _ sender: NSApplication, hasVisibleWindows flag: Bool
     ) -> Bool {
-        if !flag {
-            // Through the bridge, not a notification: a reopen that arrives
-            // before (or without) a mounted router view queues instead of
-            // vanishing, so `open`-ing the running app always ends in a window.
+        // `flag` counts every visible window, including the router host, so ask
+        // our own question instead: is there a window the user can actually see?
+        // Through the bridge, not a notification: a reopen that arrives before a
+        // router view has mounted queues instead of vanishing, so `open`-ing the
+        // running app always ends in a window.
+        if !NSApp.windows.contains(where: { $0.isRealAppWindow }) {
             WindowOpenBridge.shared.open(id: WindowID.main)
         }
         return true
@@ -709,6 +948,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         // Full Disk Access is also granted out of process; re-probe so the
         // Disk Map's card and Settings reflect a fresh grant.
         fullDiskAccessManager.refresh()
+        considerGitHubStarPrompt()
     }
 
     // MARK: - UNUserNotificationCenterDelegate
@@ -722,7 +962,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         withCompletionHandler completionHandler:
             @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        completionHandler([.banner, .sound])
+        completionHandler(
+            notification.request.content.sound == nil ? [.banner] : [.banner, .sound])
     }
 
     /// Handle a notification click. Always surface the main window; when the
@@ -735,7 +976,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
-        if let identity = AlertUserInfo.identity(from: userInfo) {
+        if AlertUserInfo.opensEnergy(from: userInfo) {
+            appState.alertInvestigation = nil
+            appState.navigationTarget = nil
+            appState.requestedMainTab = .battery
+        } else if let investigation = AlertUserInfo.investigation(from: userInfo) {
+            appState.alertInvestigation = investigation
+            appState.requestedMainTab = .analytics
+        } else if let identity = AlertUserInfo.identity(from: userInfo) {
             // Set before opening the window so a freshly mounted Processes tab
             // consumes it on appear.
             appState.navigationTarget = identity
@@ -767,18 +1015,34 @@ struct MainWindowGate: View {
                 ContentView()
             } else {
                 Color(nsColor: .windowBackgroundColor)
-                    .frame(minWidth: 860, minHeight: 520)
+                    .frame(
+                        minWidth: MainWindowSize.minimumWidth,
+                        minHeight: MainWindowSize.minimumHeight)
+            }
+        }
+        .toolbar {
+            ToolbarItem(id: "main.ask-preview", placement: .automatic) {
+                Button {
+                    WindowOpenBridge.shared.open(id: WindowID.ask)
+                } label: {
+                    Image(systemName: "sparkles")
+                }
+                .help("Ask About This Mac (Preview)")
+                .accessibilityLabel("Ask About This Mac (Preview)")
+            }
+            ToolbarItem(id: "main.refresh-interval", placement: .automatic) {
+                RefreshIntervalControl()
             }
         }
     }
 }
 
-/// An invisible, always-mounted SwiftUI view that carries the menu-bar app's
+/// An invisible, always-mounted SwiftUI view that carries the app's
 /// window-opening plumbing.
 ///
-/// The primary menubar item is now an AppKit `NSStatusItem` with no SwiftUI label
-/// (see `MemoryStatusItemController`), so the `openWindow`/`openSettings` actions
-/// that used to live on the `MenuBarExtra` label need another always-present home.
+/// The menu bar item is an AppKit `NSStatusItem` with no SwiftUI label, so the
+/// `openWindow`/`openSettings` actions that used to live on the `MenuBarExtra`
+/// label need another always-present home. That home is `WindowRouterHost`.
 /// Bridges AppKit-side window-open requests (the app delegate) to SwiftUI's
 /// `openWindow` action, which only exists inside a mounted view. A request that
 /// arrives before any `MenuBarWindowRouter` has registered is queued and flushed
@@ -790,6 +1054,12 @@ final class WindowOpenBridge {
 
     private var openAction: ((String) -> Void)?
     private var pending: [String] = []
+
+    /// Called whenever a window is asked for, including a request that is only
+    /// queued. `PresenceController` uses it to re-evaluate the activation
+    /// policy: a window can be created without ever becoming key, so the window
+    /// notifications alone are not enough to notice that one now exists.
+    var onWindowRequested: (() -> Void)?
 
     /// Called from `MenuBarWindowRouter.onAppear`; replays anything queued while
     /// no router was mounted. Last registration wins, which is fine: every
@@ -806,14 +1076,23 @@ final class WindowOpenBridge {
         if let openAction {
             openAction(id)
         } else {
+            AppLog.ui.notice("open window \(id, privacy: .public): queued until a router mounts")
             pending.append(id)
         }
+        onWindowRequested?()
+    }
+
+    /// Note that a window was opened by some path other than `open(id:)`, such
+    /// as Settings, so the policy is re-evaluated for it too.
+    func noteWindowRequested() {
+        onWindowRequested?()
     }
 }
 
-/// `MemoryStatusItemController` hosts one of these inside its status item button
-/// (whose window is live), so the notifications posted by the popovers, the
-/// process actions, notification clicks, and reopen keep opening the right window.
+/// `WindowRouterHost` mounts one of these in a window of its own, so the
+/// notifications posted by the popovers, the process actions, notification
+/// clicks, and reopen keep opening the right window whether or not there is a
+/// menu bar item.
 struct MenuBarWindowRouter: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
@@ -831,24 +1110,23 @@ struct MenuBarWindowRouter: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .macperfmonitorShowMainWindow)) {
                 _ in
-                openWindow(id: WindowID.main)
-                NSApp.activate(ignoringOtherApps: true)
+                WindowOpenBridge.shared.open(id: WindowID.main)
             }
             .onReceive(NotificationCenter.default.publisher(for: .macperfmonitorShowOnboarding)) {
                 _ in
-                openWindow(id: WindowID.onboarding)
-                NSApp.activate(ignoringOtherApps: true)
+                WindowOpenBridge.shared.open(id: WindowID.onboarding)
             }
             .onReceive(NotificationCenter.default.publisher(for: .macperfmonitorShowSettings)) {
                 _ in
                 openSettings()
                 NSApp.activate(ignoringOtherApps: true)
+                WindowOpenBridge.shared.noteWindowRequested()
             }
     }
 }
 
 /// Rasterises the primary "Pressure" menubar read-out to an `NSImage` for the
-/// AppKit-managed status item (`MemoryStatusItemController`). Mirrors
+/// AppKit-managed status item. Mirrors
 /// `CPUMenuBarImage`/`BatteryMenuBarImage` — a "Pressure" caption over the current
 /// pressure percentage, tinted green/orange/red by level — with the same
 /// once-per-change caching so an unchanged tick re-renders nothing. Non-template
@@ -874,7 +1152,7 @@ enum MemoryMenuBarImage {
 }
 
 /// Rasterises the CPU menubar read-out to an `NSImage` for the AppKit-managed
-/// status item (`CPUStatusItemController`). Mirrors `MemoryMenuBarImage`'s
+/// status item. Mirrors `MemoryMenuBarImage`'s
 /// rendering and the same once-per-change caching, kept separate so the two items
 /// never invalidate each other.
 @MainActor

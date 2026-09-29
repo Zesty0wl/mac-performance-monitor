@@ -19,7 +19,9 @@ extension MenuBarMetric {
             return activeKinds.contains(.highCPU)
         case .temperature:
             return activeKinds.contains(.thermalThrottle)
-        case .gpu, .energy, .network, .disk:
+        case .gpu:
+            return activeKinds.contains(.highGPU)
+        case .energy, .network, .disk:
             return false
         }
     }
@@ -93,7 +95,7 @@ enum CombinedMenuBarImage {
         let image =
             switch presentation {
             case .focus:
-                focusImage(readout: readouts[0])
+                readouts.first.map(focusImage(readout:)) ?? NSImage(size: .zero)
             case .strip:
                 stripImage(readouts: readouts)
             }
