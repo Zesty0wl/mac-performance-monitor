@@ -67,7 +67,7 @@ esac
 INTENTS_OBJECTS="$PWD/.build/out/Intermediates.noindex/MacPerfMonitor.build/$INTENTS_CONFIG/MacPerfMonitor-p.build/Objects-normal/arm64"
 INTENTS_SOURCES="$INTENTS_OBJECTS/MacPerfMonitor.SwiftFileList"
 if [[ ! -f "$INTENTS_SOURCES" ]]; then
-  echo "error: App Intents metadata inputs are missing. Build this preview with Xcode 27 before bundling." >&2
+  echo "error: App Intents metadata inputs are missing. Build with Xcode 27 before bundling." >&2
   exit 1
 fi
 INTENTS_VALUES="$(mktemp)"
@@ -92,47 +92,11 @@ xcrun appintentsmetadataprocessor \
   --no-app-shortcuts-localization
 INTENTS_METADATA="$APP/Contents/Resources/Metadata.appintents/extract.actionsdata"
 if [[ ! -s "$INTENTS_METADATA" ]] \
-  || [[ "$(plutil -extract actions.GetCurrentMonitorReportIntent.identifier raw -o - "$INTENTS_METADATA" 2>/dev/null)" != "GetCurrentMonitorReportIntent" ]] \
-  || [[ "$(plutil -extract actions.OpenAskPreviewIntent.identifier raw -o - "$INTENTS_METADATA" 2>/dev/null)" != "OpenAskPreviewIntent" ]]; then
+  || [[ "$(plutil -extract actions.OpenAskIntent.identifier raw -o - "$INTENTS_METADATA" 2>/dev/null)" != "OpenAskIntent" ]]; then
   echo "error: App Intents discovery metadata was not produced." >&2
   exit 1
 fi
 echo "Bundled App Intents metadata"
-
-INFERENCE_BIN="$BIN_DIR/MacPerfMonitorInference"
-if [[ ! -x "$INFERENCE_BIN" ]]; then
-  echo "error: the local inference worker is missing. Run Scripts/build.sh first." >&2
-  exit 1
-fi
-cp "$INFERENCE_BIN" "$APP/Contents/MacOS/MacPerfMonitorInference"
-LLAMA_FW="$BIN_DIR/llama.framework"
-if [[ ! -d "$LLAMA_FW" ]]; then
-  echo "error: the GGUF inference framework is missing. Run Scripts/build.sh first." >&2
-  exit 1
-fi
-mkdir -p "$APP/Contents/Frameworks"
-cp -R "$LLAMA_FW" "$APP/Contents/Frameworks/"
-install_name_tool -add_rpath "@executable_path/../Frameworks" \
-  "$APP/Contents/MacOS/MacPerfMonitorInference"
-for resource in mlx-swift_Cmlx swift-transformers_Hub swift-crypto_Crypto; do
-  if [[ ! -d "$BIN_DIR/$resource.bundle" ]]; then
-    echo "error: inference resource $resource.bundle is missing." >&2
-    exit 1
-  fi
-  cp -R "$BIN_DIR/$resource.bundle" "$APP/Contents/Resources/"
-done
-mkdir -p "$APP/Contents/Resources/InferenceLicenses"
-cp ThirdParty/LLAMA-LICENSE "$APP/Contents/Resources/InferenceLicenses/llama.cpp-LICENSE"
-for dependency in .build/checkouts/*; do
-  [[ -d "$dependency" ]] || continue
-  name="$(basename "$dependency")"
-  for license in LICENSE LICENSE.txt LICENSE.md NOTICE NOTICE.txt; do
-    if [[ -f "$dependency/$license" ]]; then
-      cp "$dependency/$license" "$APP/Contents/Resources/InferenceLicenses/$name-$license"
-    fi
-  done
-done
-echo "Bundled local inference worker and resources (model weights download separately)"
 
 # Bundled seed for the process glossary ("what is this process?"). The live,
 # frequently-updated copy is downloaded + verified from /glossary/ at runtime; this

@@ -39,11 +39,12 @@ and saved time ranges. The app still supports Apple silicon Macs on macOS 15 or 
   needs macOS 27; ANE Power needs the approved Full Coverage helper. GPU Memory
   and GPU awake now have recorded detail charts.
 
-- **Ask About This Mac (Preview):** use current reports without AI, or opt in
-  to local questions and evidence-based explanations. Apple on-device is the
-  default where supported. Optional Qwen3, Qwen3.5, and DeepAnalyze choices keep
-  their own downloads. AI cannot run commands or change settings, and answers
-  can still be wrong. Siri and Shortcuts sharing needs separate consent.
+- **Ask About This Mac:** on macOS 27, ask a plain question such as "Why is my
+  Mac slow?" or tap an area like Memory or Battery. The app checks its own
+  readings and history, then Apple's on-device model explains them in everyday
+  language, with links to the matching charts. Nothing leaves your Mac, and the
+  area summaries work even when Apple Intelligence is off. Answers can still be
+  wrong, so the facts behind each one are a click away.
 
 - **Usage Timeline:** right-click a process to see when the recorder observed
   it running. Optional Apple app and media activity needs Full Disk Access and
@@ -248,11 +249,9 @@ swift test
 Scripts/run.sh
 ```
 
-You need Apple silicon and macOS 15 (Sequoia) or later. Building the current
-preview app bundle needs Xcode 27 for its App Intents metadata. Core builds
-and tests use Swift 6. The optional local-inference worker also needs Xcode's
-Metal Toolchain: install it with `xcodebuild -downloadComponent MetalToolchain`.
-Bundling needs Xcode's `xcstringstool` too. Model weights download separately.
+You need Apple silicon and macOS 15 (Sequoia) or later. Building the app
+bundle needs Xcode 27 for its App Intents metadata and the macOS 27 SDK. Core
+builds and tests use Swift 6. Bundling needs Xcode's `xcstringstool` too.
 The run script uses a signing identity when available, or falls back to ad-hoc
 signing. Ad-hoc builds cannot use the privileged helper. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for signing options and test coverage.

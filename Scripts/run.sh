@@ -84,8 +84,6 @@ Scripts/bundle.sh "$CONFIG"
 
 APP="build/Mac Performance Monitor.app"
 HELPER="$APP/Contents/MacOS/MacPerfMonitorHelper"
-INFERENCE="$APP/Contents/MacOS/MacPerfMonitorInference"
-LLAMA="$APP/Contents/Frameworks/llama.framework"
 
 ENTITLEMENTS="Resources/MacPerfMonitor.entitlements"
 
@@ -97,9 +95,6 @@ if [[ "$SIGN_MODE" == "identity" ]]; then
     exit 1
   }
   echo "==> Signing with identity: $IDENTITY"
-  codesign --force --options runtime --sign "$IDENTITY" "$LLAMA"
-  codesign --force --options runtime --identifier "uk.co.bzwrd.macperfmonitor.inference" \
-    --sign "$IDENTITY" "$INFERENCE"
   # Inside out: sign the nested helper before the enclosing app. The helper needs
   # no entitlements (it runs as root); the explicit --identifier makes its code
   # identity "uk.co.bzwrd.macperfmonitor.helper" so it satisfies the app's
@@ -150,8 +145,6 @@ if [[ "$SIGN_MODE" == "identity" ]]; then
   fi
 else
   echo "==> Ad-hoc signing (helper coverage will NOT work; pass --developer-id to sign with your cert)"
-  codesign --force --sign - "$LLAMA"
-  codesign --force --identifier "uk.co.bzwrd.macperfmonitor.inference" --sign - "$INFERENCE"
   # NO --options runtime on this path, deliberately. Hardened Runtime turns on
   # library validation, which requires the app and every framework it loads to
   # share a Team ID. An ad-hoc signature carries NO team, and macOS does not treat

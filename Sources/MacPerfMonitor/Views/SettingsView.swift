@@ -114,7 +114,6 @@ private struct GeneralSettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
-            AskPreviewSettingsSection()
         }
         .formStyle(.grouped)
     }
