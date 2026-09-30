@@ -36,16 +36,46 @@ final class AskViewModel: ObservableObject {
     @Published private(set) var overview: [AreaBrief] = []
     @Published private(set) var turns: [AskTurn] = []
     @Published private(set) var unavailableReason: AskUnavailableReason?
+    /// The Apple Intelligence model answering, as macOS names it, when known.
+    @Published private(set) var modelName: String?
     @Published var draft = ""
 
-    private let sampler: SamplerModel
+    /// Where briefs come from. The app reads them from `SamplerModel`; tests
+    /// supply fixed ones.
+    struct Source {
+        var overview: () async throws -> [AreaBrief]
+        var earliest: () async throws -> Date?
+        var briefs:
+            (_ areas: [AskArea], _ interval: DateInterval, _ app: String?, _ now: Date) async throws
+                -> [AreaBrief]
+    }
+
+    private let source: Source
     private let openChartAction: (AskChartLink) -> Void
-    private lazy var engine: AskEngine = AskEngines.make()
+    private let makeEngine: @MainActor () -> AskEngine
+    private lazy var engine: AskEngine = makeEngine()
     private var work: Task<Void, Never>?
     private var overviewTask: Task<Void, Never>?
 
-    init(sampler: SamplerModel, openChart: @escaping (AskChartLink) -> Void) {
-        self.sampler = sampler
+    convenience init(sampler: SamplerModel, openChart: @escaping (AskChartLink) -> Void) {
+        self.init(
+            source: Source(
+                overview: { [weak sampler] in try await sampler?.askOverview() ?? [] },
+                earliest: { [weak sampler] in try await sampler?.askEarliestRecord() },
+                briefs: { [weak sampler] areas, interval, app, now in
+                    try await sampler?.askBriefs(
+                        areas: areas, interval: interval, appName: app, now: now)
+                        ?? []
+                }),
+            engine: { AskEngines.make() }, openChart: openChart)
+    }
+
+    init(
+        source: Source, engine: @escaping @MainActor () -> AskEngine,
+        openChart: @escaping (AskChartLink) -> Void = { _ in }
+    ) {
+        self.source = source
+        self.makeEngine = engine
         self.openChartAction = openChart
     }
 
@@ -69,6 +99,7 @@ final class AskViewModel: ObservableObject {
 
     func windowOpened() {
         unavailableReason = engine.unavailableReason
+        modelName = engine.modelName
         overviewTask?.cancel()
         overviewTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -87,13 +118,14 @@ final class AskViewModel: ObservableObject {
 
     func refreshOverview() async {
         let started = Date()
-        if let briefs = try? await sampler.askOverview() {
+        if let briefs = try? await source.overview() {
             overview = briefs
             AppLog.ui.notice(
                 "ask overview built in \(Date().timeIntervalSince(started), format: .fixed(precision: 2), privacy: .public)s"
             )
         }
         unavailableReason = engine.unavailableReason
+        modelName = engine.modelName
     }
 
     func startOver() {
@@ -106,8 +138,8 @@ final class AskViewModel: ObservableObject {
 
     func stop() {
         work?.cancel()
-        if let index = turns.indices.last, isBusy {
-            turns[index].phase = turns[index].answer.isEmpty ? .failed(t("Stopped.")) : .done
+        if let last = turns.last, isBusy {
+            update(last.id) { $0.phase = $0.answer.isEmpty ? .failed(t("Stopped.")) : .done }
         }
     }
 
@@ -125,23 +157,22 @@ final class AskViewModel: ObservableObject {
     func ask(_ question: String) {
         guard !isBusy else { return }
         let previous = turns.last?.question
-        turns.append(AskTurn(question: question))
-        let index = turns.count - 1
+        let turn = AskTurn(question: question)
+        turns.append(turn)
         work = Task { [weak self] in
             guard let self else { return }
             if let reason = self.engine.unavailableReason {
                 self.unavailableReason = reason
-                self.turns[index].phase = .failed(reason.message)
+                self.update(turn.id) { $0.phase = .failed(reason.message) }
                 return
             }
             do {
                 let now = Date()
                 let plan = try await self.engine.plan(question, previous: previous, now: now)
-                try await self.answer(question, plan: plan, at: index, now: now)
+                try await self.answer(question, plan: plan, turn: turn.id, now: now)
             } catch is CancellationError {
             } catch {
-                guard index < self.turns.count else { return }
-                self.turns[index].phase = .failed(error.localizedDescription)
+                self.update(turn.id) { $0.phase = .failed(error.localizedDescription) }
             }
         }
     }
@@ -151,44 +182,54 @@ final class AskViewModel: ObservableObject {
     func explore(_ area: AskArea) {
         guard !isBusy else { return }
         let question = area.question
-        let index = turns.count - 1
+        let turn = AskTurn(question: question)
+        turns.append(turn)
         work = Task { [weak self] in
             guard let self else { return }
             do {
                 try await self.answer(
-                    question, plan: AskPlan(areas: [area]), at: index, now: Date(),
+                    question, plan: AskPlan(areas: [area]), turn: turn.id, now: Date(),
                     explain: self.engine.unavailableReason == nil)
             } catch is CancellationError {
             } catch {
-                guard index < self.turns.count else { return }
-                self.turns[index].phase = .failed(error.localizedDescription)
+                self.update(turn.id) { $0.phase = .failed(error.localizedDescription) }
             }
         }
     }
 
+    /// Changes one turn by its identity. The conversation can be cleared at
+    /// any moment (Start over, closing the window) while work for a turn is
+    /// still in flight; a turn that is gone is simply not updated.
+    @discardableResult
+    private func update(_ id: UUID, _ change: (inout AskTurn) -> Void) -> Bool {
+        guard let index = turns.firstIndex(where: { $0.id == id }) else { return false }
+        change(&turns[index])
+        return true
+    }
+
     private func answer(
-        _ question: String, plan: AskPlan, at index: Int, now: Date, explain: Bool = true
+        _ question: String, plan: AskPlan, turn id: UUID, now: Date, explain: Bool = true
     ) async throws {
-        turns[index].phase = .looking(plan.areas)
-        let earliest = try? await sampler.askEarliestRecord()
+        guard update(id, { $0.phase = .looking(plan.areas) }) else { return }
+        let earliest = try? await source.earliest()
         let interval = plan.time.interval(now: now, earliest: earliest)
-        let briefs = try await sampler.askBriefs(
-            areas: plan.areas, interval: interval, appName: plan.appName, now: now)
+        let briefs = try await source.briefs(plan.areas, interval, plan.appName, now)
         try Task.checkCancellation()
-        guard index < turns.count else { return }
-        turns[index].briefs = briefs
-        turns[index].suggestions = Self.suggestions(after: briefs, asked: question)
-        guard explain else {
-            turns[index].summaryOnly = true
-            turns[index].phase = .done
-            return
+        let present = update(id) {
+            $0.briefs = briefs
+            $0.suggestions = Self.suggestions(after: briefs, asked: question)
+            if !explain {
+                $0.summaryOnly = true
+                $0.phase = .done
+            } else {
+                $0.phase = .answering
+            }
         }
-        turns[index].phase = .answering
+        guard present, explain else { return }
         for try await text in engine.answer(question, briefs: briefs, now: now) {
-            guard index < turns.count else { return }
-            turns[index].answer = text
+            guard update(id, { $0.answer = text }) else { return }
         }
-        turns[index].phase = .done
+        update(id) { $0.phase = .done }
     }
 
     /// Two useful next questions: what to do when something stood out, and a

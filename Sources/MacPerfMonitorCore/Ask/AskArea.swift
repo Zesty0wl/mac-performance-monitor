@@ -175,16 +175,20 @@ public struct AskApp: Codable, Sendable, Hashable {
     public var kind: AskProcessKind
     /// The app to quit for this process, when it is one or belongs to one.
     public var owner: String?
+    /// Whether its share is big enough to be a cause. A process using 2% of a
+    /// busy processor is listed for context, never blamed or quit.
+    public var major: Bool
 
     public init(
         name: String, identity: ProcessIdentity, kind: AskProcessKind = .app, owner: String? = nil,
-        usage: String
+        major: Bool = true, usage: String
     ) {
         self.name = name
         self.identity = identity
         self.usage = usage
         self.kind = kind
         self.owner = owner
+        self.major = major
     }
 }
 
@@ -245,7 +249,9 @@ public struct AreaBrief: Codable, Sendable, Hashable {
                     ? t("Apps using the most (normal amounts, not a problem):")
                     : t("Apps using the most:"))
             lines += apps.map { app in
-                "- \"\(app.name)\"" + (app.kind.note.map { " (\($0))" } ?? "") + ": \(app.usage)"
+                "- \"\(app.name)\"" + (app.kind.note.map { " (\($0))" } ?? "")
+                    + (app.major ? "" : " (" + t("a small share, not the cause") + ")")
+                    + ": \(app.usage)"
             }
         }
         lines += notable.map { "- " + t("Worth noting: %@", $0) }

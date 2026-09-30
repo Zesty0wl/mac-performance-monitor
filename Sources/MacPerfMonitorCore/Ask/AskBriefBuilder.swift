@@ -133,7 +133,11 @@ public enum AskBriefBuilder {
         case .overall, .neuralEngine:
             break
         case .processor where brief.status >= .busy:
-            steps += quitAdvice(brief.apps, fallback: t("Quit apps you are not using."))
+            steps += quitAdvice(
+                brief.apps,
+                fallback: t(
+                    "It usually passes on its own. If the Mac stays this busy for hours, restarting it helps."
+                ))
         case .memory:
             if let grower = growth.first(where: { $0.growthBytes >= 256 * 1_048_576 }) {
                 steps.append(
@@ -171,7 +175,7 @@ public enum AskBriefBuilder {
     /// "Quit X" only for something that can be quit: an app, or the app a
     /// helper belongs to. A busy part of macOS gets patience instead.
     static func quitAdvice(_ apps: [AskApp], fallback: String?) -> [String] {
-        guard let top = apps.first else { return fallback.map { [$0] } ?? [] }
+        guard let top = apps.first(where: \.major) else { return fallback.map { [$0] } ?? [] }
         switch top.kind {
         case .app:
             return [
@@ -237,7 +241,13 @@ public enum AskBriefBuilder {
         } else if flagged.isEmpty {
             headline = t("Your Mac is busy but coping: %@.", list(busy.map(\.area.title)))
         } else {
-            headline = t("Worth a look: %@.", list(flagged.map(\.area.title)))
+            // Each part under its own status's words, the more serious first.
+            let attention = flagged.filter { $0.status == .attention }.map(\.area.title)
+            let unusual = flagged.filter { $0.status == .unusual }.map(\.area.title)
+            headline = [
+                attention.isEmpty ? nil : t("Needs attention: %@.", list(attention)),
+                unusual.isEmpty ? nil : t("Worth a look: %@.", list(unusual)),
+            ].compactMap { $0 }.joined(separator: " ")
         }
         var apps: [AskApp] = []
         for part in (flagged + busy) {
@@ -298,16 +308,24 @@ public enum AskBriefBuilder {
             guard share >= 0.5 else { return nil }
             return AskApp(
                 name: app.name, identity: app.identity, kind: app.kind, owner: app.owner,
+                major: share >= 10,
                 usage: share < 1
                     ? t("under 1%% of the processor on average")
                     : t("about %@ of the processor on average", AskWords.percent(share)))
         }.prefix(3)
+        var notable: [String] = []
+        if status >= .busy, !apps.contains(where: \.major) {
+            notable.append(
+                t(
+                    "No single app stands out: lots of smaller tasks are adding up, as happens during updates, indexing or builds."
+                ))
+        }
         return AreaBrief(
             area: .processor, start: input.start, end: input.end, status: status,
             headline: headline,
             facts: facts,
             normal: normal.map { t("about %@ busy on average", AskWords.percent($0)) },
-            apps: Array(apps),
+            apps: Array(apps), notable: notable,
             chart: AskChartLink(
                 title: AskArea.processor.title, laneIDs: ["cpu", "process.cpu"], start: input.start,
                 end: input.end, processes: apps.map(\.identity)))
@@ -448,6 +466,7 @@ public enum AskBriefBuilder {
         let apps = input.apps.filter { $0.average >= 1 }.prefix(3).map {
             AskApp(
                 name: $0.name, identity: $0.identity, kind: $0.kind, owner: $0.owner,
+                major: $0.average >= 20,
                 usage: t("about %@ of the graphics chip on average", AskWords.percent($0.average)))
         }
         return AreaBrief(
@@ -551,8 +570,10 @@ public enum AskBriefBuilder {
                     AskWords.time(down.peakDate)))
             let total = down.mean + up.mean
             let ratio = normal.map { total / max($0, 50_000) } ?? 1
+            // Several times this Mac's quiet normal is still small in absolute
+            // terms on most connections; only a real volume is worth a look.
             status =
-                ratio >= 3 && total >= 500_000 ? .unusual : total >= 1_000_000 ? .busy : .calm
+                ratio >= 3 && total >= 5_000_000 ? .unusual : total >= 1_000_000 ? .busy : .calm
             headline =
                 total < 20_000
                 ? t("Quiet.")
@@ -669,6 +690,7 @@ public enum AskBriefBuilder {
             guard total > 0, app.average > 0 else { return nil }
             return AskApp(
                 name: app.name, identity: app.identity, kind: app.kind, owner: app.owner,
+                major: app.average / total >= 0.25,
                 usage: t(
                     "about %@ of the energy used by apps",
                     AskWords.percent(app.average / total * 100)))

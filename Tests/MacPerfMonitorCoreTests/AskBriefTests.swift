@@ -190,9 +190,9 @@ final class AskBriefTests: XCTestCase {
             "Your Mac is running smoothly.")
 
         let memory = AreaBrief(
-            area: .memory, start: now, end: now, status: .attention, headline: "High.")
+            area: .memory, start: now, end: now, status: .unusual, headline: "Moderate.")
         let overall = AskBriefBuilder.overall([calm, memory], start: now, end: now)
-        XCTAssertEqual(overall.status, .attention)
+        XCTAssertEqual(overall.status, .unusual)
         XCTAssertEqual(overall.headline, "Worth a look: Memory.")
     }
 
@@ -266,6 +266,34 @@ final class AskBriefTests: XCTestCase {
         XCTAssertEqual(AskBriefBuilder.brief(memory).status, .busy)
         memory.points = points { point, _ in point.pressurePercent = 55 }
         XCTAssertEqual(AskBriefBuilder.brief(memory).status, .unusual)
+    }
+
+    func testSmallSharesAreNeverBlamed() {
+        var busy = input(.processor)
+        busy.points = points { point, _ in point.cpuLoad = 0.8 }
+        busy.coreCount = 11
+        busy.apps = [
+            AskAppUsage(
+                identity: app, name: "wdavdaemon_enterprise", average: 22, kind: .app,
+                owner: "Microsoft Defender")
+        ]
+        let brief = AskBriefBuilder.brief(busy)
+        XCTAssertEqual(brief.apps.first?.major, false)
+        XCTAssertFalse(
+            brief.advice.contains { $0.contains("Microsoft Defender") }, brief.advice.description)
+        XCTAssertTrue(brief.notable.contains { $0.hasPrefix("No single app stands out") })
+        XCTAssertTrue(brief.promptText.contains("a small share, not the cause"))
+
+        let attention = AreaBrief(
+            area: .memory, start: now, end: now, status: .attention, headline: "High.")
+        XCTAssertEqual(
+            AskBriefBuilder.overall([attention], start: now, end: now).headline,
+            "Needs attention: Memory.")
+        let network = AreaBrief(
+            area: .network, start: now, end: now, status: .unusual, headline: "Busy.")
+        XCTAssertEqual(
+            AskBriefBuilder.overall([attention, network], start: now, end: now).headline,
+            "Needs attention: Memory. Worth a look: Network.")
     }
 
     // MARK: Plans

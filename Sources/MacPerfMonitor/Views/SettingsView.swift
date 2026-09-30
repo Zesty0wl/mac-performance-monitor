@@ -122,7 +122,7 @@ private struct GeneralSettingsView: View {
                     Text("Ask About This Mac")
                 } footer: {
                     Text(
-                        "Ask questions about your Mac in plain words. Answers use Apple's on-device model; nothing leaves this Mac, and conversations are cleared when Ask closes."
+                        "Ask questions about your Mac in plain words. Answers use Apple Intelligence on this Mac; nothing leaves it, and conversations are cleared when Ask closes."
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)

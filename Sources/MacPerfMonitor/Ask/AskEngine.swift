@@ -51,6 +51,8 @@ enum AskEngineError: LocalizedError {
 @MainActor
 protocol AskEngine: AnyObject {
     var unavailableReason: AskUnavailableReason? { get }
+    /// The model as macOS names it ("AFM 3 Core Advanced"), when it says.
+    var modelName: String? { get }
     /// `previous` is the question before, so a follow-up keeps its subject.
     func plan(_ question: String, previous: String?, now: Date) async throws -> AskPlan
     /// Streams the answer's text so far, growing with each element.
@@ -76,6 +78,7 @@ enum AskEngines {
 @MainActor
 final class UnavailableAskEngine: AskEngine {
     var unavailableReason: AskUnavailableReason? { .needsNewerMacOS }
+    var modelName: String? { nil }
     func plan(_ question: String, previous: String?, now: Date) async throws -> AskPlan {
         throw AskEngineError.unavailable(.needsNewerMacOS)
     }

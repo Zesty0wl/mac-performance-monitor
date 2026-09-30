@@ -24,6 +24,12 @@ final class FoundationAskEngine: AskEngine {
         }
     }
 
+    var modelName: String? {
+        guard unavailableReason == nil else { return nil }
+        let name = model.variant.displayName.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? nil : name
+    }
+
     func plan(_ question: String, previous: String?, now: Date) async throws -> AskPlan {
         if let reason = unavailableReason { throw AskEngineError.unavailable(reason) }
         let planner = LanguageModelSession(

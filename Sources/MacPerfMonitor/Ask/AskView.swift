@@ -171,7 +171,14 @@ struct AskView: View {
                 }
             }
             Text(
-                "Answers come from Apple's on-device model and stay on this Mac. They can be wrong, so check the facts behind them."
+                model.modelName.map {
+                    t(
+                        "Answers by Apple Intelligence (%@), running on this Mac. They can be wrong, so check the facts behind them.",
+                        $0)
+                }
+                    ?? t(
+                        "Answers by Apple Intelligence, running on this Mac. They can be wrong, so check the facts behind them."
+                    )
             )
             .font(.caption2)
             .foregroundStyle(.tertiary)
@@ -220,8 +227,11 @@ struct AskStatusPill: View {
     let status: AskStatus
 
     var body: some View {
+        // Always one line: the tile's title gives way before the pill wraps.
         Text(status.title)
             .font(.caption.weight(.medium))
+            .lineLimit(1)
+            .fixedSize()
             .padding(.horizontal, 8)
             .padding(.vertical, 2)
             .foregroundStyle(status.color)
@@ -245,6 +255,7 @@ struct AskAreaTile: View {
                     Text(brief.area.title)
                         .font(.callout.weight(.semibold))
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     Spacer(minLength: 4)
                     AskStatusPill(status: brief.status)
                 }
@@ -315,6 +326,7 @@ struct AskTurnView: View {
                     .textSelection(.enabled)
             }
             VStack(alignment: .leading, spacing: 14) {
+                AskSourceLabel(summaryOnly: turn.summaryOnly)
                 progress
                 if !turn.answer.isEmpty {
                     Text(turn.answer)
@@ -388,6 +400,21 @@ struct AskTurnView: View {
         default:
             EmptyView()
         }
+    }
+}
+
+/// Who wrote an answer: Apple Intelligence, or the app's own readings when
+/// the model was not used.
+struct AskSourceLabel: View {
+    let summaryOnly: Bool
+
+    var body: some View {
+        Label(
+            summaryOnly ? t("From your Mac's readings") : t("Apple Intelligence"),
+            systemImage: summaryOnly ? "gauge.with.dots.needle.50percent" : "apple.intelligence"
+        )
+        .font(.caption.weight(.medium))
+        .foregroundStyle(.secondary)
     }
 }
 
