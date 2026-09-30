@@ -31,7 +31,7 @@ public enum InsightEngine {
         /// What produced the insight, so the UI can pick an icon per source.
         public enum Kind: String, Sendable {
             case leak, pressure, attribution, stepChange, swap, rosetta, cpu, network
-            case thermalDrift
+            case thermalDrift, displayCapture
             case allClear
         }
 
@@ -104,6 +104,9 @@ public enum InsightEngine {
         /// the hour tier by the caller (see `ThermalDrift`). Nil disables the
         /// dust insight.
         public var thermalDrift: ThermalDrift.Finding?
+        /// Concurrent display-service and capture-helper load over fresh,
+        /// sustained process history. Nil when coverage or evidence is missing.
+        public var displayCapture: DisplayCaptureLoad.Finding?
 
         public init(
             now: Date = Date(),
@@ -118,7 +121,8 @@ public enum InsightEngine {
             cpu: CPUSample? = nil,
             cpuConsumers: [ProcessConsumer] = [],
             networkConsumers: [ProcessConsumer] = [],
-            thermalDrift: ThermalDrift.Finding? = nil
+            thermalDrift: ThermalDrift.Finding? = nil,
+            displayCapture: DisplayCaptureLoad.Finding? = nil
         ) {
             self.now = now
             self.totalRAM = totalRAM
@@ -133,6 +137,7 @@ public enum InsightEngine {
             self.cpuConsumers = cpuConsumers
             self.networkConsumers = networkConsumers
             self.thermalDrift = thermalDrift
+            self.displayCapture = displayCapture
         }
     }
 
@@ -174,6 +179,7 @@ public enum InsightEngine {
         found += cpuInsights(inputs)
         found += networkInsights(inputs)
         found += thermalDriftInsights(inputs)
+        found += displayCaptureInsights(inputs)
 
         guard !found.isEmpty else {
             return [
@@ -201,6 +207,27 @@ public enum InsightEngine {
     }
 
     // MARK: - Sources
+
+    /// Capture can tax the display service even with spare total CPU capacity.
+    private static func displayCaptureInsights(_ inputs: Inputs) -> [Insight] {
+        guard let finding = inputs.displayCapture else { return [] }
+        let helper = finding.helper
+        let percent = String(Int(finding.windowServerCPU.rounded()))
+        return [
+            Insight(
+                id: "display-capture-\(helper.pid)-\(helper.startTime.timeIntervalSince1970)",
+                kind: .displayCapture,
+                severity: .advisory,
+                headline: t("Screen capture may be slowing your desktop"),
+                detail: t(
+                    "WindowServer averaged %1$@%% of one core over 2 min while %2$@ and replayd were also busy. Screen capture may be contributing to sluggish input. If capture is not needed, stop it in the owning app and compare responsiveness.",
+                    percent, helper.displayName),
+                metricText: "\(percent)%",
+                identity: helper.id,
+                processName: helper.displayName,
+                executablePath: helper.executablePath)
+        ]
+    }
 
     /// The dust signal: fans measurably faster at the same die temperature
     /// than weeks ago. Advisory, one card, hardware-care rather than software.

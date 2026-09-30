@@ -6,6 +6,14 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Added
+
+- Insights can flag sustained WindowServer and replayd activity alongside a
+  busy Computer Use capture helper, even when total CPU and memory pressure
+  look normal. The card suggests stopping unneeded capture in its owning app
+  and comparing responsiveness. It uses existing readings and does not record
+  the screen or stop processes.
+
 ### Fixed
 
 - The menu bar item keeps its place after an update ([#120](https://github.com/Zesty0wl/mac-performance-monitor/issues/120)).
