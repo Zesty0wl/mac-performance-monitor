@@ -952,6 +952,30 @@ enum MemoryMetrics {
 /// persisted `cpuLoad` history; the headline, split, and load come from the live
 /// (smoothed) sample.
 enum CPUMetrics {
+    /// The CPU Usage card over a history window, drawn like the memory cards
+    /// beside it (average line with its peak and minimum band). The
+    /// Dashboard's sixth card: Swap has its own panel there.
+    static func windowCard(
+        cpu: CPUSample?, window: SystemHistoryWindow, includeSamples: Bool = true
+    ) -> MetricCardData {
+        var card = cards(cpu: cpu, history: [], span: 0)[0]
+        func percent(_ column: SystemHistoryWindow.Column) -> ArraySlice<Double> {
+            window.values(column).map { $0 * 100 }[...]
+        }
+        let values = percent(.cpuLoad)
+        if includeSamples {
+            card.samples = zip(window.timestamps, values).map {
+                MetricSample(date: Date(timeIntervalSince1970: $0), value: $1)
+            }
+        }
+        card.yDomain = 0...100
+        card.column = LiveColumn(
+            times: window.timestamps, values: values, highs: percent(.cpuLoadPeak),
+            lows: percent(.cpuLoadMinimum), weights: window.values(.sampleCount),
+            durations: window.values(.bucketDuration))
+        return card
+    }
+
     static func cards(
         cpu: CPUSample?, history: [SystemHistoryPoint], span: TimeInterval
     ) -> [MetricCardData] {

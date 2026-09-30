@@ -693,13 +693,16 @@ private final class DashboardTimelineStore: ObservableObject {
         self.totalRAM = totalRAM
         memoryScale = MemoryMetrics.scale(window: window, total: totalRAM)
         refreshAutoDomains(reset: true)
-        cardTemplates = MemoryMetrics.cards(system: live, window: window, scale: memoryScale)
-            .enumerated().map { index, card in
-                var template = card
-                template.samples = []
-                template.live = index < cardFeeds.count ? cardFeeds[index] : nil
-                return template
-            }
+        latestCPU = cpu
+        cardTemplates = Self.cards(
+            system: live, cpu: cpu, window: window, scale: memoryScale
+        )
+        .enumerated().map { index, card in
+            var template = card
+            template.samples = []
+            template.live = index < cardFeeds.count ? cardFeeds[index] : nil
+            return template
+        }
         publishCharts(resetDomains: true)
         publishReadouts(
             cpu: cpu, liveCPU: liveCPU, networkRates: nil, diskRates: nil, disk: nil)
@@ -720,6 +723,7 @@ private final class DashboardTimelineStore: ObservableObject {
         latestSystem = system
         pressureLevel = system.pressureLevel
         cpuLevel = CPULevel(fraction: cpu?.totalUsage ?? 0)
+        latestCPU = cpu ?? latestCPU
         if totalRAM == 0, system.totalRAM > 0 { totalRAM = system.totalRAM }
         appendThermalPoint(system)
         guard publish else { return }
@@ -775,6 +779,23 @@ private final class DashboardTimelineStore: ObservableObject {
         let removeCount = max(0, firstInRange - 1)
         if removeCount > 0 { thermalPoints.removeFirst(removeCount) }
         thermalNeedsRefresh = true
+    }
+
+    /// The latest smoothed CPU sample, for the CPU card's headline.
+    private var latestCPU: CPUSample?
+
+    /// The card row: five memory cards, then CPU. Swap is left out here
+    /// because the page has its own Swap panel, and the row had no processor
+    /// history at all.
+    static func cards(
+        system: SystemSample?, cpu: CPUSample?, window: SystemHistoryWindow,
+        scale: MemoryCardScale?, includeSamples: Bool = true
+    ) -> [MetricCardData] {
+        Array(
+            MemoryMetrics.cards(
+                system: system, window: window, scale: scale, includeSamples: includeSamples
+            ).prefix(5))
+            + [CPUMetrics.windowCard(cpu: cpu, window: window, includeSamples: includeSamples)]
     }
 
     /// The spacing of the rows the current range loaded from the database:
@@ -846,8 +867,9 @@ private final class DashboardTimelineStore: ObservableObject {
         }
         thermalFeed.publish(thermal, replacingHistory: resetDomains)
         thermalNeedsRefresh = false
-        let cards = MemoryMetrics.cards(
-            system: latestSystem, window: window, scale: memoryScale, includeSamples: false)
+        let cards = Self.cards(
+            system: latestSystem, cpu: latestCPU, window: window, scale: memoryScale,
+            includeSamples: false)
         for (index, pair) in zip(cardFeeds, cards).enumerated() {
             let (feed, card) = pair
             let tint = index == 0 ? Color.orange : card.tint
@@ -856,7 +878,7 @@ private final class DashboardTimelineStore: ObservableObject {
             let oldCeiling = resetDomains ? 0 : (feed.yDomain?.upperBound ?? 0)
             let ceiling = max(
                 card.yDomain?.upperBound ?? 1, oldCeiling, MenuChart.niceUpperBound(peak * 1.1))
-            let domainY = index == 0 ? 0...100 : 0...ceiling
+            let domainY = card.unit == .percent ? 0...100 : 0...ceiling
             feed.publish(
                 value: card.value, tint: NSColor(tint), column: card.column,
                 xDomain: domain, yDomain: domainY,
