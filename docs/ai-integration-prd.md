@@ -2,8 +2,10 @@
 
 Date: 2026-09-15
 
-Status: Full feature proposed; a smaller opt-in preview is in development on main.
-No public preview release has been published as part of this work.
+Status: Superseded for Ask. Part B and the preview described in section 2 were
+replaced on 2026-09-30 by [Ask About This Mac: Redesign](ask-redesign.md), which
+removes the preview's report intents, local model downloads and inference worker.
+Part A (Siri and App Intents) remains a proposal.
 
 Audience: The product owner and engineers building Mac Performance Monitor.
 

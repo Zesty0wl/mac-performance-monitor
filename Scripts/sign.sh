@@ -42,15 +42,11 @@ if [[ -f "$HELPER" ]]; then
     "$HELPER"
 fi
 
-LLAMA="$APP/Contents/Frameworks/llama.framework"
-if [[ -d "$LLAMA" ]]; then
-  codesign --force --options runtime --timestamp --sign "$IDENTITY" "$LLAMA"
-fi
-
-INFERENCE="$APP/Contents/MacOS/MacPerfMonitorInference"
-if [[ -x "$INFERENCE" ]]; then
+MPM="$APP/Contents/MacOS/mpm"
+if [[ -f "$MPM" ]]; then
+  echo "==> Signing mpm"
   codesign --force --options runtime --timestamp \
-    --identifier "uk.co.bzwrd.macperfmonitor.inference" --sign "$IDENTITY" "$INFERENCE"
+    --identifier "uk.co.bzwrd.macperfmonitor.mpm" --sign "$IDENTITY" "$MPM"
 fi
 
 # Sparkle.framework: sign inside-out — the XPC services, the Updater.app progress

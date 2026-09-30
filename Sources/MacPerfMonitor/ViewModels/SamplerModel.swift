@@ -278,61 +278,6 @@ final class SamplerModel: ObservableObject {
     /// the cheap system sample. Read and written only on `queue`.
     private var processConsumers = 0
 
-    private struct AskReadRequest {
-        let minimumScanCount: UInt64
-        let continuation: CheckedContinuation<[AskReport], Error>
-    }
-
-    private final class AskReadCancellation: @unchecked Sendable {
-        private let lock = NSLock()
-        private var cancelled = false
-        var isCancelled: Bool { lock.withLock { cancelled } }
-        func cancel() { lock.withLock { cancelled = true } }
-    }
-
-    private var askReadRequests: [UUID: AskReadRequest] = [:]
-    private var askScanCount: UInt64 = 0
-    private var askSystemHasBaseline = false
-
-    func readAskReport(topic: AskTopic) async throws -> AskReport {
-        try await readAskReports().first(where: { $0.topic == topic })
-            ?? AskReport.make(topic: topic, snapshot: nil)
-    }
-
-    func readAskReports() async throws -> [AskReport] {
-        let requestID = UUID()
-        let cancellation = AskReadCancellation()
-        return try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { continuation in
-                queue.async {
-                    guard !cancellation.isCancelled else {
-                        continuation.resume(throwing: CancellationError())
-                        return
-                    }
-                    guard self.timer != nil, self.askReadRequests.count < 4 else {
-                        continuation.resume(returning: [])
-                        return
-                    }
-                    self.askReadRequests[requestID] = AskReadRequest(
-                        minimumScanCount: self.askScanCount + 2,
-                        continuation: continuation)
-                    self.tick(forceHeavy: true)
-                    self.queue.asyncAfter(deadline: .now() + 8) { [weak self] in
-                        guard let request = self?.askReadRequests.removeValue(forKey: requestID)
-                        else { return }
-                        request.continuation.resume(returning: [])
-                    }
-                }
-            }
-        } onCancel: {
-            cancellation.cancel()
-            self.queue.async {
-                self.askReadRequests.removeValue(forKey: requestID)?.continuation.resume(
-                    throwing: CancellationError())
-            }
-        }
-    }
-
     // MARK: Dial-rate refresh of the rows on screen
 
     /// The processes whose table rows are on screen, as the table reports
@@ -1157,7 +1102,6 @@ final class SamplerModel: ObservableObject {
         // recorded nor charted: a recorded zero starts every run after a gap
         // with a vertical climb from the axis.
         let hasBaseline = sampler.hasBaseline
-        askSystemHasBaseline = hasBaseline
         let (system, cpu, battery, network, disk, gpu) = sampler.tickSystem(
             readGPU: wantsGPUSampling,
             gpuReadInterval: gpuConsumers > 0 ? 0 : 1)
@@ -1196,14 +1140,14 @@ final class SamplerModel: ObservableObject {
         let processAlerts = alertConfig.processCeilingEnabled || alertConfig.leakEnabled
         let interactive = processConsumers > 0 || popoverOpen
         let needProcesses =
-            persistenceEnabled || interactive || processAlerts || !askReadRequests.isEmpty
+            persistenceEnabled || interactive || processAlerts
         // When alerts are the *only* reason to scan, do it on a slow cadence:
         // the scan is the expensive part of a tick, and a leak or ceiling alert
         // that arrives within the minute is soon enough. Recording or anything
         // on screen goes back to the usual cadences.
         alertScanTickCounter += 1
         let alertsAreTheOnlyReason =
-            !persistenceEnabled && !interactive && processAlerts && askReadRequests.isEmpty
+            !persistenceEnabled && !interactive && processAlerts
         let alertScanDue = alertScanTickCounter >= alertScanEveryTicks
         // Two cadences: the fine SCAN (feeds persistence + trails + popover) runs at
         // `heavyEveryTicks`; the main-window UI publish/alerts run at the coarser
@@ -1218,7 +1162,6 @@ final class SamplerModel: ObservableObject {
         let force = forceHeavy || forceHeavyPending
         let scanDue =
             force || !hasProcessSnapshot || heavyTickCounter >= heavyEveryTicks
-            || !askReadRequests.isEmpty
         let tableDue = !hasProcessSnapshot || tableTickCounter >= tableEveryTicks
         let alertsDue =
             force
@@ -1413,19 +1356,6 @@ final class SamplerModel: ObservableObject {
             system: last.system, processes: result.processes,
             unreadableProcessCount: result.unreadableProcessCount, cpu: last.cpu,
             battery: last.battery, network: last.network, disk: last.disk)
-        askScanCount += 1
-        if askSystemHasBaseline {
-            let ready = askReadRequests.filter { $0.value.minimumScanCount <= askScanCount }
-            for (requestID, request) in ready {
-                askReadRequests.removeValue(forKey: requestID)
-                request.continuation.resume(
-                    returning: AskTopic.allCases.map {
-                        AskReport.make(
-                            topic: $0, snapshot: snapshot,
-                            networkTrackingEnabled: perAppNetworkEnabled)
-                    })
-            }
-        }
         if !didLogFirstTick {
             didLogFirstTick = true
             AppLog.sampler.notice(
@@ -2581,6 +2511,120 @@ final class SamplerModel: ObservableObject {
 
     // MARK: - History tab (M6)
 
+    // MARK: Ask
+
+    /// The newest live readings, for the "right now" line in each brief.
+    private func askLiveReading(now: Date) -> AskLiveReading {
+        var live = AskLiveReading(date: now)
+        let system = liveSystem ?? latest?.system
+        live.cpuPercent = latest.map { $0.cpu.totalUsage * 100 } ?? system.map { $0.cpuLoad * 100 }
+        live.pressurePercent = system?.pressurePercent
+        live.gpuPercent = system?.gpuUtilization
+        live.aneMillisecondsPerSecond = system?.aneTimeMillisecondsPerSecond
+        live.networkInBytesPerSec = system?.networkInBytesPerSec
+        live.networkOutBytesPerSec = system?.networkOutBytesPerSec
+        live.diskBusyPercent = system?.diskUtilizationPercent
+        live.bootFreeBytes = system?.bootVolumeFreeBytes
+        live.bootTotalBytes = system?.bootVolumeTotalBytes
+        live.thermal = system?.thermalPressure
+        live.cpuDieC = system?.cpuDieC
+        live.fanRPM = system?.fanRPM
+        if let battery = latest?.battery, battery.isPresent {
+            live.batteryCharge = battery.chargePercent
+            live.batteryIsCharging = battery.isCharging
+            live.onExternalPower = battery.isOnAC
+        } else if let system, system.batteryPresent {
+            live.batteryCharge = system.batteryCharge
+            live.batteryIsCharging = system.batteryIsCharging
+        }
+        return live
+    }
+
+    /// Area briefs for a period, built on the read queue from recorded history
+    /// and the live readings. Asking for `.overall` returns the overall brief
+    /// first, then the parts that stood out, so an answer can explain them.
+    func askBriefs(
+        areas: [AskArea], interval: DateInterval, appName: String? = nil, now: Date = Date(),
+        includeApps: Bool = true
+    ) async throws -> [AreaBrief] {
+        let current = abs(interval.end.timeIntervalSince(now)) < 120
+        let live = current ? askLiveReading(now: now) : nil
+        let store = self.store
+        let tracking = UserDefaults.standard.bool(forKey: Self.perAppNetworkDefaultsKey)
+        let cores = max(1, latest?.cpu.cores.count ?? ProcessInfo.processInfo.activeProcessorCount)
+        let hasBattery =
+            latest?.battery?.isPresent ?? (liveSystem ?? latest?.system)?.batteryPresent ?? false
+        return try await withCheckedThrowingContinuation { continuation in
+            readQueue.async {
+                continuation.resume(
+                    with: Result {
+                        let history = try store?.askHistory(
+                            start: interval.start, end: interval.end)
+                        func build(_ area: AskArea, apps: Bool) throws -> AreaBrief {
+                            var input =
+                                try store?.askInputs(
+                                    area: area, start: interval.start, end: interval.end, now: now,
+                                    appName: appName, history: history, includeApps: apps)
+                                ?? AskBriefInputs(
+                                    area: area, start: interval.start, end: interval.end, now: now)
+                            input.live = live
+                            input.recording = store != nil
+                            input.networkTracking = tracking
+                            input.coreCount = cores
+                            input.hasBattery = hasBattery
+                            return AskBriefBuilder.brief(input)
+                        }
+                        guard areas.contains(.overall) else {
+                            return try areas.map { try build($0, apps: includeApps) }
+                        }
+                        // Every part's status first, without the costly app
+                        // ranking; then apps only for the parts that stood out.
+                        var parts = try AskArea.parts.map { try build($0, apps: false) }
+                        let standouts = parts.filter { $0.status >= .busy }
+                            .sorted { $0.status > $1.status }.prefix(2).map(\.area)
+                        var detailed: [AreaBrief] = []
+                        for area in standouts {
+                            let brief = try build(area, apps: includeApps)
+                            detailed.append(brief)
+                            if let index = parts.firstIndex(where: { $0.area == area }) {
+                                parts[index] = brief
+                            }
+                        }
+                        return [
+                            AskBriefBuilder.overall(parts, start: interval.start, end: interval.end)
+                        ] + detailed
+                    })
+            }
+        }
+    }
+
+    /// Every part's brief over the last hour, for the tiles on Ask's start page.
+    func askOverview(now: Date = Date()) async throws -> [AreaBrief] {
+        let earliest = try await askEarliestRecord()
+        let interval = AskTimeSpec.default.interval(now: now, earliest: earliest)
+        let parts = try await askBriefs(
+            areas: AskArea.parts, interval: interval, now: now, includeApps: false)
+        return [AskBriefBuilder.overall(parts, start: interval.start, end: interval.end)] + parts
+    }
+
+    func askResolve(_ identities: [ProcessIdentity]) async -> [ProcessIdentity] {
+        guard let store, !identities.isEmpty else { return [] }
+        return await withCheckedContinuation { continuation in
+            readQueue.async {
+                continuation.resume(returning: (try? store.askResolve(identities)) ?? [])
+            }
+        }
+    }
+
+    func askEarliestRecord() async throws -> Date? {
+        guard let store else { return nil }
+        return try await withCheckedThrowingContinuation { continuation in
+            readQueue.async {
+                continuation.resume(with: Result { try store.askEarliestRecord() })
+            }
+        }
+    }
+
     func loadExplorerWindow(
         domain: ClosedRange<Date>, identities: [ProcessIdentity],
         completion: @escaping (Result<ExplorerWindowData, Error>) -> Void
@@ -2612,21 +2656,6 @@ final class SamplerModel: ObservableObject {
             }
             DispatchQueue.main.async { completion(result) }
         }
-    }
-
-    func readAskData(
-        _ call: AskToolCall, at capturedAt: Date, process: ProcessIdentity?
-    ) async throws -> AskDataRead {
-        try Task.checkCancellation()
-        guard let store else { throw AskInvestigationError.unavailable }
-        let result: AskDataRead = try await withCheckedThrowingContinuation { continuation in
-            readQueue.async {
-                continuation.resume(
-                    with: Result { try store.readAskData(call, at: capturedAt, process: process) })
-            }
-        }
-        try Task.checkCancellation()
-        return result
     }
 
     func searchExplorerProcesses(

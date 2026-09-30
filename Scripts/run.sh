@@ -84,8 +84,7 @@ Scripts/bundle.sh "$CONFIG"
 
 APP="build/Mac Performance Monitor.app"
 HELPER="$APP/Contents/MacOS/MacPerfMonitorHelper"
-INFERENCE="$APP/Contents/MacOS/MacPerfMonitorInference"
-LLAMA="$APP/Contents/Frameworks/llama.framework"
+MPM="$APP/Contents/MacOS/mpm"
 
 ENTITLEMENTS="Resources/MacPerfMonitor.entitlements"
 
@@ -97,9 +96,6 @@ if [[ "$SIGN_MODE" == "identity" ]]; then
     exit 1
   }
   echo "==> Signing with identity: $IDENTITY"
-  codesign --force --options runtime --sign "$IDENTITY" "$LLAMA"
-  codesign --force --options runtime --identifier "uk.co.bzwrd.macperfmonitor.inference" \
-    --sign "$IDENTITY" "$INFERENCE"
   # Inside out: sign the nested helper before the enclosing app. The helper needs
   # no entitlements (it runs as root); the explicit --identifier makes its code
   # identity "uk.co.bzwrd.macperfmonitor.helper" so it satisfies the app's
@@ -109,6 +105,8 @@ if [[ "$SIGN_MODE" == "identity" ]]; then
       --identifier "uk.co.bzwrd.macperfmonitor.helper" \
       --sign "$IDENTITY" "$HELPER"
   fi
+  codesign --force --options runtime --identifier "uk.co.bzwrd.macperfmonitor.mpm" \
+    --sign "$IDENTITY" "$MPM"
   # Sparkle.framework must be signed inside-out with the SAME identity before the
   # app, or hardened-runtime library validation refuses to load it and the app
   # crashes at launch ("Library not loaded: @rpath/Sparkle.framework"). Mirrors
@@ -150,8 +148,6 @@ if [[ "$SIGN_MODE" == "identity" ]]; then
   fi
 else
   echo "==> Ad-hoc signing (helper coverage will NOT work; pass --developer-id to sign with your cert)"
-  codesign --force --sign - "$LLAMA"
-  codesign --force --identifier "uk.co.bzwrd.macperfmonitor.inference" --sign - "$INFERENCE"
   # NO --options runtime on this path, deliberately. Hardened Runtime turns on
   # library validation, which requires the app and every framework it loads to
   # share a Team ID. An ad-hoc signature carries NO team, and macOS does not treat
@@ -168,6 +164,7 @@ else
   if [[ -f "$HELPER" ]]; then
     codesign --force --identifier "uk.co.bzwrd.macperfmonitor.helper" --sign - "$HELPER"
   fi
+  codesign --force --identifier "uk.co.bzwrd.macperfmonitor.mpm" --sign - "$MPM"
   # Still sign Sparkle inside-out: codesign rejects a bundle that contains
   # unsigned nested code, and the vendored framework must match the app's
   # (ad-hoc) signing to keep the bundle seal valid.

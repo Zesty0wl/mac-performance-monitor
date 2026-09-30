@@ -38,6 +38,7 @@ private struct GeneralSettingsView: View {
     @EnvironmentObject private var components: AppComponentsManager
     @EnvironmentObject private var languageManager: AppLanguageManager
     /// The process-table, chart, and live sampler refresh interval.
+    @AppStorage(AskAvailability.enabledKey) private var askEnabled = true
     @AppStorage(SamplerModel.tableIntervalKey) private var tableInterval =
         SamplerModel.defaultTableInterval
 
@@ -114,7 +115,19 @@ private struct GeneralSettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
-            AskPreviewSettingsSection()
+            if AskAvailability.systemSupports {
+                Section {
+                    Toggle("Show Ask About This Mac", isOn: $askEnabled)
+                } header: {
+                    Text("Ask About This Mac")
+                } footer: {
+                    Text(
+                        "Ask questions about your Mac in plain words. Answers use Apple Intelligence on this Mac; nothing leaves it, and conversations are cleared when Ask closes."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+            }
         }
         .formStyle(.grouped)
     }
@@ -358,6 +371,17 @@ struct AlertsSettingsView: View {
                 caption("Notify when any single process exceeds the chosen memory footprint.")
             } header: {
                 Text("Process Over Ceiling")
+            }
+
+            Section {
+                Toggle(
+                    "A program busy for hours",
+                    isOn: $alertSettings.config.sustainedProcessCPUEnabled)
+                caption(
+                    "Notify when one program keeps about a core busy for an hour or more, such as a part of macOS stuck in a loop. Apps you are using only warn after three hours."
+                )
+            } header: {
+                Text("Busy For Hours")
             }
 
             Section {

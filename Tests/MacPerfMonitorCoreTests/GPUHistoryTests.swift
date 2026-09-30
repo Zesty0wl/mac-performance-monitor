@@ -344,13 +344,6 @@ final class GPUHistoryTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(reduced.anePowerWatts), 13.0 / 3, accuracy: 0.00001)
         XCTAssertEqual(reduced.minima?.anePowerWatts, 1)
         XCTAssertEqual(reduced.effectivePeaks.anePowerWatts, 9)
-        let energy = try store.readAskData(
-            AskToolCall(name: .systemHistory, metric: .energy), at: start.addingTimeInterval(300)
-        ).result
-        let fact = try XCTUnwrap(energy.facts.first { $0.id == "ane-power-mean" })
-        XCTAssertTrue(fact.value.hasSuffix(" W"))
-        XCTAssertFalse(fact.value.contains("%"))
-        XCTAssertTrue(fact.meaning.contains("estimate"))
     }
 
     func testGPUMemoryHistoryKeepsValidReadingWeightsAndBounds() throws {
@@ -513,28 +506,6 @@ final class GPUHistoryTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(window.values(.aneTimeMinimum).first).isNaN)
         XCTAssertEqual(window.values(.aneTimePeak).last, 720)
         XCTAssertEqual(window.points().last?.aneSampleIsPartial, false)
-    }
-
-    func testAskUsesANETimeInsteadOfZeroPowerAndKeepsCoverageLimits() throws {
-        let now = Date()
-        for offset in [-4.0, -2.0, 0.0] {
-            var sample = Make.system(timestamp: now.addingTimeInterval(offset), pressurePercent: 5)
-            sample.aneTimeMillisecondsPerSecond = offset == -4 ? nil : 750
-            sample.aneSampleIsPartial = offset == -4 ? nil : true
-            sample.anePowerWatts = 0
-            try store.insert(systemSample: sample)
-        }
-        let result = try store.readAskData(AskToolCall(name: .systemHistory, metric: .gpu), at: now)
-            .result
-        let fact = try XCTUnwrap(result.facts.first { $0.id == "ane-time-mean" })
-        XCTAssertTrue(fact.value.hasSuffix(" ms/s"))
-        XCTAssertFalse(fact.value.contains("%"))
-        XCTAssertTrue(fact.meaning.contains("not percent"))
-        XCTAssertTrue(result.limits.contains { $0.contains("partial") })
-        let energy = try store.readAskData(
-            AskToolCall(name: .systemHistory, metric: .energy), at: now
-        ).result
-        XCTAssertFalse(energy.facts.contains { $0.id.hasPrefix("ane-power") })
     }
 
     func testProcessGPUShareRoundTrip() throws {
