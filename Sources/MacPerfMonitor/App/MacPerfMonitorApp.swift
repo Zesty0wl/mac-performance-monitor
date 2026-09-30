@@ -134,6 +134,7 @@ struct MacPerfMonitorApp: App {
         Window(AppInfo.displayName, id: WindowID.main) {
             LocaleRootView(languageManager: appDelegate.languageManager) {
                 MainWindowGate()
+                    .windowFullScreenBehavior(.enabled)
                     .environmentObject(appDelegate.model)
                     .environment(\.samplerModel, appDelegate.model)
                     .environmentObject(appDelegate.model.menuLists)
