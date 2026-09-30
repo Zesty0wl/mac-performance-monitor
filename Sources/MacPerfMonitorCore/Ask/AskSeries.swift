@@ -119,3 +119,13 @@ enum AskWords {
         return t("%lld hours", Int64((seconds / 3600).rounded()))
     }
 }
+
+/// The period wording, for the app layer's prompts and headers.
+public enum AskFormatting {
+    /// The locale the app is displaying, which the model should answer in.
+    public static var locale: Locale { LocalizationTable.currentLocale }
+
+    public static func period(_ start: Date, _ end: Date, now: Date) -> String {
+        AskWords.period(start, end, now: now)
+    }
+}

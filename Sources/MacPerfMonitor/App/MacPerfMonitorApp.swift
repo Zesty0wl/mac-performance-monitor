@@ -31,6 +31,10 @@ enum MacPerfMonitorMain {
         if MainActor.assumeIsolated({ ChartBenchmark.runIfRequested() }) {
             exit(0)
         }
+        // Ask's model evaluation (see AskEvaluation). Headless, no history.
+        if MainActor.assumeIsolated({ AskEvaluation.runIfRequested() }) {
+            exit(0)
+        }
         SingleInstanceGuard.activateExistingAndExitIfRunning()
         AppLanguagePreflight.run()
         MacPerfMonitorApp.main()

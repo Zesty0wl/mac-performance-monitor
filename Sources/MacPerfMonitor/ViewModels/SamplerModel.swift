@@ -2511,6 +2511,93 @@ final class SamplerModel: ObservableObject {
 
     // MARK: - History tab (M6)
 
+    // MARK: Ask
+
+    /// The newest live readings, for the "right now" line in each brief.
+    private func askLiveReading(now: Date) -> AskLiveReading {
+        var live = AskLiveReading(date: now)
+        let system = liveSystem ?? latest?.system
+        live.cpuPercent = latest.map { $0.cpu.totalUsage * 100 } ?? system.map { $0.cpuLoad * 100 }
+        live.pressurePercent = system?.pressurePercent
+        live.gpuPercent = system?.gpuUtilization
+        live.aneMillisecondsPerSecond = system?.aneTimeMillisecondsPerSecond
+        live.networkInBytesPerSec = system?.networkInBytesPerSec
+        live.networkOutBytesPerSec = system?.networkOutBytesPerSec
+        live.diskBusyPercent = system?.diskUtilizationPercent
+        live.bootFreeBytes = system?.bootVolumeFreeBytes
+        live.bootTotalBytes = system?.bootVolumeTotalBytes
+        live.thermal = system?.thermalPressure
+        live.cpuDieC = system?.cpuDieC
+        live.fanRPM = system?.fanRPM
+        if let battery = latest?.battery, battery.isPresent {
+            live.batteryCharge = battery.chargePercent
+            live.batteryIsCharging = battery.isCharging
+            live.onExternalPower = battery.isOnAC
+        }
+        return live
+    }
+
+    /// Area briefs for a period, built on the read queue from recorded history
+    /// and the live readings. Asking for `.overall` returns the overall brief
+    /// first, then the parts that stood out, so an answer can explain them.
+    func askBriefs(
+        areas: [AskArea], interval: DateInterval, appName: String? = nil, now: Date = Date()
+    ) async throws -> [AreaBrief] {
+        let current = abs(interval.end.timeIntervalSince(now)) < 120
+        let live = current ? askLiveReading(now: now) : nil
+        let store = self.store
+        let tracking = UserDefaults.standard.bool(forKey: Self.perAppNetworkDefaultsKey)
+        let cores = max(1, latest?.cpu.cores.count ?? ProcessInfo.processInfo.activeProcessorCount)
+        let hasBattery = latest?.battery?.isPresent ?? false
+        return try await withCheckedThrowingContinuation { continuation in
+            readQueue.async {
+                continuation.resume(
+                    with: Result {
+                        let overall = areas.contains(.overall)
+                        let parts = overall ? AskArea.parts : areas
+                        let briefs = try parts.map { area -> AreaBrief in
+                            var input =
+                                try store?.askInputs(
+                                    area: area, start: interval.start, end: interval.end, now: now,
+                                    appName: appName)
+                                ?? AskBriefInputs(
+                                    area: area, start: interval.start, end: interval.end, now: now)
+                            input.live = live
+                            input.recording = store != nil
+                            input.networkTracking = tracking
+                            input.coreCount = cores
+                            input.hasBattery = hasBattery
+                            return AskBriefBuilder.brief(input)
+                        }
+                        guard overall else { return briefs }
+                        let standouts = briefs.filter { $0.status >= .busy }
+                            .sorted { $0.status > $1.status }.prefix(2)
+                        return [
+                            AskBriefBuilder.overall(
+                                briefs, start: interval.start, end: interval.end)
+                        ] + standouts
+                    })
+            }
+        }
+    }
+
+    /// Every part's brief over the last hour, for the tiles on Ask's start page.
+    func askOverview(now: Date = Date()) async throws -> [AreaBrief] {
+        let earliest = try await askEarliestRecord()
+        let interval = AskTimeSpec.default.interval(now: now, earliest: earliest)
+        let parts = try await askBriefs(areas: AskArea.parts, interval: interval, now: now)
+        return [AskBriefBuilder.overall(parts, start: interval.start, end: interval.end)] + parts
+    }
+
+    func askEarliestRecord() async throws -> Date? {
+        guard let store else { return nil }
+        return try await withCheckedThrowingContinuation { continuation in
+            readQueue.async {
+                continuation.resume(with: Result { try store.askEarliestRecord() })
+            }
+        }
+    }
+
     func loadExplorerWindow(
         domain: ClosedRange<Date>, identities: [ProcessIdentity],
         completion: @escaping (Result<ExplorerWindowData, Error>) -> Void

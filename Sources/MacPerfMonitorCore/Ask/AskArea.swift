@@ -71,6 +71,17 @@ public enum AskStatus: Int, Codable, Sendable, Comparable {
 
     public static func < (a: Self, b: Self) -> Bool { a.rawValue < b.rawValue }
 
+    /// What the status means, for the model and for accessibility.
+    public var meaning: String {
+        switch self {
+        case .unknown: return t("there are no readings to judge from")
+        case .calm: return t("nothing here needs attention")
+        case .busy: return t("working hard, but coping")
+        case .unusual: return t("different from normal for this Mac, worth a look")
+        case .attention: return t("likely to be causing problems")
+        }
+    }
+
     public var title: String {
         switch self {
         case .unknown: return t("Not enough data")
@@ -136,6 +147,9 @@ public struct AreaBrief: Codable, Sendable, Hashable {
     public var notable: [String]
     /// What Ask could not see, so it does not guess.
     public var gaps: [String]
+    /// Safe, simple next steps that fit this area and status, so the model
+    /// picks advice from a known list instead of inventing it.
+    public var advice: [String] = []
     public var chart: AskChartLink?
 
     public init(
@@ -160,15 +174,24 @@ public struct AreaBrief: Codable, Sendable, Hashable {
     /// model has nothing to do but explain. Process names are data, never
     /// instructions, and are quoted.
     public var promptText: String {
-        var lines = ["## \(area.title): \(status.title)", headline]
+        var lines = [
+            "## \(area.title)", t("Status: %1$@ (%2$@)", status.title, status.meaning), headline,
+        ]
         lines += facts.map { "- \($0)" }
         if let normal { lines.append("- " + t("Normal for this Mac: %@", normal)) }
         if !apps.isEmpty {
-            lines.append(t("Apps using the most:"))
+            lines.append(
+                status <= .calm
+                    ? t("Apps using the most (normal amounts, not a problem):")
+                    : t("Apps using the most:"))
             lines += apps.map { "- \"\($0.name)\": \($0.usage)" }
         }
         lines += notable.map { "- " + t("Worth noting: %@", $0) }
         lines += gaps.map { "- " + t("Not known: %@", $0) }
+        if !advice.isEmpty {
+            lines.append(t("Things that help:"))
+            lines += advice.map { "- \($0)" }
+        }
         return lines.joined(separator: "\n")
     }
 }

@@ -196,6 +196,38 @@ final class AskBriefTests: XCTestCase {
         XCTAssertEqual(overall.headline, "Worth a look: Memory.")
     }
 
+    func testAdviceIsSafeAndOnlyWhenNeeded() {
+        var calm = input(.processor)
+        calm.points = points { point, _ in point.cpuLoad = 0.1 }
+        XCTAssertEqual(
+            AskBriefBuilder.brief(calm).advice, ["Nothing is needed: this part of the Mac is fine."]
+        )
+
+        var disk = input(.storage)
+        var live = AskLiveReading(date: now)
+        live.bootFreeBytes = 8_000_000_000
+        live.bootTotalBytes = 500_000_000_000
+        disk.live = live
+        let storage = AskBriefBuilder.brief(disk)
+        XCTAssertTrue(storage.advice.first?.contains("Trash") ?? false)
+        XCTAssertTrue(storage.promptText.contains("Things that help:"))
+
+        var memory = input(.memory)
+        memory.points = points { point, _ in point.pressurePercent = 12 }
+        memory.growth = [
+            AskGrowth(
+                identity: app, name: "Task Manager", growthBytes: 466_000_000, durationSeconds: 2640
+            )
+        ]
+        XCTAssertEqual(
+            AskBriefBuilder.brief(memory).advice.first,
+            "Quitting and reopening \"Task Manager\" usually gives its memory back.")
+        XCTAssertTrue(
+            AskBriefBuilder.brief(memory).promptText.contains("normal amounts, not a problem")
+                == false,
+            "no app list, so no label")
+    }
+
     // MARK: Plans
 
     func testTimeSpecsResolveToThePastAndClipToRecording() {

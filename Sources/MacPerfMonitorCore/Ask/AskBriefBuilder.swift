@@ -111,10 +111,61 @@ public enum AskBriefBuilder {
                 brief.chart = chart
             }
         }
+        brief.advice = advice(for: brief, growth: input.growth)
         if let name = input.focusName, input.focus.isEmpty, input.area != .overall {
             brief.gaps.append(t("No app called \"%@\" was recorded in this time.", name))
         }
         return brief
+    }
+
+    /// Safe next steps for a newcomer, only when the area needs them. Nothing
+    /// here deletes files, changes settings, or needs Terminal.
+    static func advice(for brief: AreaBrief, growth: [AskGrowth] = []) -> [String] {
+        let app = brief.apps.first?.name
+        var steps: [String] = []
+        switch brief.area {
+        case .overall, .neuralEngine:
+            break
+        case .processor where brief.status >= .busy:
+            steps.append(
+                app.map {
+                    t(
+                        "Quit \"%@\" if you are not using it, or let it finish if it is doing a job such as a backup, an update or a build.",
+                        $0)
+                } ?? t("Quit apps you are not using."))
+        case .memory:
+            if let grower = growth.first(where: { $0.growthBytes >= 256 * 1_048_576 }) {
+                steps.append(
+                    t("Quitting and reopening \"%@\" usually gives its memory back.", grower.name))
+            }
+            if brief.status >= .unusual {
+                steps.append(
+                    t("Quit apps you are not using, and close browser tabs you do not need."))
+            }
+        case .graphics where brief.status >= .busy:
+            steps.append(
+                t(
+                    "Close games or video apps you are not using, or lower a game's graphics settings."
+                ))
+        case .network where brief.status >= .busy:
+            steps.append(
+                t("If the internet feels slow, pause large downloads, uploads or backups."))
+        case .storage where brief.status >= .unusual:
+            steps.append(t("Empty the Trash, and delete or move large files you no longer need."))
+            steps.append(t("The Disk Map shows which folders take the most space."))
+        case .energy where brief.status >= .busy:
+            steps.append(t("Plug in to charge, and lower the screen brightness."))
+            if let app { steps.append(t("Quit \"%@\" if you are not using it.", app)) }
+        case .heat where brief.status >= .busy:
+            steps.append(t("Keep the vents clear and use the Mac on a hard, flat surface."))
+            if let app { steps.append(t("Quitting \"%@\" lets the Mac cool down.", app)) }
+        default:
+            break
+        }
+        if steps.isEmpty, brief.status <= .calm {
+            steps.append(t("Nothing is needed: this part of the Mac is fine."))
+        }
+        return steps
     }
 
     /// How much of an area's resource one app used, in the area's own words,
