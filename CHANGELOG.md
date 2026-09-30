@@ -8,6 +8,8 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Fixed
 
+- The main window can enter full screen even when it opens while the app is
+  running in the background without a Dock icon.
 - The menu bar item keeps its place after an update ([#120](https://github.com/Zesty0wl/mac-performance-monitor/issues/120)).
   macOS forgot the position of the unnamed item whenever the app was replaced,
   so each update put it back beside the notch, where a crowded menu bar hides
