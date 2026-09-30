@@ -494,7 +494,9 @@ final class DataExplorerModel: ObservableObject {
         let now = Date()
         followsLive = abs(link.end.timeIntervalSince(now)) < 120
         let end = followsLive ? now : min(now, link.end)
-        domain = min(link.start, end.addingTimeInterval(-300))...end
+        // Whole minutes, so the span control reads "15 min", not "15.427 min".
+        let minutes = max(5, (end.timeIntervalSince(link.start) / 60).rounded())
+        domain = end.addingTimeInterval(-minutes * 60)...end
         alertEvidence = []
         focusedLaneID = nil
         showsInspector = false
