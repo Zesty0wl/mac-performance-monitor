@@ -103,7 +103,24 @@ final class HelperManager: ObservableObject {
     /// since approval happens out of process in System Settings) and apply the
     /// reader accordingly.
     func refresh() {
-        var raw = service.status
+        refresh(status: service.status)
+    }
+
+    /// Reads the status off the main thread, then applies it. For activation:
+    /// `service.status` is a round trip to Background Task Management that
+    /// takes hundreds of milliseconds when it is busy, and activation is the
+    /// moment someone presses on the title bar to drag the window, so a stall
+    /// there swallows the drag.
+    func refreshInBackground() {
+        let service = service
+        DispatchQueue.global(qos: .userInitiated).async {
+            let status = service.status
+            DispatchQueue.main.async { self.refresh(status: status) }
+        }
+    }
+
+    private func refresh(status: SMAppService.Status) {
+        var raw = status
         let appVersion = Self.appBuildVersion
         let dropped = (raw == .notRegistered || raw == .notFound)
         let updated = (registeredVersion != appVersion)

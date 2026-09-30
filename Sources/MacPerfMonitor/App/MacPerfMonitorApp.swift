@@ -914,11 +914,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     /// granted out of process in System Settings, so this is how an enable that
     /// was pending approval becomes live coverage without a relaunch.
     func applicationDidBecomeActive(_ notification: Notification) {
-        helperManager.refresh()
-        loginItemManager.refresh()
+        // All three read state owned by other processes, which can take
+        // hundreds of milliseconds. Activation is often a press on the title
+        // bar that should start a window drag, and a blocked main thread
+        // swallows it, so the reads happen off the main thread.
+        helperManager.refreshInBackground()
+        loginItemManager.refreshInBackground()
         // Full Disk Access is also granted out of process; re-probe so the
         // Disk Map's card and Settings reflect a fresh grant.
-        fullDiskAccessManager.refresh()
+        fullDiskAccessManager.refreshInBackground()
         considerGitHubStarPrompt()
     }
 
