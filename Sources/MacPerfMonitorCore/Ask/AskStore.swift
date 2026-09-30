@@ -51,6 +51,11 @@ extension SampleStore {
                 input.focus = try rank(limit: 2, name: appName)
             }
         }
+        // Cheap enough for the overview tiles too, which skip app ranking: a
+        // program stuck busy for hours is the thing the tile must not miss.
+        if area == .processor || area == .overall {
+            input.sustained = try askSustained(end: end)
+        }
         if area == .memory {
             let span = min(2 * 3600, max(1800, end.timeIntervalSince(start)))
             input.growth = try leakBoard(window: span, now: end).map {
@@ -83,6 +88,80 @@ extension SampleStore {
                     ProcessIdentity(pid: identity.pid, startTime: Date(timeIntervalSince1970: $0))
                 }
             }
+        }
+    }
+
+    /// Programs busy for an hour or more when the period ends, busiest first.
+    /// Replays each candidate's recorded minutes (up to a day back) through
+    /// the same spell rules as the live alert, following it by executable
+    /// across restarts.
+    public func askSustained(end: Date, limit: Int = 3) throws -> [AskSustained] {
+        let key = SustainedCPU.keySQL
+        let hourStart = end.addingTimeInterval(-SustainedCPU.minimumSpell).timeIntervalSince1970
+        let dayStart = end.addingTimeInterval(-86400).timeIntervalSince1970
+        let endTime = end.timeIntervalSince1970
+        return try databasePool.read { db in
+            let candidates = try Row.fetchAll(
+                db,
+                sql: """
+                    SELECT \(key) AS program, SUM(m.cpu_avg) / 60.0 AS average
+                    FROM process_minute m JOIN processes p ON p.id = m.process_id
+                    WHERE m.bucket >= ? AND m.bucket < ?
+                    GROUP BY program HAVING average >= ?
+                    ORDER BY average DESC LIMIT 8
+                    """,
+                arguments: [hourStart, endTime, SustainedCPU.flagPercent * SustainedCPU.busyShare])
+            var found: [AskSustained] = []
+            for candidate in candidates {
+                let program: String = candidate["program"]
+                let runs = try Row.fetchAll(
+                    db,
+                    sql: """
+                        SELECT id, pid, start_time, name, executable_path FROM processes p
+                        WHERE \(key) = ? AND last_seen >= ? AND first_seen < ?
+                        """, arguments: [program, dayStart, endTime])
+                guard
+                    let newest = runs.max(by: { ($0["start_time"] as Double) < $1["start_time"] }),
+                    !SustainedCPU.exempt.contains(newest["name"] as String)
+                else { continue }
+                let ids = runs.map { $0["id"] as Int64 }
+                let minutes = try Row.fetchAll(
+                    db,
+                    sql: """
+                        SELECT bucket, SUM(cpu_avg) AS cpu FROM process_minute
+                        WHERE process_id IN (\(ids.map { _ in "?" }.joined(separator: ",")))
+                            AND bucket >= ? AND bucket < ?
+                        GROUP BY bucket
+                        """,
+                    arguments: StatementArguments(
+                        ids.map { $0 as DatabaseValueConvertible } + [dayStart, endTime]))
+                var byMinute: [Int64: Double] = [:]
+                for row in minutes { byMinute[Int64((row["bucket"] as Double) / 60)] = row["cpu"] }
+                // Every minute of the day, silent ones as zero, so a daemon
+                // between runs counts as quiet rather than as a gap.
+                let first = Int64(dayStart / 60)
+                let last = Int64((endTime - 1) / 60)
+                guard first <= last else { continue }
+                let series = (first...last).map {
+                    (Date(timeIntervalSince1970: Double($0 * 60 + 60)), byMinute[$0] ?? 0)
+                }
+                guard let spell = SustainedSpell.current(in: series), spell.isSustained,
+                    end.timeIntervalSince(spell.lastBusy) <= SustainedCPU.quietGap
+                else { continue }
+                let path: String? = newest["executable_path"]
+                let kind = AskProcessKind.classify(path: path)
+                found.append(
+                    AskSustained(
+                        name: ProcessSample.resolvedDisplayName(
+                            name: newest["name"], executablePath: path),
+                        identity: ProcessIdentity(
+                            pid: newest["pid"],
+                            startTime: Date(timeIntervalSince1970: newest["start_time"])),
+                        kind: kind.kind, owner: kind.app,
+                        since: spell.since, end: spell.last, average: spell.average))
+                if found.count == limit { break }
+            }
+            return found.sorted { $0.average > $1.average }
         }
     }
 

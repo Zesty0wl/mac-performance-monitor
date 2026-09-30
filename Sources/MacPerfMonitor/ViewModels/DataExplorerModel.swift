@@ -114,6 +114,9 @@ final class DataExplorerModel: ObservableObject {
         } else if request.kinds.contains(.highGPU) {
             selectedLaneID = "gpu"
             enabled.insert("gpu")
+        } else if request.kinds.contains(.sustainedProcessCPU) {
+            selectedLaneID = "process.cpu"
+            enabled.insert("process.cpu")
         } else if request.kinds.contains(.highCPU) {
             selectedLaneID = "cpu"
         } else {

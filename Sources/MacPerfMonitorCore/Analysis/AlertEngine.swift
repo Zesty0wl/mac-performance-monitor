@@ -25,6 +25,10 @@ public struct AlertConfig: Sendable, Equatable, Codable {
     /// throttling states) for a sustained period, naming the top CPU process.
     /// Off by default: fanless Macs throttle routinely under real work.
     public var thermalEnabled: Bool
+    /// Notify when one program keeps the processor busy for an hour or more,
+    /// such as a part of macOS stuck in a loop. On by default: unlike total
+    /// CPU, this is rarely normal. See `SustainedCPU`.
+    public var sustainedProcessCPUEnabled: Bool
     public var observeGrowthOnly: Bool
     public var accessoryBatteryEnabled: Bool
     public var accessoryBatteryThresholdPercent: Int
@@ -33,7 +37,7 @@ public struct AlertConfig: Sendable, Equatable, Codable {
     /// use a separate minute-limited reader, not the system sampling tick.
     public var anyEnabled: Bool {
         criticalPressureEnabled || swapEnabled || processCeilingEnabled || leakEnabled
-            || highCPUEnabled || highGPUEnabled || thermalEnabled
+            || highCPUEnabled || highGPUEnabled || thermalEnabled || sustainedProcessCPUEnabled
     }
 
     public init(
@@ -48,6 +52,7 @@ public struct AlertConfig: Sendable, Equatable, Codable {
         highGPUEnabled: Bool = false,
         highGPUThresholdPercent: Int = 85,
         thermalEnabled: Bool = false,
+        sustainedProcessCPUEnabled: Bool = true,
         observeGrowthOnly: Bool = false,
         accessoryBatteryEnabled: Bool = false,
         accessoryBatteryThresholdPercent: Int = 20
@@ -63,6 +68,7 @@ public struct AlertConfig: Sendable, Equatable, Codable {
         self.highGPUEnabled = highGPUEnabled
         self.highGPUThresholdPercent = highGPUThresholdPercent
         self.thermalEnabled = thermalEnabled
+        self.sustainedProcessCPUEnabled = sustainedProcessCPUEnabled
         self.observeGrowthOnly = observeGrowthOnly
         self.accessoryBatteryEnabled = accessoryBatteryEnabled
         self.accessoryBatteryThresholdPercent = min(50, max(5, accessoryBatteryThresholdPercent))
@@ -99,6 +105,11 @@ public struct AlertConfig: Sendable, Equatable, Codable {
             ?? d.highGPUThresholdPercent
         thermalEnabled =
             try c.decodeIfPresent(Bool.self, forKey: .thermalEnabled) ?? d.thermalEnabled
+        // Settings saved before this rule existed: on, unless every
+        // default-on alert was turned off, which says "no alerts".
+        sustainedProcessCPUEnabled =
+            try c.decodeIfPresent(Bool.self, forKey: .sustainedProcessCPUEnabled)
+            ?? (criticalPressureEnabled || leakEnabled)
         observeGrowthOnly = try c.decodeIfPresent(Bool.self, forKey: .observeGrowthOnly) ?? false
         accessoryBatteryEnabled =
             try c.decodeIfPresent(Bool.self, forKey: .accessoryBatteryEnabled) ?? false
@@ -123,6 +134,7 @@ public struct Alert: Sendable, Equatable, Identifiable, Codable {
         case highCPU
         case highGPU
         case thermalThrottle
+        case sustainedProcessCPU
     }
 
     public var kind: Kind
@@ -162,6 +174,9 @@ public struct Alert: Sendable, Equatable, Identifiable, Codable {
         case .highCPU: return "cpu.high"
         case .highGPU: return "gpu.high"
         case .thermalThrottle: return "thermal.throttle"
+        // By program, not run: a stuck daemon restarts under new pids.
+        case .sustainedProcessCPU:
+            return "cpu.process.\(executablePath ?? processName ?? "unknown")"
         }
     }
 
@@ -188,6 +203,7 @@ public final class AlertEngine {
     private var tracker: AlertIncidentTracker
     private var swap = SwapGrowthDetector()
     private var growth = ProcessGrowthMonitor()
+    private var sustained = SustainedCPUMonitor()
     private var timers: [Alert.Kind: TimedState] = [:]
     private var pressureLatched = false
     private var lastEvaluation: Date?
@@ -349,6 +365,23 @@ public final class AlertEngine {
                 }
             }
         }
+        if config.sustainedProcessCPUEnabled {
+            let result = processSnapshotAvailable ? sustained.evaluate(processes, now: now) : nil
+            conditions += result?.conditions ?? []
+            // After launch, or without a process scan, an open incident can be
+            // neither confirmed nor cleared until a full spell has been watched.
+            if result?.warming ?? true {
+                let raised = Set(conditions.map(\.alert.id))
+                for incident in tracker.snapshot.incidents.values
+                where incident.condition.alert.kind == .sustainedProcessCPU
+                    && !raised.contains(incident.id)
+                {
+                    unknown.insert(incident.id)
+                }
+            }
+        } else {
+            sustained.reset()
+        }
         if config.highCPUEnabled {
             appendTimed(
                 kind: .highCPU, value: cpu.map { $0.totalUsage * 100 }, timestamp: cpu?.timestamp,
@@ -393,6 +426,7 @@ public final class AlertEngine {
             cooldown: refireCooldown, notificationSpacing: notificationSpacing)
         swap.reset()
         growth.reset()
+        sustained.reset()
         timers.removeAll()
         pressureLatched = false
         lastEvaluation = nil

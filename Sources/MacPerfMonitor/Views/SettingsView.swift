@@ -374,6 +374,17 @@ struct AlertsSettingsView: View {
             }
 
             Section {
+                Toggle(
+                    "A program busy for hours",
+                    isOn: $alertSettings.config.sustainedProcessCPUEnabled)
+                caption(
+                    "Notify when one program keeps about a core busy for an hour or more, such as a part of macOS stuck in a loop. Apps you are using only warn after three hours."
+                )
+            } header: {
+                Text("Busy For Hours")
+            }
+
+            Section {
                 Toggle("Sustained high CPU", isOn: $alertSettings.config.highCPUEnabled)
                 if alertSettings.config.highCPUEnabled {
                     percentStepper(

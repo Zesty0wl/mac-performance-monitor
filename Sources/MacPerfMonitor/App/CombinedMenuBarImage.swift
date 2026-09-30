@@ -16,7 +16,7 @@ extension MenuBarMetric {
                 .criticalPressure, .swap, .processCeiling, .leak,
             ])
         case .cpu:
-            return activeKinds.contains(.highCPU)
+            return !activeKinds.isDisjoint(with: [.highCPU, .sustainedProcessCPU])
         case .temperature:
             return activeKinds.contains(.thermalThrottle)
         case .gpu:

@@ -236,7 +236,7 @@ public final class AlertIncidentTracker {
     public static func family(_ kind: Alert.Kind) -> String {
         switch kind {
         case .criticalPressure, .swap, .processCeiling, .leak: return "memory"
-        case .highCPU: return "cpu"
+        case .highCPU, .sustainedProcessCPU: return "cpu"
         case .highGPU: return "gpu"
         case .thermalThrottle: return "thermal"
         }

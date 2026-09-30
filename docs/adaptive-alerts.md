@@ -84,6 +84,34 @@ need that memory or free it later. Insights and process badges no longer show
 a percentage chance of a leak. They show the growth and time span. Fit scores
 stay internal. A memory budget you set for a process remains a separate rule.
 
+## Busy For Hours
+
+A program that keeps the processor busy for hours is rarely normal, yet the
+whole-Mac CPU alert and memory growth miss it, and after a few days it becomes
+part of what looks normal for the Mac. On 30 September 2026 contactsd (a stuck
+Contacts sync) kept about 1.6 cores busy all night for a week before anyone
+noticed.
+
+The rule follows a program by executable, not by run, because launchd restarts
+a stuck daemon again and again and each run alone looks short. A spell starts
+when the program uses a quarter of a core, and ends after 10 quiet minutes. It
+is flagged after an hour when it averages at least 80% of one core and was busy
+for three quarters of that time. `kernel_task` is left out: its CPU is macOS
+cooling the chip.
+
+Parts of macOS and background tools raise a warning. Known jobs that finish on
+their own (Spotlight indexing, Photos analysis, Time Machine, macOS updates)
+and apps stay observations, and an app becomes a warning after three hours.
+The notice says what to do: quitting a background part of macOS in Activity
+Monitor is safe because launchd starts it again, except for WindowServer and
+the like, where it says to restart instead. Only busy programs are held, at
+most 256. After launch, an open incident stays unknown until a full hour has
+been watched. The rule is on by default and has its own switch in Settings.
+
+Ask uses the same rules (`SustainedCPU`), replaying a day of recorded minutes,
+so the Processor tile and answers name the program, raise the status, and
+replace "it usually settles" with the same advice.
+
 ## Incidents And Notices
 
 Each incident has a stable identity, current evidence, and a phase. The phases

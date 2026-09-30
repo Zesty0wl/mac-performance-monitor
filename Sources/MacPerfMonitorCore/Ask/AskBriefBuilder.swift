@@ -65,6 +65,34 @@ public struct AskGrowth: Sendable, Equatable {
     }
 }
 
+/// A program that has kept the processor busy for a long time, up to the end
+/// of the period (see `SustainedCPU`).
+public struct AskSustained: Sendable, Equatable {
+    public var name: String
+    public var identity: ProcessIdentity
+    public var kind: AskProcessKind
+    public var owner: String?
+    public var since: Date
+    public var end: Date
+    /// Average over the spell, percent of one core.
+    public var average: Double
+
+    public init(
+        name: String, identity: ProcessIdentity, kind: AskProcessKind, owner: String?, since: Date,
+        end: Date, average: Double
+    ) {
+        self.name = name
+        self.identity = identity
+        self.kind = kind
+        self.owner = owner
+        self.since = since
+        self.end = end
+        self.average = average
+    }
+
+    public var duration: TimeInterval { end.timeIntervalSince(since) }
+}
+
 /// Everything one area's brief is built from. Plain values, so briefs can be
 /// built and tested without a database or a running sampler.
 public struct AskBriefInputs: Sendable {
@@ -80,6 +108,8 @@ public struct AskBriefInputs: Sendable {
     /// Apps ranked by the area's resource, highest first.
     public var apps: [AskAppUsage] = []
     public var growth: [AskGrowth] = []
+    /// Programs busy for an hour or more at the end of the period.
+    public var sustained: [AskSustained] = []
     /// The app a question named ("is Chrome slowing me down?"), when it matched
     /// recorded processes; `focusName` is what the question said.
     public var focus: [AskAppUsage] = []
@@ -123,7 +153,7 @@ public enum AskBriefBuilder {
                 brief.chart = chart
             }
         }
-        brief.advice = advice(for: brief, growth: input.growth)
+        brief.advice = advice(for: brief, growth: input.growth, sustained: input.sustained)
         if let name = input.focusName, input.focus.isEmpty, input.area != .overall {
             brief.gaps.append(t("No app called \"%@\" was recorded in this time.", name))
         }
@@ -132,11 +162,15 @@ public enum AskBriefBuilder {
 
     /// Safe next steps for a newcomer, only when the area needs them. Nothing
     /// here deletes files, changes settings, or needs Terminal.
-    static func advice(for brief: AreaBrief, growth: [AskGrowth] = []) -> [String] {
+    static func advice(
+        for brief: AreaBrief, growth: [AskGrowth] = [], sustained: [AskSustained] = []
+    ) -> [String] {
         var steps: [String] = []
         switch brief.area {
         case .overall, .neuralEngine:
             break
+        case .processor where !sustained.isEmpty:
+            steps += sustainedAdvice(sustained[0])
         case .processor where brief.status >= .busy:
             steps += quitAdvice(
                 brief.apps,
@@ -194,6 +228,38 @@ public enum AskBriefBuilder {
 
     /// "Quit X" only for something that can be quit: an app, or the app a
     /// helper belongs to. A busy part of macOS gets patience instead.
+    /// For a program busy for hours "it usually settles" is wrong: it has not.
+    static func sustainedAdvice(_ spell: AskSustained) -> [String] {
+        let known = KnownBackgroundWork.info(for: spell.name)
+        var steps: [String] = []
+        switch spell.kind {
+        case .app:
+            steps.append(
+                t(
+                    "If you are not using \"%@\", quit it: an app that stays this busy for hours in the background is often stuck.",
+                    spell.owner ?? spell.name))
+        case .system, .background:
+            if known?.job == true {
+                steps.append(
+                    t(
+                        "\"%@\" is doing a job for macOS. Let it finish; if it is still this busy tomorrow, restart the Mac.",
+                        spell.name))
+            } else if known?.neverQuit == true {
+                steps.append(
+                    t(
+                        "\"%@\" is part of macOS and should not stay this busy. Don't quit it; restarting the Mac resets it.",
+                        spell.name))
+            } else {
+                steps.append(
+                    t(
+                        "\"%@\" should not stay this busy for hours. Quitting it in Activity Monitor is safe: macOS starts it again. If it gets busy again, restart the Mac.",
+                        spell.name))
+            }
+        }
+        if let explanation = known?.explanation { steps.append(explanation) }
+        return steps
+    }
+
     static func quitAdvice(_ apps: [AskApp], fallback: String?) -> [String] {
         guard let top = apps.first(where: \.major) else { return fallback.map { [$0] } ?? [] }
         switch top.kind {
@@ -323,7 +389,15 @@ public enum AskBriefBuilder {
             headline = t("%@ busy right now.", AskWords.percent(now))
         }
         let cores = Double(max(1, input.coreCount))
-        let apps = input.apps.compactMap { app -> AskApp? in
+        let busyForHours = input.sustained.prefix(2).map { spell in
+            AskApp(
+                name: spell.name, identity: spell.identity, kind: spell.kind, owner: spell.owner,
+                major: true,
+                usage: t(
+                    "about %@ of the processor, for hours",
+                    AskWords.percent(spell.average / cores)))
+        }
+        let ranked = input.apps.compactMap { app -> AskApp? in
             let share = app.average / cores
             guard share >= 0.5 else { return nil }
             return AskApp(
@@ -332,9 +406,41 @@ public enum AskBriefBuilder {
                 usage: share < 1
                     ? t("under 1%% of the processor on average")
                     : t("about %@ of the processor on average", AskWords.percent(share)))
-        }.prefix(3)
+        }
+        let apps =
+            (busyForHours + ranked.filter { app in !busyForHours.contains { $0.name == app.name } })
+            .prefix(3)
         var notable: [String] = []
-        if status >= .busy, !apps.contains(where: \.major) {
+        // A program busy for hours matters however calm the Mac looks: after
+        // a few days of it, it is part of this Mac's "normal".
+        for spell in input.sustained.prefix(2) {
+            let cores = String(format: "%.1f", spell.average / 100)
+            let longest = spell.duration >= 86400 - 180
+            notable.append(
+                longest
+                    ? t(
+                        "\"%1$@\" has kept about %2$@ cores busy for more than a day.", spell.name,
+                        cores)
+                    : t(
+                        "\"%1$@\" has kept about %2$@ cores busy for %3$@ without a break.",
+                        spell.name,
+                        cores, AskWords.minutes(spell.duration)))
+            let known = KnownBackgroundWork.info(for: spell.name)
+            let raised: AskStatus
+            switch spell.kind {
+            case .app: raised = spell.duration >= SustainedCPU.appWarningSpell ? .unusual : .busy
+            case .system, .background:
+                raised =
+                    known?.job == true
+                    ? .busy : spell.duration >= SustainedCPU.appWarningSpell ? .attention : .unusual
+            }
+            if raised > status || status == .unknown {
+                status = max(status, raised)
+                headline = t("\"%@\" has been busy for hours.", spell.name)
+            }
+        }
+        let flagged = Set(input.sustained.map(\.identity))
+        if status >= .busy, !apps.contains(where: \.major), flagged.isEmpty {
             notable.append(
                 t(
                     "No single app stands out: lots of smaller tasks are adding up, as happens during updates, indexing or builds."

@@ -65,6 +65,17 @@ public enum AgentGuide {
                 WHERE (app = 'Google Chrome' OR name = 'Google Chrome') AND ts >= strftime('%s', 'now') - 21600
                 ORDER BY ts
                 """),
+        Example(
+            title: "Programs that stayed busy for hours in the last day (grouped across restarts)",
+            sql: """
+                SELECT name, kind, COUNT(DISTINCT process_key) AS runs,
+                    ROUND(SUM(cpu_percent_of_one_core * resolution_seconds) / 86400.0) AS avg_percent_of_one_core,
+                    ROUND(SUM(CASE WHEN cpu_percent_of_one_core >= 25 THEN resolution_seconds END) / 3600.0, 1) AS busy_hours
+                FROM agent_process_usage
+                WHERE ts >= strftime('%s', 'now', '-1 day')
+                GROUP BY name HAVING busy_hours >= 1
+                ORDER BY avg_percent_of_one_core DESC LIMIT 10
+                """),
     ]
 
     public static let rules = [
@@ -74,6 +85,7 @@ public enum AgentGuide {
         "NULL means not measured. Never treat it as zero.",
         "For how much of the Mac an app used, use cpu_share_of_mac_percent. cpu_percent_of_one_core can exceed 100.",
         "An app using a small share is not the cause of a slowdown, however high it ranks. Many small processes can add up.",
+        "A program that keeps about a core busy for hours (cpu_percent_of_one_core near or above 100 for most minutes) is almost never normal, even when it has become part of this Mac's usual level: check how many days it has done this. Daemons restart, so group by name, not process_key.",
         "Processes with kind = 'macos' are part of macOS. Never suggest quitting them; say they usually settle, and a restart helps if one stays busy for hours.",
         "Memory pressure under 34 is fine, 34 to 66 means macOS is compressing memory, 67 and over means it is swapping and the Mac slows. High memory use alone is not a problem.",
         "Check agent_coverage before concluding nothing happened: the history may not reach back that far.",

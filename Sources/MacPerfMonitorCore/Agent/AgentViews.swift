@@ -106,7 +106,8 @@ public enum AgentViews {
         ]
         .map { "\(path) LIKE '\($0)%'" }.joined(separator: " OR ")
         return """
-            CASE WHEN \(path) IS NULL OR \(path) = '' THEN 'background' \
+            CASE WHEN \(path) IS NULL OR \(path) = '' OR \(path) = '\(SustainedCPU.launcherPath)' \
+            THEN 'background' \
             WHEN \(system) THEN 'macos' WHEN instr(\(path), '.app/') > 0 THEN 'app' \
             ELSE 'background' END
             """

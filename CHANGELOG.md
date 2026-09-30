@@ -26,6 +26,13 @@ Notable changes to Mac Performance Monitor. This project follows
   the same judged summaries Ask uses, and `macperfmonitor://` links that open
   the matching charts in Explorer. The agent sends what it reads to its own
   provider, so Ask explains that before the first copy.
+- **A program busy for hours is now flagged.** A part of macOS stuck in a loop
+  (such as contactsd syncing Contacts all night) used to go unnoticed: the Mac
+  looked only a little busier than usual. Alerts now watch each program across
+  its restarts and warn when one keeps about a core busy for an hour, and Ask's
+  Processor tile names it and says what to do. Apps you are using, and jobs
+  that finish on their own such as Spotlight indexing, stay observations first.
+  It has its own switch in Settings > Alerts.
 - Ask names the app behind its busiest processes: a build's compiler runs count
   as Xcode, and Chrome's helpers as Chrome. System processes that keep growing
   get advice that fits them instead of "quit and reopen".

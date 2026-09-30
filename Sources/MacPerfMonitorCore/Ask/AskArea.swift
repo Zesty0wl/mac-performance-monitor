@@ -144,7 +144,11 @@ public enum AskProcessKind: String, Codable, Sendable, Hashable {
     /// Classifies by where the executable lives, and finds the app a helper
     /// belongs to ("Google Chrome" for its renderer).
     public static func classify(path: String?) -> (kind: AskProcessKind, app: String?) {
-        guard let path, !path.isEmpty else { return (.background, nil) }
+        // A run recorded mid-launch keeps the launcher's path; where it
+        // really lives is unknown.
+        guard let path, !path.isEmpty, path != SustainedCPU.launcherPath else {
+            return (.background, nil)
+        }
         let systemRoots = [
             "/System/", "/usr/libexec/", "/usr/sbin/", "/usr/bin/", "/sbin/", "/bin/",
             "/Library/Apple/",
