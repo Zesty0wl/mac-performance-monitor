@@ -5,6 +5,10 @@ swap look normal. Screen capture can add work to WindowServer, the macOS display
 service, and replayd. A large Mac can have spare CPU capacity while its display
 service is busy with most of one core.
 
+![The display capture load advisory](images/display-capture-load.png)
+
+Native card preview with synthetic readings, not a recording of user activity.
+
 Insights shows **Screen capture may be slowing your desktop** when existing
 process readings meet all of these conditions:
 
