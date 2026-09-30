@@ -100,8 +100,14 @@ public final class AgentStore {
         case .null: return nil
         case .int64(let int): return String(int)
         case .double(let double):
-            return double.rounded() == double && abs(double) < 1e15
-                ? String(Int64(double)) : String(format: "%.4g", double)
+            if double.rounded() == double && abs(double) < 1e15 { return String(Int64(double)) }
+            // Keep timestamps and large totals whole-number exact; small
+            // values keep four significant digits.
+            guard abs(double) >= 1000 else { return String(format: "%.4g", double) }
+            var text = String(format: "%.3f", double)
+            while text.hasSuffix("0") { text.removeLast() }
+            if text.hasSuffix(".") { text.removeLast() }
+            return text
         case .string(let string): return string
         case .blob(let data): return "<\(data.count) bytes>"
         }

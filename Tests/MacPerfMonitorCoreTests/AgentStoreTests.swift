@@ -108,7 +108,9 @@ final class AgentSurfaceTests: XCTestCase {
                 sample,
                 processes: [
                     Make.process(
-                        timestamp: now.addingTimeInterval(-step), name: "Google Chrome", cpu: 40)
+                        timestamp: now.addingTimeInterval(-step),
+                        startTime: Date(timeIntervalSince1970: 1_790_000_000.718),
+                        name: "Google Chrome", cpu: 40)
                 ])
         }
         try Retention.run(writer.databasePool, now: now)
@@ -203,6 +205,22 @@ final class AgentSurfaceTests: XCTestCase {
         ] {
             XCTAssertNil(AgentChartURL.parse(URL(string: bad)!, now: now), bad)
         }
+    }
+
+    func testLinkProcessesResolveToTheirRecordedRun() throws {
+        let store = try SampleStore(url: url)
+        let run = try XCTUnwrap(
+            try store.databasePool.read { db in
+                try Row.fetchOne(db, sql: "SELECT pid, start_time FROM processes LIMIT 1")
+            })
+        let exact: Double = run["start_time"]
+        XCTAssertNotEqual(exact.rounded(.down), exact, "the fixture start time carries a fraction")
+        let rounded = ProcessIdentity(
+            pid: run["pid"], startTime: Date(timeIntervalSince1970: exact.rounded(.down)))
+        let missing = ProcessIdentity(pid: 99_999, startTime: Date(timeIntervalSince1970: exact))
+        let resolved = try store.askResolve([rounded, missing])
+        XCTAssertEqual(resolved.count, 1)
+        XCTAssertEqual(resolved.first?.startTime.timeIntervalSince1970, exact)
     }
 
     func testTimesAndPartNamesAsAgentsWriteThem() {

@@ -891,9 +891,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     /// is opening Explorer on them.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls where url.scheme == AgentChartURL.scheme {
-            if let link = AgentChartURL.parse(url) {
+            if var link = AgentChartURL.parse(url) {
                 AppLog.ui.notice("opening a chart link")
-                openAskChart(link)
+                Task { @MainActor in
+                    link.processes = await model.askResolve(link.processes)
+                    openAskChart(link)
+                }
             } else {
                 AppLog.ui.notice("ignored a link the app does not handle")
             }

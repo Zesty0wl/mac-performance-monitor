@@ -2607,6 +2607,15 @@ final class SamplerModel: ObservableObject {
         return [AskBriefBuilder.overall(parts, start: interval.start, end: interval.end)] + parts
     }
 
+    func askResolve(_ identities: [ProcessIdentity]) async -> [ProcessIdentity] {
+        guard let store, !identities.isEmpty else { return [] }
+        return await withCheckedContinuation { continuation in
+            readQueue.async {
+                continuation.resume(returning: (try? store.askResolve(identities)) ?? [])
+            }
+        }
+    }
+
     func askEarliestRecord() async throws -> Date? {
         guard let store else { return nil }
         return try await withCheckedThrowingContinuation { continuation in

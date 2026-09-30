@@ -64,6 +64,28 @@ extension SampleStore {
         return input
     }
 
+    /// The recorded runs a link from outside the app names. Links carry start
+    /// times to the second (agents round them too), while runs are stored to
+    /// the microsecond, so each pid:start resolves to that pid's run starting
+    /// within a second of it. Unknown runs are dropped.
+    public func askResolve(_ identities: [ProcessIdentity]) throws -> [ProcessIdentity] {
+        try databasePool.read { db in
+            try identities.compactMap { identity in
+                let start = identity.startTime.timeIntervalSince1970
+                return try Double.fetchOne(
+                    db,
+                    sql: """
+                        SELECT start_time FROM processes
+                        WHERE pid = ? AND start_time BETWEEN ? AND ?
+                        ORDER BY ABS(start_time - ?) LIMIT 1
+                        """, arguments: [identity.pid, start - 1, start + 1, start]
+                ).map {
+                    ProcessIdentity(pid: identity.pid, startTime: Date(timeIntervalSince1970: $0))
+                }
+            }
+        }
+    }
+
     /// When recording began, across every tier.
     public func askEarliestRecord() throws -> Date? {
         try databasePool.read { db in
@@ -171,8 +193,11 @@ extension SampleStore {
                         FROM (\(sql)) ranked JOIN processes p ON p.id = ranked.id
                         WHERE ranked.score IS NOT NULL AND ranked.score > 0\(filter)
                     )
-                    SELECT who, pid, start, name, path, MAX(score) AS top, SUM(score) AS score
-                    FROM named GROUP BY who ORDER BY score DESC LIMIT ?
+                    SELECT who, pid, start, name, path, total AS score FROM (
+                        SELECT *, SUM(score) OVER (PARTITION BY who) AS total,
+                            ROW_NUMBER() OVER (PARTITION BY who ORDER BY score DESC, start DESC) AS place
+                        FROM named
+                    ) WHERE place = 1 ORDER BY total DESC LIMIT ?
                     """, arguments: StatementArguments(arguments)
             ).map { row in
                 let path: String? = row["path"]

@@ -409,6 +409,13 @@ public enum AskBriefBuilder {
                     ? .unusual
                     : series.mean >= 34 || series.peak >= 50 ? .busy : .calm
             headline = t("Pressure %@.", pressureWords(series.mean))
+            // Swap growing is the reason to look when pressure itself reads
+            // low, so say so rather than a calm line under a Worth a look.
+            if status == .unusual, series.mean < 34, swapGrowth >= 1_073_741_824 {
+                headline = t(
+                    "Swap grew by %@, though pressure is low.",
+                    ByteFormat.string(UInt64(swapGrowth)))
+            }
         } else if let now = input.live?.pressurePercent {
             status = now >= 67 ? .attention : now >= 34 ? .unusual : .calm
             headline = t("Pressure %@.", pressureWords(now))
