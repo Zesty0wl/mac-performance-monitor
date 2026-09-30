@@ -80,6 +80,19 @@ public enum AgentGuide {
         "Show the numbers behind every conclusion, and say when the data cannot answer the question.",
     ]
 
+    /// The current local time with its UTC offset, e.g. 2026-09-30 11:37 (UTC+01:00):
+    /// the same local clock the views' *_local columns use.
+    static func localNow(_ now: Date = Date(), zone: TimeZone = .current) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = zone
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        let offset = zone.secondsFromGMT(for: now)
+        let sign = offset < 0 ? "-" : "+"
+        return formatter.string(from: now)
+            + String(format: " (UTC%@%02d:%02d)", sign, abs(offset) / 3600, abs(offset) % 3600 / 60)
+    }
+
     /// Every view and column with its meaning, as Markdown.
     public static var dictionary: String {
         AgentViews.all.map { view in
@@ -104,10 +117,7 @@ public enum AgentGuide {
             "- Memory: \(info.physicalMemory / 1_073_741_824) GB",
             "- macOS \(info.operatingSystemVersion.majorVersion).\(info.operatingSystemVersion.minorVersion).\(info.operatingSystemVersion.patchVersion)",
         ]
-        let now = Date()
-        lines.append(
-            "- Now: \(now.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: false).timeZone(separator: .omitted))) local time, time zone \(TimeZone.current.identifier)"
-        )
+        lines.append("- Now: \(localNow()), time zone \(TimeZone.current.identifier)")
         return lines.joined(separator: "\n")
     }
 

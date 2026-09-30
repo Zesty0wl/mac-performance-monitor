@@ -223,6 +223,12 @@ final class AgentSurfaceTests: XCTestCase {
         XCTAssertEqual(resolved.first?.startTime.timeIntervalSince1970, exact)
     }
 
+    func testPromptStatesLocalTimeWithItsOffset() {
+        let now = Date(timeIntervalSince1970: 1_790_764_640)  // 10:37:20 UTC
+        let london = TimeZone(identifier: "Europe/London")!
+        XCTAssertEqual(AgentGuide.localNow(now, zone: london), "2026-09-30 11:37 (UTC+01:00)")
+    }
+
     func testTimesAndPartNamesAsAgentsWriteThem() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/London")!
