@@ -46,6 +46,16 @@ and saved time ranges. The app still supports Apple silicon Macs on macOS 15 or 
   area summaries work even when Apple Intelligence is off. Answers can still be
   wrong, so the facts behind each one are a click away.
 
+- **AI agents:** hand a harder question to Claude Code, Codex or another agent.
+  Ask copies a prompt that explains the recorded history, or the one-line setup
+  for the bundled read-only MCP server:
+
+  ```sh
+  claude mcp add mac-performance-monitor -- "/Applications/Mac Performance Monitor.app/Contents/MacOS/mpm" mcp
+  ```
+
+  Run `mpm help` for the command-line tool.
+
 - **Usage Timeline:** right-click a process to see when the recorder observed
   it running. Optional Apple app and media activity needs Full Disk Access and
   a per-window opt-in. It is not verified foreground-use history.
@@ -263,7 +273,9 @@ stay on your Mac. Exports leave it only when you choose to share them.
 
 Update checks, model downloads, signed content downloads, and network tools
 make network requests. They do not upload your recorded performance history.
-Ask uses local models and clears its conversation when closed. Optional Siri
+Ask uses local models and clears its conversation when closed. If you hand an
+investigation to an AI agent such as Claude Code, the agent sends what it reads
+to its provider. Optional Siri
 and Shortcuts sharing follows Apple's processing rules and can pass results
 to other actions. See [Security and privacy](SECURITY.md) for these separate choices.
 

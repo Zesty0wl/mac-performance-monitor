@@ -36,6 +36,8 @@ swift build -c "$CONFIG" "${LINK_SDK[@]}" --product MacPerfMonitor
 # The privileged helper is a separate executable product (the app does not
 # depend on it), so it must be built explicitly to be bundled alongside the app.
 swift build -c "$CONFIG" "${LINK_SDK[@]}" --product MacPerfMonitorHelper
+# `mpm`, the read-only command-line tool and MCP server for AI agents.
+swift build -c "$CONFIG" "${LINK_SDK[@]}" --product mpm
 
 BIN="$(swift build --show-bin-path -c "$CONFIG")/MacPerfMonitor"
 echo "Built: $BIN"

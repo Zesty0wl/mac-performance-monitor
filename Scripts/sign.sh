@@ -42,6 +42,13 @@ if [[ -f "$HELPER" ]]; then
     "$HELPER"
 fi
 
+MPM="$APP/Contents/MacOS/mpm"
+if [[ -f "$MPM" ]]; then
+  echo "==> Signing mpm"
+  codesign --force --options runtime --timestamp \
+    --identifier "uk.co.bzwrd.macperfmonitor.mpm" --sign "$IDENTITY" "$MPM"
+fi
+
 # Sparkle.framework: sign inside-out — the XPC services, the Updater.app progress
 # UI, and the Autoupdate helper, then the framework bundle itself — all before the
 # enclosing app, or codesign rejects the app as containing unsigned nested code.

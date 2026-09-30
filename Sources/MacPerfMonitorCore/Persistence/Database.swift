@@ -36,6 +36,16 @@ public enum MacPerfMonitorDatabase {
             pool = try DatabasePool(path: temp.path, configuration: config)
         }
         try migrator.migrate(pool)
+        // Read-only views for AI agents, recreated so they always match the
+        // schema just migrated to. Best-effort: agents are optional.
+        try? pool.write { db in
+            try AgentViews.install(db)
+            try AgentViews.recordMacFacts(
+                db, cpuCores: ProcessInfo.processInfo.processorCount,
+                performanceCores: AgentGuide.sysctlInt("hw.perflevel0.logicalcpu") ?? 0,
+                efficiencyCores: AgentGuide.sysctlInt("hw.perflevel1.logicalcpu") ?? 0,
+                memoryBytes: ProcessInfo.processInfo.physicalMemory)
+        }
         try? ensureIncrementalAutoVacuum(pool)
         return pool
     }

@@ -884,7 +884,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     /// Handle a `.mpmtrace` file opened from Finder (or the `open` command).
     /// Route it to the Analytics tab, opening the main window if the menubar-
     /// first app has none up. `AnalyticsView` decodes and displays it.
+    ///
+    /// Also `macperfmonitor://explorer?...` chart links, from `mpm link` or an
+    /// AI agent. Those are untrusted: `AgentChartURL.parse` accepts only chart
+    /// names, a bounded time range and process identities, and the only effect
+    /// is opening Explorer on them.
     func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls where url.scheme == AgentChartURL.scheme {
+            if let link = AgentChartURL.parse(url) {
+                AppLog.ui.notice("opening a chart link")
+                openAskChart(link)
+            } else {
+                AppLog.ui.notice("ignored a link the app does not handle")
+            }
+        }
         guard
             let url = urls.first(where: {
                 $0.pathExtension.lowercased() == ProcessTraceCodec.fileExtension

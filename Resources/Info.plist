@@ -33,6 +33,19 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>2.2.1</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLName</key>
+			<string>uk.co.bzwrd.macperfmonitor.charts</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>macperfmonitor</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>261</string>
 	<key>LSMinimumSystemVersion</key>

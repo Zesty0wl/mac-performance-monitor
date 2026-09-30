@@ -84,6 +84,7 @@ Scripts/bundle.sh "$CONFIG"
 
 APP="build/Mac Performance Monitor.app"
 HELPER="$APP/Contents/MacOS/MacPerfMonitorHelper"
+MPM="$APP/Contents/MacOS/mpm"
 
 ENTITLEMENTS="Resources/MacPerfMonitor.entitlements"
 
@@ -104,6 +105,8 @@ if [[ "$SIGN_MODE" == "identity" ]]; then
       --identifier "uk.co.bzwrd.macperfmonitor.helper" \
       --sign "$IDENTITY" "$HELPER"
   fi
+  codesign --force --options runtime --identifier "uk.co.bzwrd.macperfmonitor.mpm" \
+    --sign "$IDENTITY" "$MPM"
   # Sparkle.framework must be signed inside-out with the SAME identity before the
   # app, or hardened-runtime library validation refuses to load it and the app
   # crashes at launch ("Library not loaded: @rpath/Sparkle.framework"). Mirrors
@@ -161,6 +164,7 @@ else
   if [[ -f "$HELPER" ]]; then
     codesign --force --identifier "uk.co.bzwrd.macperfmonitor.helper" --sign - "$HELPER"
   fi
+  codesign --force --identifier "uk.co.bzwrd.macperfmonitor.mpm" --sign - "$MPM"
   # Still sign Sparkle inside-out: codesign rejects a bundle that contains
   # unsigned nested code, and the vendored framework must match the app's
   # (ad-hoc) signing to keep the bundle seal valid.

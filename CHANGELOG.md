@@ -18,6 +18,17 @@ Notable changes to Mac Performance Monitor. This project follows
   step. Each answer links to the matching charts, opened in Explorer at the
   right time with the right apps selected, and shows the facts behind it.
   Nothing leaves your Mac, and the conversation is cleared when Ask closes.
+- **Hand off to an AI agent.** For deeper digging, Ask can copy a ready-made
+  prompt (with your current question and its facts) for Claude Code, Codex or
+  another AI agent, or the one-line command that connects one. The app now
+  ships `mpm`, a read-only command-line tool and MCP server inside the app
+  (`Contents/MacOS/mpm`), with documented `agent_*` SQL views of the history,
+  the same judged summaries Ask uses, and `macperfmonitor://` links that open
+  the matching charts in Explorer. The agent sends what it reads to its own
+  provider, so Ask explains that before the first copy.
+- Ask names the app behind its busiest processes: a build's compiler runs count
+  as Xcode, and Chrome's helpers as Chrome. System processes that keep growing
+  get advice that fits them instead of "quit and reopen".
 - The Ask preview's optional Qwen and DeepAnalyze downloads, its local AI
   worker and its report Shortcuts are gone. Models downloaded by earlier
   versions are deleted to free the space. Siri and Shortcuts can still open Ask.

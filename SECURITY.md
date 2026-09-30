@@ -50,6 +50,16 @@ build. Older releases may not receive the same fixes.
   switch to turn Ask off. Earlier versions offered downloadable Qwen and
   DeepAnalyze models; this version deletes any that were downloaded.
 
+- **AI agents** (Claude Code, Codex and others) can read the history through
+  `mpm`, a command-line tool and MCP server inside the app bundle. It opens the
+  database read-only, runs only single read-only SQL statements that SQLite
+  confirms cannot write, caps rows and stops long queries. `mpm` itself makes
+  no network requests, but an agent sends what it reads, including app names,
+  paths and usage, to its own AI provider under that provider's terms. Nothing
+  is shared until you set up an agent or paste the prompt Ask copies; Ask
+  explains this before the first copy. `macperfmonitor://` links only open
+  Explorer on a checked set of charts, times and processes.
+
 - Siri and Shortcuts can open Ask. They receive no readings, reports or
   answers from the app.
 

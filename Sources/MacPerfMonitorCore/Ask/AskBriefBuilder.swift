@@ -49,14 +49,19 @@ public struct AskGrowth: Sendable, Equatable {
     public var name: String
     public var growthBytes: UInt64
     public var durationSeconds: TimeInterval
+    public var kind: AskProcessKind
+    public var owner: String?
 
     public init(
-        identity: ProcessIdentity, name: String, growthBytes: UInt64, durationSeconds: TimeInterval
+        identity: ProcessIdentity, name: String, growthBytes: UInt64, durationSeconds: TimeInterval,
+        kind: AskProcessKind = .app, owner: String? = nil
     ) {
         self.identity = identity
         self.name = name
         self.growthBytes = growthBytes
         self.durationSeconds = durationSeconds
+        self.kind = kind
+        self.owner = owner
     }
 }
 
@@ -140,8 +145,23 @@ public enum AskBriefBuilder {
                 ))
         case .memory:
             if let grower = growth.first(where: { $0.growthBytes >= 256 * 1_048_576 }) {
-                steps.append(
-                    t("Quitting and reopening \"%@\" usually gives its memory back.", grower.name))
+                switch grower.kind {
+                case .app:
+                    steps.append(
+                        t(
+                            "Quitting and reopening \"%@\" usually gives its memory back.",
+                            grower.owner ?? grower.name))
+                case .system:
+                    steps.append(
+                        t(
+                            "\"%@\" is part of macOS, so don't try to quit it. Its memory usually settles; if it keeps growing for hours, restarting the Mac gives it back.",
+                            grower.name))
+                case .background:
+                    steps.append(
+                        t(
+                            "\"%@\" is a background process. If it keeps growing, quitting the app or tool that started it, or restarting the Mac, gives its memory back.",
+                            grower.name))
+                }
             }
             if brief.status >= .unusual {
                 steps.append(
@@ -308,7 +328,7 @@ public enum AskBriefBuilder {
             guard share >= 0.5 else { return nil }
             return AskApp(
                 name: app.name, identity: app.identity, kind: app.kind, owner: app.owner,
-                major: share >= 10,
+                major: share >= 5,
                 usage: share < 1
                     ? t("under 1%% of the processor on average")
                     : t("about %@ of the processor on average", AskWords.percent(share)))
@@ -400,7 +420,10 @@ public enum AskBriefBuilder {
                     growth.name,
                     ByteFormat.string(growth.growthBytes), AskWords.minutes(growth.durationSeconds))
             )
-            if status < .unusual, growth.growthBytes >= 512 * 1_048_576 { status = .unusual }
+            if status < .unusual, growth.growthBytes >= 512 * 1_048_576 {
+                status = .unusual
+                headline = t("\"%@\" keeps using more memory.", growth.name)
+            }
         }
         let apps = input.apps.prefix(3).map {
             AskApp(

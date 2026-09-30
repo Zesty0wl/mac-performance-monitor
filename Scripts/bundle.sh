@@ -120,6 +120,17 @@ else
   echo "warning: $HELPER_BIN not found; bundling without the privileged helper" >&2
 fi
 
+# --- mpm: read-only history access for AI agents ---------------------------
+# Command-line tool and MCP server (`mpm mcp`) that Claude Code or Codex run
+# from Contents/MacOS/mpm. Never writes to the database. Signed by sign.sh.
+MPM_BIN="$BIN_DIR/mpm"
+if [[ ! -x "$MPM_BIN" ]]; then
+  echo "error: $MPM_BIN is missing. Run Scripts/build.sh first." >&2
+  exit 1
+fi
+cp "$MPM_BIN" "$APP/Contents/MacOS/mpm"
+echo "Bundled mpm"
+
 # --- Sparkle auto-update framework -----------------------------------------
 # Copy the Sparkle.framework that SPM built next to the executable into the
 # bundle's Frameworks dir, and add the rpath the loader needs to find it. The

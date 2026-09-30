@@ -156,6 +156,48 @@ most are enforced in Swift rather than in the prompt: statuses, numbers,
 advice lists, chart links, and the "nothing needs doing" line when every part
 checked is calm. The facts behind every answer are under "What I looked at".
 
+## AI agents
+
+Ask answers the everyday question on this Mac. Harder investigations ("what
+made my build slow on Tuesday afternoon?") suit an AI coding agent such as
+Claude Code or Codex, which can run many queries and reason across them. The
+app gives agents the same facts Ask uses, read-only.
+
+- **Agent views** (`Sources/MacPerfMonitorCore/Agent/AgentViews.swift`). Stable
+  `agent_*` views over the history tables: `agent_system` stitches the live,
+  minute and hour tiers with no overlap, CPU is 0 to 100 for the whole Mac,
+  bytes become MB, GB or KB/s, times come as Unix seconds plus local text,
+  processes carry their owning app and a kind (app, macos, background), and
+  `cpu_share_of_mac_percent` divides by the core count recorded in `meta`.
+  Each column's description lives next to its SQL, and a test fails when the
+  two drift apart. `AgentViews.version` goes up whenever a column changes.
+- **`mpm`** (`Sources/mpm`, bundled at `Contents/MacOS/mpm`). A command-line
+  tool: `schema`, `coverage`, `sql`, `brief PART`, `find`, `link`, `prompt`,
+  and `mcp`. `AgentStore` opens the database read-only with `query_only` on,
+  accepts one SELECT, WITH or EXPLAIN that SQLite confirms is read-only, caps
+  rows, and interrupts a query after 20 seconds so it cannot hold back the
+  app's WAL checkpoint.
+- **MCP server** (`mpm mcp`, `AgentMCP.swift`). Line-delimited JSON-RPC over
+  stdio with five read-only tools: `describe_data`, `query`, `summarize` (the
+  same judged briefs Ask builds), `find_process` and `chart_link`. Set up with
+  `claude mcp add mac-performance-monitor -- "/Applications/Mac Performance Monitor.app/Contents/MacOS/mpm" mcp`
+  or the same with `codex mcp add`.
+- **Chart links.** `macperfmonitor://explorer?charts=…&from=…&to=…&processes=pid:start`
+  opens Explorer like an Ask chart card. The app treats the link as untrusted:
+  chart names must match a pattern, the range is at most 90 days and not in the
+  future, and there are at most four processes. Opening Explorer is the only
+  effect.
+- **Hand off in Ask.** The toolbar menu and a card on the start page copy
+  either a prompt (the data dictionary, rules, examples, what history exists,
+  and the current Ask question with its facts) or the one-line setup command.
+  The first copy explains that an agent sends what it reads to its provider,
+  because Ask itself never sends anything off the Mac.
+
+The rules the prompt teaches are the traps agents otherwise fall into:
+filter on `ts`, use the minute view for spans over a few hours, a process's
+CPU is a percent of one core, pids are reused, disk I/O counters are running
+totals, and memory pressure (not free memory) is what matters.
+
 ## Testing
 
 - Core unit tests build briefs from fixed histories: busy build, memory growth,

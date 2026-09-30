@@ -8,6 +8,15 @@ import SwiftUI
 struct AskView: View {
     @ObservedObject var model: AskViewModel
     @FocusState private var composerFocused: Bool
+    @AppStorage(AgentHandoff.noticeKey) private var agentNoticeAccepted = false
+    @State private var pendingHandoff: Handoff?
+    @State private var copiedNote: String?
+
+    /// What gets copied for an AI agent.
+    enum Handoff: Identifiable {
+        case prompt, claude, codex
+        var id: Self { self }
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -40,6 +49,14 @@ struct AskView: View {
         .frame(minWidth: 560, minHeight: 540)
         .background(Color(nsColor: .windowBackgroundColor))
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    agentMenuItems
+                } label: {
+                    Label("Hand off to an AI agent", systemImage: "terminal")
+                }
+                .help("Copy a prompt or a setup command for Claude Code, Codex or another AI agent")
+            }
             if !model.turns.isEmpty {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -49,6 +66,33 @@ struct AskView: View {
                     }
                     .help("Clear this conversation and go back to the start")
                 }
+            }
+        }
+        .alert(
+            "Hand off to an AI agent?",
+            isPresented: Binding(
+                get: { pendingHandoff != nil && !agentNoticeAccepted },
+                set: { if !$0 { pendingHandoff = nil } })
+        ) {
+            Button("Copy") {
+                agentNoticeAccepted = true
+                if let handoff = pendingHandoff { perform(handoff) }
+            }
+            Button("Cancel", role: .cancel) { pendingHandoff = nil }
+        } message: {
+            Text(
+                "An AI agent such as Claude Code or Codex will read this Mac's recorded history, including app names and how much they used, and send what it reads to its AI provider. Ask itself never sends anything off this Mac."
+            )
+        }
+        .overlay(alignment: .bottom) {
+            if let copiedNote {
+                Label(copiedNote, systemImage: "checkmark.circle.fill")
+                    .font(.callout)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(.regularMaterial, in: Capsule())
+                    .padding(.bottom, 110)
+                    .transition(.opacity)
             }
         }
         .onAppear {
@@ -108,6 +152,82 @@ struct AskView: View {
                     }
                 }
             }
+            agentCard
+        }
+    }
+
+    // MARK: AI agents
+
+    private var agentCard: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "terminal")
+                .font(.system(size: 18))
+                .foregroundStyle(.secondary)
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Dig deeper with an AI agent").font(.callout.weight(.semibold))
+                Text(
+                    "Claude Code, Codex and other AI agents can read this Mac's history too and investigate in depth. They send what they read to their provider."
+                )
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    Button("Copy prompt") { request(.prompt) }
+                    Menu("Set up once") {
+                        Button("Claude Code") { request(.claude) }
+                        Button("Codex") { request(.codex) }
+                    }
+                    .fixedSize()
+                }
+                .controlSize(.small)
+                .padding(.top, 2)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.quaternary.opacity(0.3)))
+    }
+
+    @ViewBuilder private var agentMenuItems: some View {
+        Button(model.turns.isEmpty ? "Copy prompt" : "Copy prompt with this conversation") {
+            request(.prompt)
+        }
+        Divider()
+        Button("Copy Claude Code setup") { request(.claude) }
+        Button("Copy Codex setup") { request(.codex) }
+    }
+
+    /// The first hand-off explains where the data goes; later ones just copy.
+    private func request(_ handoff: Handoff) {
+        pendingHandoff = handoff
+        if agentNoticeAccepted { perform(handoff) }
+    }
+
+    private func perform(_ handoff: Handoff) {
+        pendingHandoff = nil
+        switch handoff {
+        case .claude:
+            AgentHandoff.copy(AgentHandoff.claudeSetup)
+            showCopied(t("Copied. Paste it into Terminal, then ask Claude Code about your Mac."))
+        case .codex:
+            AgentHandoff.copy(AgentHandoff.codexSetup)
+            showCopied(t("Copied. Paste it into Terminal, then ask Codex about your Mac."))
+        case .prompt:
+            let turn = model.turns.last(where: { $0.phase == .done })
+            Task {
+                AgentHandoff.copy(await AgentHandoff.prompt(continuing: turn))
+                showCopied(t("Copied. Paste it into Claude Code, Codex or another AI agent."))
+            }
+        }
+    }
+
+    private func showCopied(_ note: String) {
+        withAnimation { copiedNote = note }
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            withAnimation { if copiedNote == note { copiedNote = nil } }
         }
     }
 

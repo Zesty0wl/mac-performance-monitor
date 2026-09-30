@@ -12,6 +12,7 @@ let package = Package(
         .executable(name: "macperfmonitor-cli", targets: ["macperfmonitor-cli"]),
         .executable(name: "MacPerfMonitor", targets: ["MacPerfMonitor"]),
         .executable(name: "MacPerfMonitorHelper", targets: ["MacPerfMonitorHelper"]),
+        .executable(name: "mpm", targets: ["mpm"]),
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0")
@@ -58,6 +59,14 @@ let package = Package(
         .executableTarget(
             name: "MacPerfMonitorHelper",
             dependencies: ["MacPerfMonitorIPC", "MacPerfMonitorCore"]
+        ),
+
+        // `mpm`: read-only command-line access to the recorded history for AI
+        // agents (Claude Code, Codex), and their MCP server (`mpm mcp`). Bundled
+        // in Contents/MacOS by Scripts/bundle.sh. Never writes to the database.
+        .executableTarget(
+            name: "mpm",
+            dependencies: ["MacPerfMonitorCore"]
         ),
 
         // The SwiftUI app: menubar, windows, views, view models. Built from the

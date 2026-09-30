@@ -249,8 +249,10 @@ public struct AreaBrief: Codable, Sendable, Hashable {
                     ? t("Apps using the most (normal amounts, not a problem):")
                     : t("Apps using the most:"))
             lines += apps.map { app in
-                "- \"\(app.name)\"" + (app.kind.note.map { " (\($0))" } ?? "")
-                    + (app.major ? "" : " (" + t("a small share, not the cause") + ")")
+                let notes = [app.kind.note, app.major ? nil : t("a small share, not the cause")]
+                    .compactMap { $0 }
+                return "- \"\(app.name)\""
+                    + (notes.isEmpty ? "" : " (\(notes.joined(separator: "; ")))")
                     + ": \(app.usage)"
             }
         }
