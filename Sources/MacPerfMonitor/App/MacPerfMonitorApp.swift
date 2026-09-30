@@ -151,6 +151,12 @@ struct MacPerfMonitorApp: App {
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
         .commands {
+            CommandMenu("Ask") {
+                Button("Ask About This Mac") {
+                    WindowOpenBridge.shared.open(id: WindowID.ask)
+                }
+                .disabled(!AskAvailability.systemSupports)
+            }
             CommandMenu("Network") {
                 Button("Network Scan") {
                     AppLog.ui.notice("Network Scan command invoked")
@@ -178,6 +184,15 @@ struct MacPerfMonitorApp: App {
                 .keyboardShortcut("d", modifiers: [.command, .shift])
             }
         }
+
+        Window("Ask About This Mac", id: WindowID.ask) {
+            LocaleRootView(languageManager: appDelegate.languageManager) {
+                AskView(model: appDelegate.askModel)
+            }
+        }
+        .defaultSize(width: 780, height: 760)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
         Settings {
             LocaleRootView(languageManager: appDelegate.languageManager) {
@@ -292,7 +307,7 @@ enum AppInfo {
 /// Stable scene identifiers used with `openWindow`.
 enum WindowID {
     static let main = "main"
-    static let ask = "ask-preview"
+    static let ask = "ask"
     static let onboarding = "onboarding"
     static let inspector = "inspector"
     static let openFiles = "open-files"
@@ -324,6 +339,9 @@ final class AppState: ObservableObject {
     /// select the process, then clears it. Nil when there is nothing pending.
     @Published var navigationTarget: ProcessIdentity?
     @Published var alertInvestigation: AlertInvestigation?
+    /// Set by Ask's chart cards: open Explorer on these charts, this period
+    /// and these apps. ContentView consumes and clears it.
+    @Published var explorerFocus: AskChartLink?
 
     /// A process awaiting a force-quit confirmation. Any surface that lists a
     /// process sets this; the single confirmation hosted on the main window
@@ -406,6 +424,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     @preconcurrency UNUserNotificationCenterDelegate
 {
     let model = SamplerModel()
+    lazy var askModel = AskViewModel(
+        sampler: model,
+        openChart: { [weak self] link in self?.openAskChart(link) })
     let components = AppComponentsManager()
     let languageManager = AppLanguageManager()
     let alertSettings = AlertSettings()
@@ -434,10 +455,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     private let presenceController = PresenceController()
     private var cancellables = Set<AnyCancellable>()
 
+    /// An Ask chart card: open the main window's Explorer on those charts.
+    func openAskChart(_ link: AskChartLink) {
+        appState.explorerFocus = link
+        appState.requestedMainTab = .analytics
+        WindowOpenBridge.shared.open(id: WindowID.main)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppLog.ui.notice("app launched (menubar)")
         gitHubStarPrompt.recordLaunch()
         LegacyAskCleanup.runIfNeeded()
+        AskAvailability.registerDefaults()
+        AskShortcuts.updateAppShortcutParameters()
 
         // Per-app network tracking now uses a cheap one-shot nettop, so it's on by
         // default; a registered default makes the launch read below (and @AppStorage
@@ -926,6 +957,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
 /// the window has been opened and closed again.
 struct MainWindowGate: View {
     @EnvironmentObject private var appState: AppState
+    @AppStorage(AskAvailability.enabledKey) private var askEnabled = true
 
     var body: some View {
         ZStack {
@@ -945,14 +977,16 @@ struct MainWindowGate: View {
             }
         }
         .toolbar {
-            ToolbarItem(id: "main.ask-preview", placement: .automatic) {
-                Button {
-                    WindowOpenBridge.shared.open(id: WindowID.ask)
-                } label: {
-                    Image(systemName: "sparkles")
+            if AskAvailability.isOffered(enabled: askEnabled) {
+                ToolbarItem(id: "main.ask", placement: .automatic) {
+                    Button {
+                        WindowOpenBridge.shared.open(id: WindowID.ask)
+                    } label: {
+                        Image(systemName: "sparkles")
+                    }
+                    .help("Ask About This Mac")
+                    .accessibilityLabel("Ask About This Mac")
                 }
-                .help("Ask About This Mac (Preview)")
-                .accessibilityLabel("Ask About This Mac (Preview)")
             }
             ToolbarItem(id: "main.refresh-interval", placement: .automatic) {
                 RefreshIntervalControl()

@@ -228,6 +228,46 @@ final class AskBriefTests: XCTestCase {
             "no app list, so no label")
     }
 
+    func testOnlyAppsAreEverToldToQuit() {
+        XCTAssertEqual(
+            AskProcessKind.classify(path: "/System/Library/Frameworks/Contacts.framework/contactsd")
+                .kind, .system)
+        XCTAssertEqual(AskProcessKind.classify(path: "/usr/libexec/trustd").kind, .system)
+        let helper = AskProcessKind.classify(
+            path:
+                "/Applications/Google Chrome.app/Contents/Frameworks/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)"
+        )
+        XCTAssertEqual(helper.kind, .app)
+        XCTAssertEqual(helper.app, "Google Chrome")
+        XCTAssertEqual(AskProcessKind.classify(path: "/opt/homebrew/bin/node").kind, .background)
+
+        var busy = input(.processor)
+        busy.points = points { point, _ in point.cpuLoad = 0.7 }
+        busy.coreCount = 10
+        busy.apps = [AskAppUsage(identity: app, name: "contactsd", average: 300, kind: .system)]
+        let system = AskBriefBuilder.brief(busy)
+        XCTAssertTrue(
+            system.advice.first?.contains("part of macOS") ?? false, system.advice.description)
+        XCTAssertFalse(system.advice.contains { $0.hasPrefix("Quit") })
+        XCTAssertTrue(system.promptText.contains("\"contactsd\" (part of macOS)"))
+
+        busy.apps = [
+            AskAppUsage(
+                identity: app, name: "Google Chrome Helper (Renderer)", average: 300, kind: .app,
+                owner: "Google Chrome")
+        ]
+        XCTAssertTrue(
+            AskBriefBuilder.brief(busy).advice.first?.hasPrefix("Quit \"Google Chrome\"") ?? false)
+    }
+
+    func testModeratePressureIsBusyNotWorthALook() {
+        var memory = input(.memory)
+        memory.points = points { point, _ in point.pressurePercent = 40 }
+        XCTAssertEqual(AskBriefBuilder.brief(memory).status, .busy)
+        memory.points = points { point, _ in point.pressurePercent = 55 }
+        XCTAssertEqual(AskBriefBuilder.brief(memory).status, .unusual)
+    }
+
     // MARK: Plans
 
     func testTimeSpecsResolveToThePastAndClipToRecording() {

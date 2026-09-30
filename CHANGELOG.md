@@ -6,6 +6,22 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Ask About This Mac is rebuilt for people new to Macs** (macOS 27). It opens
+  with a one-line verdict and a tile for each part of the Mac (Processor,
+  Memory, Graphics, Neural Engine, Network, Storage, Battery, Heat), each with a
+  plain status such as Calm, Busy or Worth a look. Tap a tile or a starter
+  question, or type your own. The app reads its own history, compares it with
+  what is normal for your Mac, and works out which apps are responsible; Apple's
+  on-device model then explains it in everyday words and suggests one safe next
+  step. Each answer links to the matching charts, opened in Explorer at the
+  right time with the right apps selected, and shows the facts behind it.
+  Nothing leaves your Mac, and the conversation is cleared when Ask closes.
+- The Ask preview's optional Qwen and DeepAnalyze downloads, its local AI
+  worker and its report Shortcuts are gone. Models downloaded by earlier
+  versions are deleted to free the space. Siri and Shortcuts can still open Ask.
+
 ### Fixed
 
 - The menu bar item keeps its place after an update ([#120](https://github.com/Zesty0wl/mac-performance-monitor/issues/120)).

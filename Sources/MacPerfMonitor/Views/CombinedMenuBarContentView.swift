@@ -24,6 +24,7 @@ struct CombinedMenuBarContentView: View {
     @EnvironmentObject private var menuClock: MenuClock
     @EnvironmentObject private var components: AppComponentsManager
     @EnvironmentObject private var notchDisplay: NotchDisplayController
+    @AppStorage(AskAvailability.enabledKey) private var askEnabled = true
 
     @ObservedObject var selection: CombinedMenuBarPanelSelection
 
@@ -229,11 +230,13 @@ struct CombinedMenuBarContentView: View {
             Spacer()
 
             Menu {
-                Button("Ask About This Mac (Preview)", systemImage: "sparkles") {
-                    dismiss()
-                    WindowOpenBridge.shared.open(id: WindowID.ask)
+                if AskAvailability.isOffered(enabled: askEnabled) {
+                    Button("Ask About This Mac", systemImage: "sparkles") {
+                        dismiss()
+                        WindowOpenBridge.shared.open(id: WindowID.ask)
+                    }
+                    Divider()
                 }
-                Divider()
                 Button(
                     LocalizedStringKey(
                         components.historyLogging

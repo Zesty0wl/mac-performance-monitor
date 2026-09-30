@@ -28,11 +28,18 @@ public struct AskAppUsage: Sendable, Equatable {
     public var identity: ProcessIdentity
     public var name: String
     public var average: Double
+    public var kind: AskProcessKind
+    public var owner: String?
 
-    public init(identity: ProcessIdentity, name: String, average: Double) {
+    public init(
+        identity: ProcessIdentity, name: String, average: Double, kind: AskProcessKind = .app,
+        owner: String? = nil
+    ) {
         self.identity = identity
         self.name = name
         self.average = average
+        self.kind = kind
+        self.owner = owner
     }
 }
 
@@ -121,18 +128,12 @@ public enum AskBriefBuilder {
     /// Safe next steps for a newcomer, only when the area needs them. Nothing
     /// here deletes files, changes settings, or needs Terminal.
     static func advice(for brief: AreaBrief, growth: [AskGrowth] = []) -> [String] {
-        let app = brief.apps.first?.name
         var steps: [String] = []
         switch brief.area {
         case .overall, .neuralEngine:
             break
         case .processor where brief.status >= .busy:
-            steps.append(
-                app.map {
-                    t(
-                        "Quit \"%@\" if you are not using it, or let it finish if it is doing a job such as a backup, an update or a build.",
-                        $0)
-                } ?? t("Quit apps you are not using."))
+            steps += quitAdvice(brief.apps, fallback: t("Quit apps you are not using."))
         case .memory:
             if let grower = growth.first(where: { $0.growthBytes >= 256 * 1_048_576 }) {
                 steps.append(
@@ -155,10 +156,9 @@ public enum AskBriefBuilder {
             steps.append(t("The Disk Map shows which folders take the most space."))
         case .energy where brief.status >= .busy:
             steps.append(t("Plug in to charge, and lower the screen brightness."))
-            if let app { steps.append(t("Quit \"%@\" if you are not using it.", app)) }
+            steps += quitAdvice(brief.apps, fallback: nil)
         case .heat where brief.status >= .busy:
             steps.append(t("Keep the vents clear and use the Mac on a hard, flat surface."))
-            if let app { steps.append(t("Quitting \"%@\" lets the Mac cool down.", app)) }
         default:
             break
         }
@@ -166,6 +166,32 @@ public enum AskBriefBuilder {
             steps.append(t("Nothing is needed: this part of the Mac is fine."))
         }
         return steps
+    }
+
+    /// "Quit X" only for something that can be quit: an app, or the app a
+    /// helper belongs to. A busy part of macOS gets patience instead.
+    static func quitAdvice(_ apps: [AskApp], fallback: String?) -> [String] {
+        guard let top = apps.first else { return fallback.map { [$0] } ?? [] }
+        switch top.kind {
+        case .app:
+            return [
+                t(
+                    "Quit \"%@\" if you are not using it, or let it finish if it is doing a job such as a backup, an update or a build.",
+                    top.owner ?? top.name)
+            ]
+        case .system:
+            return [
+                t(
+                    "\"%@\" is part of macOS. It usually settles down on its own; if it stays busy for hours, restarting the Mac helps.",
+                    top.name)
+            ]
+        case .background:
+            return [
+                t(
+                    "\"%@\" is a background process, often started by an app or a tool you installed. It usually finishes on its own.",
+                    top.name)
+            ]
+        }
     }
 
     /// How much of an area's resource one app used, in the area's own words,
@@ -271,7 +297,7 @@ public enum AskBriefBuilder {
             let share = app.average / cores
             guard share >= 0.5 else { return nil }
             return AskApp(
-                name: app.name, identity: app.identity,
+                name: app.name, identity: app.identity, kind: app.kind, owner: app.owner,
                 usage: share < 1
                     ? t("under 1%% of the processor on average")
                     : t("about %@ of the processor on average", AskWords.percent(share)))
@@ -334,12 +360,16 @@ public enum AskBriefBuilder {
                             ByteFormat.string(UInt64(swapGrowth))))
                 }
             }
+            // The middle band is routine on many Macs: macOS squeezing memory
+            // is coping, not failing. Worth a look needs the upper half of it,
+            // swap growing, or pressure well above this Mac's normal.
+            let aboveNormal = normal.map { series.mean >= max($0 * 1.8, 34) } ?? false
             status =
                 series.mean >= 67 || series.busyShare >= 0.25
                 ? .attention
-                : series.mean >= 34 || swapGrowth >= 1_073_741_824
+                : series.mean >= 50 || swapGrowth >= 1_073_741_824 || aboveNormal
                     ? .unusual
-                    : series.peak >= 34 ? .busy : .calm
+                    : series.mean >= 34 || series.peak >= 50 ? .busy : .calm
             headline = t("Pressure %@.", pressureWords(series.mean))
         } else if let now = input.live?.pressurePercent {
             status = now >= 67 ? .attention : now >= 34 ? .unusual : .calm
@@ -356,7 +386,7 @@ public enum AskBriefBuilder {
         }
         let apps = input.apps.prefix(3).map {
             AskApp(
-                name: $0.name, identity: $0.identity,
+                name: $0.name, identity: $0.identity, kind: $0.kind, owner: $0.owner,
                 usage: t("about %@ on average", ByteFormat.string(UInt64(max(0, $0.average)))))
         }
         var chartProcesses = apps.map(\.identity)
@@ -417,7 +447,7 @@ public enum AskBriefBuilder {
         }
         let apps = input.apps.filter { $0.average >= 1 }.prefix(3).map {
             AskApp(
-                name: $0.name, identity: $0.identity,
+                name: $0.name, identity: $0.identity, kind: $0.kind, owner: $0.owner,
                 usage: t("about %@ of the graphics chip on average", AskWords.percent($0.average)))
         }
         return AreaBrief(
@@ -537,7 +567,7 @@ public enum AskBriefBuilder {
         if input.networkTracking {
             apps = input.apps.filter { $0.average >= 10_000 }.prefix(3).map {
                 AskApp(
-                    name: $0.name, identity: $0.identity,
+                    name: $0.name, identity: $0.identity, kind: $0.kind, owner: $0.owner,
                     usage: t("about %@ on average", ByteFormat.rate($0.average)))
             }
         } else {
@@ -613,7 +643,7 @@ public enum AskBriefBuilder {
         }
         let apps = input.apps.filter { $0.average >= 100_000 }.prefix(3).map {
             AskApp(
-                name: $0.name, identity: $0.identity,
+                name: $0.name, identity: $0.identity, kind: $0.kind, owner: $0.owner,
                 usage: t("about %@ of reading and writing on average", ByteFormat.rate($0.average)))
         }
         return AreaBrief(
@@ -638,7 +668,7 @@ public enum AskBriefBuilder {
         let apps = input.apps.prefix(3).compactMap { app -> AskApp? in
             guard total > 0, app.average > 0 else { return nil }
             return AskApp(
-                name: app.name, identity: app.identity,
+                name: app.name, identity: app.identity, kind: app.kind, owner: app.owner,
                 usage: t(
                     "about %@ of the energy used by apps",
                     AskWords.percent(app.average / total * 100)))

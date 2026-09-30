@@ -22,7 +22,7 @@ public enum AskArea: String, CaseIterable, Codable, Sendable, Identifiable {
         case .neuralEngine: return t("Neural Engine")
         case .network: return t("Network")
         case .storage: return t("Storage")
-        case .energy: return t("Battery and energy")
+        case .energy: return t("Battery")
         case .heat: return t("Heat")
         }
     }
@@ -46,6 +46,22 @@ public enum AskArea: String, CaseIterable, Codable, Sendable, Identifiable {
         case .heat:
             return t(
                 "How warm the chip is running, and whether macOS is slowing it down to cool it.")
+        }
+    }
+
+    /// The question a tile tap asks, written out per area so each language
+    /// can phrase it naturally.
+    public var question: String {
+        switch self {
+        case .overall: return t("How is my Mac doing?")
+        case .processor: return t("How is my processor doing?")
+        case .memory: return t("How is my memory doing?")
+        case .graphics: return t("How is my graphics chip doing?")
+        case .neuralEngine: return t("How is my Neural Engine doing?")
+        case .network: return t("How is my network doing?")
+        case .storage: return t("How is my storage doing?")
+        case .energy: return t("How is my battery doing?")
+        case .heat: return t("How hot is my Mac running?")
         }
     }
 
@@ -115,16 +131,60 @@ public struct AskChartLink: Codable, Sendable, Hashable {
     }
 }
 
+/// What kind of thing a process is, so advice only ever tells someone to
+/// quit something they can actually quit.
+public enum AskProcessKind: String, Codable, Sendable, Hashable {
+    /// An app, or a helper inside one (a browser's renderer).
+    case app
+    /// Part of macOS: WindowServer, contactsd, mds_stores.
+    case system
+    /// Anything else running in the background: a command-line tool, a daemon.
+    case background
+
+    /// Classifies by where the executable lives, and finds the app a helper
+    /// belongs to ("Google Chrome" for its renderer).
+    public static func classify(path: String?) -> (kind: AskProcessKind, app: String?) {
+        guard let path, !path.isEmpty else { return (.background, nil) }
+        let systemRoots = [
+            "/System/", "/usr/libexec/", "/usr/sbin/", "/usr/bin/", "/sbin/", "/bin/",
+            "/Library/Apple/",
+        ]
+        if systemRoots.contains(where: { path.hasPrefix($0) }) { return (.system, nil) }
+        if let range = path.range(of: ".app/") {
+            let bundle = (String(path[..<range.lowerBound]) as NSString).lastPathComponent
+            return (.app, bundle.isEmpty ? nil : bundle)
+        }
+        return (.background, nil)
+    }
+
+    /// How the model is told what it is, after the name.
+    var note: String? {
+        switch self {
+        case .app: return nil
+        case .system: return t("part of macOS")
+        case .background: return t("a background process")
+        }
+    }
+}
+
 /// An app that stood out in an area, with its use already put into words.
 public struct AskApp: Codable, Sendable, Hashable {
     public var name: String
     public var identity: ProcessIdentity
     public var usage: String
+    public var kind: AskProcessKind
+    /// The app to quit for this process, when it is one or belongs to one.
+    public var owner: String?
 
-    public init(name: String, identity: ProcessIdentity, usage: String) {
+    public init(
+        name: String, identity: ProcessIdentity, kind: AskProcessKind = .app, owner: String? = nil,
+        usage: String
+    ) {
         self.name = name
         self.identity = identity
         self.usage = usage
+        self.kind = kind
+        self.owner = owner
     }
 }
 
@@ -184,7 +244,9 @@ public struct AreaBrief: Codable, Sendable, Hashable {
                 status <= .calm
                     ? t("Apps using the most (normal amounts, not a problem):")
                     : t("Apps using the most:"))
-            lines += apps.map { "- \"\($0.name)\": \($0.usage)" }
+            lines += apps.map { app in
+                "- \"\(app.name)\"" + (app.kind.note.map { " (\($0))" } ?? "") + ": \(app.usage)"
+            }
         }
         lines += notable.map { "- " + t("Worth noting: %@", $0) }
         lines += gaps.map { "- " + t("Not known: %@", $0) }

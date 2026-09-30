@@ -134,7 +134,10 @@ enum AskPrompts {
         - Write for a beginner: short sentences and everyday words. Explain any technical term in a few words.
         - Start with a one-sentence answer. Then explain why in one or two short paragraphs, naming the app responsible when the facts name one, and say whether this is normal for this Mac.
         - A part whose status is Calm is fine, even if one app uses more of it than others. Don't call it a problem.
-        - Finish with exactly one next step, taken from "Things that help" and written as a normal sentence. Don't write the words "Things that help". If it says nothing is needed, end by saying the Mac looks fine. Never suggest anything else, Terminal commands, or deleting system files.
+        - Only call something "not normal" when its status is "Worth a look" or "Needs attention". Busy means working hard but coping.
+        - Describe each part only with its own facts; don't move a fact from one part to another.
+        - If the facts say "Nothing needs doing", say the Mac looks fine and suggest no step at all.
+        - Otherwise finish with exactly one next step, taken from "Things that help" and written as a normal sentence. Don't write the words "Things that help". If it says nothing is needed, say so. Never suggest anything else, Terminal commands, or deleting system files.
         - For a follow-up, answer the new question directly. Don't repeat your earlier answer.
         - Keep it under 120 words. No headings, no lists, no dashes, and don't mention charts or links: the app shows those.
         - Processor, Memory, Storage and the other headings are parts of the Mac, not apps.
@@ -146,10 +149,11 @@ enum AskPrompts {
 
     static func answerPrompt(question: String, briefs: [AreaBrief], now: Date) -> String {
         let period = briefs.first.map { AskFormatting.period($0.start, $0.end, now: now) } ?? ""
+        let allCalm = !briefs.isEmpty && briefs.allSatisfy { $0.status <= .calm }
         return """
             Question: \(question)
 
-            These facts cover \(period).
+            These facts cover \(period).\(allCalm ? "\nNothing needs doing: every part checked is calm." : "")
 
             \(briefs.map(\.promptText).joined(separator: "\n\n"))
             """

@@ -2,24 +2,41 @@ import Foundation
 import GRDB
 
 extension SampleStore {
+    /// The system history a set of briefs shares: the period itself and the
+    /// week before it. Read once per request, not once per area.
+    public func askHistory(start: Date, end: Date) throws -> AskHistory {
+        let tier = try askTier(start: start, end: end)
+        return AskHistory(
+            points: try systemHistory(from: start, to: end, granularity: tier)
+                .filter {
+                    $0.date >= start.addingTimeInterval(-$0.bucketDuration) && $0.date <= end
+                },
+            baseline: try systemHistory(
+                from: start.addingTimeInterval(-7 * 86400), to: start, granularity: .hour),
+            tier: tier)
+    }
+
     /// Reads everything one area's brief needs from recorded history. Fixed,
     /// bounded queries only; nothing here is driven by model output except the
-    /// optional app name, which is matched as plain text.
+    /// optional app name, which is matched as plain text. Ranking apps is the
+    /// costly part (hundreds of thousands of rows an hour on a busy Mac), so
+    /// callers that only need a status, like the start page, skip it.
     public func askInputs(
-        area: AskArea, start: Date, end: Date, now: Date, appName: String? = nil
+        area: AskArea, start: Date, end: Date, now: Date, appName: String? = nil,
+        history: AskHistory? = nil, includeApps: Bool = true
     ) throws -> AskBriefInputs {
         var input = AskBriefInputs(area: area, start: start, end: end, now: now)
-        let tier = try askTier(start: start, end: end)
-        input.points = try systemHistory(from: start, to: end, granularity: tier)
-            .filter { $0.date >= start.addingTimeInterval(-$0.bucketDuration) && $0.date <= end }
-        input.baseline = try systemHistory(
-            from: start.addingTimeInterval(-7 * 86400), to: start, granularity: .hour)
-        if area.rankedColumn != nil {
-            input.apps = try askTopApps(area: area, start: start, end: end, tier: tier, limit: 10)
+        let history = try history ?? askHistory(start: start, end: end)
+        input.points = history.points
+        input.baseline = history.baseline
+        if includeApps, area.rankedColumn != nil {
+            input.apps = try askTopApps(
+                area: area, start: start, end: end, tier: history.tier, limit: 10)
             if let appName {
                 input.focusName = appName
                 input.focus = try askTopApps(
-                    area: area, start: start, end: end, tier: tier, limit: 2, nameFilter: appName)
+                    area: area, start: start, end: end, tier: history.tier, limit: 2,
+                    nameFilter: appName)
             }
         }
         if area == .memory {
@@ -138,15 +155,24 @@ extension SampleStore {
                     ORDER BY ranked.score DESC LIMIT ?
                     """, arguments: StatementArguments(arguments)
             ).map { row in
-                AskAppUsage(
+                let path: String? = row["path"]
+                let kind = AskProcessKind.classify(path: path)
+                return AskAppUsage(
                     identity: ProcessIdentity(
                         pid: row["pid"], startTime: Date(timeIntervalSince1970: row["start"])),
                     name: ProcessSample.resolvedDisplayName(
-                        name: row["name"], executablePath: row["path"]),
-                    average: row["score"])
+                        name: row["name"], executablePath: path),
+                    average: row["score"], kind: kind.kind, owner: kind.app)
             }
         }
     }
+}
+
+/// System history shared by the briefs of one request.
+public struct AskHistory: Sendable {
+    public var points: [SystemHistoryPoint]
+    public var baseline: [SystemHistoryPoint]
+    public var tier: HistoryWindow.Granularity
 }
 
 /// Which stored per-process column ranks the apps for an area.

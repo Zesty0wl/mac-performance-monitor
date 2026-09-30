@@ -2533,6 +2533,9 @@ final class SamplerModel: ObservableObject {
             live.batteryCharge = battery.chargePercent
             live.batteryIsCharging = battery.isCharging
             live.onExternalPower = battery.isOnAC
+        } else if let system, system.batteryPresent {
+            live.batteryCharge = system.batteryCharge
+            live.batteryIsCharging = system.batteryIsCharging
         }
         return live
     }
@@ -2541,25 +2544,27 @@ final class SamplerModel: ObservableObject {
     /// and the live readings. Asking for `.overall` returns the overall brief
     /// first, then the parts that stood out, so an answer can explain them.
     func askBriefs(
-        areas: [AskArea], interval: DateInterval, appName: String? = nil, now: Date = Date()
+        areas: [AskArea], interval: DateInterval, appName: String? = nil, now: Date = Date(),
+        includeApps: Bool = true
     ) async throws -> [AreaBrief] {
         let current = abs(interval.end.timeIntervalSince(now)) < 120
         let live = current ? askLiveReading(now: now) : nil
         let store = self.store
         let tracking = UserDefaults.standard.bool(forKey: Self.perAppNetworkDefaultsKey)
         let cores = max(1, latest?.cpu.cores.count ?? ProcessInfo.processInfo.activeProcessorCount)
-        let hasBattery = latest?.battery?.isPresent ?? false
+        let hasBattery =
+            latest?.battery?.isPresent ?? (liveSystem ?? latest?.system)?.batteryPresent ?? false
         return try await withCheckedThrowingContinuation { continuation in
             readQueue.async {
                 continuation.resume(
                     with: Result {
-                        let overall = areas.contains(.overall)
-                        let parts = overall ? AskArea.parts : areas
-                        let briefs = try parts.map { area -> AreaBrief in
+                        let history = try store?.askHistory(
+                            start: interval.start, end: interval.end)
+                        func build(_ area: AskArea, apps: Bool) throws -> AreaBrief {
                             var input =
                                 try store?.askInputs(
                                     area: area, start: interval.start, end: interval.end, now: now,
-                                    appName: appName)
+                                    appName: appName, history: history, includeApps: apps)
                                 ?? AskBriefInputs(
                                     area: area, start: interval.start, end: interval.end, now: now)
                             input.live = live
@@ -2569,13 +2574,25 @@ final class SamplerModel: ObservableObject {
                             input.hasBattery = hasBattery
                             return AskBriefBuilder.brief(input)
                         }
-                        guard overall else { return briefs }
-                        let standouts = briefs.filter { $0.status >= .busy }
-                            .sorted { $0.status > $1.status }.prefix(2)
+                        guard areas.contains(.overall) else {
+                            return try areas.map { try build($0, apps: includeApps) }
+                        }
+                        // Every part's status first, without the costly app
+                        // ranking; then apps only for the parts that stood out.
+                        var parts = try AskArea.parts.map { try build($0, apps: false) }
+                        let standouts = parts.filter { $0.status >= .busy }
+                            .sorted { $0.status > $1.status }.prefix(2).map(\.area)
+                        var detailed: [AreaBrief] = []
+                        for area in standouts {
+                            let brief = try build(area, apps: includeApps)
+                            detailed.append(brief)
+                            if let index = parts.firstIndex(where: { $0.area == area }) {
+                                parts[index] = brief
+                            }
+                        }
                         return [
-                            AskBriefBuilder.overall(
-                                briefs, start: interval.start, end: interval.end)
-                        ] + standouts
+                            AskBriefBuilder.overall(parts, start: interval.start, end: interval.end)
+                        ] + detailed
                     })
             }
         }
@@ -2585,7 +2602,8 @@ final class SamplerModel: ObservableObject {
     func askOverview(now: Date = Date()) async throws -> [AreaBrief] {
         let earliest = try await askEarliestRecord()
         let interval = AskTimeSpec.default.interval(now: now, earliest: earliest)
-        let parts = try await askBriefs(areas: AskArea.parts, interval: interval, now: now)
+        let parts = try await askBriefs(
+            areas: AskArea.parts, interval: interval, now: now, includeApps: false)
         return [AskBriefBuilder.overall(parts, start: interval.start, end: interval.end)] + parts
     }
 

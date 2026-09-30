@@ -38,6 +38,7 @@ private struct GeneralSettingsView: View {
     @EnvironmentObject private var components: AppComponentsManager
     @EnvironmentObject private var languageManager: AppLanguageManager
     /// The process-table, chart, and live sampler refresh interval.
+    @AppStorage(AskAvailability.enabledKey) private var askEnabled = true
     @AppStorage(SamplerModel.tableIntervalKey) private var tableInterval =
         SamplerModel.defaultTableInterval
 
@@ -113,6 +114,19 @@ private struct GeneralSettingsView: View {
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            }
+            if AskAvailability.systemSupports {
+                Section {
+                    Toggle("Show Ask About This Mac", isOn: $askEnabled)
+                } header: {
+                    Text("Ask About This Mac")
+                } footer: {
+                    Text(
+                        "Ask questions about your Mac in plain words. Answers use Apple's on-device model; nothing leaves this Mac, and conversations are cleared when Ask closes."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
             }
         }
         .formStyle(.grouped)

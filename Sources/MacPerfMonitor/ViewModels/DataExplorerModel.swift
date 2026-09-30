@@ -485,6 +485,29 @@ final class DataExplorerModel: ObservableObject {
         rebuild(replacing: true, synchronously: true)
     }
 
+    /// Opens on exactly the charts, period and apps an Ask answer linked to.
+    /// A period that ends now keeps following live; an earlier one holds still.
+    func focus(_ link: AskChartLink) {
+        let known = Set(definitions.map(\.id))
+        let lanes = link.laneIDs.filter { known.contains($0) }
+        guard !lanes.isEmpty, link.end > link.start else { return }
+        let now = Date()
+        followsLive = abs(link.end.timeIntervalSince(now)) < 120
+        let end = followsLive ? now : min(now, link.end)
+        domain = min(link.start, end.addingTimeInterval(-300))...end
+        alertEvidence = []
+        focusedLaneID = nil
+        showsInspector = false
+        enabled = Set(lanes)
+        selectedLaneID = lanes[0]
+        cursor.clear()
+        setSelection(link.processes, reload: false)
+        loadedAt = Date()
+        for (index, identity) in identities.enumerated() { colors[identity] = index % 8 }
+        rebuild(replacing: true, synchronously: true)
+        refresh()
+    }
+
     func color(for identity: ProcessIdentity) -> Color {
         ExplorerMetrics.palette[colors[identity] ?? 0]
     }

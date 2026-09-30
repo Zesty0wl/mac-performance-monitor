@@ -2,7 +2,7 @@
 
 Date: 2026-09-30
 
-Status: In development on `feature/ask-redesign`. Replaces Part B of the
+Status: Built on `feature/ask-redesign` (September 2026). Replaces Part B of the
 [AI integration PRD](ai-integration-prd.md) and the preview it describes.
 
 ## Goal
@@ -69,7 +69,7 @@ panel, the Ask menu and Siri ("Ask Mac Performance Monitor").
    smoothly" or "Your Mac is busier than usual: Xcode is using a lot of the
    processor."
 2. **Area tiles**: Processor, Memory, Graphics, Neural Engine, Network,
-   Storage, Battery and Energy, Heat. Each shows a plain status (Calm, Busy,
+   Storage, Battery, Heat. Each shows a plain status (Calm, Busy,
    Worth a look) and one short line. Clicking a tile shows that area's summary
    straight away and, with the model available, a short explanation.
 3. **Starter questions** as buttons: "Why is my Mac slow?", "Why is the fan
@@ -124,8 +124,37 @@ holds:
 | Heat | Thermal pressure, die temperatures, fan speed |
 | Overall | The worst status among the others, and why |
 
+Each brief also carries **Things that help**: safe next steps written in Swift
+for that area and status, so the model picks advice from a known list. Only an
+app (or the app a helper belongs to) is ever suggested for quitting; a busy part
+of macOS gets patience and, if it lasts hours, a restart. Processes are
+classified by where they live on disk: app bundles, macOS system locations, or
+background processes.
+
+Memory pressure's middle band is Busy, not Worth a look: macOS compressing
+memory is coping. Worth a look needs pressure of 50 or more, growing swap, or
+pressure well above this Mac's own normal.
+
 Briefs are the product's knowledge. When an answer is wrong, the fix is almost
 always in a brief, and briefs are tested without the model.
+
+## Cost
+
+Ranking apps is the expensive read: a busy Mac records hundreds of thousands
+of per-process rows an hour. The start page's tiles show no apps, so they skip
+it and share one read of system history across all eight parts (about 1.5
+seconds on a Mac with a 3 GB history). A vague question builds every part
+without apps, then ranks apps only for the two parts that stood out. A typical
+answer takes 8 to 16 seconds, most of it the model.
+
+## What the model still gets wrong
+
+The on-device model is small. In testing it follows the facts well but
+sometimes moves a fact to the wrong part, calls a busy part "not normal", or
+adds a harmless extra step such as restarting the Mac. The rules that matter
+most are enforced in Swift rather than in the prompt: statuses, numbers,
+advice lists, chart links, and the "nothing needs doing" line when every part
+checked is calm. The facts behind every answer are under "What I looked at".
 
 ## Testing
 

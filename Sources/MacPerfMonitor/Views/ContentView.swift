@@ -184,7 +184,9 @@ struct ContentView: View {
                 appState.showNetworkTab = false
             }
             consumeAlertInvestigation()
+            consumeExplorerFocus()
         }
+        .onChange(of: appState.explorerFocus) { _, _ in consumeExplorerFocus() }
         .onChange(of: appState.navigationTarget) { _, newValue in
             if newValue != nil { tab = .processes }
         }
@@ -210,6 +212,17 @@ struct ContentView: View {
             if url != nil { tab = .analytics }
         }
         .onChange(of: appState.alertInvestigation) { _, _ in consumeAlertInvestigation() }
+    }
+
+    private func consumeExplorerFocus() {
+        guard let link = appState.explorerFocus else { return }
+        appState.explorerFocus = nil
+        importedTrace = nil
+        investigationRevision &+= 1
+        for identity in monitor.identities { monitor.remove(identity) }
+        for identity in link.processes { monitor.add(identity) }
+        explorer.focus(link)
+        tab = .analytics
     }
 
     private func consumeAlertInvestigation() {
