@@ -467,6 +467,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         AppLog.ui.notice("app launched (menubar)")
         gitHubStarPrompt.recordLaunch()
         LegacyAskCleanup.runIfNeeded()
+        TitlebarDragProbe.install()
         AskAvailability.registerDefaults()
         AskShortcuts.updateAppShortcutParameters()
 
