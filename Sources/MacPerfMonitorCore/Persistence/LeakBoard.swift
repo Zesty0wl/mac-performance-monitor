@@ -46,6 +46,11 @@ private struct SeriesAccumulator {
     var isTranslated: Bool
     var series: [(Date, UInt64)]
     var latest: UInt64
+
+    mutating func append(_ date: Date, _ footprint: UInt64) {
+        series.append((date, footprint))
+        latest = footprint  // rows are ascending, so the last wins
+    }
 }
 
 extension SampleStore {
@@ -81,6 +86,11 @@ extension SampleStore {
         let minuteSince = now.addingTimeInterval(-min(window, 2 * 3600)).timeIntervalSince1970
         let rawSince = now.addingTimeInterval(-Self.leakRawWindow).timeIntervalSince1970
 
+        // The minute tier orders by the raw `bucket` column, which the covering
+        // index already yields in order; ordering by the CAST alias forced a
+        // temp b-tree sort of every row, name and path included. The raw tier
+        // groups the samples before joining the dimension, so the join runs
+        // once per 30 s bucket rather than once per sample (~4x fewer lookups).
         let (minuteTier, rawTier) = try databasePool.read { db in
             (
                 try Self.seriesByIdentity(
@@ -93,20 +103,23 @@ extension SampleStore {
                         JOIN processes p ON p.id = t.process_id
                         WHERE t.bucket >= ? AND t.bucket + COALESCE(
                             (SELECT bucket_seconds FROM system_minute WHERE bucket = t.bucket), 60) <= ?
-                        ORDER BY ts ASC
+                        ORDER BY t.bucket ASC
                         """, arguments: [minuteSince, now.timeIntervalSince1970]),
                 try Self.seriesByIdentity(
                     db,
                     sql: """
                         SELECT p.pid AS pid, p.start_time AS start, p.name AS name, p.is_translated AS translated,
-                               p.executable_path AS exec_path,
-                               AVG(ps.timestamp) AS ts,
-                               CAST(AVG(ps.phys_footprint) AS INTEGER) AS fp
-                        FROM process_samples ps
-                        JOIN processes p ON p.id = ps.process_id
-                        WHERE ps.timestamp >= ? AND ps.timestamp <= ? AND ps.footprint_readable = 1
-                        GROUP BY ps.process_id, CAST(ps.timestamp / \(Self.leakBucketSeconds) AS INTEGER)
-                        ORDER BY ts ASC
+                               p.executable_path AS exec_path, g.ts AS ts, g.fp AS fp
+                        FROM (
+                            SELECT ps.process_id AS process_id,
+                                   AVG(ps.timestamp) AS ts,
+                                   CAST(AVG(ps.phys_footprint) AS INTEGER) AS fp
+                            FROM process_samples ps
+                            WHERE ps.timestamp >= ? AND ps.timestamp <= ? AND ps.footprint_readable = 1
+                            GROUP BY ps.process_id, CAST(ps.timestamp / \(Self.leakBucketSeconds) AS INTEGER)
+                        ) g
+                        JOIN processes p ON p.id = g.process_id
+                        ORDER BY g.ts ASC
                         """, arguments: [rawSince, now.timeIntervalSince1970])
             )
         }
@@ -169,21 +182,28 @@ extension SampleStore {
         // same order: pid, start, name, translated, exec_path, ts, fp). This scan
         // touches tens of thousands of rows, so reading by index rather than by
         // column name avoids a name lookup per field per row.
-        for row in try Row.fetchAll(db, sql: sql, arguments: arguments) {
+        //
+        // A cursor, not `fetchAll`: the minute tier alone is ~80k rows on a busy
+        // Mac, and materialising them all (each carrying the process name and
+        // path) before folding them cost ~17 MB of transient heap every scan.
+        // The cursor's row is only valid until the next step, so every value is
+        // copied out before moving on. The accumulator is mutated in place
+        // through the dictionary's `default:` accessor; copying it out and back
+        // in made each append copy the whole series (quadratic per process).
+        let rows = try Row.fetchCursor(db, sql: sql, arguments: arguments)
+        while let row = try rows.next() {
             let pid: Int32 = row[0]
             let start: Double = row[1]
             let identity = ProcessIdentity(pid: pid, startTime: Date(timeIntervalSince1970: start))
             let ts: Double = row[5]
             let footprint = SQLInt.read(row[6])
-            var entry =
-                acc[identity]
-                ?? SeriesAccumulator(
+            acc[
+                identity,
+                default: SeriesAccumulator(
                     name: row[2], executablePath: row[4],
                     isTranslated: (row[3] as Int) != 0,
                     series: [], latest: 0)
-            entry.series.append((Date(timeIntervalSince1970: ts), footprint))
-            entry.latest = footprint  // rows are ascending, so the last wins
-            acc[identity] = entry
+            ].append(Date(timeIntervalSince1970: ts), footprint)
         }
         return acc
     }
