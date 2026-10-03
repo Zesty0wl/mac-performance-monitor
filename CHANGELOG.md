@@ -81,6 +81,11 @@ Notable changes to Mac Performance Monitor. This project follows
 - An Explorer chart no longer lets a single spike set its whole axis. When a
   few isolated samples tower over the rest, the axis fits the rest and the
   chart header shows the spike's value; click it to see the full scale.
+- The app does less work in the background. The history database is flushed
+  once a minute instead of every 15 seconds, which cuts what it writes to
+  disk by about a tenth. The leak scan runs in under half the time with about
+  half the memory, alert checks no longer re-sort a week of past alerts each
+  time, and chart history the app no longer needs is released sooner.
 
 ## [2.2.1] - 2026-09-23
 
