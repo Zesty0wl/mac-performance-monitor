@@ -75,12 +75,26 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Changed
 
+- The Dashboard's right-hand rail shows a CPU usage history chart directly
+  under the live CPU cores grid, with its average, peak and minimum band.
+  It replaces the rail's Swap chart, which repeated the Swap card already in
+  the row of memory cards.
 - With one or two charts showing, the Explorer stacks them full width and
   shares the window height between them instead of leaving most of the
   workspace empty.
 - An Explorer chart no longer lets a single spike set its whole axis. When a
   few isolated samples tower over the rest, the axis fits the rest and the
   chart header shows the spike's value; click it to see the full scale.
+- Tabs you have left stop working in the background. On macOS 26 and later
+  every tab visited since the window opened kept updating while hidden, so a
+  long session grew slower and used more memory with each tab opened. The app
+  also launches about a second faster, and the Processes, Hardware and
+  Explorer tabs open more quickly.
+- The app does less work in the background. The history database is flushed
+  once a minute instead of every 15 seconds, which cuts what it writes to
+  disk by about a tenth. The leak scan runs in under half the time with about
+  half the memory, alert checks no longer re-sort a week of past alerts each
+  time, and chart history the app no longer needs is released sooner.
 
 ## [2.2.1] - 2026-09-23
 

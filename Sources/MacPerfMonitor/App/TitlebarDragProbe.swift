@@ -17,7 +17,11 @@ enum TitlebarDragProbe {
         var origin: NSPoint
         var start: NSPoint
         var distance: CGFloat = 0
+        var point: NSPoint
         var hit: String
+        /// Every toolbar item container at the press, as "class x..x", in
+        /// window points: which one reached into the empty toolbar.
+        var items: String
     }
 
     private static var press: Press?
@@ -43,7 +47,8 @@ enum TitlebarDragProbe {
             else { return }
             press = Press(
                 window: window, origin: window.frame.origin, start: NSEvent.mouseLocation,
-                hit: hitChain(window, at: event.locationInWindow))
+                point: event.locationInWindow, hit: hitChain(window, at: event.locationInWindow),
+                items: toolbarItems(window))
         case .leftMouseDragged:
             guard var current = press else { return }
             let now = NSEvent.mouseLocation
@@ -58,7 +63,9 @@ enum TitlebarDragProbe {
             AppLog.ui.error(
                 """
                 title bar drag did not move the window: dragged \(Int(current.distance), privacy: .public) pt, \
-                hit \(current.hit, privacy: .public), movable \(window.isMovable, privacy: .public), \
+                pressed at x \(Int(current.point.x), privacy: .public) of \(Int(window.frame.width), privacy: .public), \
+                hit \(current.hit, privacy: .public), \
+                items \(current.items, privacy: .public), movable \(window.isMovable, privacy: .public), \
                 key \(window.isKeyWindow, privacy: .public), active \(NSApp.isActive, privacy: .public), \
                 sheet \(window.attachedSheet != nil, privacy: .public), \
                 modal \(NSApp.modalWindow != nil, privacy: .public), \
@@ -70,15 +77,43 @@ enum TitlebarDragProbe {
         }
     }
 
-    /// The view AppKit delivers the press to, and its ancestors, by class.
+    /// The view AppKit delivers the press to, and its ancestors, by class,
+    /// each with its horizontal extent in window points.
     private static func hitChain(_ window: NSWindow, at point: NSPoint) -> String {
         guard let frameView = window.contentView?.superview else { return "no frame view" }
         var view = frameView.hitTest(frameView.convert(point, from: nil))
         var names: [String] = []
         while let current = view, names.count < 6 {
-            names.append(String(describing: type(of: current)))
+            names.append("\(type(of: current)) \(span(current))")
             view = current.superview
         }
         return names.isEmpty ? "nothing" : names.joined(separator: " < ")
+    }
+
+    /// The toolbar's item containers (AppKit's item viewers), found by walking
+    /// the title bar's public view tree, with what each holds.
+    private static func toolbarItems(_ window: NSWindow) -> String {
+        guard let frameView = window.contentView?.superview else { return "none" }
+        var found: [String] = []
+        func walk(_ view: NSView, depth: Int) {
+            guard depth < 12, found.count < 12 else { return }
+            let name = String(describing: type(of: view))
+            if name.contains("ToolbarItemViewer") {
+                let inside = view.subviews.map { String(describing: type(of: $0)) }.prefix(2)
+                found.append("\(span(view)) [\(inside.joined(separator: ","))]")
+                return
+            }
+            for child in view.subviews { walk(child, depth: depth + 1) }
+        }
+        for child in frameView.subviews
+        where String(describing: type(of: child)).contains("Titlebar") {
+            walk(child, depth: 0)
+        }
+        return found.isEmpty ? "none" : found.joined(separator: "; ")
+    }
+
+    private static func span(_ view: NSView) -> String {
+        let frame = view.convert(view.bounds, to: nil)
+        return "x \(Int(frame.minX))..\(Int(frame.maxX))"
     }
 }

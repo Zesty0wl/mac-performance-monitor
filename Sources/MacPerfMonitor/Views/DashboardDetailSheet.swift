@@ -5,7 +5,7 @@ import SwiftUI
 /// The panel identity is shared by its header action and its detail sheet.
 /// Headline metric cards keep their own, shared MetricCard detail path.
 enum DashboardDetailKind: String {
-    case pressure, processor, network, disk, cores, composition, swap, thermals, topCPU, topDisk
+    case pressure, processor, network, disk, cores, cpuUsage, composition, thermals, topCPU, topDisk
 
     var title: String {
         switch self {
@@ -15,7 +15,7 @@ enum DashboardDetailKind: String {
         case .disk: return t("Physical disk")
         case .cores: return t("CPU cores")
         case .composition: return t("Memory composition")
-        case .swap: return t("Swap")
+        case .cpuUsage: return t("CPU usage")
         case .thermals: return t("Thermals")
         case .topCPU: return t("Top CPU processes")
         case .topDisk: return t("Top disk processes")
@@ -25,9 +25,9 @@ enum DashboardDetailKind: String {
     var systemImage: String {
         switch self {
         case .pressure: return "gauge.with.dots.needle.50percent"
-        case .processor, .cores: return "cpu"
+        case .processor, .cores, .cpuUsage: return "cpu"
         case .network: return "network"
-        case .disk, .swap: return "internaldrive"
+        case .disk: return "internaldrive"
         case .composition: return "chart.bar.fill"
         case .thermals: return "thermometer.medium"
         case .topCPU, .topDisk: return "list.number"
@@ -42,7 +42,7 @@ enum DashboardDetailKind: String {
         case .pressure:
             return
                 "The pressure index describes how hard macOS is working to meet memory demand. It is not the percentage of RAM in use. The kernel's normal, warning, and critical states anchor the scale."
-        case .processor:
+        case .processor, .cpuUsage:
             return
                 "Total CPU is the share of all logical cores in use, from 0 to 100%. High use can be healthy during demanding work. A narrow range means steady demand; a wide range means bursts."
         case .network:
@@ -57,9 +57,6 @@ enum DashboardDetailKind: String {
         case .composition:
             return
                 "This is how physical RAM was divided when the snapshot was taken. Cached files can be reclaimed, so occupied RAM is not automatically a problem. Swap lives on disk and is not part of this stack."
-        case .swap:
-            return
-                "Swap is memory held on disk rather than in RAM. A nonzero balance alone does not mean the Mac is struggling. A sustained rise alongside memory pressure is more useful evidence."
         case .thermals:
             return
                 "CPU and GPU temperatures come from separate sensors. A gap means a reading was unavailable, not zero degrees. A high temperature alone does not prove throttling; macOS reports its thermal state separately."
@@ -77,7 +74,7 @@ enum DashboardDetailKind: String {
         case .pressure:
             return
                 "Compare sustained pressure with compressed memory and swap. Use the Processes tab to find large or growing footprints. A short spike is different from pressure that stays high."
-        case .processor:
+        case .processor, .cpuUsage:
             return
                 "Compare the mean with the observed range, then inspect CPU cores and Top CPU processes. Load averages describe queued or running work, not a percentage. Compare them with the machine's core count."
         case .network:
@@ -92,9 +89,6 @@ enum DashboardDetailKind: String {
         case .composition:
             return
                 "Compare this breakdown with pressure and swap before judging free memory. Check the Processes tab for growing app footprints. Cached files usually need no action because macOS can release that space."
-        case .swap:
-            return
-                "Look for sustained growth, then compare pressure, compression, and app memory. Disk activity may increase while memory moves between RAM and swap. A flat swap balance can remain after the workload ends."
         case .thermals:
             return
                 "Compare temperatures with CPU activity and macOS thermal state. Check the Energy tab for fans and thermal events. If one sensor is unavailable, do not infer its temperature from the other."
@@ -112,7 +106,7 @@ enum DashboardDetailKind: String {
         case .pressure:
             return
                 "macOS memory pressure selects the band: normal 0-33, warning 34-66, or critical 67-100. Compression, swap, and their growth place the index within that band. The chart summarizes recorded samples, not a percentage of allocated bytes."
-        case .processor:
+        case .processor, .cpuUsage:
             return
                 "CPU use comes from changes in the kernel's per-core time counters. Busy time includes user and system work. The timeline uses recorded samples; the Dashboard's current numeric readouts are smoothed and are not selected-range means."
         case .network:
@@ -127,9 +121,6 @@ enum DashboardDetailKind: String {
         case .composition:
             return
                 "Wired, app memory, compressed memory, and cached files come from macOS virtual-memory counters. Free and available is the remainder of total RAM. If counters overlap, the measured categories are scaled to total RAM so the stack still reconciles."
-        case .swap:
-            return
-                "Swap used comes from macOS virtual-memory swap counters and is recorded in bytes. It is a balance, not a transfer rate. Minima and maxima describe observed usage within each interval; missing legacy bounds are not invented."
         case .thermals:
             return
                 "The SMC supplies the hottest available CPU die sensor and the hottest available GPU die sensor. macOS supplies thermal state independently. Missing sensor readings remain missing, including explicit gaps within the selected range. The caption identifies the available statistics for older records."

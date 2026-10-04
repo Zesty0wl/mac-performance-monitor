@@ -6,7 +6,8 @@ import SwiftUI
 /// The dashboard tab (PRD section 8.2): a page header with the machine's
 /// identity and a single time-range control, the headline memory figures, then
 /// consistent bordered panels for the memory-pressure timeline, the processor,
-/// the live memory composition, and swap. The range control drives every
+/// CPU use beside the live core grid, and the live memory composition. Swap is
+/// a headline card with the other memory figures. The range control drives every
 /// timeline (and the headline cards' trend sparklines); the composition and
 /// core grid are live. Suspected leaks are highlighted in the Processes list,
 /// not here.
@@ -44,8 +45,8 @@ struct DashboardView: View {
 
     var body: some View {
         ScrollView {
-            // Primary timelines run down the wide main column; the memory
-            // composition and swap read-outs sit in the compact stats rail, so
+            // Primary timelines run down the wide main column; the core grid,
+            // CPU use and memory composition sit in the compact stats rail, so
             // the page uses its horizontal space instead of one tall column.
             MainRailLayout {
                 pageHeader
@@ -56,8 +57,8 @@ struct DashboardView: View {
                 diskPanel
             } rail: {
                 coresPanel
+                cpuUsagePanel
                 compositionPanel
-                swapPanel
                 thermalPanel
                 topCPUPanel
                 topDiskPanel
@@ -236,14 +237,16 @@ struct DashboardView: View {
         }
     }
 
-    private var swapPanel: some View {
-        DashboardPanel(.swap, detailEnabled: !awaitingData, detail: { showDetail(.swap) }) {
-            LiveTrendChart(feed: timeline.swapFeed, scrubbable: true)
+    /// CPU use over the selected range, right under the live core grid, so
+    /// the rail pairs "now" with "lately". Shares the Processor panel's feed.
+    private var cpuUsagePanel: some View {
+        DashboardPanel(.cpuUsage, detailEnabled: !awaitingData, detail: { showDetail(.cpuUsage) }) {
+            LiveTrendChart(feed: timeline.cpuFeed, scrubbable: true)
                 .frame(height: 140)
                 .chartReloading(awaitingData)
-            DashboardStatisticsNote(timeline: timeline, feed: timeline.swapFeed)
+            DashboardStatisticsNote(timeline: timeline, feed: timeline.cpuFeed)
             dashboardFootnote(
-                "Swap is memory held on disk. A sustained rise alongside pressure matters more than a nonzero balance."
+                "Share of all cores in use over the selected range, 0-100%. The cores above show each core right now."
             )
         }
     }
@@ -409,7 +412,7 @@ struct DashboardView: View {
                 fact("Compressed memory", bytes(system?.compressed)),
                 fact("Swap used", bytes(system?.swapUsed)),
             ]
-        case .processor:
+        case .processor, .cpuUsage:
             content = .trend(timeline.cpuFeed.model)
             facts = [
                 fact("Current total CPU (smoothed)", timeline.cpuTotalFeed.text),
@@ -445,14 +448,6 @@ struct DashboardView: View {
                 fact("Read service time", number(system?.diskReadLatencyMs, format: "%.2f ms")),
                 fact("Write service time", number(system?.diskWriteLatencyMs, format: "%.2f ms")),
                 fact("Busiest device", number(system?.diskUtilizationPercent, format: "%.1f%%")),
-            ]
-        case .swap:
-            content = .trend(timeline.swapFeed.model)
-            facts = [
-                fact("Swap used", bytes(system?.swapUsed)),
-                fact("Allocated swap", bytes(system?.swapTotal)),
-                fact("Installed RAM", bytes(system?.totalRAM)),
-                fact("macOS memory pressure", system?.pressureLevel.label ?? unavailable),
             ]
         case .thermals:
             content = .trend(timeline.thermalFeed.model)
@@ -629,7 +624,6 @@ private final class DashboardTimelineStore: ObservableObject {
     private(set) var memoryScale: MemoryCardScale?
     private(set) var networkYDomain: ClosedRange<Double> = 0...1_024
     private(set) var diskYDomain: ClosedRange<Double> = 0...1_048_576
-    private(set) var swapYDomain: ClosedRange<Double> = 0...1_048_576
     private(set) var statisticsInterval = ChartStatistics.interval(span: 3600)
     private(set) var totalRAM: UInt64 = 0
     private var pressureLevel: PressureLevel?
@@ -644,7 +638,6 @@ private final class DashboardTimelineStore: ObservableObject {
     let cpuFeed = TrendFeed()
     let networkFeed = TrendFeed()
     let diskFeed = TrendFeed()
-    let swapFeed = TrendFeed()
     let thermalFeed = TrendFeed()
     /// One per memory card, in `MemoryMetrics.cards` order.
     let cardFeeds: [MetricCardFeed] = (0..<6).map { _ in MetricCardFeed() }
@@ -756,10 +749,6 @@ private final class DashboardTimelineStore: ObservableObject {
         if reset || diskPeak > diskYDomain.upperBound {
             diskYDomain = 0...MenuChart.niceUpperBound(max(diskPeak * 1.25, 1_048_576))
         }
-        let swapPeak = peak([.swapUsed, .swapUsedPeak])
-        if reset || swapPeak > swapYDomain.upperBound {
-            swapYDomain = 0...MenuChart.niceUpperBound(max(swapPeak * 1.25, 1_048_576))
-        }
     }
 
     /// Record the thermal cadence even for GPU-only or wholly missing sensor
@@ -808,10 +797,6 @@ private final class DashboardTimelineStore: ObservableObject {
             Self.diskModel(
                 window, domain: domain, yDomain: diskYDomain, gap: gap, interval: statisticsInterval
             ), replacingHistory: resetDomains)
-        swapFeed.publish(
-            Self.swapModel(
-                window, domain: domain, yDomain: swapYDomain, gap: gap,
-                interval: statisticsInterval), replacingHistory: resetDomains)
         var thermal =
             thermalNeedsRefresh
             ? TemperatureChart.statisticsModel(points: thermalPoints, xDomain: domain)
@@ -1048,34 +1033,6 @@ private final class DashboardTimelineStore: ObservableObject {
             model.accessibilityValue = t(
                 "Latest recorded read %1$@, write %2$@. Hover for interval averages and ranges.",
                 ByteFormat.rate(latestRead), ByteFormat.rate(latestWrite))
-        } else {
-            model.accessibilityValue = "No data yet."
-        }
-        return model
-    }
-
-    private static func swapModel(
-        _ window: SystemHistoryWindow, domain: ClosedRange<Date>?, yDomain: ClosedRange<Double>,
-        gap: TimeInterval, interval: TimeInterval
-    ) -> TrendModel {
-        let swap = LiveColumn(window, .swapUsed, peak: .swapUsedPeak, minimum: .swapUsedMinimum)
-        var model = TrendModel()
-        model.series = [
-            TrendSurfaceSeries(column: swap, color: .indigo, filled: false, name: t("Swap used"))
-        ]
-        model.xDomain = domain
-        model.gapThreshold = gap
-        model.statisticsInterval = interval
-        model.yDomain = yDomain
-        model.yFormat = { ByteFormat.string(UInt64(max($0, 0))) }
-        model.showsTimeAxis = true
-        model.plotBorder = true
-        model.leftGutter = 56
-        model.accessibilityLabel = "Swap usage trend"
-        if let latest = swap.lastValue {
-            model.accessibilityValue = t(
-                "Latest recorded swap %1$@. Hover for interval averages and ranges.",
-                ByteFormat.string(UInt64(max(latest, 0))))
         } else {
             model.accessibilityValue = "No data yet."
         }
