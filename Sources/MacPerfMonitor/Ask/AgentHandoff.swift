@@ -8,8 +8,10 @@ import MacPerfMonitorCore
 enum AgentHandoff {
     static let noticeKey = "ask.agentNoticeAccepted"
 
+    /// `--scope user` registers it for every folder; Claude Code's default
+    /// scope is the folder the command happens to run in.
     static let claudeSetup =
-        "claude mcp add mac-performance-monitor -- \"\(AgentGuide.mpmPath)\" mcp"
+        "claude mcp add --scope user mac-performance-monitor -- \"\(AgentGuide.mpmPath)\" mcp"
     static let codexSetup =
         "codex mcp add mac-performance-monitor -- \"\(AgentGuide.mpmPath)\" mcp"
 

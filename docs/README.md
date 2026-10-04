@@ -19,6 +19,9 @@ Published packages and Homebrew follow public releases, not every source change.
 - [Adaptive alerts](adaptive-alerts.md): growth rules, observations, snoozes,
   evidence, local state, and verification limits.
 
+- [AI agents](ai-agents.md): connect Claude Code, Codex and other agents to the
+  history through the bundled MCP server or `mpm`, and what they can read.
+
 - [Display capture load](display-capture-load.md): the Insights advisory for
   concurrent capture-helper and display-service activity.
 

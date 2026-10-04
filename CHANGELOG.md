@@ -36,7 +36,10 @@ Notable changes to Mac Performance Monitor. This project follows
   (`Contents/MacOS/mpm`), with documented `agent_*` SQL views of the history,
   the same judged summaries Ask uses, and `macperfmonitor://` links that open
   the matching charts in Explorer. The agent sends what it reads to its own
-  provider, so Ask explains that before the first copy.
+  provider, so Ask explains that before the first copy. The new
+  [AI agents guide](docs/ai-agents.md) covers setup for Claude Code, Codex,
+  Claude Desktop, Cursor and VS Code, the tools and data agents get, and what
+  leaves your Mac.
 - **A program busy for hours is now flagged.** A part of macOS stuck in a loop
   (such as contactsd syncing Contacts all night) used to go unnoticed: the Mac
   looked only a little busier than usual. Alerts now watch each program across
