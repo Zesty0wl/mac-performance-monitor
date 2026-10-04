@@ -19,6 +19,9 @@ Published packages and Homebrew follow public releases, not every source change.
 - [Adaptive alerts](adaptive-alerts.md): growth rules, observations, snoozes,
   evidence, local state, and verification limits.
 
+- [Display capture load](display-capture-load.md): the Insights advisory for
+  concurrent capture-helper and display-service activity.
+
 - [Security and privacy](../SECURITY.md): network access, permissions, exports,
   and private reporting.
 

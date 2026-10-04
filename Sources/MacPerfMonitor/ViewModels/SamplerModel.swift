@@ -492,6 +492,8 @@ final class SamplerModel: ObservableObject {
     private var cachedLeakSeries: (boardAt: Date, series: [ProcessIdentity: [ProcessHistoryPoint]])?
     private var cachedConsumerSeries:
         (at: Date, identities: [ProcessIdentity], series: [ProcessIdentity: [(Date, UInt64)]])?
+    private var cachedDisplayCaptureSeries:
+        (at: Date, identities: [ProcessIdentity], series: [ProcessIdentity: [ProcessHistoryPoint]])?
 
     /// The alert engine and checkpoints are confined to `queue`. Live growth
     /// evidence is independent of the historical leak board and recording mode.
@@ -2965,6 +2967,7 @@ final class SamplerModel: ObservableObject {
         cachedThermalEvents = nil
         cachedLeakSeries = nil
         cachedConsumerSeries = nil
+        cachedDisplayCaptureSeries = nil
     }
 
     private static func buildGroupReport(
@@ -3111,6 +3114,7 @@ final class SamplerModel: ObservableObject {
         let system = latest?.system
         let cpu = latest?.cpu
         let rosetta = RosettaCost.compute(latest?.processes ?? [])
+        let displayProcesses = latest?.processes ?? []
         readQueue.async {
             var bundle = InsightsBundle()
             bundle.leaks = self.currentLeakBoard(store)
@@ -3187,6 +3191,32 @@ final class SamplerModel: ObservableObject {
             let thermalDrift = ThermalDrift.analyze(
                 recent: recentHours, baseline: baselineHours, baselineWeeksAgo: 6)
 
+            // Only read a short, bounded history when WindowServer and replayd
+            // are both busy in the existing live scan (plus any busy known
+            // capture helper, for attribution).
+            // No new process scan, recording stream, or accessibility polling.
+            let captureCandidates = DisplayCaptureLoad.candidates(
+                from: displayProcesses, now: now)
+            let captureIdentities = captureCandidates.map(\.id)
+            let captureHistories: [ProcessIdentity: [ProcessHistoryPoint]]
+            if captureIdentities.isEmpty {
+                self.cachedDisplayCaptureSeries = nil
+                captureHistories = [:]
+            } else if let hit = self.cachedDisplayCaptureSeries,
+                hit.identities == captureIdentities,
+                now.timeIntervalSince(hit.at) < self.consumerMaxAge
+            {
+                captureHistories = hit.series
+            } else {
+                captureHistories =
+                    (try? store.processHistories(
+                        for: captureIdentities, seconds: DisplayCaptureLoad.historyWindow,
+                        now: now)) ?? [:]
+                self.cachedDisplayCaptureSeries = (now, captureIdentities, captureHistories)
+            }
+            let displayCapture = DisplayCaptureLoad.analyze(
+                processes: displayProcesses, histories: captureHistories, now: now)
+
             bundle.insights = InsightEngine.insights(
                 InsightEngine.Inputs(
                     totalRAM: system?.totalRAM ?? 0,
@@ -3200,7 +3230,8 @@ final class SamplerModel: ObservableObject {
                     cpu: cpu,
                     cpuConsumers: cpuConsumers,
                     networkConsumers: networkConsumers,
-                    thermalDrift: thermalDrift
+                    thermalDrift: thermalDrift,
+                    displayCapture: displayCapture
                 ))
 
             let ids = Set(bundle.leaks.map(\.identity))

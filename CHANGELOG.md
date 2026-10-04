@@ -6,6 +6,17 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Added
+
+- Insights can flag screen capture that is slowing the desktop: WindowServer
+  busy with most of a core for 2 minutes while macOS's screen capture service
+  (replayd) is busy too, even when total CPU and memory pressure look normal.
+  It covers any capture source, such as screen sharing, screen recording or
+  an AI agent watching the screen. The card names the app when it recognizes
+  the capture helper (OpenAI's Computer Use service for now) and otherwise
+  points to the purple screen recording icon in the menu bar. It uses
+  existing readings and does not record the screen or stop processes.
+
 ### Changed
 
 - **Ask About This Mac is rebuilt for people new to Macs** (macOS 27). It opens

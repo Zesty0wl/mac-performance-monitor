@@ -219,6 +219,7 @@ extension InsightEngine.Insight {
         case .cpu: return "gauge.with.dots.needle.67percent"
         case .network: return "network"
         case .thermalDrift: return "fanblades"
+        case .displayCapture: return "rectangle.on.rectangle"
         case .allClear: return "checkmark.circle.fill"
         }
     }
@@ -244,7 +245,7 @@ private struct HeadlineInsightsSection: View {
     }
 }
 
-private struct InsightCard: View {
+struct InsightCard: View {
     let insight: InsightEngine.Insight
 
     var body: some View {
