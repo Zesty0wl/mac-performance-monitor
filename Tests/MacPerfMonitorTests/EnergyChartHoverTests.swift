@@ -7,6 +7,27 @@ import XCTest
 
 @MainActor
 final class EnergyChartHoverTests: XCTestCase {
+    /// These expectations are written in Celsius. The display unit follows the
+    /// machine's locale (CI runs in the US, which defaults to Fahrenheit), so
+    /// pin it; the Fahrenheit path has its own tests.
+    private var savedTemperatureUnit: Any?
+
+    override func setUp() async throws {
+        try await super.setUp()
+        savedTemperatureUnit = UserDefaults.standard.object(forKey: TemperatureFormat.defaultsKey)
+        UserDefaults.standard.set(
+            TemperatureUnitChoice.celsius.rawValue, forKey: TemperatureFormat.defaultsKey)
+    }
+
+    override func tearDown() async throws {
+        if let savedTemperatureUnit {
+            UserDefaults.standard.set(savedTemperatureUnit, forKey: TemperatureFormat.defaultsKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: TemperatureFormat.defaultsKey)
+        }
+        try await super.tearDown()
+    }
+
     func testEachEnergyCardOpensItsOwnPopoutWithNativeCharts() async throws {
         _ = NSApplication.shared
         let fixture = energyFixture()
@@ -347,6 +368,23 @@ final class EnergyChartHoverTests: XCTestCase {
         XCTAssertEqual(selected.readings.map(\.name), [t("CPU die"), t("GPU die")])
         XCTAssertEqual(selected.readings.map(\.value), [65, 45])
         XCTAssertEqual(selected.readings.map(\.color), [ThermalStyle.cpu, ThermalStyle.gpu])
+    }
+
+    /// In Fahrenheit the thermal chart plots converted readings and labels
+    /// them in °F, and the card readout converts its Celsius input.
+    func testThermalChartPlotsAndLabelsFahrenheit() async throws {
+        UserDefaults.standard.set(
+            TemperatureUnitChoice.fahrenheit.rawValue, forKey: TemperatureFormat.defaultsKey)
+        let chart = TemperatureChart(points: [point(time: 0), point(time: 30)]).chart
+        let selected = try XCTUnwrap(chart.nearestPoint(fraction: 1, tMin: 0, span: 30))
+        XCTAssertEqual(selected.readings.map(\.value), [149, 113])
+        XCTAssertEqual(chart.yFormat(149), "149°F")
+        XCTAssertEqual(MetricUnit.celsius.format(65), "149°F")
+        let model = TemperatureChart.statisticsModel(
+            points: [point(time: 0), point(time: 30)], xDomain: nil)
+        let domain = try XCTUnwrap(model.yDomain)
+        XCTAssertTrue(domain.contains(149) && domain.contains(113))
+        XCTAssertEqual(model.yFormat(149), "149.0°F")
     }
 
     func testThermalHoverDoesNotReuseAnEarlierGPUReading() async throws {

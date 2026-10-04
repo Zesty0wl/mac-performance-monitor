@@ -7,6 +7,27 @@ import XCTest
 
 @MainActor
 final class DashboardChartTests: XCTestCase {
+    /// These expectations are written in Celsius. The display unit follows the
+    /// machine's locale (CI runs in the US, which defaults to Fahrenheit), so
+    /// pin it; the Fahrenheit path has its own tests.
+    private var savedTemperatureUnit: Any?
+
+    override func setUp() async throws {
+        try await super.setUp()
+        savedTemperatureUnit = UserDefaults.standard.object(forKey: TemperatureFormat.defaultsKey)
+        UserDefaults.standard.set(
+            TemperatureUnitChoice.celsius.rawValue, forKey: TemperatureFormat.defaultsKey)
+    }
+
+    override func tearDown() async throws {
+        if let savedTemperatureUnit {
+            UserDefaults.standard.set(savedTemperatureUnit, forKey: TemperatureFormat.defaultsKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: TemperatureFormat.defaultsKey)
+        }
+        try await super.tearDown()
+    }
+
     func testDashboardHistoryRangeDefaultsToThirtyMinutesAndPersists() throws {
         let suite = "MacPerfMonitorTests.HistoryRange.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
