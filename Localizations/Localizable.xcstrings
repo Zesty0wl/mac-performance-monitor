@@ -2101,6 +2101,66 @@
         }
       }
     },
+    "CPU usage" : {
+      "comment" : "DashboardView. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU-Auslastung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU usage"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisation du CPU"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU 使用率"
+          }
+        }
+      }
+    },
+    "Share of all cores in use over the selected range, 0-100%. The cores above show each core right now." : {
+      "comment" : "DashboardView. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anteil aller Kerne, die im gewählten Zeitraum ausgelastet waren, 0-100 %. Die Kerne darüber zeigen jeden Kern im Moment."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share of all cores in use over the selected range, 0-100%. The cores above show each core right now."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Part de tous les cœurs utilisés sur la période choisie, de 0 à 100 %. Les cœurs ci-dessus montrent chaque cœur en ce moment."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选时间范围内所有核心的使用占比，0-100%。上方的核心显示每个核心当前的使用情况。"
+          }
+        }
+      }
+    },
     "Start over" : {
       "comment" : "Ask About This Mac. AI-generated translations; native-speaker review pending.",
       "extractionState" : "manual",
