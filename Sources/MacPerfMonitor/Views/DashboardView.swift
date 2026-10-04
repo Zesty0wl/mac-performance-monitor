@@ -392,6 +392,10 @@ struct DashboardView: View {
             guard let value, value.isFinite else { return unavailable }
             return String(format: format, value)
         }
+        func temperature(_ celsius: Double?) -> String {
+            guard let celsius, celsius.isFinite else { return unavailable }
+            return TemperatureFormat.string(celsius, fractionDigits: 1)
+        }
         func bytes(_ value: UInt64?) -> String {
             value.map { ByteFormat.string($0) } ?? unavailable
         }
@@ -453,8 +457,8 @@ struct DashboardView: View {
             content = .trend(timeline.thermalFeed.model)
             dataTimestamp = timeline.thermalPoints.last?.date
             facts = [
-                fact("Current CPU die", number(system?.cpuDieC, format: "%.1f°C")),
-                fact("Current GPU die", number(system?.gpuDieC, format: "%.1f°C")),
+                fact("Current CPU die", temperature(system?.cpuDieC)),
+                fact("Current GPU die", temperature(system?.gpuDieC)),
                 fact("Current fastest fan", number(system?.fanRPM, format: "%.0f rpm")),
                 fact("macOS thermal state", system?.thermalPressure?.label ?? unavailable),
             ]
@@ -890,7 +894,7 @@ private final class DashboardTimelineStore: ObservableObject {
         }
         func temperature(_ value: Double?) -> String {
             guard let value, value.isFinite else { return t("Unavailable") }
-            return String(format: "%.1f°C", value)
+            return TemperatureFormat.string(value, fractionDigits: 1)
         }
         cpuTemperatureFeed.publish(temperature(latestSystem?.cpuDieC))
         gpuTemperatureFeed.publish(temperature(latestSystem?.gpuDieC))

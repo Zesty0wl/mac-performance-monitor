@@ -48,7 +48,7 @@ struct TemperatureMenuBarContentView: View {
                     .foregroundStyle(pressure.isThrottling ? pressure.color : .primary)
             }
             Spacer()
-            Text((system.cpuDieC).map { "\(Int($0.rounded()))°C" } ?? "--")
+            Text((system.cpuDieC).map { TemperatureFormat.string($0) } ?? "--")
                 .font(.system(.title, design: .rounded).weight(.semibold))
                 .foregroundStyle(pressure.color)
                 .monospacedDigit()
@@ -86,13 +86,13 @@ struct TemperatureMenuBarContentView: View {
     private func details(_ system: SystemSample) -> some View {
         Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 10, verticalSpacing: 5) {
             if let gpu = system.gpuDieC {
-                detail("GPU die", "\(Int(gpu.rounded()))°C")
+                detail("GPU die", TemperatureFormat.string(gpu))
             }
             if let ssd = system.ssdTemperatureC {
-                detail("SSD", "\(Int(ssd.rounded()))°C")
+                detail("SSD", TemperatureFormat.string(ssd))
             }
             if system.batteryPresent, system.batteryTemperatureCelsius > 0 {
-                detail("Battery", "\(Int(system.batteryTemperatureCelsius.rounded()))°C")
+                detail("Battery", TemperatureFormat.string(system.batteryTemperatureCelsius))
             }
             if let fan = system.fanRPM {
                 detail("Fans", fan == 0 ? t("Off") : t("%@ rpm", String(Int(fan.rounded()))))

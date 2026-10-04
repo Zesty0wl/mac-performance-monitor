@@ -329,10 +329,21 @@ struct HardwareOverviewView: View {
                             SensorChartBlock(
                                 title: t(group.name),
                                 systemImage: Self.sensorSymbol(group.name),
-                                value: "\(Int((group.readings.first ?? 0).rounded()))\u{00B0}C",
+                                value: TemperatureFormat.string(group.readings.first ?? 0),
                                 tint: SensorHeat.color(group.readings.first ?? 0, in: colorScheme),
-                                samples: sensorLive.samples[group.name] ?? [],
-                                minTop: 60,
+                                // Plotted in the person's temperature unit; the
+                                // heat colour still keys off Celsius.
+                                samples: (sensorLive.samples[group.name] ?? []).map {
+                                    MetricSample(
+                                        date: $0.date, value: TemperatureFormat.display($0.value),
+                                        high: $0.high.map(TemperatureFormat.display))
+                                },
+                                // 60 °C keeps a cool sensor low in the plot;
+                                // its Fahrenheit twin (140) would round up to
+                                // a 150 top and quarter into 37.5° steps, so
+                                // 160 (a 200 top, 50° steps) stands in.
+                                minTop: TemperatureFormat.usesFahrenheit ? 160 : 60,
+                                quarterSteps: TemperatureFormat.usesFahrenheit,
                                 yFormat: { "\(Int(max($0, 0).rounded()))\u{00B0}" },
                                 action: { detailGroup = SensorDetailSelection(name: group.name) }
                             )
@@ -533,6 +544,7 @@ private struct SensorChartBlock: View {
     let tint: Color
     let samples: [MetricSample]
     let minTop: Double
+    var quarterSteps = false
     let yFormat: (Double) -> String
     let action: () -> Void
 
@@ -550,7 +562,7 @@ private struct SensorChartBlock: View {
                         .foregroundStyle(tint)
                 }
                 MetricChart(
-                    samples: samples, tint: tint, minTop: minTop,
+                    samples: samples, tint: tint, minTop: minTop, quarterSteps: quarterSteps,
                     windowSeconds: SensorLiveStore.chartSpan, accessibilityTitle: title,
                     yFormat: yFormat
                 )
@@ -624,7 +636,7 @@ private struct SensorDetailSheet: View {
                         }
                         .frame(height: 7)
                         .gridCellUnsizedAxes(.vertical)
-                        Text(String(format: "%.1f\u{00B0}C", sensor.celsius))
+                        Text(TemperatureFormat.string(sensor.celsius, fractionDigits: 1))
                             .font(.callout.monospacedDigit())
                             .foregroundStyle(SensorHeat.color(sensor.celsius, in: colorScheme))
                             .gridColumnAlignment(.trailing)

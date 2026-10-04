@@ -300,9 +300,11 @@ struct BatteryView: View {
     private var thermalStatus: String? {
         guard let system = model.liveSystem else { return nil }
         var parts: [String] = []
-        if let cpu = system.cpuDieC { parts.append("CPU \(Int(cpu.rounded()))°C") }
-        if let gpu = system.gpuDieC { parts.append("GPU \(Int(gpu.rounded()))°C") }
-        if let ssd = system.ssdTemperatureC { parts.append("SSD \(Int(ssd.rounded()))°C") }
+        if let cpu = system.cpuDieC { parts.append("CPU \(TemperatureFormat.string(cpu))") }
+        if let gpu = system.gpuDieC { parts.append("GPU \(TemperatureFormat.string(gpu))") }
+        if let ssd = system.ssdTemperatureC {
+            parts.append("SSD \(TemperatureFormat.string(ssd))")
+        }
         if let fan = system.fanRPM {
             parts.append(fan == 0 ? t("Fans off") : t("Fans %@ rpm", String(Int(fan.rounded()))))
         }

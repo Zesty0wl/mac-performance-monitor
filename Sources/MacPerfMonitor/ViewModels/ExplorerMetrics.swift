@@ -41,7 +41,7 @@ enum ExplorerUnit {
         case .rate: return "B/s"
         case .count: return "count"
         case .watts: return "W"
-        case .celsius: return "C"
+        case .celsius: return TemperatureFormat.letter
         case .rpm: return "rpm"
         case .milliseconds: return "ms"
         case .seconds: return "s"
@@ -61,7 +61,9 @@ enum ExplorerUnit {
         case .rate: return ByteFormat.rate(max(value, 0))
         case .count: return value.formatted(.number.precision(.fractionLength(0...1)))
         case .watts: return String(format: "%.2f W", value)
-        case .celsius: return String(format: "%.1f°C", value)
+        // Celsius lanes are converted to the display unit when their columns
+        // are built (`column(_:convert:)`), so the value is already in it.
+        case .celsius: return TemperatureFormat.label(value, fractionDigits: 1)
         case .rpm: return String(format: "%.0f rpm", value)
         case .milliseconds: return String(format: "%.2f ms", value)
         case .seconds: return String(format: "%.2f s", value)
@@ -82,16 +84,21 @@ struct ExplorerSystemField {
     var weight: ((SystemHistoryPoint) -> Double?)? = nil
     var peakOnly = false
 
-    func column(_ points: [SystemHistoryPoint]) -> LiveColumn {
-        LiveColumn(
+    /// `convert` maps each plotted value into the display unit (Celsius lanes
+    /// to the person's temperature unit); weights and gaps are unaffected.
+    func column(_ points: [SystemHistoryPoint], convert: ((Double) -> Double)? = nil) -> LiveColumn
+    {
+        let convert = convert ?? { $0 }
+        return LiveColumn(
             times: points.map { $0.date.timeIntervalSinceReferenceDate }[...],
-            values: points.map { value($0) ?? .nan }[...],
+            values: points.map { value($0).map(convert) ?? .nan }[...],
             highs: points.map { point in
-                if point.bucketDuration == 0 { return value(point) ?? .nan }
-                return maximum?(point) ?? (peakOnly ? value(point) : nil) ?? .nan
+                if point.bucketDuration == 0 { return value(point).map(convert) ?? .nan }
+                return (maximum?(point) ?? (peakOnly ? value(point) : nil)).map(convert) ?? .nan
             }[...],
             lows: points.map { point in
-                point.bucketDuration == 0 ? (value(point) ?? .nan) : (minimum?(point) ?? .nan)
+                point.bucketDuration == 0
+                    ? (value(point).map(convert) ?? .nan) : (minimum?(point).map(convert) ?? .nan)
             }[...],
             weights: points.map { point in
                 if value(point) == nil { return 0 }

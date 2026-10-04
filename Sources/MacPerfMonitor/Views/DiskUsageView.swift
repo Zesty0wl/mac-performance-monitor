@@ -406,7 +406,7 @@ struct DiskUsageView: View {
 
         VStack(alignment: .leading, spacing: 5) {
             if let temperature = smart.temperatureCelsius {
-                infoRow("Temperature", String(format: "%.0f\u{202F}C", temperature))
+                infoRow("Temperature", TemperatureFormat.string(temperature))
             }
             wearRow(smart)
             infoRow(

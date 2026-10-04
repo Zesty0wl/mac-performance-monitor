@@ -6301,36 +6301,6 @@
         }
       }
     },
-    "The chip averaged %1$@°C and reached %2$@°C at %3$@." : {
-      "comment" : "Ask About This Mac. AI-generated translations; native-speaker review pending.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der Chip lag im Schnitt bei %1$@ °C und erreichte %2$@ °C um %3$@."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The chip averaged %1$@°C and reached %2$@°C at %3$@."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La puce était en moyenne à %1$@ °C et a atteint %2$@ °C à %3$@."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "芯片平均 %1$@°C，在 %3$@ 达到 %2$@°C。"
-          }
-        }
-      }
-    },
     "Running at a normal temperature." : {
       "comment" : "Ask About This Mac. AI-generated translations; native-speaker review pending.",
       "extractionState" : "manual",
@@ -6447,36 +6417,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "这台 Mac 不报告风扇转速。有些 Mac 没有风扇。"
-          }
-        }
-      }
-    },
-    "chip around %@°C" : {
-      "comment" : "Ask About This Mac. AI-generated translations; native-speaker review pending.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chip um %@ °C"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "chip around %@°C"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "puce autour de %@ °C"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "芯片约 %@°C"
           }
         }
       }
@@ -18471,36 +18411,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ · CPU %2$.1f%% · 内存占用 %3$.1f%%"
-          }
-        }
-      }
-    },
-    "%1$@ · hottest %2$@°C" : {
-      "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · max. %2$@ °C"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · hottest %2$@°C"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · max. %2$@ °C"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · 最高 %2$@°C"
           }
         }
       }
@@ -85056,36 +84966,6 @@
         }
       }
     },
-    "peak %@°C" : {
-      "comment" : "Accessibility strings (charts)",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spitze %@ °C"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "peak %@°C"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "pic %@ °C"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "峰值 %@°C"
-          }
-        }
-      }
-    },
     "phys. memory" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -86372,6 +86252,216 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "WindowServer 在 2 分钟内平均占用一个 CPU 核心的 %@%%，同时 macOS 的屏幕捕捉服务持续活跃。菜单栏中的紫色屏幕录制图标会显示哪些应用正在捕捉。如果不需要某项捕捉，请停止它，然后对比响应速度。"
+          }
+        }
+      }
+    },
+    "The chip averaged %1$@ and reached %2$@ at %3$@." : {
+      "comment" : "Temperature unit. German, French and Simplified Chinese machine translated; native review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Der Chip lag im Schnitt bei %1$@ und erreichte %2$@ um %3$@."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The chip averaged %1$@ and reached %2$@ at %3$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "La puce était en moyenne à %1$@ et a atteint %2$@ à %3$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "芯片平均 %1$@，在 %3$@ 达到 %2$@。"
+          }
+        }
+      }
+    },
+    "chip around %@" : {
+      "comment" : "Temperature unit. German, French and Simplified Chinese machine translated; native review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Chip um %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "chip around %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "puce autour de %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "芯片约 %@"
+          }
+        }
+      }
+    },
+    "%1$@ · hottest %2$@" : {
+      "comment" : "Temperature unit. German, French and Simplified Chinese machine translated; native review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$@ · max. %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · hottest %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$@ · max. %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$@ · 最高 %2$@"
+          }
+        }
+      }
+    },
+    "Match System (%@)" : {
+      "comment" : "Temperature unit. German, French and Simplified Chinese machine translated; native review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Wie im System (%@)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Match System (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Comme le système (%@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "跟随系统（%@）"
+          }
+        }
+      }
+    },
+    "Celsius (°C)" : {
+      "comment" : "Temperature unit. German, French and Simplified Chinese machine translated; native review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Celsius (°C)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Celsius (°C)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Celsius (°C)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "摄氏度 (°C)"
+          }
+        }
+      }
+    },
+    "Fahrenheit (°F)" : {
+      "comment" : "Temperature unit. German, French and Simplified Chinese machine translated; native review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Fahrenheit (°F)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fahrenheit (°F)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Fahrenheit (°F)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "华氏度 (°F)"
+          }
+        }
+      }
+    },
+    "Match System follows System Settings > General > Language & Region > Temperature. History is recorded in Celsius either way, so changing this only changes how temperatures are shown." : {
+      "comment" : "Temperature unit. German, French and Simplified Chinese machine translated; native review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "„Wie im System“ folgt Systemeinstellungen > Allgemein > Sprache & Region > Temperatur. Der Verlauf wird immer in Celsius aufgezeichnet, eine Änderung betrifft also nur die Anzeige der Temperaturen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Match System follows System Settings > General > Language & Region > Temperature. History is recorded in Celsius either way, so changing this only changes how temperatures are shown."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "« Comme le système » suit Réglages Système > Général > Langue et région > Température. L'historique est toujours enregistré en Celsius : ce choix ne change que l'affichage des températures."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "“跟随系统”遵循“系统设置”>“通用”>“语言与地区”>“温度”。历史记录始终以摄氏度保存，因此更改此项只会改变温度的显示方式。"
           }
         }
       }

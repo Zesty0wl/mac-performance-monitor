@@ -289,11 +289,11 @@ final class ProcessHeaderStore: ObservableObject {
                     min: $0.min, max: $0.max, minimumSpan: 10, padding: 2, floor: 0)
             } ?? 20...90
         temperatureFeed.publish(
-            value: die.map { "\(Int($0.rounded()))°C" },
+            value: die.map { TemperatureFormat.string($0) },
             tint: NSColor(pressure.color), column: dieColumn, scale: 1,
             xDomain: window.xDomain, yDomain: dieDomain,
             peak: window.peak(.cpuDieC).flatMap {
-                $0 > 0 ? t("peak %@°C", String(Int($0.rounded()))) : nil
+                $0 > 0 ? t("peak %@", TemperatureFormat.string($0)) : nil
             },
             // Rule 2: a thermal spike is the event, so the line follows the
             // bucket maximum rather than its mean.

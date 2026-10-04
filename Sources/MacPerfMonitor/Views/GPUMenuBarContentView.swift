@@ -271,7 +271,7 @@ struct GPUMenuBarContentView: View {
                 detail("Memory", memoryString(gpu))
             }
             if let temp = gpu.dieTemperatureC {
-                detail("Die temperature", "\(Int(temp.rounded()))\u{00B0}C")
+                detail("Die temperature", TemperatureFormat.string(temp))
             }
             if let rpm = gpu.fanRPM {
                 detail("Fan", rpm == 0 ? "Off" : "\(rpm) rpm")

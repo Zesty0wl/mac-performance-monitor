@@ -78,7 +78,9 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
         case .diskIO: return 1
         // Die sensors idle in the 30s to 50s; a 60 floor keeps a cool Mac's
         // line low in the plot instead of auto-fit magnifying idle noise.
-        case .dieTemperature: return 60
+        // In Fahrenheit, 160 rather than 60 °C's twin (140), which would
+        // round up to an awkward 150 top.
+        case .dieTemperature: return TemperatureFormat.usesFahrenheit ? 160 : 60
         }
     }
 
@@ -97,7 +99,8 @@ enum PerfMetric: String, CaseIterable, Identifiable, Sendable {
         case .diskIO:
             return "\(ByteFormat.string(Self.clampedByteCount(v)))/s"
         case .dieTemperature:
-            return String(format: "%.0f°C", v)
+            // Plotted in the person's unit (PerformanceMonitorView converts).
+            return TemperatureFormat.label(v)
         }
     }
 

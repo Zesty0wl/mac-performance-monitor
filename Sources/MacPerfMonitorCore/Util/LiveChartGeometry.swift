@@ -36,12 +36,18 @@ public enum LiveChartGeometry {
     /// gridlines and labels hold still between ticks instead of being re-laid
     /// out for every new peak, while the line still fills at least about 75%
     /// of the plot. Non-positive or non-finite input yields 1.
-    public static func niceCeiling(_ value: Double) -> Double {
+    ///
+    /// `quarterSteps` keeps only tops that split into four round steps
+    /// (dropping 1.5, 2.5 and 5): Fahrenheit temperatures land on 150 and 250,
+    /// whose quarters (37.5, 62.5) would label the axis 113° and 188°.
+    public static func niceCeiling(_ value: Double, quarterSteps: Bool = false) -> Double {
         guard value > 0, value.isFinite else { return 1 }
         let exponent = floor(log10(value))
         let base = pow(10, exponent)
         let fraction = value / base
-        let ladder: [Double] = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]
+        let ladder: [Double] =
+            quarterSteps
+            ? [1, 1.2, 2, 3, 4, 6, 8, 10] : [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]
         let rung = ladder.first { $0 >= fraction - 1e-9 } ?? 10
         return rung * base
     }

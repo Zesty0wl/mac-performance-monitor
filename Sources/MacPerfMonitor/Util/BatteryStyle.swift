@@ -78,7 +78,7 @@ enum BatteryFormat {
 
     /// Temperature in degrees Celsius, e.g. "31.2°C".
     static func celsius(_ c: Double) -> String {
-        String(format: "%.1f°C", c)
+        TemperatureFormat.string(c, fractionDigits: 1)
     }
 
     /// Voltage in volts, e.g. "11.86 V".
