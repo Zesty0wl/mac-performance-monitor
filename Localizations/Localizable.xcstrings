@@ -86292,7 +86292,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "Eine Bildschirmaufnahme könnte deinen Desktop verlangsamen"
           }
         },
@@ -86304,13 +86304,13 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "La capture de l'écran peut ralentir votre bureau"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "屏幕捕捉可能导致桌面响应变慢"
           }
         }
@@ -86322,7 +86322,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "WindowServer beanspruchte 2 Minuten lang durchschnittlich %1$@%% eines CPU-Kerns, während der Bildschirmaufnahmedienst von macOS ausgelastet war. %2$@ war zur selben Zeit aktiv und könnte die Aufnahme steuern. Wenn du die Aufnahme nicht brauchst, beende sie in dieser App und vergleiche die Reaktionsgeschwindigkeit."
           }
         },
@@ -86334,13 +86334,13 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "WindowServer a utilisé en moyenne %1$@%% d'un cœur de processeur pendant 2 minutes, alors que le service de capture d'écran de macOS était actif. %2$@ était actif au même moment et pourrait être à l'origine de la capture. Si la capture n'est pas nécessaire, arrêtez-la dans cette application et comparez la réactivité."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "WindowServer 在 2 分钟内平均占用一个 CPU 核心的 %1$@%%，同时 macOS 的屏幕捕捉服务持续活跃。%2$@ 同时也在活跃，可能是它在捕捉屏幕。如果不需要捕捉，请在该应用中停止捕捉，然后对比响应速度。"
           }
         }
@@ -86352,7 +86352,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "WindowServer beanspruchte 2 Minuten lang durchschnittlich %@%% eines CPU-Kerns, während der Bildschirmaufnahmedienst von macOS ausgelastet war. Das violette Bildschirmaufnahme-Symbol in der Menüleiste zeigt, welche Apps aufnehmen. Wenn du eine Aufnahme nicht brauchst, beende sie und vergleiche die Reaktionsgeschwindigkeit."
           }
         },
@@ -86364,13 +86364,13 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "WindowServer a utilisé en moyenne %@%% d'un cœur de processeur pendant 2 minutes, alors que le service de capture d'écran de macOS était actif. L'icône violette d'enregistrement de l'écran dans la barre des menus indique quelles apps effectuent une capture. Si une capture n'est pas nécessaire, arrêtez-la et comparez la réactivité."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "WindowServer 在 2 分钟内平均占用一个 CPU 核心的 %@%%，同时 macOS 的屏幕捕捉服务持续活跃。菜单栏中的紫色屏幕录制图标会显示哪些应用正在捕捉。如果不需要某项捕捉，请停止它，然后对比响应速度。"
           }
         }
