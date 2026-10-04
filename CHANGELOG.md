@@ -75,6 +75,10 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Changed
 
+- The Dashboard's right-hand rail shows a CPU usage history chart directly
+  under the live CPU cores grid, with its average, peak and minimum band.
+  It replaces the rail's Swap chart, which repeated the Swap card already in
+  the row of memory cards.
 - With one or two charts showing, the Explorer stacks them full width and
   shares the window height between them instead of leaving most of the
   workspace empty.
