@@ -659,8 +659,22 @@ struct HardwareFlowLayout: Layout {
         return rows
     }
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+    /// Each item's ideal size. It does not depend on the proposal, and SwiftUI
+    /// asks for `sizeThatFits` several times per pass (`ViewThatFits` probes,
+    /// the scroll view, then the real proposal) before placing, so measuring
+    /// every block once per subview change instead of on each call takes a
+    /// noticeable share off opening the Hardware tab. SwiftUI rebuilds the
+    /// cache whenever the subviews change.
+    func makeCache(subviews: Subviews) -> [CGSize] {
+        subviews.map { $0.sizeThatFits(.unspecified) }
+    }
+
+    func sizeThatFits(
+        proposal: ProposedViewSize, subviews: Subviews, cache: inout [CGSize]
+    )
+        -> CGSize
+    {
+        let sizes = cache
         let rows = rows(for: subviews, width: proposal.width, sizes: sizes)
         let height = rows.reduce(0) { $0 + $1.height } + spacing * CGFloat(max(rows.count - 1, 0))
         let width = proposal.width ?? sizes.map(\.width).max() ?? 0
@@ -668,9 +682,9 @@ struct HardwareFlowLayout: Layout {
     }
 
     func placeSubviews(
-        in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
+        in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout [CGSize]
     ) {
-        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let sizes = cache
         var y = bounds.minY
         for row in rows(for: subviews, width: bounds.width, sizes: sizes) {
             var x = bounds.minX

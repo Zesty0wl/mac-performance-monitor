@@ -96,6 +96,11 @@ Notable changes to Mac Performance Monitor. This project follows
 - An Explorer chart no longer lets a single spike set its whole axis. When a
   few isolated samples tower over the rest, the axis fits the rest and the
   chart header shows the spike's value; click it to see the full scale.
+- Tabs you have left stop working in the background. On macOS 26 and later
+  every tab visited since the window opened kept updating while hidden, so a
+  long session grew slower and used more memory with each tab opened. The app
+  also launches about a second faster, and the Processes, Hardware and
+  Explorer tabs open more quickly.
 - The app does less work in the background. The history database is flushed
   once a minute instead of every 15 seconds, which cuts what it writes to
   disk by about a tenth. The leak scan runs in under half the time with about
