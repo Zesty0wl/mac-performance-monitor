@@ -4,6 +4,7 @@
 [![Latest release](https://img.shields.io/github/v/release/Zesty0wl/mac-performance-monitor?logo=github&label=release)](https://github.com/Zesty0wl/mac-performance-monitor/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/Zesty0wl/mac-performance-monitor/MacPerformanceMonitor.pkg?logo=github&label=downloads)](https://github.com/Zesty0wl/mac-performance-monitor/releases)
 [![Homebrew cask](https://img.shields.io/homebrew/cask/v/mac-performance-monitor?logo=homebrew&logoColor=white&label=homebrew)](https://formulae.brew.sh/cask/mac-performance-monitor)
+[![Homebrew installs](https://img.shields.io/homebrew/cask/installs/dm/mac-performance-monitor?logo=homebrew&logoColor=white&label=homebrew%20installs)](https://formulae.brew.sh/cask/mac-performance-monitor)
 [![Stars](https://img.shields.io/github/stars/Zesty0wl/mac-performance-monitor?style=flat&logo=github&label=stars)](https://github.com/Zesty0wl/mac-performance-monitor/stargazers)
 
 [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-000000?logo=apple&logoColor=white)](#install)
