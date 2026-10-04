@@ -67,7 +67,8 @@ final class DisplayCaptureInsightTests: XCTestCase {
                 systemHistory: [], leaks: [], events: [], consumers: [], consumerSeries: [:],
                 rosetta: RosettaCost(processCount: 0, totalFootprint: 0),
                 displayCapture: DisplayCaptureLoad.Finding(
-                    helper: helper, windowServerCPU: 93, helperCPU: 16, replayCPU: 6))
+                    windowServer: helper, replayd: helper, windowServerCPU: 93, replayCPU: 6,
+                    helper: helper, helperCPU: 16))
         )
         .first { $0.kind == .displayCapture }!
     }

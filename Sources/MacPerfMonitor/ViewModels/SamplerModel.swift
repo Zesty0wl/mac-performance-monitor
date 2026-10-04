@@ -3191,8 +3191,9 @@ final class SamplerModel: ObservableObject {
             let thermalDrift = ThermalDrift.analyze(
                 recent: recentHours, baseline: baselineHours, baselineWeeksAgo: 6)
 
-            // Only read a short, bounded history when a known capture helper,
-            // replayd, and WindowServer are busy in the existing live scan.
+            // Only read a short, bounded history when WindowServer and replayd
+            // are both busy in the existing live scan (plus any busy known
+            // capture helper, for attribution).
             // No new process scan, recording stream, or accessibility polling.
             let captureCandidates = DisplayCaptureLoad.candidates(
                 from: displayProcesses, now: now)

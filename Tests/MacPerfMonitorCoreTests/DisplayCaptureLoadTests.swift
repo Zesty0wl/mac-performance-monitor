@@ -45,9 +45,9 @@ final class DisplayCaptureLoadTests: XCTestCase {
             DisplayCaptureLoad.analyze(
                 processes: processes, histories: history(processes), now: now))
         XCTAssertEqual(finding.windowServerCPU, 93, accuracy: 0.01)
-        XCTAssertEqual(finding.helperCPU, 16, accuracy: 0.01)
+        XCTAssertEqual(try XCTUnwrap(finding.helperCPU), 16, accuracy: 0.01)
         XCTAssertEqual(finding.replayCPU, 6, accuracy: 0.01)
-        XCTAssertEqual(finding.helper.id, processes[2].id)
+        XCTAssertEqual(finding.helper?.id, processes[2].id)
 
         let insights = InsightEngine.insights(
             InsightEngine.Inputs(
@@ -57,19 +57,47 @@ final class DisplayCaptureLoadTests: XCTestCase {
         let card = try XCTUnwrap(insights.first { $0.kind == .displayCapture })
         XCTAssertEqual(card.identity, processes[2].id)
         XCTAssertEqual(card.severity, .advisory)
-        XCTAssertTrue(card.detail.contains("93% of one core"))
-        XCTAssertTrue(card.detail.contains("stop it in the owning app"))
+        XCTAssertTrue(card.detail.contains("93% of one core over 2 minutes"))
+        XCTAssertTrue(card.detail.contains("SkyComputerUseService was busy at the same time"))
         XCTAssertFalse(insights.contains { $0.kind == .allClear })
     }
 
-    func testHelperPresenceOrOtherHeavyApplicationsAloneDoNotTrigger() {
-        var processes = busyProcesses
-        processes[2].cpuPercent = 0
-        XCTAssertTrue(DisplayCaptureLoad.candidates(from: processes, now: now).isEmpty)
-        processes[2] = process(42, name: "VideoEditor", cpu: 400)
-        XCTAssertNil(
+    /// Any capture source: WindowServer and replayd busy together are enough,
+    /// and the card then points at the menu bar's screen recording icon.
+    func testDisplayAndReplayLoadWithoutAKnownHelperIsReported() throws {
+        let processes = Array(busyProcesses.prefix(2))
+        let finding = try XCTUnwrap(
             DisplayCaptureLoad.analyze(
                 processes: processes, histories: history(processes), now: now))
+        XCTAssertNil(finding.helper)
+        XCTAssertNil(finding.helperCPU)
+        XCTAssertEqual(finding.windowServerCPU, 93, accuracy: 0.01)
+        let insights = InsightEngine.insights(
+            InsightEngine.Inputs(
+                now: now, totalRAM: 128 * 1024 * 1024 * 1024, currentPressure: .normal,
+                systemHistory: [], leaks: [], events: [], consumers: [], consumerSeries: [:],
+                rosetta: RosettaCost(processCount: 0, totalFootprint: 0), displayCapture: finding))
+        let card = try XCTUnwrap(insights.first { $0.kind == .displayCapture })
+        XCTAssertEqual(card.identity, processes[0].id)
+        XCTAssertTrue(card.detail.contains("93% of one core over 2 minutes"))
+        XCTAssertTrue(card.detail.contains("screen recording icon in the menu bar"))
+    }
+
+    func testIdleOrUnrecognisedHelpersAreNotNamedAndHelpersAloneDoNotTrigger() throws {
+        var processes = busyProcesses
+        processes[2].cpuPercent = 0
+        XCTAssertEqual(DisplayCaptureLoad.candidates(from: processes, now: now).count, 2)
+        XCTAssertNil(
+            try XCTUnwrap(
+                DisplayCaptureLoad.analyze(
+                    processes: processes, histories: history(processes), now: now)
+            ).helper)
+        processes[2] = process(42, name: "VideoEditor", cpu: 400)
+        XCTAssertNil(
+            try XCTUnwrap(
+                DisplayCaptureLoad.analyze(
+                    processes: processes, histories: history(processes), now: now)
+            ).helper)
         XCTAssertTrue(DisplayCaptureLoad.candidates(from: [busyProcesses[2]], now: now).isEmpty)
     }
 
@@ -150,41 +178,63 @@ final class DisplayCaptureLoadTests: XCTestCase {
         let trails = history(processes)
         XCTAssertNil(
             DisplayCaptureLoad.analyze(
-                processes: Array(processes.prefix(2)), histories: trails, now: now))
+                processes: [processes[0], processes[2]], histories: trails, now: now))
         var recovered = processes
         recovered[0].cpuPercent = 20
         recovered[1].cpuPercent = 0
         XCTAssertNil(DisplayCaptureLoad.analyze(processes: recovered, histories: trails, now: now))
     }
 
-    func testReusedPIDDoesNotBorrowPreviousHelpersHistory() {
+    func testReusedPIDDoesNotBorrowPreviousHistory() throws {
         let processes = busyProcesses
         var restarted = processes
         restarted[2].startTime = now.addingTimeInterval(-10)
+        XCTAssertNil(
+            try XCTUnwrap(
+                DisplayCaptureLoad.analyze(
+                    processes: restarted, histories: history(processes), now: now)
+            ).helper)
+        restarted = processes
+        restarted[0].startTime = now.addingTimeInterval(-10)
         XCTAssertNil(
             DisplayCaptureLoad.analyze(
                 processes: restarted, histories: history(processes), now: now))
     }
 
-    func testDuplicateOrInvalidReadingsDoNotSupplySustainedEvidence() {
+    func testDuplicateOrInvalidReadingsDoNotSupplySustainedEvidence() throws {
         let processes = busyProcesses
         var trails = history(processes)
         trails[processes[2].id] = Array(repeating: point(120, cpu: 16), count: 100)
-        XCTAssertNil(DisplayCaptureLoad.analyze(processes: processes, histories: trails, now: now))
+        XCTAssertNil(
+            try XCTUnwrap(
+                DisplayCaptureLoad.analyze(processes: processes, histories: trails, now: now)
+            ).helper)
         trails = history(processes)
         trails[processes[2].id]?[2].cpuPercent = .nan
+        XCTAssertNil(
+            try XCTUnwrap(
+                DisplayCaptureLoad.analyze(processes: processes, histories: trails, now: now)
+            ).helper)
+        trails = history(processes)
+        trails[processes[0].id]?[2].cpuPercent = .nan
         XCTAssertNil(DisplayCaptureLoad.analyze(processes: processes, histories: trails, now: now))
         var future = processes
         future[2].timestamp = now.addingTimeInterval(1)
+        XCTAssertEqual(
+            DisplayCaptureLoad.candidates(from: future, now: now).map(\.id),
+            [processes[0].id, processes[1].id])
+        future = processes
+        future[0].timestamp = now.addingTimeInterval(1)
         XCTAssertTrue(DisplayCaptureLoad.candidates(from: future, now: now).isEmpty)
     }
 
     func testTruncatedKernelNameResolvesFromExecutableAndReadsAreBounded() {
         var processes = busyProcesses
         processes[2].name = "SkyComputerUse"
-        XCTAssertNotNil(
+        XCTAssertEqual(
             DisplayCaptureLoad.analyze(
-                processes: processes, histories: history(processes), now: now))
+                processes: processes, histories: history(processes), now: now)?.helper?.id,
+            processes[2].id)
         processes += (1...20).map { process(Int32($0), name: "SkyComputerUseService", cpu: 10) }
         XCTAssertEqual(DisplayCaptureLoad.candidates(from: processes, now: now).count, 5)
     }

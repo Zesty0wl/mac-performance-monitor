@@ -3,24 +3,37 @@ import Foundation
 
 /// A conservative correlation, not a measurement of input latency or proof of
 /// an abandoned capture stream. Uses existing process readings only.
+///
+/// The signal is WindowServer and replayd staying busy together: replayd is
+/// the service behind ScreenCaptureKit, which nearly every current capture
+/// tool uses (screen sharing in Teams and Zoom, OBS, Loom, QuickTime
+/// recording, AI agents that watch the screen), so the two together mean
+/// something is capturing the screen and it is costing the display service,
+/// whoever owns the stream. A recognised capture helper that is busy over the
+/// same window is named as the likely owner, but is never required.
 public enum DisplayCaptureLoad {
     public static let sustainedWindow: TimeInterval = 120
     public static let maximumGap: TimeInterval = 90
     public static let historyWindow = sustainedWindow + maximumGap
 
     private static let displayFloor = 70.0
-    private static let helperFloor = 5.0
     private static let replayFloor = 1.0
+    private static let helperFloor = 5.0
 
     public struct Finding: Sendable, Equatable {
-        public var helper: ProcessSample
+        public var windowServer: ProcessSample
+        public var replayd: ProcessSample
         public var windowServerCPU: Double
-        public var helperCPU: Double
         public var replayCPU: Double
+        /// A recognised capture helper that was busy over the same window,
+        /// named as the likely owner of the stream. Nil when none was.
+        public var helper: ProcessSample?
+        public var helperCPU: Double?
     }
 
     /// Bounds the history read to the display service, replayd, and at most
-    /// three known capture helpers. An idle helper alone asks for no history.
+    /// three busy known capture helpers. Nothing is read unless WindowServer
+    /// and replayd are both busy in the live scan.
     public static func candidates(from processes: [ProcessSample], now: Date) -> [ProcessSample] {
         let fresh = processes.filter {
             let age = now.timeIntervalSince($0.timestamp)
@@ -41,7 +54,6 @@ public enum DisplayCaptureLoad {
             if $0.cpuPercent != $1.cpuPercent { return $0.cpuPercent > $1.cpuPercent }
             return $0.pid < $1.pid
         }.prefix(3)
-        guard !helpers.isEmpty else { return [] }
         return [display, replay] + Array(helpers)
     }
 
@@ -49,22 +61,34 @@ public enum DisplayCaptureLoad {
         processes: [ProcessSample], histories: [ProcessIdentity: [ProcessHistoryPoint]], now: Date
     ) -> Finding? {
         let selected = candidates(from: processes, now: now)
-        guard selected.count >= 3 else { return nil }
+        guard selected.count >= 2 else { return nil }
         let display = selected[0]
         let replay = selected[1]
+        guard
+            let displayTrail = trail(for: display, history: histories[display.id] ?? [], now: now),
+            let replayTrail = trail(for: replay, history: histories[replay.id] ?? [], now: now),
+            let averages = simultaneousLoad(
+                [displayTrail, replayTrail], floors: [displayFloor, replayFloor], now: now)
+        else { return nil }
+        var finding = Finding(
+            windowServer: display, replayd: replay, windowServerCPU: averages[0],
+            replayCPU: averages[1], helper: nil, helperCPU: nil)
+        // Attribution only: the first recognised helper whose load overlaps
+        // the same window by the same rules. Its absence changes the wording,
+        // not whether the card shows.
         for helper in selected.dropFirst(2) {
-            let pair = [display, replay, helper]
-            let trails = pair.compactMap {
-                trail(for: $0, history: histories[$0.id] ?? [], now: now)
-            }
-            guard trails.count == pair.count else { continue }
-            if let averages = simultaneousLoad(trails, now: now) {
-                return Finding(
-                    helper: helper, windowServerCPU: averages[0], helperCPU: averages[2],
-                    replayCPU: averages[1])
-            }
+            guard
+                let helperTrail = trail(
+                    for: helper, history: histories[helper.id] ?? [], now: now),
+                let withHelper = simultaneousLoad(
+                    [displayTrail, replayTrail, helperTrail],
+                    floors: [displayFloor, replayFloor, helperFloor], now: now)
+            else { continue }
+            finding.helper = helper
+            finding.helperCPU = withHelper[2]
+            break
         }
-        return nil
+        return finding
     }
 
     private static func isCaptureHelper(_ process: ProcessSample) -> Bool {
@@ -103,18 +127,19 @@ public enum DisplayCaptureLoad {
         return Array(points[first...])
     }
 
-    /// Weight the intersection of the three timelines, rather than comparing
+    /// Weight the intersection of the timelines, rather than comparing
     /// independent averages that might describe different parts of the window.
-    private static func simultaneousLoad(_ trails: [[Point]], now: Date) -> [Double]? {
+    private static func simultaneousLoad(
+        _ trails: [[Point]], floors: [Double], now: Date
+    ) -> [Double]? {
         let cutoff = now.addingTimeInterval(-sustainedWindow)
         var boundaries: Set<Date> = [cutoff, now]
         for trail in trails {
             boundaries.formUnion(trail.map(\.date).filter { $0 > cutoff && $0 < now })
         }
         let edges = boundaries.sorted()
-        let floors = [displayFloor, replayFloor, helperFloor]
-        var indices = [0, 0, 0]
-        var totals = [0.0, 0.0, 0.0]
+        var indices = Array(repeating: 0, count: trails.count)
+        var totals = Array(repeating: 0.0, count: trails.count)
         var busySeconds = 0.0
         for (start, end) in zip(edges, edges.dropFirst()) {
             let seconds = end.timeIntervalSince(start)

@@ -13,17 +13,30 @@ Insights shows **Screen capture may be slowing your desktop** when existing
 process readings meet all of these conditions:
 
 - WindowServer uses at least 70% of one CPU core.
-- A recognized capture helper uses at least 5% of one core.
 - replayd uses at least 1% of one core.
 - Their activity overlaps for at least 80% of a two-minute window, with each
   process's time-weighted mean also meeting its threshold.
 
-The current recognized helper is OpenAI's `SkyComputerUseService`, including
-its truncated kernel name when the executable path resolves the full name, or
-bundle identifier `com.openai.sky.CUAService`. Computer Use, Computer History,
-and app context can share this helper. The monitor cannot identify the owning
-feature or tell whether the capture is needed. Other recording tools are not
-covered by this first rule.
+replayd is the service behind ScreenCaptureKit, which almost every current
+capture tool uses: screen sharing in Teams and Zoom, OBS, Loom, CleanShot,
+QuickTime recording, and AI agents that watch the screen. WindowServer and
+replayd staying busy together is therefore the signal that something is
+capturing the screen and costing the display service, whoever owns the stream.
+replayd's floor is low on purpose: on the maintainer's Mac it averaged 0.16%
+of a core over a week and passed 1% in under 3% of minutes. During one
+morning with no OpenAI helper running, while Teams, `screencapture` and screen
+sharing processes were present, it held 1% to 2% for runs of several minutes
+with WindowServer at 70% to 86%, which this rule reports.
+
+When a recognized capture helper is busy (at least 5% of one core) over the
+same window by the same rules, the card names it as the likely owner. The
+current recognized helper is OpenAI's `SkyComputerUseService`, including its
+truncated kernel name when the executable path resolves the full name, or
+bundle identifier `com.openai.sky.CUAService`; Computer Use, Computer History
+and app context can share it. Otherwise the card says that something is
+capturing the screen and points to the purple screen recording icon in the
+menu bar, which shows which apps are capturing. The monitor cannot identify
+the owning feature or tell whether the capture is needed.
 
 This is an advisory about correlated activity. It does not measure missed
 frames, input latency, or capture-stream ownership, and does not prove a bug.
@@ -53,7 +66,8 @@ proof that capture has no cost.
 
 The rule runs when the existing Insights bundle refreshes. It adds no timer,
 process scan, screen recording, accessibility query, or network access. When
-the current readings qualify, it reads at most five process histories over
+WindowServer and replayd both qualify in the live scan, it reads at most five
+process histories (those two plus up to three busy recognized helpers) over
 210 seconds on the existing read queue. Otherwise it asks for no history.
 The short histories reuse the Insights cache cadence.
 
@@ -61,6 +75,7 @@ This card is an Insights diagnostic, not a new background notification or an
 automatic watchdog. The underlying capture lifecycle and efficiency still
 belong to the application that owns the capture stream.
 
-The headless detector's tests cover the observed high-display-load pattern,
-normal or absent helpers, sparse and missing data, non-overlapping activity,
-brief spikes, recovery, PID reuse, invalid samples, and bounded history reads.
+The headless detector's tests cover the observed high-display-load pattern
+with and without a recognized helper, idle or unrecognized helpers, sparse and
+missing data, non-overlapping activity, brief spikes, recovery, PID reuse,
+invalid samples, and bounded history reads.

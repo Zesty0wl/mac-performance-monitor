@@ -209,23 +209,34 @@ public enum InsightEngine {
     // MARK: - Sources
 
     /// Capture can tax the display service even with spare total CPU capacity.
+    /// WindowServer and replayd busy together is the trigger; a recognised
+    /// capture helper busy over the same window is named when there is one.
     private static func displayCaptureInsights(_ inputs: Inputs) -> [Insight] {
         guard let finding = inputs.displayCapture else { return [] }
-        let helper = finding.helper
         let percent = String(Int(finding.windowServerCPU.rounded()))
+        let detail: String
+        if let helper = finding.helper {
+            detail = t(
+                "WindowServer averaged %1$@%% of one core over 2 minutes while macOS's screen capture service was busy. %2$@ was busy at the same time, so it may own the capture. If the capture is not needed, stop it in that app and compare responsiveness.",
+                percent, helper.displayName)
+        } else {
+            detail = t(
+                "WindowServer averaged %@%% of one core over 2 minutes while macOS's screen capture service was busy. The purple screen recording icon in the menu bar shows which apps are capturing. If a capture is not needed, stop it and compare responsiveness.",
+                percent)
+        }
+        let subject = finding.helper ?? finding.windowServer
         return [
             Insight(
-                id: "display-capture-\(helper.pid)-\(helper.startTime.timeIntervalSince1970)",
+                id:
+                    "display-capture-\(finding.windowServer.pid)-\(finding.windowServer.startTime.timeIntervalSince1970)",
                 kind: .displayCapture,
                 severity: .advisory,
                 headline: t("Screen capture may be slowing your desktop"),
-                detail: t(
-                    "WindowServer averaged %1$@%% of one core over 2 min while %2$@ and replayd were also busy. Screen capture may be contributing to sluggish input. If capture is not needed, stop it in the owning app and compare responsiveness.",
-                    percent, helper.displayName),
+                detail: detail,
                 metricText: "\(percent)%",
-                identity: helper.id,
-                processName: helper.displayName,
-                executablePath: helper.executablePath)
+                identity: subject.id,
+                processName: subject.displayName,
+                executablePath: subject.executablePath)
         ]
     }
 
