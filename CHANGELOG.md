@@ -14,8 +14,44 @@ Notable changes to Mac Performance Monitor. This project follows
   and comparing responsiveness. It uses existing readings and does not record
   the screen or stop processes.
 
+### Changed
+
+- **Ask About This Mac is rebuilt for people new to Macs** (macOS 27). It opens
+  with a one-line verdict and a tile for each part of the Mac (Processor,
+  Memory, Graphics, Neural Engine, Network, Storage, Battery, Heat), each with a
+  plain status such as Calm, Busy or Worth a look. Tap a tile or a starter
+  question, or type your own. The app reads its own history, compares it with
+  what is normal for your Mac, and works out which apps are responsible; Apple's
+  on-device model then explains it in everyday words and suggests one safe next
+  step. Each answer links to the matching charts, opened in Explorer at the
+  right time with the right apps selected, and shows the facts behind it.
+  Nothing leaves your Mac, and the conversation is cleared when Ask closes.
+- **Hand off to an AI agent.** For deeper digging, Ask can copy a ready-made
+  prompt (with your current question and its facts) for Claude Code, Codex or
+  another AI agent, or the one-line command that connects one. The app now
+  ships `mpm`, a read-only command-line tool and MCP server inside the app
+  (`Contents/MacOS/mpm`), with documented `agent_*` SQL views of the history,
+  the same judged summaries Ask uses, and `macperfmonitor://` links that open
+  the matching charts in Explorer. The agent sends what it reads to its own
+  provider, so Ask explains that before the first copy.
+- **A program busy for hours is now flagged.** A part of macOS stuck in a loop
+  (such as contactsd syncing Contacts all night) used to go unnoticed: the Mac
+  looked only a little busier than usual. Alerts now watch each program across
+  its restarts and warn when one keeps about a core busy for an hour, and Ask's
+  Processor tile names it and says what to do. Apps you are using, and jobs
+  that finish on their own such as Spotlight indexing, stay observations first.
+  It has its own switch in Settings > Alerts.
+- Ask names the app behind its busiest processes: a build's compiler runs count
+  as Xcode, and Chrome's helpers as Chrome. System processes that keep growing
+  get advice that fits them instead of "quit and reopen".
+- The Ask preview's optional Qwen and DeepAnalyze downloads, its local AI
+  worker and its report Shortcuts are gone. Models downloaded by earlier
+  versions are deleted to free the space. Siri and Shortcuts can still open Ask.
+
 ### Fixed
 
+- The main window can enter full screen even when it opens while the app is
+  running in the background without a Dock icon.
 - The menu bar item keeps its place after an update ([#120](https://github.com/Zesty0wl/mac-performance-monitor/issues/120)).
   macOS forgot the position of the unnamed item whenever the app was replaced,
   so each update put it back beside the notch, where a crowded menu bar hides
@@ -47,12 +83,21 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Changed
 
+- The Dashboard's right-hand rail shows a CPU usage history chart directly
+  under the live CPU cores grid, with its average, peak and minimum band.
+  It replaces the rail's Swap chart, which repeated the Swap card already in
+  the row of memory cards.
 - With one or two charts showing, the Explorer stacks them full width and
   shares the window height between them instead of leaving most of the
   workspace empty.
 - An Explorer chart no longer lets a single spike set its whole axis. When a
   few isolated samples tower over the rest, the axis fits the rest and the
   chart header shows the spike's value; click it to see the full scale.
+- The app does less work in the background. The history database is flushed
+  once a minute instead of every 15 seconds, which cuts what it writes to
+  disk by about a tenth. The leak scan runs in under half the time with about
+  half the memory, alert checks no longer re-sort a week of past alerts each
+  time, and chart history the app no longer needs is released sooner.
 
 ## [2.2.1] - 2026-09-23
 

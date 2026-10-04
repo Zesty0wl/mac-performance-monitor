@@ -244,7 +244,10 @@ final class MainWindowNavigationTests: XCTestCase {
         await settle(window)
 
         let initialToolbar = try XCTUnwrap(window.toolbar)
-        XCTAssertEqual(initialToolbar.items.count, 2)
+        // The refresh interval, plus the Ask button where Ask is offered
+        // (macOS 27 and later).
+        let expectedItems = AskAvailability.systemSupports ? 2 : 1
+        XCTAssertEqual(initialToolbar.items.count, expectedItems)
         let toolbarIDs = initialToolbar.items.map(\.itemIdentifier)
         state.mainWindowOpen = true
         await settle(window)
@@ -268,7 +271,7 @@ final class MainWindowNavigationTests: XCTestCase {
         state.mainWindowOpen = false
         await settle(window)
         XCTAssertTrue(window.toolbar === initialToolbar)
-        XCTAssertEqual(window.toolbar?.items.count, 2)
+        XCTAssertEqual(window.toolbar?.items.count, expectedItems)
         XCTAssertEqual(window.toolbar?.items.map(\.itemIdentifier), toolbarIDs)
         XCTAssertNil(navigationControl(in: try XCTUnwrap(window.contentView?.superview)))
 

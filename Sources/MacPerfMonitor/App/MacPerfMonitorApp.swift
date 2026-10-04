@@ -31,6 +31,10 @@ enum MacPerfMonitorMain {
         if MainActor.assumeIsolated({ ChartBenchmark.runIfRequested() }) {
             exit(0)
         }
+        // Ask's model evaluation (see AskEvaluation). Headless, no history.
+        if MainActor.assumeIsolated({ AskEvaluation.runIfRequested() }) {
+            exit(0)
+        }
         SingleInstanceGuard.activateExistingAndExitIfRunning()
         AppLanguagePreflight.run()
         MacPerfMonitorApp.main()
@@ -130,6 +134,7 @@ struct MacPerfMonitorApp: App {
         Window(AppInfo.displayName, id: WindowID.main) {
             LocaleRootView(languageManager: appDelegate.languageManager) {
                 MainWindowGate()
+                    .windowFullScreenBehavior(.enabled)
                     .environmentObject(appDelegate.model)
                     .environment(\.samplerModel, appDelegate.model)
                     .environmentObject(appDelegate.model.menuLists)
@@ -148,9 +153,10 @@ struct MacPerfMonitorApp: App {
         .restorationBehavior(.disabled)
         .commands {
             CommandMenu("Ask") {
-                Button("Ask About This Mac (Preview)") {
+                Button("Ask About This Mac") {
                     WindowOpenBridge.shared.open(id: WindowID.ask)
                 }
+                .disabled(!AskAvailability.systemSupports)
             }
             CommandMenu("Network") {
                 Button("Network Scan") {
@@ -180,20 +186,14 @@ struct MacPerfMonitorApp: App {
             }
         }
 
-        Window("Ask About This Mac (Preview)", id: WindowID.ask) {
+        Window("Ask About This Mac", id: WindowID.ask) {
             LocaleRootView(languageManager: appDelegate.languageManager) {
-                AskPreviewView(
-                    model: appDelegate.askPreviewModel,
-                    openEvidence: { evidence, topic in
-                        appDelegate.openAskEvidence(evidence, topic: topic)
-                    },
-                    openNextStep: { step, evidence in
-                        appDelegate.openAskNextStep(step, evidence: evidence)
-                    })
+                AskView(model: appDelegate.askModel)
             }
         }
-        .defaultSize(width: 820, height: 660)
+        .defaultSize(width: 780, height: 760)
         .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
         Settings {
             LocaleRootView(languageManager: appDelegate.languageManager) {
@@ -308,7 +308,7 @@ enum AppInfo {
 /// Stable scene identifiers used with `openWindow`.
 enum WindowID {
     static let main = "main"
-    static let ask = "ask-preview"
+    static let ask = "ask"
     static let onboarding = "onboarding"
     static let inspector = "inspector"
     static let openFiles = "open-files"
@@ -340,6 +340,9 @@ final class AppState: ObservableObject {
     /// select the process, then clears it. Nil when there is nothing pending.
     @Published var navigationTarget: ProcessIdentity?
     @Published var alertInvestigation: AlertInvestigation?
+    /// Set by Ask's chart cards: open Explorer on these charts, this period
+    /// and these apps. ContentView consumes and clears it.
+    @Published var explorerFocus: AskChartLink?
 
     /// A process awaiting a force-quit confirmation. Any surface that lists a
     /// process sets this; the single confirmation hosted on the main window
@@ -422,24 +425,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     @preconcurrency UNUserNotificationCenterDelegate
 {
     let model = SamplerModel()
-    lazy var askPreviewModel = AskPreviewModel(
-        readReports: { [weak self] in
-            guard let self else { return [] }
-            var reports = try await self.model.readAskReports()
-            if let scan = DiskMapModel.shared.snapshot, let analysis = DiskMapModel.shared.analysis,
-                let index = reports.firstIndex(where: { $0.topic == .disk })
-            {
-                reports[index].includeDiskMap(scan, analysis: analysis)
-            }
-            return reports
-        },
-        readData: { [weak self] call, capturedAt, process in
-            guard let self else { throw AskInvestigationError.unavailable }
-            return try await self.model.readAskData(call, at: capturedAt, process: process)
-        })
-    lazy var monitorIntentRuntime = MonitorIntentRuntime(read: { [model] topic in
-        try await model.readAskReport(topic: topic)
-    })
+    lazy var askModel = AskViewModel(
+        sampler: model,
+        openChart: { [weak self] link in self?.openAskChart(link) })
     let components = AppComponentsManager()
     let languageManager = AppLanguageManager()
     let alertSettings = AlertSettings()
@@ -468,52 +456,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     private let presenceController = PresenceController()
     private var cancellables = Set<AnyCancellable>()
 
-    func openAskEvidence(_ evidence: AskEvidence?, topic: AskTopic) {
-        if let identity = evidence?.processIdentity {
-            appState.navigationTarget = identity
-            appState.requestedMainTab = .processes
-        } else {
-            switch topic {
-            case .overview, .cpu: appState.requestedMainTab = .dashboard
-            case .memory: appState.requestedMainTab = .processes
-            case .disk:
-                appState.requestedMainTab = .diskUsage
-                appState.showDiskMap = true
-            case .network: appState.requestedMainTab = .network
-            }
-        }
+    /// An Ask chart card: open the main window's Explorer on those charts.
+    func openAskChart(_ link: AskChartLink) {
+        appState.explorerFocus = link
+        appState.requestedMainTab = .analytics
         WindowOpenBridge.shared.open(id: WindowID.main)
-    }
-
-    func openAskNextStep(_ step: AskNextStep, evidence: AskEvidence?) {
-        switch step {
-        case .inspectProcesses: openAskEvidence(evidence, topic: .memory)
-        case .openDiskMap: openAskEvidence(nil, topic: .disk)
-        case .openNetwork: openAskEvidence(nil, topic: .network)
-        case .inspectDiskActivity:
-            appState.requestedMainTab = .diskUsage
-            appState.showDiskMap = false
-            WindowOpenBridge.shared.open(id: WindowID.main)
-        case .observe: break
-        }
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppLog.ui.notice("app launched (menubar)")
         gitHubStarPrompt.recordLaunch()
-        let intentRuntime = monitorIntentRuntime
-        AppDependencyManager.shared.add(dependency: intentRuntime)
-        MonitorPreviewShortcuts.updateAppShortcutParameters()
-        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
-            .receive(on: DispatchQueue.main)
-            .sink { _ in
-                if !UserDefaults.standard.bool(forKey: AskPreviewPreferences.enabledKey)
-                    || !UserDefaults.standard.bool(forKey: AskPreviewPreferences.siriKey)
-                {
-                    intentRuntime.clear()
-                }
-            }
-            .store(in: &cancellables)
+        LegacyAskCleanup.runIfNeeded()
+        TitlebarDragProbe.install()
+        AskAvailability.registerDefaults()
+        AskShortcuts.updateAppShortcutParameters()
 
         // Per-app network tracking now uses a cheap one-shot nettop, so it's on by
         // default; a registered default makes the launch read below (and @AppStorage
@@ -929,7 +886,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     /// Handle a `.mpmtrace` file opened from Finder (or the `open` command).
     /// Route it to the Analytics tab, opening the main window if the menubar-
     /// first app has none up. `AnalyticsView` decodes and displays it.
+    ///
+    /// Also `macperfmonitor://explorer?...` chart links, from `mpm link` or an
+    /// AI agent. Those are untrusted: `AgentChartURL.parse` accepts only chart
+    /// names, a bounded time range and process identities, and the only effect
+    /// is opening Explorer on them.
     func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls where url.scheme == AgentChartURL.scheme {
+            if var link = AgentChartURL.parse(url) {
+                AppLog.ui.notice("opening a chart link")
+                Task { @MainActor in
+                    link.processes = await model.askResolve(link.processes)
+                    openAskChart(link)
+                }
+            } else {
+                AppLog.ui.notice("ignored a link the app does not handle")
+            }
+        }
         guard
             let url = urls.first(where: {
                 $0.pathExtension.lowercased() == ProcessTraceCodec.fileExtension
@@ -943,11 +916,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     /// granted out of process in System Settings, so this is how an enable that
     /// was pending approval becomes live coverage without a relaunch.
     func applicationDidBecomeActive(_ notification: Notification) {
-        helperManager.refresh()
-        loginItemManager.refresh()
+        // All three read state owned by other processes, which can take
+        // hundreds of milliseconds. Activation is often a press on the title
+        // bar that should start a window drag, and a blocked main thread
+        // swallows it, so the reads happen off the main thread.
+        helperManager.refreshInBackground()
+        loginItemManager.refreshInBackground()
         // Full Disk Access is also granted out of process; re-probe so the
         // Disk Map's card and Settings reflect a fresh grant.
-        fullDiskAccessManager.refresh()
+        fullDiskAccessManager.refreshInBackground()
         considerGitHubStarPrompt()
     }
 
@@ -1002,6 +979,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
 /// the window has been opened and closed again.
 struct MainWindowGate: View {
     @EnvironmentObject private var appState: AppState
+    @AppStorage(AskAvailability.enabledKey) private var askEnabled = true
 
     var body: some View {
         ZStack {
@@ -1021,14 +999,16 @@ struct MainWindowGate: View {
             }
         }
         .toolbar {
-            ToolbarItem(id: "main.ask-preview", placement: .automatic) {
-                Button {
-                    WindowOpenBridge.shared.open(id: WindowID.ask)
-                } label: {
-                    Image(systemName: "sparkles")
+            if AskAvailability.isOffered(enabled: askEnabled) {
+                ToolbarItem(id: "main.ask", placement: .automatic) {
+                    Button {
+                        WindowOpenBridge.shared.open(id: WindowID.ask)
+                    } label: {
+                        Image(systemName: "sparkles")
+                    }
+                    .help("Ask About This Mac")
+                    .accessibilityLabel("Ask About This Mac")
                 }
-                .help("Ask About This Mac (Preview)")
-                .accessibilityLabel("Ask About This Mac (Preview)")
             }
             ToolbarItem(id: "main.refresh-interval", placement: .automatic) {
                 RefreshIntervalControl()

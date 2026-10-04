@@ -37,12 +37,6 @@ jobs:
         if: matrix.runner == 'xcode-27'
         run: xcodebuild -version | grep -E '^Xcode 27([.]|$)'
 
-      - name: Install Metal toolchain for local inference
-        run: |
-          if ! xcrun metal --version > /dev/null 2>&1; then
-            xcodebuild -downloadComponent MetalToolchain
-          fi
-
       - name: Cache SwiftPM build
         uses: actions/cache@v4
         with:

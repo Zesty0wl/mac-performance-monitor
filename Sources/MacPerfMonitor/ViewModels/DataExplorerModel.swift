@@ -114,6 +114,9 @@ final class DataExplorerModel: ObservableObject {
         } else if request.kinds.contains(.highGPU) {
             selectedLaneID = "gpu"
             enabled.insert("gpu")
+        } else if request.kinds.contains(.sustainedProcessCPU) {
+            selectedLaneID = "process.cpu"
+            enabled.insert("process.cpu")
         } else if request.kinds.contains(.highCPU) {
             selectedLaneID = "cpu"
         } else {
@@ -483,6 +486,31 @@ final class DataExplorerModel: ObservableObject {
         loadedAt = Date()
         for (index, identity) in identities.enumerated() { colors[identity] = index % 8 }
         rebuild(replacing: true, synchronously: true)
+    }
+
+    /// Opens on exactly the charts, period and apps an Ask answer linked to.
+    /// A period that ends now keeps following live; an earlier one holds still.
+    func focus(_ link: AskChartLink) {
+        let known = Set(definitions.map(\.id))
+        let lanes = link.laneIDs.filter { known.contains($0) }
+        guard !lanes.isEmpty, link.end > link.start else { return }
+        let now = Date()
+        followsLive = abs(link.end.timeIntervalSince(now)) < 120
+        let end = followsLive ? now : min(now, link.end)
+        // Whole minutes, so the span control reads "15 min", not "15.427 min".
+        let minutes = max(5, (end.timeIntervalSince(link.start) / 60).rounded())
+        domain = end.addingTimeInterval(-minutes * 60)...end
+        alertEvidence = []
+        focusedLaneID = nil
+        showsInspector = false
+        enabled = Set(lanes)
+        selectedLaneID = lanes[0]
+        cursor.clear()
+        setSelection(link.processes, reload: false)
+        loadedAt = Date()
+        for (index, identity) in identities.enumerated() { colors[identity] = index % 8 }
+        rebuild(replacing: true, synchronously: true)
+        refresh()
     }
 
     func color(for identity: ProcessIdentity) -> Color {

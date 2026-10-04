@@ -92,7 +92,7 @@ public final class AlertIncidentTracker {
     }
 
     public var active: [Alert] {
-        ordered.filter { $0.phase == .active }.map { incident in
+        ordered { $0.phase == .active }.map { incident in
             var alert = incident.condition.alert
             alert.date = incident.startedAt
             alert.snoozedUntil = incident.snoozedUntil
@@ -101,11 +101,17 @@ public final class AlertIncidentTracker {
     }
 
     public var observations: [AlertIncident] {
-        ordered.filter { $0.phase != .resolved && $0.phase != .active }
+        ordered { $0.phase != .resolved && $0.phase != .active }
     }
 
-    private var ordered: [AlertIncident] {
-        snapshot.incidents.values.sorted { first, second in
+    /// The incidents matching `isIncluded`, most severe first, then by id.
+    /// Filters before sorting: the snapshot keeps up to a week of incidents
+    /// (hundreds, nearly all resolved), and these views run several times per
+    /// alert evaluation, so sorting and copying the whole set first dominated
+    /// it. Ids are unique, so the order is total and the result is the same as
+    /// filtering a fully sorted list.
+    private func ordered(where isIncluded: (AlertIncident) -> Bool) -> [AlertIncident] {
+        snapshot.incidents.values.filter(isIncluded).sorted { first, second in
             if first.condition.alert.severity != second.condition.alert.severity {
                 return first.condition.alert.severity > second.condition.alert.severity
             }
@@ -172,7 +178,7 @@ public final class AlertIncidentTracker {
         }
 
         var ready: [AlertIncident] = []
-        for incident in ordered where incident.phase == .active && incoming[incident.id] != nil {
+        for incident in ordered(where: { $0.phase == .active && incoming[$0.id] != nil }) {
             let alert = incident.condition.alert
             let freshEpisode = incident.notifiedEpisode != incident.episodeID
             let upgraded = alert.severity > (incident.notifiedSeverity ?? .watching)
@@ -236,7 +242,7 @@ public final class AlertIncidentTracker {
     public static func family(_ kind: Alert.Kind) -> String {
         switch kind {
         case .criticalPressure, .swap, .processCeiling, .leak: return "memory"
-        case .highCPU: return "cpu"
+        case .highCPU, .sustainedProcessCPU: return "cpu"
         case .highGPU: return "gpu"
         case .thermalThrottle: return "thermal"
         }

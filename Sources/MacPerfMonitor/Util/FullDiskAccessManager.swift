@@ -35,7 +35,18 @@ final class FullDiskAccessManager: ObservableObject {
 
     /// Re-probe. Called at launch, on activation, and after Settings opens.
     func refresh() {
-        let probed = Self.probe()
+        apply(Self.probe())
+    }
+
+    /// Probes off the main thread (it opens files), then applies the result.
+    func refreshInBackground() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let probed = Self.probe()
+            DispatchQueue.main.async { self.apply(probed) }
+        }
+    }
+
+    private func apply(_ probed: FullDiskAccessStatus) {
         status = probed
         if probed == .granted {
             awaitingRelaunch = false

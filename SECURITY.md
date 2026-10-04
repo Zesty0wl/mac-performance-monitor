@@ -39,53 +39,29 @@ build. Older releases may not receive the same fixes.
   IDs, and evidence even with full history off. See
   [Adaptive alerts](docs/adaptive-alerts.md#local-evidence) for the limits.
 
-- **Ask preview**, on-device AI, and Siri/Shortcuts sharing each start off.
-  Report selection sends only the question and previous topic to Apple's local
-  model. Generate explanations from evidence needs separate consent. It passes
-  selected readings, process names, and bounded results from recorded history to
-  the chosen local model. The model can request system history, process rankings,
-  process search, and a selected process's history. The app runs fixed read-only
-  queries, not SQL supplied by the model. Each investigation allows at most four
-  checks over the past seven days, with row and output limits. It excludes full
-  paths, raw row dumps, and file trees. Closing Ask clears the question, short
-  follow-up context, checked-evidence list, and generated explanation.
+- **Ask About This Mac** (macOS 27) uses only Apple's on-device model through
+  Foundation Models. It never uses Private Cloud Compute or any other cloud
+  service. The app reads its own history and current readings, then gives the
+  model short, ready-made summaries: levels, what is normal for this Mac, the
+  busiest apps by name, and notable events. It excludes full paths, command
+  arguments, file names and raw history. The model has no tools: it cannot run
+  queries, commands, or change anything. Questions and answers stay in memory
+  and are cleared when Ask closes; nothing is logged or saved. Settings has a
+  switch to turn Ask off. Earlier versions offered downloadable Qwen and
+  DeepAnalyze models; this version deletes any that were downloaded.
 
-- **Apple on-device** is the default model for new selections. Foundation Models
-  uses Apple's local system model; macOS manages its download and availability.
-  It needs no Qwen download. Ask keeps existing model choices and never silently
-  falls back to Qwen or a cloud model. All models use the consent and read-only
-  limits above. Source checks do not prove that a generated diagnosis is correct.
+- **AI agents** (Claude Code, Codex and others) can read the history through
+  `mpm`, a command-line tool and MCP server inside the app bundle. It opens the
+  database read-only, runs only single read-only SQL statements that SQLite
+  confirms cannot write, caps rows and stops long queries. `mpm` itself makes
+  no network requests, but an agent sends what it reads, including app names,
+  paths and usage, to its own AI provider under that provider's terms. Nothing
+  is shared until you set up an agent or paste the prompt Ask copies; Ask
+  explains this before the first copy. `macperfmonitor://` links only open
+  Explorer on a checked set of charts, times and processes.
 
-- **Qwen** is an optional local model for Apple silicon Macs with at least
-  16 GiB RAM. Enabling explanations with Qwen selected starts its download;
-  selecting Qwen while explanations are enabled does the same. The download
-  contacts Hugging Face and its HTTPS download hosts,
-  which receive normal request metadata such as the IP address. The app checks
-  pinned file sizes and SHA-256 hashes. Inference runs from local files in a
-  separate unprivileged process, with pressure checks and a two-minute deadline.
-  The worker requests data through bounded messages; it has no direct database
-  connection or access to the privileged helper. The app validates tool arguments
-  and citations against the results it supplied. No cloud inference, shell tools,
-  prompt logging, or saved conversations are used. Apple manages its own model.
-  Remove Model deletes the downloaded weights. Disabling AI does not delete them.
-
-- **Qwen3.5 4B and DeepAnalyze 8B** are experimental local choices. Each needs an
-  explicit Download action and has a separate cache and removal control. Downloads
-  use Hugging Face and its HTTPS hosts; some licence files come from GitHub's
-  raw-file host. Revisions, sizes, and hashes are pinned. DeepAnalyze uses a
-  third-party GGUF conversion with upstream attribution, loaded by a pinned
-  llama.cpp framework in the worker. Its code training grants no code-execution
-  tools. All worker output passes the same host-owned tool and evidence checks.
-  Only one local worker can run at a time. The existing RAM, pressure, context,
-  output, and deadline limits remain; DeepAnalyze also has an 8 GiB resident-memory
-  ceiling. Model files do not ship in the app, and no cloud fallback is used.
-
-- Siri/Shortcuts sharing is separate from in-app AI consent. Shared reports can
-  include process names and resource use. Apple controls Siri processing, and
-  Shortcuts can pass results to other actions. Do not assume this path stays
-  on-device. The app holds at most eight report references in memory, with a
-  five-minute validity period. Turning sharing off clears those references.
-  This preview does not index reports or process history in Spotlight.
+- Siri and Shortcuts can open Ask. They receive no readings, reports or
+  answers from the app.
 
 - CSV, traces, hardware reports, and screenshots can contain private details.
   Check them before sharing. Exports keep the original names and paths; they

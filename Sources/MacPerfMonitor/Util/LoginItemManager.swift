@@ -59,9 +59,22 @@ final class LoginItemManager: ObservableObject {
     /// reactivates, since the user can flip "Open at Login" in System Settings
     /// out of process.
     func refresh() {
-        isEnabled = service.status == .enabled
-        AppLog.ui.notice(
-            "login item status: \(String(describing: self.service.status), privacy: .public)")
+        apply(service.status)
+    }
+
+    /// Reads the status off the main thread, then applies it: see
+    /// `HelperManager.refreshInBackground()` for why activation must not wait.
+    func refreshInBackground() {
+        let service = service
+        DispatchQueue.global(qos: .userInitiated).async {
+            let status = service.status
+            DispatchQueue.main.async { self.apply(status) }
+        }
+    }
+
+    private func apply(_ status: SMAppService.Status) {
+        isEnabled = status == .enabled
+        AppLog.ui.notice("login item status: \(String(describing: status), privacy: .public)")
     }
 
     /// Register the app as a login item so it opens at sign-in.
