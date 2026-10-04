@@ -6,6 +6,8 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-04
+
 ### Added
 
 - **Temperatures follow your Mac's unit** ([#134](https://github.com/Zesty0wl/mac-performance-monitor/issues/134)).
@@ -60,6 +62,26 @@ Notable changes to Mac Performance Monitor. This project follows
 - The Ask preview's optional Qwen and DeepAnalyze downloads, its local AI
   worker and its report Shortcuts are gone. Models downloaded by earlier
   versions are deleted to free the space. Siri and Shortcuts can still open Ask.
+- The Dashboard's right-hand rail shows a CPU usage history chart directly
+  under the live CPU cores grid, with its average, peak and minimum band.
+  It replaces the rail's Swap chart, which repeated the Swap card already in
+  the row of memory cards.
+- With one or two charts showing, the Explorer stacks them full width and
+  shares the window height between them instead of leaving most of the
+  workspace empty.
+- An Explorer chart no longer lets a single spike set its whole axis. When a
+  few isolated samples tower over the rest, the axis fits the rest and the
+  chart header shows the spike's value; click it to see the full scale.
+- Tabs you have left stop working in the background. On macOS 26 and later
+  every tab visited since the window opened kept updating while hidden, so a
+  long session grew slower and used more memory with each tab opened. The app
+  also launches about a second faster, and the Processes, Hardware and
+  Explorer tabs open more quickly.
+- The app does less work in the background. The history database is flushed
+  once a minute instead of every 15 seconds, which cuts what it writes to
+  disk by about a tenth. The leak scan runs in under half the time with about
+  half the memory, alert checks no longer re-sort a week of past alerts each
+  time, and chart history the app no longer needs is released sooner.
 
 ### Fixed
 
@@ -93,29 +115,6 @@ Notable changes to Mac Performance Monitor. This project follows
   narrow to leave any empty toolbar beside the tab strip, which is the only
   place to grab it. The minimum and default widths now fit the tab titles of
   the chosen language with room to spare.
-
-### Changed
-
-- The Dashboard's right-hand rail shows a CPU usage history chart directly
-  under the live CPU cores grid, with its average, peak and minimum band.
-  It replaces the rail's Swap chart, which repeated the Swap card already in
-  the row of memory cards.
-- With one or two charts showing, the Explorer stacks them full width and
-  shares the window height between them instead of leaving most of the
-  workspace empty.
-- An Explorer chart no longer lets a single spike set its whole axis. When a
-  few isolated samples tower over the rest, the axis fits the rest and the
-  chart header shows the spike's value; click it to see the full scale.
-- Tabs you have left stop working in the background. On macOS 26 and later
-  every tab visited since the window opened kept updating while hidden, so a
-  long session grew slower and used more memory with each tab opened. The app
-  also launches about a second faster, and the Processes, Hardware and
-  Explorer tabs open more quickly.
-- The app does less work in the background. The history database is flushed
-  once a minute instead of every 15 seconds, which cuts what it writes to
-  disk by about a tenth. The leak scan runs in under half the time with about
-  half the memory, alert checks no longer re-sort a week of past alerts each
-  time, and chart history the app no longer needs is released sooner.
 
 ## [2.2.1] - 2026-09-23
 
@@ -1141,7 +1140,8 @@ processes behind them.
 - A clean split between a headless, unit-tested data layer and the SwiftUI app. CI
   builds, tests, and lints on every push and pull request.
 
-[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.2.1.261...HEAD
+[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.3.0.279...HEAD
+[2.3.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.2.1.261...v2.3.0.279
 [2.2.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.2.0.260...v2.2.1.261
 [2.2.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.1.0.236...v2.2.0.260
 [2.1.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.0.0.231...v2.1.0.236
