@@ -726,7 +726,7 @@ final class ProcessCellView: NSTableCellView {
     ) {
         if shownPath != .some(process.executablePath) {
             shownPath = .some(process.executablePath)
-            icon.image = ProcessIconProvider.shared.icon(forPath: process.executablePath)
+            icon.image = ProcessIconProvider.shared.rowIcon(forPath: process.executablePath)
         }
         let style = (
             leaking: isLeaking, warning: !isTerminated && (isLeaking || descendantLeaking),

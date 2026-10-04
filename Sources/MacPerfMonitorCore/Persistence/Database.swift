@@ -35,6 +35,21 @@ public enum MacPerfMonitorDatabase {
                 .appendingPathComponent("macperfmonitor-\(UUID().uuidString).sqlite")
             pool = try DatabasePool(path: temp.path, configuration: config)
         }
+        // Take WAL checkpointing off the per-commit hot path, before anything
+        // here writes. SQLite's default auto-checkpoint fires a synchronous
+        // checkpoint + fsync at the first commit once the WAL passes 1000
+        // pages, which on the per-tick sample inserts meant a full fsync every
+        // couple of seconds, the app's #1 CPU cost. It also made launch slow:
+        // the app never closes the pool, so the previous session's WAL (up to
+        // ~55 MB at 1 s logging) is still there, and the migration and agent
+        // view writes below checkpointed all of it synchronously on the main
+        // thread (~0.7 s). Disable it on the writer connection (meaningless on
+        // the read-only readers, so it is not in prepareDatabase); the sampler
+        // checkpoints explicitly off the main thread instead
+        // (`SampleStore.checkpoint`), which also flushes the inherited WAL.
+        try pool.writeWithoutTransaction { db in
+            try db.execute(sql: "PRAGMA wal_autocheckpoint = 0")
+        }
         try migrator.migrate(pool)
         // Read-only views for AI agents, recreated so they always match the
         // schema just migrated to. Best-effort: agents are optional.
@@ -57,15 +72,6 @@ public enum MacPerfMonitorDatabase {
     /// failure (e.g. low disk) leaves the database usable, just non-shrinking.
     private static func ensureIncrementalAutoVacuum(_ pool: DatabasePool) throws {
         try pool.writeWithoutTransaction { db in
-            // Take WAL checkpointing off the per-commit hot path. SQLite's default
-            // auto-checkpoint fires a synchronous checkpoint + fsync at every
-            // commit once the WAL passes 1000 pages — which on the per-tick sample
-            // inserts meant a full fsync every couple of seconds, the app's #1 CPU
-            // cost. Disable it on the writer connection (meaningless on the
-            // read-only readers, so it must live here, not in prepareDatabase) and
-            // checkpoint explicitly once per retention pass instead (Retention.run).
-            try db.execute(sql: "PRAGMA wal_autocheckpoint = 0")
-
             let mode = try Int.fetchOne(db, sql: "PRAGMA auto_vacuum") ?? 0
             guard mode != 2 else { return }  // 2 == INCREMENTAL, already converted
             try db.execute(sql: "PRAGMA auto_vacuum = INCREMENTAL")

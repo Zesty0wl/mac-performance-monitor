@@ -128,3 +128,67 @@ they are not for a Sunday release.
   frame headers for distinct pages.
 - Leak scan, alert and SQL-equivalence checks ran as temporary XCTest cases
   against the snapshot and the live `incidents.json`, not committed.
+
+## Second pass: CPU, memory, page switching and launch (2026-10-04)
+
+Measured on the live app with the main window open on a 1745 x 1300 window,
+by driving the tab strip through Accessibility: each switch records how long
+the main thread stays busy (time until the app answers an Accessibility query
+again) and the process CPU in the next 2 s, then the app idles on Groups for
+10 s after every tab has been visited. `sample` profiles located the costs.
+
+| Measure | Before (277) | After |
+| --- | --- | --- |
+| Main-thread busy, idle on Groups after visiting every tab | 1,929 samples / 10 s | 294 (-85%) |
+| Footprint, same state | 716 MB | 393 to 491 MB |
+| Peak footprint while cycling tabs | 776 MB | 554 MB |
+| Mean CPU per tab switch (first 2 s) | 742 ms | 575 ms |
+| Median main-thread block per switch | 197 ms | 173 ms |
+| Launch to first sample, 60 MB WAL left over | 2.8 s | 1.8 s |
+
+1. **Hidden tabs stayed mounted** (`ContentView.TabGate`). On macOS 26 and
+   later `TabView` stops applying updates to a tab once it is hidden, so the tab
+   being left never received `isActive == false`: its page kept observing the
+   model, feeding its charts and re-evaluating its body every sample until the
+   window closed. Every visited tab added its cost (the Processes table, the
+   Insights body and the Dashboard stores were all running while Groups showed).
+   Reproduced in a minimal SwiftUI app: the gate's body is evaluated with
+   `false` but never applied. `onDisappear` is still delivered and its state
+   change is applied, so the gate now also hides its content there, keyed by a
+   selection generation so a re-selected tab mounts on its first frame.
+   Revisiting a tab now rebuilds its page, as the gate always intended, so a
+   few revisit switches cost slightly more than showing a page that never left
+   (Processes 207 to 272 ms, Hardware 158 to 246 ms) while the others got
+   faster (Dashboard 252 to 191, Explorer 260 to 226).
+2. **Launch checkpoint** (`MacPerfMonitorDatabase.makePool`). The pool is never
+   closed at quit, so the previous session's WAL is still there at launch, and
+   the migration and agent view writes ran before `wal_autocheckpoint = 0`, so
+   their first commit checkpointed the whole WAL synchronously on the main
+   thread inside `AppDelegate.init` (~0.7 s; worse since the 60 s checkpoint
+   made the WAL larger). Auto-checkpoint is now off before the first write; the
+   sampler's regular checkpoint flushes the inherited WAL off the main thread.
+3. **Explorer lane catalogue** (`ExplorerMetrics.all`) was rebuilt (25 lanes
+   plus a process lane per metric, each with localized titles and notes) on
+   every read, once per group per body evaluation of the source pane. Cached
+   per language.
+4. **`HardwareFlowLayout`** measured every block at an unspecified size in both
+   `sizeThatFits` and `placeSubviews`, and SwiftUI calls `sizeThatFits` several
+   times per pass. The sizes now live in the layout cache, which SwiftUI rebuilds
+   when a subview's content changes size (verified in a minimal app).
+5. **Process table icons** (`ProcessIconProvider.rowIcon`). Workspace icons are
+   lazily rendered IconServices images, so each new row's `NSImageView` asked
+   IconServices for a placeholder first, about a tenth of opening the Processes
+   tab. Rows now get 16 pt bitmaps rendered once per executable; other icon
+   uses are unchanged.
+
+Not changed, for a later release:
+
+- The Disk Map keeps its file tree (~145 MB on this Mac) while the window is
+  open, so returning to the Disk tab is instant. Releasing it on tab switch
+  would also reset the map's zoom and selection.
+- Most of a page switch is SwiftUI laying out the new page. Keeping recently
+  visited pages mounted but paused (not observing the model) would make
+  revisits instant without the background cost, but needs each page's feeds
+  to support pausing.
+- Launch time left is framework start-up (dyld, SwiftUI building the main
+  menu), plus opening the database on the main thread.

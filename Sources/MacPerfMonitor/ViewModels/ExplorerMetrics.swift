@@ -128,7 +128,27 @@ enum ExplorerMetrics {
     ]
     static let palette: [Color] = [.blue, .green, .orange, .pink, .teal, .red, .indigo, .purple]
 
+    /// Every lane the Explorer offers, in the chosen language.
+    ///
+    /// Built once per language and cached: the list is ~40 definitions, each
+    /// with localized titles and notes, and the source pane reads it once per
+    /// group on every body evaluation (`DataExplorerModel.definitions`), which
+    /// made rebuilding it a visible share of opening the Explorer tab. Nothing
+    /// in it depends on anything but the language; its closures are pure.
     static var all: [ExplorerLaneDefinition] {
+        let language = UserDefaults.standard.string(forKey: appLanguageDefaultsKey) ?? "system"
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        if let cached = cachedAll, cached.language == language { return cached.definitions }
+        let built = buildAll()
+        cachedAll = (language, built)
+        return built
+    }
+
+    private static let cacheLock = NSLock()
+    private static var cachedAll: (language: String, definitions: [ExplorerLaneDefinition])?
+
+    private static func buildAll() -> [ExplorerLaneDefinition] {
         var definitions: [ExplorerLaneDefinition] = [
             .init(
                 id: "cpu", title: t("Total CPU"), group: .processor, unit: .percent,

@@ -15,6 +15,7 @@ final class ProcessIconProvider {
     static let shared = ProcessIconProvider()
 
     private let cache = NSCache<NSString, NSImage>()
+    private let rowCache = NSCache<NSString, NSImage>()
     /// Generic executable icon for processes with no usable path. Deliberately
     /// NOT this app's own icon (`NSImage.applicationIconName`), which made every
     /// path-less or exited-and-deleted process masquerade as this app.
@@ -22,6 +23,38 @@ final class ProcessIconProvider {
 
     init() {
         cache.countLimit = 256
+        rowCache.countLimit = 256
+    }
+
+    /// The icon pre-rendered as 16 pt bitmaps (1x and 2x), for the Processes
+    /// table's rows. A workspace icon is an IconServices image that renders
+    /// lazily, so every newly created `NSImageView` asked IconServices for a
+    /// placeholder first, about a tenth of the main-thread time spent opening
+    /// the Processes tab. A plain bitmap draws immediately, and is rendered
+    /// once per executable rather than once per row view.
+    func rowIcon(forPath path: String?) -> NSImage {
+        let key = (path ?? "") as NSString
+        if let cached = rowCache.object(forKey: key) { return cached }
+        let source = icon(forPath: path)
+        let size = NSSize(width: 16, height: 16)
+        let image = NSImage(size: size)
+        for scale in [1, 2] {
+            guard
+                let rep = NSBitmapImageRep(
+                    bitmapDataPlanes: nil, pixelsWide: 16 * scale, pixelsHigh: 16 * scale,
+                    bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                    colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
+            else { return source }
+            rep.size = size
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+            NSGraphicsContext.current?.imageInterpolation = .high
+            source.draw(in: NSRect(origin: .zero, size: size))
+            NSGraphicsContext.restoreGraphicsState()
+            image.addRepresentation(rep)
+        }
+        rowCache.setObject(image, forKey: key)
+        return image
     }
 
     func icon(forPath path: String?) -> NSImage {
@@ -70,5 +103,6 @@ final class ProcessIconProvider {
     /// idle in the menubar.
     func purge() {
         cache.removeAllObjects()
+        rowCache.removeAllObjects()
     }
 }
