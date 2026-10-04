@@ -86262,7 +86262,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "Der Chip lag im Schnitt bei %1$@ und erreichte %2$@ um %3$@."
           }
         },
@@ -86274,13 +86274,13 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "La puce était en moyenne à %1$@ et a atteint %2$@ à %3$@."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "芯片平均 %1$@，在 %3$@ 达到 %2$@。"
           }
         }
@@ -86292,7 +86292,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "Chip um %@"
           }
         },
@@ -86304,13 +86304,13 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "puce autour de %@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "芯片约 %@"
           }
         }
@@ -86322,7 +86322,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "%1$@ · max. %2$@"
           }
         },
@@ -86334,13 +86334,13 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "%1$@ · max. %2$@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "%1$@ · 最高 %2$@"
           }
         }
@@ -86352,7 +86352,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "Wie im System (%@)"
           }
         },
@@ -86364,13 +86364,13 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "Comme le système (%@)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "跟随系统（%@）"
           }
         }
@@ -86382,7 +86382,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "new",
             "value" : "Celsius (°C)"
           }
         },
@@ -86394,13 +86394,13 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "new",
             "value" : "Celsius (°C)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "摄氏度 (°C)"
           }
         }
@@ -86412,7 +86412,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "new",
             "value" : "Fahrenheit (°F)"
           }
         },
@@ -86424,13 +86424,13 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "new",
             "value" : "Fahrenheit (°F)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "华氏度 (°F)"
           }
         }
@@ -86442,7 +86442,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "„Wie im System“ folgt Systemeinstellungen > Allgemein > Sprache & Region > Temperatur. Der Verlauf wird immer in Celsius aufgezeichnet, eine Änderung betrifft also nur die Anzeige der Temperaturen."
           }
         },
@@ -86454,13 +86454,13 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "« Comme le système » suit Réglages Système > Général > Langue et région > Température. L'historique est toujours enregistré en Celsius : ce choix ne change que l'affichage des températures."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "“跟随系统”遵循“系统设置”>“通用”>“语言与地区”>“温度”。历史记录始终以摄氏度保存，因此更改此项只会改变温度的显示方式。"
           }
         }
