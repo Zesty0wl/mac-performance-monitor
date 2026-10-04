@@ -71,6 +71,12 @@ final class HardwareExplorerModel: ObservableObject {
         sections.first { $0.root.node(withID: id) != nil }
     }
 
+    /// Re-capture an inventory already taken, for when how it reads changed
+    /// (the temperature unit); nothing is captured if the tab was never opened.
+    func refreshIfCaptured() {
+        if capturedAt != nil, !isRefreshing { refresh() }
+    }
+
     func refreshIfNeeded() {
         if capturedAt == nil, !isRefreshing { refresh() }
     }

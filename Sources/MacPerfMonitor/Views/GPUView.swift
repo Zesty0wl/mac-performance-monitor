@@ -855,7 +855,7 @@ final class GPUTimelineStore: ObservableObject {
         memoryText.publish(gpu?.inUseMemoryBytes.map { ByteFormat.string($0) } ?? "--")
         allocatedText.publish(gpu?.allocatedMemoryBytes.map { ByteFormat.string($0) } ?? "--")
         temperatureText.publish(
-            gpu?.dieTemperatureC.map { "\(Int($0.rounded()))\u{00B0}C" } ?? "--")
+            gpu?.dieTemperatureC.map { TemperatureFormat.string($0) } ?? "--")
         // Read-out *values* need translating as much as the labels beside them.
         // "Thermal limit active" and "Power cap none" are disambiguating keys: a
         // bare "Active"/"None" already label other things, and en.lproj renders

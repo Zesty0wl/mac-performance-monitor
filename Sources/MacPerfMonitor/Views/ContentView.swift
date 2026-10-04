@@ -85,6 +85,13 @@ struct ContentView: View {
     @State private var importedTrace: ImportedTrace?
     @State private var explorer = DataExplorerModel(preferences: .standard)
     @State private var investigationRevision = 0
+    /// The temperature unit, so the pages rebuild in the new unit when it
+    /// changes: in Settings, or in System Settings while the app runs. Charts
+    /// convert their points as they are built and the Hardware inventory is
+    /// captured text, so a page left mounted would mix the two units.
+    @AppStorage(TemperatureFormat.defaultsKey) private var temperatureUnit =
+        TemperatureUnitChoice.system.rawValue
+    @State private var localeRevision = 0
 
     var body: some View {
         TabView(selection: $navigation.tab) {
@@ -147,6 +154,14 @@ struct ContentView: View {
                 .tabItem { Label(MainWindowTab.groups.title, systemImage: "square.stack.3d.up") }
                 .tag(MainWindowTab.groups)
         }
+        .id("\(temperatureUnit)-\(localeRevision)")
+        .onReceive(
+            NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)
+        ) { _ in
+            localeRevision &+= 1
+            HardwareExplorerModel.shared.refreshIfCaptured()
+        }
+        .onChange(of: temperatureUnit) { _, _ in HardwareExplorerModel.shared.refreshIfCaptured() }
         .frame(minWidth: MainWindowSize.minimumWidth, minHeight: MainWindowSize.minimumHeight)
         .forceQuitConfirmation(target: $appState.pendingForceQuit)
         .sheet(item: $appState.codesignTarget) { target in

@@ -18,7 +18,7 @@ enum MetricUnit {
         case .bytes: return ByteFormat.string(UInt64(max(0, value.rounded())))
         case .percent: return "\(Int(value.rounded()))%"
         case .watts: return String(format: "%.2f W", value)
-        case .celsius: return "\(Int(value.rounded()))°C"
+        case .celsius: return TemperatureFormat.string(value)
         case .rpm: return "\(Int(max(0, value.rounded()))) rpm"
         case .minutes:
             guard value.isFinite, value >= 0, value < Double(Int.max) else {
@@ -33,6 +33,18 @@ enum MetricUnit {
             guard value.isFinite, value >= 0 else { return t("Unavailable") }
             return t("%@ ms/s", value.formatted(.number.precision(.fractionLength(0...1))))
         }
+    }
+
+    /// A value as an axis chart plots it. Temperatures are plotted in the
+    /// person's unit so the gridlines land on round numbers there; `format`
+    /// still takes Celsius, for the card's own readouts.
+    func plotted(_ value: Double) -> Double {
+        self == .celsius ? TemperatureFormat.display(value) : value
+    }
+
+    /// The label for a value already passed through `plotted`.
+    func axisFormat(_ plottedValue: Double) -> String {
+        self == .celsius ? TemperatureFormat.label(plottedValue) : format(plottedValue)
     }
 }
 
@@ -657,11 +669,12 @@ struct MetricDetailChart: View {
     }
 
     private var chart: some View {
-        TrendChart(
+        let domain = yDomain ?? fittedDomain
+        return TrendChart(
             series: series,
             xDomain: xDomain,
-            yDomain: yDomain ?? fittedDomain,
-            yFormat: unit.format,
+            yDomain: unit.plotted(domain.lowerBound)...unit.plotted(domain.upperBound),
+            yFormat: unit.axisFormat,
             showsTimeAxis: true,
             plotBorder: true,
             scrubbable: true,
@@ -674,10 +687,12 @@ struct MetricDetailChart: View {
     private var series: [TrendSeries] {
         var out = companions.map { companion in
             TrendSeries(
-                points: Self.points(companion.samples), color: tint.opacity(companion.alpha),
-                lineWidth: 1.4)
+                points: Self.points(companion.samples, unit: unit),
+                color: tint.opacity(companion.alpha), lineWidth: 1.4)
         }
-        out.append(TrendSeries(points: Self.points(samples), color: tint, reduction: reduction))
+        out.append(
+            TrendSeries(
+                points: Self.points(samples, unit: unit), color: tint, reduction: reduction))
         return out
     }
 
@@ -690,8 +705,11 @@ struct MetricDetailChart: View {
         }
     }
 
-    private static func points(_ samples: [MetricSample]) -> [TrendPoint] {
-        samples.map { TrendPoint(date: $0.date, value: $0.value, high: $0.high) }
+    private static func points(_ samples: [MetricSample], unit: MetricUnit) -> [TrendPoint] {
+        samples.map {
+            TrendPoint(
+                date: $0.date, value: unit.plotted($0.value), high: $0.high.map(unit.plotted))
+        }
     }
 
     private var legend: some View {

@@ -41,6 +41,8 @@ struct PerformanceChart: View, Equatable {
     /// Floor for the Y domain's top so a flat-at-zero metric still renders a
     /// sensible axis rather than collapsing onto the baseline.
     var minTop: Double = 1
+    /// See `MetricChart.quarterSteps`.
+    var quarterSteps = false
     /// Identity to emphasise (the legend row under the cursor); the others dim.
     var highlighted: ProcessIdentity?
     var accessibilityTitle: String = "Performance"
@@ -63,6 +65,7 @@ struct PerformanceChart: View, Equatable {
     /// deliberately ignored: pure functions/callbacks fixed per cell.
     static func == (lhs: PerformanceChart, rhs: PerformanceChart) -> Bool {
         lhs.series == rhs.series && lhs.xDomain == rhs.xDomain && lhs.minTop == rhs.minTop
+            && lhs.quarterSteps == rhs.quarterSteps
             && lhs.highlighted == rhs.highlighted
             && lhs.accessibilityTitle == rhs.accessibilityTitle
     }
@@ -85,7 +88,7 @@ struct PerformanceChart: View, Equatable {
     /// of trembling with the peak.
     private var yMax: Double {
         let peak = series.flatMap(\.points).map(\.value).max() ?? 0
-        return LiveChartGeometry.niceCeiling(max(peak * 1.12, minTop))
+        return LiveChartGeometry.niceCeiling(max(peak * 1.12, minTop), quarterSteps: quarterSteps)
     }
 
     /// Every series split into gap-free runs, each run drawn as its own

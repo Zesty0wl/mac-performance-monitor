@@ -41,6 +41,13 @@ private struct GeneralSettingsView: View {
     @AppStorage(AskAvailability.enabledKey) private var askEnabled = true
     @AppStorage(SamplerModel.tableIntervalKey) private var tableInterval =
         SamplerModel.defaultTableInterval
+    @AppStorage(TemperatureFormat.defaultsKey) private var temperatureUnit =
+        TemperatureUnitChoice.system.rawValue
+
+    /// The unit macOS is set to, for the Match System label.
+    private var systemTemperatureSymbol: String {
+        UnitTemperature(forLocale: .autoupdatingCurrent).symbol
+    }
 
     var body: some View {
         Form {
@@ -71,6 +78,15 @@ private struct GeneralSettingsView: View {
                         "This language was translated by \(AppLanguage.machineTranslationModel), an AI model, and has not yet been reviewed by native speakers. Corrections are welcome at crowdin.com/project/mac-performance-monitor."
                     )
                 }
+                Picker("Temperature", selection: $temperatureUnit) {
+                    Text("Match System (\(systemTemperatureSymbol))")
+                        .tag(TemperatureUnitChoice.system.rawValue)
+                    Text("Celsius (°C)").tag(TemperatureUnitChoice.celsius.rawValue)
+                    Text("Fahrenheit (°F)").tag(TemperatureUnitChoice.fahrenheit.rawValue)
+                }
+                caption(
+                    "Match System follows System Settings > General > Language & Region > Temperature. History is recorded in Celsius either way, so changing this only changes how temperatures are shown."
+                )
             } header: {
                 Text("Language")
             }

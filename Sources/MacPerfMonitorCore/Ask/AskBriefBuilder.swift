@@ -924,9 +924,9 @@ public enum AskBriefBuilder {
         if let die = AskSeries(input.points, value: { $0.cpuDieC }, peak: { $0.cpuDieC }) {
             facts.append(
                 t(
-                    "The chip averaged %1$@°C and reached %2$@°C at %3$@.",
-                    String(Int64(die.mean.rounded())),
-                    String(Int64(die.peak.rounded())), AskWords.time(die.peakDate)))
+                    "The chip averaged %1$@ and reached %2$@ at %3$@.",
+                    TemperatureFormat.string(die.mean), TemperatureFormat.string(die.peak),
+                    AskWords.time(die.peakDate)))
             if status == .unknown {
                 status = .calm
                 headline = t("Running at a normal temperature.")
@@ -946,7 +946,7 @@ public enum AskBriefBuilder {
         let normal = AskSeries.median(input.baseline) { $0.cpuDieC }
         return AreaBrief(
             area: .heat, start: input.start, end: input.end, status: status, headline: headline,
-            facts: facts, normal: normal.map { t("chip around %@°C", String(Int64($0.rounded()))) },
+            facts: facts, normal: normal.map { t("chip around %@", TemperatureFormat.string($0)) },
             gaps: gaps,
             chart: AskChartLink(
                 title: AskArea.heat.title, laneIDs: ["thermalState", "die", "fans"],

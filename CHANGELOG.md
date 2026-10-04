@@ -8,6 +8,13 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Added
 
+- **Temperatures follow your Mac's unit** ([#134](https://github.com/Zesty0wl/mac-performance-monitor/issues/134)).
+  Every temperature in the app, from the menu bar and Dashboard to Hardware
+  sensors, Explorer, Energy and Ask, now shows in the unit chosen in System
+  Settings > General > Language & Region > Temperature, so Macs set to
+  Fahrenheit see °F. Settings > General > Temperature can override it. History
+  is still recorded in Celsius, so switching is instant, loses nothing, and
+  leaves exports and the AI agents' data unchanged.
 - Insights can flag screen capture that is slowing the desktop: WindowServer
   busy with most of a core for 2 minutes while macOS's screen capture service
   (replayd) is busy too, even when total CPU and memory pressure look normal.

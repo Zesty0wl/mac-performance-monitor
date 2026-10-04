@@ -626,9 +626,12 @@ final class DataExplorerModel: ObservableObject {
             model.accessibilityLabel = definition.title
             switch definition.source {
             case .system(let fields):
+                var convert: ((Double) -> Double)?
+                if case .celsius = definition.unit { convert = TemperatureFormat.converter() }
                 model.series = fields.map { field in
                     TrendSurfaceSeries(
-                        column: field.column(system), color: field.color, name: field.name)
+                        column: field.column(system, convert: convert), color: field.color,
+                        name: field.name)
                 }
             case .process(let metric):
                 model.gapThreshold = max(60, standardResolution) * 1.5
@@ -650,7 +653,7 @@ final class DataExplorerModel: ObservableObject {
                     model.yDomain = ChartDomain.fitted(
                         min: minimum, max: maximum, minimumSpan: 30, padding: 5, floor: 0)
                 } else {
-                    model.yDomain = 20...100
+                    model.yDomain = TemperatureFormat.display(20)...TemperatureFormat.display(100)
                 }
             }
             if model.yDomain == nil {

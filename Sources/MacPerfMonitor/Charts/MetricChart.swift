@@ -26,6 +26,9 @@ struct MetricChart: View, Equatable {
     /// Floor for the Y domain's top, so a flat-at-zero series still renders a
     /// sensible axis rather than collapsing to a single line.
     var minTop: Double = 1
+    /// Round the axis top to one that quarters into round steps
+    /// (`LiveChartGeometry.niceCeiling(_:quarterSteps:)`), for Fahrenheit.
+    var quarterSteps = false
     /// Width in seconds of the window this chart represents (the selected range,
     /// for example 1800 for "30 min"). The downsampling bucket width is derived
     /// from this FIXED span, never from the data's own extent, so the buckets
@@ -46,6 +49,7 @@ struct MetricChart: View, Equatable {
         lhs.windowSeconds == rhs.windowSeconds
             && lhs.tint == rhs.tint
             && lhs.minTop == rhs.minTop
+            && lhs.quarterSteps == rhs.quarterSteps
             && lhs.samples.count == rhs.samples.count
             && lhs.samples.first == rhs.samples.first
             && lhs.samples.last == rhs.samples.last
@@ -112,7 +116,8 @@ struct MetricChart: View, Equatable {
         for segment in segments {
             for sample in segment where sample.value > peak { peak = sample.value }
         }
-        let maxValue = LiveChartGeometry.niceCeiling(max(peak * 1.12, minTop))
+        let maxValue = LiveChartGeometry.niceCeiling(
+            max(peak * 1.12, minTop), quarterSteps: quarterSteps)
         return TrendChart(
             // Each gap-free run is its own series so the line breaks, rather
             // than bridging a straight diagonal, wherever data is missing. The

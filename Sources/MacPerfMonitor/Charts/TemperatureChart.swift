@@ -43,14 +43,19 @@ struct TemperatureChart: View {
             reading: (SystemHistoryPoint) -> Double?, average: (SystemHistoryPoint) -> Double?,
             minimum: (SystemHistoryPoint) -> Double?, count: (SystemHistoryPoint) -> Int?
         ) -> LiveColumn {
-            LiveColumn(
+            // Plotted in the person's temperature unit, so the axis lands on
+            // round numbers there.
+            let convert = TemperatureFormat.converter()
+            return LiveColumn(
                 times: points.map { $0.date.timeIntervalSinceReferenceDate }[...],
                 values: points.map { point in
-                    (point.bucketDuration > 0 ? average(point) : reading(point)) ?? .nan
+                    (point.bucketDuration > 0 ? average(point) : reading(point)).map(convert)
+                        ?? .nan
                 }[...],
-                highs: points.map { reading($0) ?? .nan }[...],
+                highs: points.map { reading($0).map(convert) ?? .nan }[...],
                 lows: points.map { point in
-                    (point.bucketDuration > 0 ? minimum(point) : reading(point)) ?? .nan
+                    (point.bucketDuration > 0 ? minimum(point) : reading(point)).map(convert)
+                        ?? .nan
                 }[...],
                 weights: points.map { point in
                     if point.bucketDuration == 0 { return reading(point) == nil ? 0 : 1 }
@@ -82,21 +87,28 @@ struct TemperatureChart: View {
             model.yDomain = ChartDomain.fitted(
                 min: low, max: high, minimumSpan: 30, padding: 5, floor: 0)
         } else {
-            model.yDomain = 20...100
+            model.yDomain = TemperatureFormat.display(20)...TemperatureFormat.display(100)
         }
-        model.yFormat = { String(format: "%.1f°C", $0) }
+        model.yFormat = { TemperatureFormat.label($0, fractionDigits: 1) }
         model.accessibilityLabel = "CPU and GPU die temperatures"
         model.accessibilityValue =
             "Average and observed temperature range. Missing sensor readings remain gaps."
         return model
     }
 
+    /// In the person's temperature unit (`TemperatureFormat`).
     private var cpuPoints: [TrendPoint] {
-        points.compactMap { p in p.cpuDieC.map { TrendPoint(date: p.date, value: $0) } }
+        let convert = TemperatureFormat.converter()
+        return points.compactMap { p in
+            p.cpuDieC.map { TrendPoint(date: p.date, value: convert($0)) }
+        }
     }
 
     private var gpuPoints: [TrendPoint] {
-        points.compactMap { p in p.gpuDieC.map { TrendPoint(date: p.date, value: $0) } }
+        let convert = TemperatureFormat.converter()
+        return points.compactMap { p in
+            p.gpuDieC.map { TrendPoint(date: p.date, value: convert($0)) }
+        }
     }
 
     /// The spacing of one drawn point, taken from the range being shown rather
@@ -142,7 +154,7 @@ struct TemperatureChart: View {
             ],
             xDomain: xDomain,
             yDomain: temperatureDomain,
-            yFormat: { String(format: "%.0f°C", $0) },
+            yFormat: { TemperatureFormat.label($0) },
             showsTimeAxis: showsTimeAxis,
             gapThreshold: ChartGap.threshold(
                 expectedSpacing: max(pointSpacing, SamplerModel.configuredHighResInterval())),

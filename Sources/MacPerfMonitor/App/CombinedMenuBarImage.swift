@@ -63,7 +63,7 @@ enum CombinedMenuBarReadouts {
         case .temperature:
             // The hottest CPU die sensor; bare degree sign to keep the strip
             // narrow (the panel spells out the domains and units).
-            let value = (model.liveSystem?.cpuDieC).map { "\(Int($0.rounded()))°" } ?? "--"
+            let value = (model.liveSystem?.cpuDieC).map { TemperatureFormat.degrees($0) } ?? "--"
             return (value, nil)
         case .network:
             guard let rates = model.smoothedNetworkRates else { return ("--↓", "--↑") }
