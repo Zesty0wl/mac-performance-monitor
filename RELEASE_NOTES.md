@@ -1,50 +1,95 @@
-# Mac Performance Monitor 2.2.1
+# Mac Performance Monitor 2.3.0
 
-Build 261, 23 September 2026. For Apple silicon Macs running macOS 15 or later.
-This update includes changes since 2.2.0, build 260.
+Build 279, 4 October 2026. For Apple silicon Macs running macOS 15 or later.
+This update includes changes since 2.2.1, build 261.
 
-[Download the signed installer](https://github.com/Zesty0wl/mac-performance-monitor/releases/download/v2.2.1.261/MacPerformanceMonitor.pkg).
+[Download the signed installer](https://github.com/Zesty0wl/mac-performance-monitor/releases/download/v2.3.0.279/MacPerformanceMonitor.pkg).
 Existing installs can use **Check for Updates** through Sparkle. Homebrew uses
 the same installer; its cask update may arrive after this release.
 
-## Liquid Glass Is Back
+## Ask About This Mac, Rebuilt
 
-On macOS 26 and 27, version 2.2.0 showed the older, pre-Liquid Glass look.
-Thanks to [Frank Yang](https://github.com/FrankYang0610) for reporting it in
-[#117](https://github.com/Zesty0wl/mac-performance-monitor/issues/117).
+On macOS 27, Ask opens with a one-line verdict and a tile for each part of the
+Mac: Processor, Memory, Graphics, Neural Engine, Network, Storage, Battery and
+Heat, each with a plain status such as Calm, Busy or Worth a look. Tap a tile or
+a starter question, or type your own. The app reads its own history, compares
+it with what is normal for your Mac and works out which apps are responsible;
+Apple's on-device model then explains it in everyday words and suggests one
+safe next step. Each answer links to the matching charts in Explorer and shows
+the facts behind it. Nothing leaves your Mac, and the conversation is cleared
+when Ask closes.
 
-The cause was a bug in our build script, not in the app itself. 2.2.0 was our
-first release built with Xcode 27. Its default Swift build engine recorded the
-macOS 15 deployment target as the SDK the app was built with. macOS uses that
-value to decide whether an app gets the current design, so it gave 2.2.0 the
-compatibility appearance.
+## Hand Off To An AI Agent
 
-The build now records the real SDK, and packaging refuses any app binary that
-reports an SDK older than 26. Mac Performance Monitor still supports macOS 15.
+For deeper digging, Ask can copy a ready-made prompt for Claude Code, Codex or
+another agent, carrying your question and the facts behind its answer, or the
+one-line command that connects one. The app now ships `mpm`, a read-only
+command-line tool and MCP server, inside the app:
 
-## Startup
+```sh
+claude mcp add --scope user mac-performance-monitor -- "/Applications/Mac Performance Monitor.app/Contents/MacOS/mpm" mcp
+```
 
-**Start minimised** is a new setting in Settings > General > Startup, on by
-default. With the menu bar on, the app starts without opening its main window,
-including at login. Turn it off to show the window at startup. The window always
-opens at startup if the menu bar is off, and first-run setup still appears.
+Agents get documented views of your history, the same judged summaries Ask
+uses, and links that open the matching charts. The
+[AI agents guide](docs/ai-agents.md) covers Claude Code, Codex, Claude Desktop,
+Cursor and VS Code, what to ask, and what leaves your Mac: an agent sends what
+it reads to its own provider, so Ask explains that before the first copy.
 
-The main window no longer restores itself at startup from macOS launch data;
-the saved startup setting decides. A pinned Dock icon no longer takes focus
-when no window is open.
+## Temperatures In Your Unit
 
-## GitHub Star Request
+Every temperature in the app now shows in the unit your Mac is set to in
+System Settings > General > Language & Region > Temperature, so Macs set to
+Fahrenheit see °F. Settings > General > Temperature can override it. History
+is still recorded in Celsius, so switching is instant and loses nothing.
+Thanks to [McTTRS](https://github.com/McTTRS) for asking in
+[#134](https://github.com/Zesty0wl/mac-performance-monitor/issues/134).
 
-After at least seven days, and once you have used both a menu bar panel and the
-main window, the app asks once whether you would like to star it on GitHub. It
-waits until the main window is in front with no other prompt showing. Either
-answer stops future requests. The usage flags it checks stay on your Mac.
+## New Alerts And Insights
 
-## Further Reading
+- **A program busy for hours is now flagged.** A part of macOS stuck in a loop,
+  such as contactsd syncing Contacts all night, used to go unnoticed. Alerts now
+  watch each program across its restarts and warn when one keeps about a core
+  busy for an hour. It has its own switch in Settings > Alerts.
+- **Screen capture slowing the desktop.** Insights flags WindowServer busy with
+  most of a core while macOS's screen capture service is busy too, from screen
+  sharing, recording or an AI agent watching the screen. Thanks to
+  [Giorgio Zamparelli](https://github.com/giorgio-zamparelli) for
+  [#131](https://github.com/Zesty0wl/mac-performance-monitor/pull/131).
 
-- [Full changelog](https://github.com/Zesty0wl/mac-performance-monitor/blob/v2.2.1.261/CHANGELOG.md).
+## Lighter And Faster
 
-- [2.2.0 release notes](https://github.com/Zesty0wl/mac-performance-monitor/releases/tag/v2.2.0.260),
-  including the Ask preview, GPU bandwidth history, and known limits.
+- Tabs you have left stop working in the background. On macOS 26 and later,
+  every tab visited since the window opened kept updating while hidden, so a
+  long session grew slower and used more memory with each tab opened.
+- The app launches about a second faster, and the Processes, Hardware and
+  Explorer tabs open more quickly.
+- The history database is flushed once a minute instead of every 15 seconds,
+  writing about a tenth less to disk, and the leak scan takes half the time and
+  memory.
 
-- [Security policy](https://github.com/Zesty0wl/mac-performance-monitor/blob/v2.2.1.261/SECURITY.md).
+## Also Changed
+
+- The Dashboard's right-hand rail shows CPU usage history under the live CPU
+  cores grid.
+- With one or two charts showing, the Explorer stacks them full width, and a
+  lone spike no longer sets a chart's whole axis.
+- Ask names the app behind its busiest processes, and the Ask preview's optional
+  model downloads and local AI worker are gone; models downloaded by earlier
+  versions are deleted to free the space.
+
+## Fixes
+
+- The menu bar item keeps its place after an update
+  ([#120](https://github.com/Zesty0wl/mac-performance-monitor/issues/120)). The
+  first launch of this version still uses the default spot.
+- The menu bar item appears again on macOS 27 when a specific language is
+  chosen ([#124](https://github.com/Zesty0wl/mac-performance-monitor/issues/124)).
+- The main window can be dragged again on macOS 26 and 27, and can enter full
+  screen when it opens while the app runs without a Dock icon.
+- Turning Hide Notch off outside the menu now brings the notch back.
+- Leak and memory budget alerts no longer flicker in the menu bar.
+- The app no longer crashes when a process inspector's Disk I/O charts show a
+  process that has just restarted.
+
+See the [changelog](CHANGELOG.md) for the full list.
