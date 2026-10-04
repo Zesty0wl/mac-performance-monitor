@@ -63,7 +63,7 @@ func usage() -> String {
           TIME is HH:MM, "YYYY-MM-DD HH:MM", ISO 8601 or Unix seconds.
     --db PATH uses another copy of the database.
 
-    Add to Claude Code:  claude mcp add mac-performance-monitor -- "\(AgentGuide.mpmPath)" mcp
+    Add to Claude Code:  claude mcp add --scope user mac-performance-monitor -- "\(AgentGuide.mpmPath)" mcp
     Add to Codex:        codex mcp add mac-performance-monitor -- "\(AgentGuide.mpmPath)" mcp
     """
 }

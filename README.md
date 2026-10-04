@@ -51,10 +51,12 @@ and saved time ranges. The app still supports Apple silicon Macs on macOS 15 or 
   for the bundled read-only MCP server:
 
   ```sh
-  claude mcp add mac-performance-monitor -- "/Applications/Mac Performance Monitor.app/Contents/MacOS/mpm" mcp
+  claude mcp add --scope user mac-performance-monitor -- "/Applications/Mac Performance Monitor.app/Contents/MacOS/mpm" mcp
   ```
 
-  Run `mpm help` for the command-line tool.
+  Run `mpm help` for the command-line tool. The [AI agents guide](docs/ai-agents.md)
+  covers Claude Code, Codex, Claude Desktop, Cursor and VS Code, what agents
+  can ask, and what leaves your Mac.
 
 - **Usage Timeline:** right-click a process to see when the recorder observed
   it running. Optional Apple app and media activity needs Full Disk Access and
