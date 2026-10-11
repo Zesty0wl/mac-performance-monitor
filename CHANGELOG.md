@@ -6,6 +6,8 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-10-11
+
 ### Fixed
 
 - **Memory use climbed every time the menu bar dropdown opened**
@@ -1151,7 +1153,8 @@ processes behind them.
 - A clean split between a headless, unit-tested data layer and the SwiftUI app. CI
   builds, tests, and lints on every push and pull request.
 
-[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.3.0.279...HEAD
+[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.3.1.280...HEAD
+[2.3.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.3.0.279...v2.3.1.280
 [2.3.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.2.1.261...v2.3.0.279
 [2.2.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.2.0.260...v2.2.1.261
 [2.2.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.1.0.236...v2.2.0.260
