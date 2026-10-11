@@ -6,6 +6,17 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Memory use climbed every time the menu bar dropdown opened**
+  ([#145](https://github.com/Zesty0wl/mac-performance-monitor/issues/145)).
+  Each closed dropdown stayed in memory, still updating in the background, at
+  about 25 MB apiece, so after a few days of normal use the app could reach
+  600 MB or more and use more CPU than it should. Closed dropdowns are now
+  released: 48 open and close cycles that would have added over 1 GB now leave
+  the app at about 64 MB once idle. The leak dates from 1.7.0, when the
+  language picker arrived.
+
 ## [2.3.0] - 2026-10-04
 
 ### Added

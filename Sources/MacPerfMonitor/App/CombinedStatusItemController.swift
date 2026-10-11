@@ -234,11 +234,17 @@ final class CombinedStatusItemController: NSObject {
         let popover = NSPopover()
         popover.behavior = .transient
         popover.animates = false
+        // Built out here, not inside the `LocaleRootView` closure: that closure is
+        // stored in the popover's own root view, and creating `[weak popover]`
+        // inside it makes the outer closure capture `popover` strongly. The
+        // resulting cycle kept every closed popover alive with its SwiftUI graph
+        // still observing the models, about 25 MB per open (#145).
+        let dismiss: () -> Void = { [weak popover] in popover?.performClose(nil) }
         let content = LocaleRootView(languageManager: languageManager) {
             CombinedMenuBarContentView(
                 selection: self.panelSelection,
                 selectionChanged: { [weak self] panel in self?.selectPanel(panel) },
-                dismiss: { [weak popover] in popover?.performClose(nil) }
+                dismiss: dismiss
             )
             .environmentObject(self.model)
             .environmentObject(self.model.menuLists)
