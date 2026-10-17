@@ -471,6 +471,7 @@ private struct ProcessDetailCharts: View {
                     MetricChart(
                         samples: samples, tint: tint, minTop: minTop,
                         windowSeconds: range.seconds, accessibilityTitle: title,
+                        rasterizesDrawing: true,
                         yFormat: yFormat
                     )
                     .equatable()

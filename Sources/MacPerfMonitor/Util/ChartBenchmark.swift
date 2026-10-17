@@ -70,7 +70,7 @@ enum ChartBenchmark {
         var mode: Mode = .image
         var teardown = false
         var width: CGFloat = 900
-        /// `hardwarePage` only: the rendered page height, so a snapshot can
+        /// `hardwarePage` and `gpuPage`: the rendered page height, so a snapshot can
         /// include cards below the first screenful.
         var height: CGFloat = 1000
         /// Host mode only: write a PNG of the rendered window after the last
@@ -322,31 +322,36 @@ enum ChartBenchmark {
             return VStack(alignment: .leading, spacing: 16) {
                 MetricChart(
                     samples: samples(.appMemory, scale: 1), tint: .blue, windowSeconds: store.span,
+                    rasterizesDrawing: true,
                     yFormat: { ByteFormat.string(UInt64(max($0, 0))) }
                 )
                 .equatable()
                 .frame(height: 120)
                 MetricChart(
                     samples: samples(.cpuLoad, scale: 100), tint: .green, minTop: 5,
-                    windowSeconds: store.span, yFormat: { String(format: "%.0f%%", max($0, 0)) }
+                    windowSeconds: store.span, rasterizesDrawing: true,
+                    yFormat: { String(format: "%.0f%%", max($0, 0)) }
                 )
                 .equatable()
                 .frame(height: 120)
                 MetricChart(
                     samples: samples(.pressurePercent, scale: 10), tint: .purple, minTop: 10,
-                    windowSeconds: store.span, yFormat: { String(format: "%.0f", max($0, 0)) }
+                    windowSeconds: store.span, rasterizesDrawing: true,
+                    yFormat: { String(format: "%.0f", max($0, 0)) }
                 )
                 .equatable()
                 .frame(height: 120)
                 MetricChart(
                     samples: samples(.diskReadBytesPerSec, scale: 1), tint: DiskStyle.read,
-                    windowSeconds: store.span, yFormat: { ByteFormat.rate(max($0, 0)) }
+                    windowSeconds: store.span, rasterizesDrawing: true,
+                    yFormat: { ByteFormat.rate(max($0, 0)) }
                 )
                 .equatable()
                 .frame(height: 120)
                 MetricChart(
                     samples: samples(.diskWriteBytesPerSec, scale: 1), tint: DiskStyle.write,
-                    windowSeconds: store.span, yFormat: { ByteFormat.rate(max($0, 0)) }
+                    windowSeconds: store.span, rasterizesDrawing: true,
+                    yFormat: { ByteFormat.rate(max($0, 0)) }
                 )
                 .equatable()
                 .frame(height: 120)
@@ -611,10 +616,13 @@ enum ChartBenchmark {
     struct GPUPageScenario: View {
         let store: ProcessScenarioStore
         let width: CGFloat
+        /// `--height`: pass the window's content height (about 670 for the
+        /// default 1280 x 720 window) to see what fits without scrolling.
+        let height: CGFloat
 
         var body: some View {
             GPUView()
-                .frame(width: width, height: 1100)
+                .frame(width: width, height: height)
                 .environmentObject(store.model)
                 .environment(\.samplerModel, store.model)
                 .environmentObject(store.appState)
@@ -729,7 +737,8 @@ enum ChartBenchmark {
             case .processes:
                 view = AnyView(ProcessesScenario(store: store, width: options.width))
             case .gpuPage:
-                view = AnyView(GPUPageScenario(store: store, width: options.width))
+                view = AnyView(
+                    GPUPageScenario(store: store, width: options.width, height: options.height))
             case .analyticsPage:
                 store.pinBusy(options.monitored)
                 // Fill the per-process trails to capacity before mounting, so

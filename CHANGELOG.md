@@ -6,8 +6,16 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-10-17
+
 ### Changed
 
+- **The GPU tab is easier to scan.** The process list is now near the
+  top, beside the category split and AI workloads. In the default window
+  you can see it without scrolling. The six charts now share one panel
+  with a picker (Utilization, Power, Bandwidth, Neural Engine,
+  Temperature), and the headline cards fit on one row. Explanations
+  moved behind info buttons. The page is about half as tall as before.
 - **Less RAM for the recorder and menu bar**
   ([#145](https://github.com/Zesty0wl/mac-performance-monitor/issues/145)).
   Small charts now draw into reusable images. Process rows use small cached
@@ -23,6 +31,18 @@ Notable changes to Mac Performance Monitor. This project follows
   history is enough. Slow scans no longer queue behind each other.
 - Caches for process paths and code-signing details now have fixed limits.
   They no longer keep growing as you start more processes.
+- The five process-detail charts now use the bitmap renderer too. Their
+  isolated benchmark fell from 206 MiB to about 35 MiB while open.
+  This trades some CPU time for lower RAM use. Whole-app memory still stays
+  above its fresh-launch level after closing the window.
+- History reads now handle one row at a time, without keeping a second
+  copy of the database rows. Explorer reuses each raw point's values
+  for its low and high readings. Gaps, stored detail and read limits
+  stay the same.
+- The menu bar reuses text layouts for cells that have not changed.
+  It updates the alert badge only when the count changes. It keeps
+  only the latest layout for each of the seven metrics. The look
+  and click targets stay the same.
 
 ### Fixed
 
@@ -30,6 +50,8 @@ Notable changes to Mac Performance Monitor. This project follows
   a different process.** It keeps a fixed width inside the window.
   The table and details no longer overlap. A new selection changes only
   the contents and scrolls back to the top.
+- Idle cleanup logs now report how many bytes the allocator released,
+  including zero.
 
 ### Added
 
@@ -1185,7 +1207,8 @@ processes behind them.
 - A clean split between a headless, unit-tested data layer and the SwiftUI app. CI
   builds, tests, and lints on every push and pull request.
 
-[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.3.1.280...HEAD
+[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.4.0.289...HEAD
+[2.4.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.3.1.280...v2.4.0.289
 [2.3.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.3.0.279...v2.3.1.280
 [2.3.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.2.1.261...v2.3.0.279
 [2.2.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.2.0.260...v2.2.1.261

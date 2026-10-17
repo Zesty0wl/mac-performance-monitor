@@ -7,8 +7,8 @@ enum MemoryReclaim {
     static func runNow() {
         ProcessIconProvider.shared.purge()
         DispatchQueue.global(qos: .utility).async {
-            malloc_zone_pressure_relief(nil, 0)
-            AppLog.ui.notice("reclaimed unused UI memory")
+            let released = malloc_zone_pressure_relief(nil, 0)
+            AppLog.ui.notice("idle UI caches cleared; allocator released \(released) bytes")
         }
     }
 }

@@ -154,9 +154,11 @@ public struct ExplorerProcessPoint: Sendable, Equatable {
             } else if duration == 0 {
                 if metric == .footprint, !(row["footprint_readable"] as Bool) { continue }
                 values[metric] = value(metric.rawColumn)
-                minima[metric] = values[metric]
-                maxima[metric] = values[metric]
             }
+        }
+        if duration == 0 {
+            minima = values
+            maxima = values
         }
     }
 }
@@ -343,7 +345,7 @@ extension SampleStore {
                 granularity == .minute
                 ? "COALESCE((SELECT bucket_seconds FROM system_minute WHERE bucket = s.bucket), \(duration))"
                 : String(duration)
-            let rows = try Row.fetchAll(
+            let rows = try Row.fetchCursor(
                 db,
                 sql: """
                     WITH latest AS (
@@ -356,13 +358,15 @@ extension SampleStore {
                     JOIN processes p ON p.id = s.process_id
                     ORDER BY s.\(cpu) DESC, p.id LIMIT ?
                     """, arguments: [cutoff, time, max(1, min(limit, 1000))])
-            return rows.compactMap { row in
-                let point = ExplorerProcessPoint(row: row, duration: duration)
-                if point.duration > 0, date >= point.date.addingTimeInterval(point.duration) {
-                    return nil
-                }
-                return ExplorerProcessObservation(process: ExplorerProcess(row: row), point: point)
-            }
+            return try Array(
+                rows.compactMap { row in
+                    let point = ExplorerProcessPoint(row: row, duration: duration)
+                    if point.duration > 0, date >= point.date.addingTimeInterval(point.duration) {
+                        return nil
+                    }
+                    return ExplorerProcessObservation(
+                        process: ExplorerProcess(row: row), point: point)
+                })
         }
     }
 
@@ -371,7 +375,7 @@ extension SampleStore {
     ) throws -> [ExplorerProcess] {
         guard from <= to else { return [] }
         return try databasePool.read { db in
-            try Row.fetchAll(
+            let rows = try Row.fetchCursor(
                 db,
                 sql: """
                     SELECT * FROM processes
@@ -384,7 +388,7 @@ extension SampleStore {
                     search, search, max(1, min(limit, 1000)),
                 ]
             )
-            .map(ExplorerProcess.init(row:))
+            return try Array(rows.map(ExplorerProcess.init(row:)))
         }
     }
 
@@ -424,19 +428,19 @@ extension SampleStore {
                             table == "process_minute"
                             ? "COALESCE((SELECT bucket_seconds FROM system_minute WHERE bucket = source.bucket), \(duration))"
                             : String(duration)
-                        let rows = try Row.fetchAll(
+                        let rows = try Row.fetchCursor(
                             db,
                             sql: """
                                 SELECT source.*, \(sourceDuration) AS explorer_duration FROM \(table) source WHERE process_id = ?
                                   AND \(timeColumn) >= ? AND \(timeColumn) <= ?
                                 ORDER BY \(timeColumn) LIMIT ?
                                 """, arguments: [run.databaseID, lower, until, remaining + 1])
-                        guard rows.count <= remaining else {
-                            throw ProcessHistoryReadError.pointLimitExceeded(maximumPointCount)
-                        }
-                        remaining -= rows.count
-                        runPoints += rows.map {
-                            ExplorerProcessPoint(row: $0, duration: duration)
+                        while let row = try rows.next() {
+                            guard remaining > 0 else {
+                                throw ProcessHistoryReadError.pointLimitExceeded(maximumPointCount)
+                            }
+                            runPoints.append(ExplorerProcessPoint(row: row, duration: duration))
+                            remaining -= 1
                         }
                     }
                     if granularity == .hour {

@@ -291,57 +291,112 @@ final class MetricCardPresentationTests: XCTestCase {
 
     func testGPUReleasePreviewIncludesBandwidthAndNeuralEngineHistory() async throws {
         _ = NSApplication.shared
-        let suite = "gpu-release-preview-\(UUID())"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
-        defaults.set(HistoryWindow.thirtyMinutes.rawValue, forKey: "historyRange.gpu")
+        // The history panel mounts one chart page at a time, so each page is
+        // opened through its stored selection.
+        for (chart, labels, name) in [
+            (GPUHistoryChart.bandwidth, [t("GPU bandwidth history")], "gpu-release"),
+            (
+                GPUHistoryChart.neuralEngine,
+                [t("Neural Engine activity timeline"), t("Neural Engine power timeline")],
+                "gpu-neural-engine-release"
+            ),
+        ] {
+            let suite = "gpu-release-preview-\(UUID())"
+            let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+            defer { defaults.removePersistentDomain(forName: suite) }
+            defaults.set(HistoryWindow.thirtyMinutes.rawValue, forKey: "historyRange.gpu")
+            defaults.set(chart.rawValue, forKey: "gpu.historyChart")
+            let (host, window, _) = try await showGPUPage(
+                defaults: defaults, width: 1800, height: 1040)
+            defer { window.close() }
+            let charts = descendants(of: host, type: TrendSurfaceView.self)
+            for label in labels {
+                let surface = try XCTUnwrap(
+                    charts.first { $0.feed?.model.accessibilityLabel == label })
+                XCTAssertTrue(
+                    surface.feed?.model.series.first?.column.values.contains(where: \.isFinite)
+                        == true)
+                XCTAssertTrue(host.bounds.contains(surface.convert(surface.bounds, to: host)))
+            }
+            if chart == .neuralEngine {
+                // The pair stretches into the room the Device panel leaves,
+                // together, so the plots stay level.
+                let pair = charts.filter {
+                    labels.contains($0.feed?.model.accessibilityLabel ?? "")
+                }
+                XCTAssertEqual(pair.count, 2)
+                XCTAssertEqual(pair[0].bounds.height, pair[1].bounds.height, accuracy: 1)
+                XCTAssertGreaterThan(pair[0].bounds.height, GPUHistoryPanel.chartHeight + 5)
+            }
+            if chart == .bandwidth {
+                let bandwidth = try XCTUnwrap(
+                    descendants(of: host, type: GPUBandwidthSurfaceView.self).first)
+                XCTAssertTrue(bandwidth.displayedValues.allSatisfy { $0.contains("GB/s") })
+                XCTAssertFalse(
+                    descendants(of: host, type: NSTextField.self).contains {
+                        $0.stringValue == t("Actual bandwidth may be higher")
+                    })
+            }
+            try captureGPUWindow(window, name: name)
+        }
+    }
+
+    /// The page's reason for its layout: in the default 1280 x 720 window
+    /// (about 670 pt of content under the toolbar) the whole "who is using
+    /// the GPU" table is on screen without scrolling, at the default and the
+    /// minimum window width, and the page never scrolls sideways.
+    func testGPUProcessTableIsOnTheFirstScreenful() async throws {
+        _ = NSApplication.shared
+        for width in [CGFloat(1280), MainWindowSize.minimumWidth] {
+            let suite = "gpu-first-screen-\(UUID())"
+            let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+            defer { defaults.removePersistentDomain(forName: suite) }
+            let (host, window, _) = try await showGPUPage(
+                defaults: defaults, width: width, height: 670)
+            defer { window.close() }
+            let table = try XCTUnwrap(descendants(of: host, type: NSOutlineView.self).first)
+            let scroller = try XCTUnwrap(table.enclosingScrollView)
+            let frame = scroller.convert(scroller.bounds, to: host)
+            XCTAssertGreaterThanOrEqual(frame.minY, 0, "width \(width)")
+            XCTAssertLessThanOrEqual(frame.maxY, host.bounds.height, "width \(width)")
+            XCTAssertGreaterThanOrEqual(frame.height, 6 * 24, "width \(width)")
+            let page = try XCTUnwrap(descendants(of: host, type: NSScrollView.self).first)
+            XCTAssertLessThanOrEqual(
+                page.documentView?.frame.width ?? .infinity, width + 1, "width \(width)")
+            try captureGPUWindow(window, name: "gpu-first-screen-\(Int(width))")
+        }
+    }
+
+    /// Shows the GPU page scenario with synthetic data and one tick applied.
+    private func showGPUPage(
+        defaults: UserDefaults, width: CGFloat, height: CGFloat
+    ) async throws -> (NSHostingView<AnyView>, NSWindow, ChartBenchmark.Scenario) {
         let options = ChartBenchmark.Options(arguments: [
             "--scenario", "gpuPage", "--points", "1800", "--interval", "1",
-            "--span", "1800", "--width", "1800",
+            "--span", "1800", "--width", String(Double(width)), "--height", String(Double(height)),
         ])
         let scenario = ChartBenchmark.makeScenario(options)
-        let appeared = expectation(description: "The full GPU preview appears")
+        let appeared = expectation(description: "The GPU page appears")
         let host = NSHostingView(
-            rootView: scenario.view.defaultAppStorage(defaults)
-                .onAppear { DispatchQueue.main.async { appeared.fulfill() } })
+            rootView: AnyView(
+                scenario.view.defaultAppStorage(defaults)
+                    .onAppear { DispatchQueue.main.async { appeared.fulfill() } }))
         let window = NSWindow(
-            contentRect: CGRect(x: 0, y: 20, width: 1800, height: 1040),
+            contentRect: CGRect(x: 0, y: 20, width: width, height: height),
             styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.title = "GPU preview with sample data"
         window.appearance = NSAppearance(named: .darkAqua)
         window.contentView = host
         window.orderFront(nil)
-        defer { window.close() }
         await fulfillment(of: [appeared], timeout: 5)
         scenario.tick()
-        let updated = expectation(description: "The GPU preview receives sample readings")
+        let updated = expectation(description: "The GPU page receives sample readings")
         DispatchQueue.main.async { updated.fulfill() }
         await fulfillment(of: [updated], timeout: 5)
         host.layoutSubtreeIfNeeded()
         window.displayIfNeeded()
-        let charts = descendants(of: host, type: TrendSurfaceView.self)
-        for label in [
-            t("GPU bandwidth history"), t("Neural Engine activity timeline"),
-            t("Neural Engine power timeline"),
-        ] {
-            let chart = try XCTUnwrap(charts.first { $0.feed?.model.accessibilityLabel == label })
-            XCTAssertTrue(
-                chart.feed?.model.series.first?.column.values.contains(where: \.isFinite) == true)
-        }
-        let bandwidth = try XCTUnwrap(
-            descendants(of: host, type: GPUBandwidthSurfaceView.self).first)
-        XCTAssertTrue(bandwidth.displayedValues.allSatisfy { $0.contains("GB/s") })
-        XCTAssertFalse(
-            descendants(of: host, type: NSTextField.self).contains {
-                $0.stringValue == t("Actual bandwidth may be higher")
-            })
-        try captureGPUWindow(window, name: "gpu-release")
-        let scroll = try XCTUnwrap(descendants(of: host, type: NSScrollView.self).first)
-        scroll.contentView.scroll(to: CGPoint(x: 0, y: 690))
-        scroll.reflectScrolledClipView(scroll.contentView)
-        window.displayIfNeeded()
-        try captureGPUWindow(window, name: "gpu-neural-engine-release")
+        return (host, window, scenario)
     }
 
     func testNativeGPUMemorySheetAndBandwidthPanel() async throws {
@@ -443,7 +498,9 @@ final class MetricCardPresentationTests: XCTestCase {
             XCTAssertTrue(
                 host.bounds.contains(bandwidthChart.convert(bandwidthChart.bounds, to: host)))
             XCTAssertTrue(bandwidthChart.scrubbable)
-            XCTAssertEqual(bandwidthChart.bounds.height, 170, accuracy: 1)
+            // At least the shared chart height; it stretches into spare room.
+            XCTAssertGreaterThanOrEqual(
+                bandwidthChart.bounds.height, GPUHistoryPanel.chartHeight - 1)
             XCTAssertEqual(
                 timeline.bandwidthChartFeed.model.xDomain, timeline.utilizationFeed.model.xDomain)
             XCTAssertEqual(
@@ -473,7 +530,8 @@ final class MetricCardPresentationTests: XCTestCase {
                 bandwidthChart.mouseExited(with: move)
                 XCTAssertTrue(overlay.isHidden)
             }
-            for field in descendants(of: surface, type: NSTextField.self) {
+            // Hidden notes sit below the collapsed surface until one is shown.
+            for field in descendants(of: surface, type: NSTextField.self) where !field.isHidden {
                 XCTAssertTrue(surface.bounds.contains(field.frame))
                 let required = try XCTUnwrap(field.cell).cellSize(forBounds: field.bounds)
                 XCTAssertLessThanOrEqual(required.height, field.bounds.height + 1)
@@ -617,6 +675,8 @@ final class MetricCardPresentationTests: XCTestCase {
         XCTAssertEqual(surface.displayedValues[1], t("Below resolution"))
         XCTAssertEqual(surface.displayedNotes[1], t("May include zero traffic"))
         XCTAssertEqual(surface.displayedNotes[0], "")
+        // The notes line exists only while a note does.
+        XCTAssertTrue(surface.showsNotes)
         XCTAssertEqual(surface.displayedValues[2], t("Unavailable"))
         let accessibility = try XCTUnwrap(surface.accessibilityValue() as? String)
         XCTAssertTrue(accessibility.contains(t("Below resolution")))
@@ -625,6 +685,10 @@ final class MetricCardPresentationTests: XCTestCase {
             GPUBandwidthSample(
                 timestamp: now, interval: 1, read: high, write: high, combined: high), at: now)
         XCTAssertEqual(surface.displayedNotes, ["", "", ""])
+        XCTAssertFalse(surface.showsNotes)
+        XCTAssertLessThan(
+            GPUBandwidthSurfaceView.height(showingNotes: false),
+            GPUBandwidthSurfaceView.height(showingNotes: true))
         XCTAssertTrue(surface.displayedEstimates.allSatisfy { $0?.includesHighestBin == true })
         let timeline = GPUTimelineStore()
         timeline.replace([], span: 1800, live: nil, gpu: nil)

@@ -4,6 +4,46 @@ import XCTest
 @testable import MacPerfMonitorCore
 
 final class ExplorerHistoryTests: XCTestCase {
+    func testPointBudgetIsSharedAcrossProcessesAndTieredReads() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("explorer-budget-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SampleStore(url: directory.appendingPathComponent("history.sqlite"))
+        let start = Date(timeIntervalSince1970: 1_700_000_400)
+        let identities = [500, 501].map { ProcessIdentity(pid: Int32($0), startTime: start) }
+        for offset in [0.0, 70, 150] {
+            let date = start.addingTimeInterval(offset)
+            let processes = identities.map {
+                Make.process(
+                    timestamp: date, pid: $0.pid, startTime: start,
+                    name: "Fixture \($0.pid)", footprint: UInt64(1000 + offset), cpu: offset)
+            }
+            try store.insert(Make.system(timestamp: date), processes: processes)
+        }
+        try Retention.run(store.databasePool, now: start.addingTimeInterval(120))
+        let end = start.addingTimeInterval(150)
+        for tier in [HistoryWindow.Granularity.raw, .minute, .hour] {
+            let histories = try store.explorerProcessHistories(
+                identities: identities, from: start, to: end,
+                granularity: tier, maximumPointCount: 6)
+            XCTAssertEqual(histories.map { $0.points.count }, [3, 3])
+            for history in histories {
+                XCTAssertEqual(history.points.map(\.date), history.points.map(\.date).sorted())
+                XCTAssertEqual(history.points.last?.values[.footprint], 1150)
+            }
+            for budget in [0, 5] {
+                XCTAssertThrowsError(
+                    try store.explorerProcessHistories(
+                        identities: identities, from: start, to: end,
+                        granularity: tier, maximumPointCount: budget)
+                ) {
+                    XCTAssertEqual($0 as? ProcessHistoryReadError, .pointLimitExceeded(budget))
+                }
+            }
+        }
+    }
+
     func testChangedRecordingPolicyDoesNotHideAnOlderWideBucket() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("explorer-width-\(UUID().uuidString)", isDirectory: true)
@@ -137,6 +177,13 @@ final class ExplorerHistoryTests: XCTestCase {
         XCTAssertEqual(point.values[.cpu], 42)
         XCTAssertEqual(point.values[.threads], 4)
         XCTAssertEqual(point.values[.sockets], 3)
+        XCTAssertEqual(point.minima, point.values)
+        XCTAssertEqual(point.maxima, point.values)
+        var changed = point
+        changed.values[.cpu] = 99
+        changed.minima[.cpu] = 10
+        XCTAssertEqual(changed.maxima[.cpu], 42)
+        XCTAssertEqual(point.values[.cpu], 42)
         XCTAssertEqual(histories.first(where: { $0.process.id == reused.id })?.points.count, 0)
         XCTAssertThrowsError(
             try store.explorerProcessHistories(
