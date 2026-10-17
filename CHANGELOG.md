@@ -6,6 +6,20 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Explorer charts fill the window.** Charts now share the space instead
+  of sitting at a fixed height. Three or four charts fill the view in a
+  2 x 2 grid. A chart is never taller than 520 pt or shorter than it was
+  before; with more charts than fit, the view scrolls as it did. Explorer
+  picks stacked rows or columns, whichever gives the charts the most room
+  without making them tall and narrow. A focused chart still fills the view.
+- **Choose how many Explorer charts fit on screen.** The chart layout
+  button is now a menu. Keep **Fit to window**, or pick 1, 2, 4, 6 or 9
+  charts per screen: fewer gives bigger charts and more scrolling, more
+  gives smaller charts with more in view. If you had turned the grid off,
+  Explorer starts on **Fit to window, one column**.
+
 ## [2.4.0] - 2026-10-17
 
 ### Changed

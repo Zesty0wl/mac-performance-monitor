@@ -21,7 +21,14 @@ struct DataExplorerView: View {
     @State private var importError: String?
     @State private var errorTitle = t("Could not open trace")
     @State private var openingTrace = false
+    /// Read only to carry the old grid toggle over: grid off becomes
+    /// "Fit to window, one column" until a layout is picked.
     @AppStorage("explorer.chartGrid") private var chartGrid = true
+    @AppStorage("explorer.chartLayout") private var chartLayoutRaw = ""
+
+    private var chartLayout: ExplorerChartLayout {
+        ExplorerChartLayout(rawValue: chartLayoutRaw) ?? (chartGrid ? .fit : .fitOneColumn)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -168,9 +175,7 @@ struct DataExplorerView: View {
 
     private var workspaceControls: some View {
         HStack(spacing: 6) {
-            tool("Chart layout", icon: chartGrid ? "rectangle.grid.1x2" : "square.grid.2x2") {
-                chartGrid.toggle()
-            }
+            layoutMenu
             tool("Refresh", icon: "arrow.clockwise") { explorer.refresh() }
                 .disabled(explorer.loading)
             tool("Inspector", icon: "sidebar.right") { explorer.showsInspector.toggle() }
@@ -191,6 +196,35 @@ struct DataExplorerView: View {
             .menuStyle(.borderlessButton)
             .help("Data and tools")
         }
+    }
+
+    /// Fit to window, or a fixed number of charts per screen: fewer means
+    /// bigger charts and more scrolling, more means smaller charts.
+    private var layoutMenu: some View {
+        Menu {
+            Picker(
+                "Chart layout",
+                selection: Binding(
+                    get: { chartLayout }, set: { chartLayoutRaw = $0.rawValue })
+            ) {
+                ForEach(ExplorerChartLayout.fitted) { layout in
+                    Label(layout.title, systemImage: layout.icon).tag(layout)
+                }
+                Section("Charts per screen") {
+                    ForEach(ExplorerChartLayout.fixed) { layout in
+                        Label(layout.title, systemImage: layout.icon).tag(layout)
+                    }
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Image(systemName: chartLayout.icon).frame(width: 24, height: 22)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Chart layout")
+        .accessibilityLabel("Chart layout")
+        .accessibilityIdentifier("explorer.chartLayout")
     }
 
     private func tool(
@@ -357,53 +391,36 @@ struct DataExplorerView: View {
         explorer.lanes.filter { explorer.focusedLaneID == nil || $0.id == explorer.focusedLaneID }
     }
 
-    /// One or two charts stack full width and share the height rather than
-    /// leaving most of the workspace empty.
-    private var lanesFillHeight: Bool { (1...2).contains(visibleLanes.count) }
-
     private var chartWorkspace: some View {
         GeometryReader { geometry in
+            let layout = ExplorerLaneLayout(
+                count: visibleLanes.count, size: geometry.size, layout: chartLayout,
+                focused: explorer.focusedLaneID != nil,
+                reserved: explorer.error == nil ? 0 : Self.errorBannerHeight)
             ScrollView {
-                if lanesFillHeight {
-                    VStack(spacing: 0) {
-                        errorBanner
+                LazyVStack(spacing: 0) {
+                    errorBanner
+                    if layout.columns > 1 {
+                        LazyVGrid(
+                            columns: Array(
+                                repeating: GridItem(.flexible(), spacing: 0),
+                                count: layout.columns),
+                            spacing: 0
+                        ) {
+                            ForEach(visibleLanes) { lane in
+                                laneCell(lane, height: layout.laneHeight)
+                            }
+                        }
+                    } else {
                         ForEach(visibleLanes) { lane in
-                            laneView(lane, fillsHeight: true)
-                            Divider()
+                            laneCell(lane, height: layout.laneHeight)
                         }
                     }
-                    // Short windows scroll rather than squash the charts.
-                    .frame(
-                        height: max(
-                            geometry.size.height, CGFloat(visibleLanes.count) * Self.minimumFillLane
-                        ))
-                } else {
-                    LazyVStack(spacing: 0) {
-                        errorBanner
-                        if chartGrid, explorer.focusedLaneID == nil {
-                            LazyVGrid(
-                                columns: [GridItem(.adaptive(minimum: 370), spacing: 0)],
-                                spacing: 0
-                            ) {
-                                ForEach(explorer.lanes) { lane in
-                                    VStack(spacing: 0) {
-                                        laneView(lane)
-                                        Divider()
-                                    }
-                                }
-                            }
-                        } else {
-                            ForEach(visibleLanes) { lane in
-                                laneView(lane)
-                                Divider()
-                            }
-                        }
-                        if explorer.lanes.isEmpty {
-                            ContentUnavailableView(
-                                "No metrics selected", systemImage: "chart.xyaxis.line"
-                            )
-                            .frame(minHeight: 280)
-                        }
+                    if explorer.lanes.isEmpty {
+                        ContentUnavailableView(
+                            "No metrics selected", systemImage: "chart.xyaxis.line"
+                        )
+                        .frame(minHeight: 280)
                     }
                 }
             }
@@ -412,8 +429,17 @@ struct DataExplorerView: View {
         .opacity(explorer.loading || explorer.preparing ? 0.45 : 1)
     }
 
-    /// Height below which a filling lane stops shrinking and the stack scrolls.
-    private static let minimumFillLane: CGFloat = 240
+    /// A lane and its divider at the height the layout gives every lane.
+    private func laneCell(_ lane: ExplorerLane, height: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            laneView(lane)
+            Divider()
+        }
+        .frame(height: height)
+    }
+
+    /// Room the error banner takes above the lanes when it shows.
+    private static let errorBannerHeight: CGFloat = 52
 
     @ViewBuilder private var errorBanner: some View {
         if let error = explorer.error {
@@ -452,7 +478,7 @@ struct DataExplorerView: View {
         }
     }
 
-    private func laneView(_ lane: ExplorerLane, fillsHeight: Bool = false) -> some View {
+    private func laneView(_ lane: ExplorerLane) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Button {
@@ -489,8 +515,9 @@ struct DataExplorerView: View {
                     explorer.selectedLaneID = lane.id
                     explorer.inspect(date)
                 }
-                .frame(height: fillsHeight ? nil : explorer.focusedLaneID == nil ? 165 : 350)
-                .frame(minHeight: fillsHeight ? 120 : nil, maxHeight: fillsHeight ? .infinity : nil)
+                // The lane's height comes from `ExplorerLaneLayout`; the chart
+                // takes whatever its title and legend leave.
+                .frame(minHeight: 100, maxHeight: .infinity)
                 .accessibilityIdentifier("explorer.chart.\(lane.id)")
                 if lane.feed.model.series.allSatisfy({
                     !$0.column.values.contains(where: \.isFinite)
@@ -514,7 +541,7 @@ struct DataExplorerView: View {
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 12)
-        .frame(maxHeight: fillsHeight ? .infinity : nil, alignment: .top)
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(explorer.selectedLaneID == lane.id ? Color.accentColor.opacity(0.035) : .clear)
     }
 
@@ -950,5 +977,152 @@ enum ExplorerCSV {
             }
         }
         return rows.joined(separator: "\n") + "\n"
+    }
+}
+
+/// How Explorer's lanes share the chart workspace: how many columns, and one
+/// height for every lane.
+///
+/// Lanes split the visible height evenly, between `minimumHeight` (below it
+/// the stack scrolls rather than squashing the charts) and `maximumHeight`
+/// (so one or two charts on a large display stay a sensible shape). With
+/// columns allowed, every column count that fits a lane's minimum width is
+/// tried and the one that gives the charts the most area wins; near-ties go to
+/// the layout whose charts are closest to a landscape `targetAspect`, so six
+/// lanes on a big screen become a 2 x 3 grid rather than six thin strips. If
+/// no layout fits without scrolling, the one with the fewest rows does.
+/// A focused lane fills the workspace with no cap: focus asks for big.
+struct ExplorerLaneLayout: Equatable {
+    /// About the old fixed lane (a 165 pt chart plus its title and legend), so
+    /// a busy Explorer never draws smaller charts than it used to.
+    static let minimumHeight: CGFloat = 240
+    static let maximumHeight: CGFloat = 520
+    static let minimumColumnWidth: CGFloat = 370
+    static let targetAspect: CGFloat = 2.5
+
+    var columns: Int
+    var laneHeight: CGFloat
+
+    init(columns: Int, laneHeight: CGFloat) {
+        self.columns = columns
+        self.laneHeight = laneHeight
+    }
+
+    init(
+        count: Int, size: CGSize, allowsColumns: Bool, focused: Bool, reserved: CGFloat = 0
+    ) {
+        let available = max(0, size.height - reserved)
+        guard count > 0 else {
+            self.init(columns: 1, laneHeight: Self.minimumHeight)
+            return
+        }
+        if focused {
+            self.init(columns: 1, laneHeight: max(Self.minimumHeight, available))
+            return
+        }
+        let widest =
+            allowsColumns ? max(1, Int(size.width / Self.minimumColumnWidth)) : 1
+        var best: (layout: ExplorerLaneLayout, fits: Bool, area: CGFloat, aspect: CGFloat)?
+        for columns in 1...min(widest, count) {
+            let rows = (count + columns - 1) / columns
+            let share = available / CGFloat(rows)
+            let height = min(Self.maximumHeight, max(Self.minimumHeight, share))
+            let fits = share >= Self.minimumHeight
+            let width = size.width / CGFloat(columns)
+            let candidate = (
+                layout: ExplorerLaneLayout(columns: columns, laneHeight: height), fits: fits,
+                area: CGFloat(count) * width * height,
+                aspect: abs(log(width / max(1, height) / Self.targetAspect))
+            )
+            guard let current = best else {
+                best = candidate
+                continue
+            }
+            if candidate.fits != current.fits {
+                if candidate.fits { best = candidate }
+            } else if !candidate.fits {
+                // Neither fits: fewer rows means less scrolling.
+                best = candidate
+            } else if candidate.area > current.area * 1.05 {
+                best = candidate
+            } else if candidate.area >= current.area * 0.95,
+                candidate.aspect < current.aspect
+            {
+                best = candidate
+            }
+        }
+        self = best?.layout ?? ExplorerLaneLayout(columns: 1, laneHeight: Self.minimumHeight)
+    }
+
+    /// Narrowest a column gets in a fixed grid before the grid drops a column.
+    static let minimumFixedColumnWidth: CGFloat = 260
+    /// Shortest a lane gets in a fixed grid (title, legend and an 80 pt plot).
+    static let minimumFixedHeight: CGFloat = 160
+
+    /// The layout for a picked `ExplorerChartLayout`. A fixed grid sizes each
+    /// lane so that many fit one screen, whatever the lane count, and the rest
+    /// scroll; it uses no more columns than there are lanes or than the width
+    /// holds at `minimumFixedColumnWidth`.
+    init(
+        count: Int, size: CGSize, layout: ExplorerChartLayout, focused: Bool,
+        reserved: CGFloat = 0
+    ) {
+        guard let grid = layout.grid, !focused else {
+            self.init(
+                count: count, size: size, allowsColumns: layout == .fit, focused: focused,
+                reserved: reserved)
+            return
+        }
+        let available = max(0, size.height - reserved)
+        let fitting = max(1, Int(size.width / Self.minimumFixedColumnWidth))
+        self.init(
+            columns: max(1, min(grid.columns, count, fitting)),
+            laneHeight: max(Self.minimumFixedHeight, available / CGFloat(grid.rows)))
+    }
+}
+
+/// The chart layouts Explorer's layout menu offers.
+enum ExplorerChartLayout: String, CaseIterable, Identifiable {
+    case fit, fitOneColumn, one, two, four, six, nine
+
+    var id: String { rawValue }
+
+    static let fitted: [ExplorerChartLayout] = [.fit, .fitOneColumn]
+    static let fixed: [ExplorerChartLayout] = [.one, .two, .four, .six, .nine]
+
+    /// Columns across and rows on one screen, for the fixed grids.
+    var grid: (columns: Int, rows: Int)? {
+        switch self {
+        case .fit, .fitOneColumn: return nil
+        case .one: return (1, 1)
+        case .two: return (1, 2)
+        case .four: return (2, 2)
+        case .six: return (3, 2)
+        case .nine: return (3, 3)
+        }
+    }
+
+    var title: LocalizedStringKey {
+        switch self {
+        case .fit: return "Fit to window"
+        case .fitOneColumn: return "Fit to window, one column"
+        case .one: return "1 per screen"
+        case .two: return "2 per screen, stacked"
+        case .four: return "4 per screen, 2 × 2"
+        case .six: return "6 per screen, 3 × 2"
+        case .nine: return "9 per screen, 3 × 3"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .fit: return "rectangle.expand.vertical"
+        case .fitOneColumn: return "rectangle.grid.1x2"
+        case .one: return "rectangle"
+        case .two: return "rectangle.split.1x2"
+        case .four: return "square.grid.2x2"
+        case .six: return "rectangle.grid.3x2"
+        case .nine: return "square.grid.3x3"
+        }
     }
 }
