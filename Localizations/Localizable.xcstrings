@@ -11605,6 +11605,36 @@
         }
       }
     },
+    "9 per screen, 3 × 3" : {
+      "comment" : "Explorer chart layout menu",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "9 pro Bildschirm, 3 × 3"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "9 per screen, 3 × 3"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "9 par écran, 3 × 3"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每屏 9 个，3 × 3"
+          }
+        }
+      }
+    },
     "90 days" : {
       "comment" : "Battery history range. AI-generated translations; native-speaker review pending.",
       "extractionState" : "manual",
@@ -17635,6 +17665,66 @@
         }
       }
     },
+    "Fit to window" : {
+      "comment" : "Explorer chart layout menu",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An Fenster anpassen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fit to window"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajuster à la fenêtre"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适应窗口"
+          }
+        }
+      }
+    },
+    "Fit to window, one column" : {
+      "comment" : "Explorer chart layout menu",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An Fenster anpassen, eine Spalte"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fit to window, one column"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajuster à la fenêtre, une colonne"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适应窗口，单列"
+          }
+        }
+      }
+    },
     "Fixed time window" : {
       "comment" : "Explorer paused or historical window status. AI-generated translations; native-speaker review pending.",
       "extractionState" : "manual",
@@ -23185,6 +23275,36 @@
         }
       }
     },
+    "1 per screen" : {
+      "comment" : "Explorer chart layout menu",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 pro Bildschirm"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 per screen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 par écran"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每屏 1 个"
+          }
+        }
+      }
+    },
     "1 sensor" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -23515,6 +23635,36 @@
         }
       }
     },
+    "2 per screen, stacked" : {
+      "comment" : "Explorer chart layout menu",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 pro Bildschirm, untereinander"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 per screen, stacked"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 par écran, empilés"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每屏 2 个，上下排列"
+          }
+        }
+      }
+    },
     "24 hr" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -23695,6 +23845,36 @@
         }
       }
     },
+    "4 per screen, 2 × 2" : {
+      "comment" : "Explorer chart layout menu",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4 pro Bildschirm, 2 × 2"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4 per screen, 2 × 2"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4 par écran, 2 × 2"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每屏 4 个，2 × 2"
+          }
+        }
+      }
+    },
     "4K UHD" : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -23841,6 +24021,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "6 小时"
+          }
+        }
+      }
+    },
+    "6 per screen, 3 × 2" : {
+      "comment" : "Explorer chart layout menu",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6 pro Bildschirm, 3 × 2"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6 per screen, 3 × 2"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6 par écran, 3 × 2"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每屏 6 个，3 × 2"
           }
         }
       }
@@ -30677,6 +30887,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "图表时间范围：%1$@ 至 %2$@"
+          }
+        }
+      }
+    },
+    "Charts per screen" : {
+      "comment" : "Explorer chart layout menu",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagramme pro Bildschirm"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charts per screen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Graphiques par écran"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每屏图表数"
           }
         }
       }
