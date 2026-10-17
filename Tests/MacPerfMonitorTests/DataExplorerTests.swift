@@ -471,6 +471,82 @@ final class DataExplorerTests: XCTestCase {
         XCTAssertEqual(model.cursor.date, time)
     }
 
+    /// Lanes share the workspace instead of sitting at a fixed height. The
+    /// default 1280 x 720 window leaves about 760 x 550 for charts with the
+    /// inspector open; a large display about 2000 x 1230.
+    func testLanesShareTheWorkspaceWithinTheirLimits() {
+        typealias Layout = ExplorerLaneLayout
+        let laptop = CGSize(width: 760, height: 550)
+        let large = CGSize(width: 2000, height: 1230)
+        func layout(_ count: Int, _ size: CGSize, columns: Bool = true) -> Layout {
+            Layout(count: count, size: size, allowsColumns: columns, focused: false)
+        }
+        // One chart fills, but never past the cap.
+        XCTAssertEqual(layout(1, laptop), Layout(columns: 1, laneHeight: 520))
+        XCTAssertEqual(layout(1, large), Layout(columns: 1, laneHeight: 520))
+        // Two stack full width and split the height.
+        XCTAssertEqual(layout(2, laptop), Layout(columns: 1, laneHeight: 275))
+        // Three or four go two across and fill the height, rather than
+        // three 183 pt strips or the old fixed lanes.
+        XCTAssertEqual(layout(3, laptop), Layout(columns: 2, laneHeight: 275))
+        XCTAssertEqual(layout(4, laptop), Layout(columns: 2, laneHeight: 275))
+        // On a large display three stack full width; six become 2 x 3.
+        XCTAssertEqual(layout(3, large), Layout(columns: 1, laneHeight: 410))
+        XCTAssertEqual(layout(6, large), Layout(columns: 2, laneHeight: 410))
+        // Too many to fit: fewest rows at the minimum height, and it scrolls.
+        XCTAssertEqual(layout(9, laptop), Layout(columns: 2, laneHeight: 240))
+        // The grid switched off stacks everything.
+        XCTAssertEqual(
+            layout(4, laptop, columns: false), Layout(columns: 1, laneHeight: 240))
+        XCTAssertEqual(
+            layout(2, large, columns: false), Layout(columns: 1, laneHeight: 520))
+        // Focus fills the workspace with no cap.
+        XCTAssertEqual(
+            Layout(count: 1, size: large, allowsColumns: false, focused: true),
+            Layout(columns: 1, laneHeight: 1230))
+        // The error banner's room comes off the top.
+        XCTAssertEqual(
+            Layout(
+                count: 2, size: laptop, allowsColumns: true, focused: false, reserved: 50),
+            Layout(columns: 1, laneHeight: 250))
+    }
+
+    /// The layout menu's fixed grids: each lane is sized so that many fit a
+    /// screen, and the rest scroll. Fit to window keeps the automatic layout.
+    func testChartsPerScreenSizesLanesAndScrollsTheRest() {
+        typealias Layout = ExplorerLaneLayout
+        let laptop = CGSize(width: 760, height: 550)
+        func layout(
+            _ count: Int, _ choice: ExplorerChartLayout, _ size: CGSize = laptop
+        )
+            -> Layout
+        { Layout(count: count, size: size, layout: choice, focused: false) }
+        // Fewer per screen: bigger charts, more scrolling.
+        XCTAssertEqual(layout(7, .one), Layout(columns: 1, laneHeight: 550))
+        XCTAssertEqual(layout(7, .two), Layout(columns: 1, laneHeight: 275))
+        // More per screen: smaller charts, more of them visible.
+        XCTAssertEqual(layout(7, .four), Layout(columns: 2, laneHeight: 275))
+        XCTAssertEqual(
+            layout(9, .nine, CGSize(width: 1100, height: 550)),
+            Layout(columns: 3, laneHeight: 183.33333333333334))
+        // Two lanes in a 3 x 3 grid fill two columns at the 3 x 3 height.
+        XCTAssertEqual(
+            layout(2, .nine, CGSize(width: 1100, height: 550)),
+            Layout(columns: 2, laneHeight: 183.33333333333334))
+        // A narrow workspace drops columns; a short one stops shrinking.
+        XCTAssertEqual(layout(9, .nine), Layout(columns: 2, laneHeight: 183.33333333333334))
+        XCTAssertEqual(
+            layout(9, .nine, CGSize(width: 1100, height: 300)),
+            Layout(columns: 3, laneHeight: 160))
+        // Fit to window is the automatic layout; one column turns columns off.
+        XCTAssertEqual(layout(4, .fit), Layout(columns: 2, laneHeight: 275))
+        XCTAssertEqual(layout(4, .fitOneColumn), Layout(columns: 1, laneHeight: 240))
+        // Focus still fills, whatever the layout.
+        XCTAssertEqual(
+            Layout(count: 1, size: laptop, layout: .nine, focused: true),
+            Layout(columns: 1, laneHeight: 550))
+    }
+
     func testNativeExplorerScreenshots() async throws {
         guard let directory = ProcessInfo.processInfo.environment["MACPERF_EXPLORER_ARTIFACTS"]
         else { return }
@@ -482,38 +558,62 @@ final class DataExplorerTests: XCTestCase {
         model.cursor.pin(data.domain.lowerBound.addingTimeInterval(1800))
         let selection = MonitorSelection()
         for process in data.processes { selection.add(process.process.id) }
-        for (width, height, appearance) in [
-            (1440.0, 940.0, NSAppearance.Name.darkAqua), (860, 640, .aqua),
-        ] {
-            let content = DataExplorerView(explorer: model, onImport: { _ in })
-                .environmentObject(selection).environmentObject(AppState())
-                .frame(width: width, height: height)
-                .background(Color(nsColor: .windowBackgroundColor))
-            let host = NSHostingView(rootView: content)
-            host.sizingOptions = []
-            let window = NSWindow(
-                contentRect: CGRect(x: 100, y: 100, width: width, height: height),
-                styleMask: .borderless, backing: .buffered, defer: false)
-            window.isReleasedWhenClosed = false
-            window.appearance = NSAppearance(named: appearance)
-            window.contentView = host
-            defer { window.close() }
-            host.frame = CGRect(x: 0, y: 0, width: width, height: height)
-            host.layoutSubtreeIfNeeded()
-            window.displayIfNeeded()
-            func display(_ layer: CALayer) {
-                layer.displayIfNeeded()
-                for child in layer.sublayers ?? [] { display(child) }
+        // The default set (seven charts) plus smaller sets, to see how the
+        // lanes share the workspace.
+        let counts =
+            ProcessInfo.processInfo.environment["MACPERF_EXPLORER_LANES"].map {
+                $0.split(separator: ",").compactMap { Int($0) }
+            } ?? []
+        let catalog = ExplorerMetrics.defaultIDs.sorted()
+        let layoutKey = "explorer.chartLayout"
+        let savedLayout = UserDefaults.standard.string(forKey: layoutKey)
+        defer { UserDefaults.standard.set(savedLayout, forKey: layoutKey) }
+        if let choice = ProcessInfo.processInfo.environment["MACPERF_EXPLORER_LAYOUT"] {
+            UserDefaults.standard.set(choice, forKey: layoutKey)
+        }
+        for lanes in [nil] + counts.map(Optional.some) {
+            if let lanes {
+                model.seed(
+                    data, selected: data.processes.map(\.process),
+                    enabled: Set(catalog.prefix(lanes)))
+                model.cursor.pin(data.domain.lowerBound.addingTimeInterval(1800))
             }
-            if let layer = host.layer { display(layer) }
-            CATransaction.flush()
-            let image = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-            host.cacheDisplay(in: host.bounds, to: image)
-            let bytes = try XCTUnwrap(image.representation(using: .png, properties: [:]))
-            let root = URL(fileURLWithPath: directory, isDirectory: true)
-            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-            try bytes.write(to: root.appendingPathComponent("explorer-\(Int(width)).png"))
-            XCTAssertFalse(descendants(host).isEmpty)
+            for (width, height, appearance) in [
+                (1440.0, 940.0, NSAppearance.Name.darkAqua), (860, 640, .aqua),
+                (1280, 668, .darkAqua),
+            ] {
+                let content = DataExplorerView(explorer: model, onImport: { _ in })
+                    .environmentObject(selection).environmentObject(AppState())
+                    .frame(width: width, height: height)
+                    .background(Color(nsColor: .windowBackgroundColor))
+                let host = NSHostingView(rootView: content)
+                host.sizingOptions = []
+                let window = NSWindow(
+                    contentRect: CGRect(x: 100, y: 100, width: width, height: height),
+                    styleMask: .borderless, backing: .buffered, defer: false)
+                window.isReleasedWhenClosed = false
+                window.appearance = NSAppearance(named: appearance)
+                window.contentView = host
+                defer { window.close() }
+                host.frame = CGRect(x: 0, y: 0, width: width, height: height)
+                host.layoutSubtreeIfNeeded()
+                window.displayIfNeeded()
+                func display(_ layer: CALayer) {
+                    layer.displayIfNeeded()
+                    for child in layer.sublayers ?? [] { display(child) }
+                }
+                if let layer = host.layer { display(layer) }
+                CATransaction.flush()
+                let image = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+                host.cacheDisplay(in: host.bounds, to: image)
+                let bytes = try XCTUnwrap(image.representation(using: .png, properties: [:]))
+                let root = URL(fileURLWithPath: directory, isDirectory: true)
+                try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                let suffix = lanes.map { "-\($0)lanes" } ?? ""
+                try bytes.write(
+                    to: root.appendingPathComponent("explorer-\(Int(width))\(suffix).png"))
+                XCTAssertFalse(descendants(host).isEmpty)
+            }
         }
     }
 
