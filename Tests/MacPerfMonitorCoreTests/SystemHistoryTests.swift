@@ -59,6 +59,33 @@ final class SystemHistoryTests: XCTestCase {
         XCTAssertEqual(thirtyMinutes.map(\.date), thirtyMinutes.map(\.date).sorted())
     }
 
+    func testStreamedRowsOwnTheirValuesAndPreserveMissingSensors() throws {
+        for index in 0..<256 {
+            var sample = Make.system(
+                timestamp: anchor.addingTimeInterval(Double(index)),
+                pressurePercent: Double(index % 100))
+            sample.cpuDieC = index.isMultiple(of: 3) ? nil : 40 + Double(index % 30)
+            sample.gpuMemoryBytes = index.isMultiple(of: 2) ? UInt64(index) * 1024 : nil
+            try store.insert(systemSample: sample)
+        }
+        let end = anchor.addingTimeInterval(255)
+        let points = try store.systemHistory(from: anchor, to: end, granularity: .raw)
+        XCTAssertEqual(points.count, 256)
+        _ = try store.systemHistory(from: end, to: end, granularity: .raw)
+        for (index, point) in points.enumerated() {
+            XCTAssertEqual(point.date, anchor.addingTimeInterval(Double(index)))
+            XCTAssertEqual(point.pressurePercent, Double(index % 100))
+            XCTAssertEqual(point.cpuDieC, index.isMultiple(of: 3) ? nil : 40 + Double(index % 30))
+            XCTAssertEqual(point.cpuDieAverageC, point.cpuDieC)
+            XCTAssertEqual(point.cpuDieSampleCount, index.isMultiple(of: 3) ? 0 : 1)
+            XCTAssertEqual(
+                point.gpuMemoryBytes, index.isMultiple(of: 2) ? Double(index) * 1024 : nil)
+            XCTAssertEqual(point.gpuMemorySampleCount, index.isMultiple(of: 2) ? 1 : 0)
+            XCTAssertEqual(point.sampleCount, 1)
+            XCTAssertNil(point.peaks)
+        }
+    }
+
     func testDayRangeReadsMinuteAggregates() throws {
         for i in 0..<40 {
             try insert(at: anchor.addingTimeInterval(Double(i) * 6))

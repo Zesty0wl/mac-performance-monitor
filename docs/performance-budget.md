@@ -1,6 +1,229 @@
 # Performance budget report
 
-## Current recorder and menu-bar results
+## Latest follow-up: overnight check and shared history
+
+The overnight check found no runaway growth in build 284's live heap.
+The next pass cuts peak RAM for history reads and speeds up menu images.
+Build 285 includes these changes. We installed it from
+`memory-optimisations` after the overnight check.
+
+### The overnight process stayed stable
+
+On 13 October 2026, version 2.3.1 build 284 had run for about 19 hours
+25 minutes. The app had no open windows. Recording and the Full Coverage
+helper were still active.
+
+| Measure | Overnight reading |
+| --- | ---: |
+| Current physical footprint | 132.1 MiB |
+| Peak since launch | 342.3 MiB |
+| Live allocations in the main heap | 42.9 MiB |
+| Unused space in the main heap | 39.6 MiB |
+| Live allocations across all heap zones | 46.7 MiB |
+| Unused space across all heap zones | 41.7 MiB |
+
+The main heap held 43.7 MiB of live data after yesterday's window tests.
+It now held slightly less, not more. After about 20 hours, a final check
+found a **129.4 MiB footprint**, with the same peak. The newest recorded
+sample was less than a second old.
+
+A short CPU check averaged about 5.6% of one core for the app.
+The helper used about 7 MiB and less than 1% CPU during that check.
+These are short samples, not averages for the whole night.
+All seven menu metrics were visible. Per-app network tracking used its
+enabled default, unlike the earlier build-281 menu-only test.
+
+The remaining footprint is not all live app data. It includes framework
+memory and unused space in allocator pages. The largest app-owned arrays
+were about 1.56 MB of alert growth windows and a 770 KB system-sample ring.
+This check does not prove that every usage pattern stays stable.
+Warm idle still exceeds the 60 MB target, and large peaks remain.
+
+### History reads need less temporary RAM
+
+System, process and Explorer reads now decode each database row as it
+arrives. They no longer keep a separate array of raw database rows.
+System history also counts matching rows through its time index before
+allocating the result array. This avoids repeated growth of a large array.
+
+Explorer had another source of waste. For raw samples, it built three
+separate dictionaries containing the same values: the reading, minimum
+and maximum. It now shares their storage, as the live-sample path already
+does. Editing one copy still leaves the others unchanged.
+
+The comparison used fresh release-linked probes and the same synthetic
+database, opened read-only. It held 7,200 system samples and eight
+processes with 7,200 samples each. Each probe started at about 2.6 MiB.
+The table shows medians from three paired runs:
+
+| Read | Points returned | Peak before | Peak after | Time before | Time after |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| System history | 7,200 | 25.03 MiB | 14.06 MiB | 0.196 s | 0.023 s |
+| One process | 7,200 | 6.31 MiB | 5.17 MiB | 0.010 s | 0.005 s |
+| Explorer, eight processes | 57,600 | 77.28 MiB | 29.80 MiB | 1.003 s | 0.218 s |
+
+Peak memory fell by about **44% for system history** and **61% for
+Explorer**. All 18 runs returned the expected row count and checksum.
+Tests also check missing readings, stored bounds and a shared point
+limit across processes and history tiers. Sampling and stored detail
+stay unchanged.
+
+These figures cover query and decode work, not the whole app or its
+charts. Short timings vary with host activity. The savings do not imply
+the same percentage drop in steady recorder RAM.
+
+### Menu images reuse unchanged layouts
+
+The menu bar was already bitmap-backed. It now keeps only the latest
+text layout for each metric, at most seven entries. It measures each
+string once per new layout. It also leaves the alert badge alone when
+the alert count has not changed.
+
+In the debug image test, 1,000 updates took **0.768 seconds**, down from
+**1.734 seconds**. That is about 56% less image-generation time, not a
+56% reduction in total app CPU. Eight reference PNG images matched byte
+for byte: the strip and each metric in focus mode.
+
+Tests check layout reuse, replacement, cache size, image scale and click
+targets. Run the optional workload with:
+
+```sh
+MACPERF_BENCHMARK_MENU_IMAGES=1 swift test --filter MenuBarRenderingTests
+```
+
+### Other pages and caches
+
+We also ran the existing release teardown probes before this pass's
+changes. Each used 1,800 points over 1,800 seconds and ten updates at
+one-second intervals:
+
+| Page | Open | After closing | Later idle | Main-thread CPU per tick |
+| --- | ---: | ---: | ---: | ---: |
+| Dashboard | 75.53 MiB | 47.75 MiB | 44.84 MiB | 36.70 ms |
+| GPU | 92.39 MiB | 54.28 MiB | 54.50 MiB | 22.12 ms |
+| Processes | 70.94 MiB | 60.14 MiB | 55.50 MiB | 17.92 ms |
+| Hardware | 65.89 MiB | 64.52 MiB | 64.06 MiB | 0.12 ms |
+
+These are synthetic hosts, not full recorder sessions. Their teardown
+does not run the real window's entire idle-cleanup path.
+Allocator relief returned zero bytes in each probe.
+
+The review also confirmed existing limits and cleanup. Alert windows
+and process caches were already bounded. Disk Map already drops its
+large scan state when the window closes. Hardware keeps its shared
+inventory to avoid another costly `system_profiler` run on each visit.
+We kept these choices. We added no speculative purge work.
+
+### Validation and installation status
+
+The full suite ran **1,042 tests: 1,036 passed, six skipped, none failed**.
+The optional menu workload also passed in a separate targeted run.
+These checks passed:
+
+```sh
+Scripts/build.sh --release
+swift test
+swift format lint --strict --recursive Sources Tests Package.swift
+Scripts/check-localization.py
+Scripts/check-string-coverage.py
+git diff --check
+```
+
+Build 284 kept running throughout the investigation. On 13 October 2026,
+we installed signed and notarized **2.3.1 build 285** for the next overnight
+test. Apple accepted the build. The installed signature and stapled ticket
+passed validation. All three installed executables match the signed bundle.
+
+The app and helper are running, and new samples are arriving.
+We recorded RAM use for the next check. These readings do not yet show
+build 285's long-run RAM use. We have not pushed the source changes.
+
+## Process charts in build 284
+
+Build 284 reduces another source of chart memory use. It does not fix all
+memory retained after closing the main window. It also does not meet the
+60 MB warm-idle target.
+
+The reported high-memory process was running **2.3.1 build 283**, not an
+older build. With all UI closed, its physical footprint was **335.3 MiB**,
+with a **752.7 MiB peak**. Its live heap was about 52 MiB. The rest included
+about 103 MiB of heap fragmentation and 135 MiB of swapped, empty large
+allocations. These are not all live app objects or proven leaks.
+The earlier short tests had not captured this state.
+
+The five process-detail charts still used Canvas. Build 284 opts them into
+the existing bitmap-backed native renderer. It keeps their time window,
+axis bounds, stored highs, missing-data gaps, and hover readouts.
+Hardware charts keep their existing rendering path. Sampling rates and
+history limits do not change.
+
+### Controlled chart comparison
+
+The release benchmark used the same five charts, 1,800 samples per chart,
+one-second updates, and a 360-point host:
+
+```sh
+Scripts/build.sh --release
+.build/release/MacPerfMonitor --benchmark-charts --scenario inspector \
+  --mode host --points 1800 --span 3600 --interval 1 \
+  --ticks 40 --width 360 --teardown
+```
+
+| Renderer | Open | Host released | Later idle | Main-thread CPU per tick |
+| --- | ---: | ---: | ---: | ---: |
+| Canvas | 206.33 MiB | 34.16 MiB | 33.69 MiB | 3.85 ms |
+| Bitmap | 35.70 MiB | 30.22 MiB | 30.19 MiB | 18.13 ms |
+
+Open memory fell by about 83%, at a CPU cost. The bitmap run used about
+1.8% of one core for these charts at 1 Hz, compared with about 0.4%.
+A separate bitmap run with a final screenshot measured 35.22 MiB open
+and 15.35 ms per tick. This benchmark does not include the recorder or
+the rest of the real Processes window.
+
+Allocator relief returned zero bytes. The cleanup log now reports the
+number of bytes released, even if it is zero. We added no extra purge
+timers or allocator overrides.
+
+### Installed-app check
+
+The signed, notarized build 284 ran on the same Mac described below.
+Fresh idle used 38.1 MiB. Each cycle opened Processes, selected rows
+20 times at one-second intervals, then closed the window. We measured
+closed memory after 20 seconds. Recording and Full Coverage stayed on.
+
+| Cycle | Open after selections | Closed |
+| --- | ---: | ---: |
+| 1 | 129.2 MiB | 96.4 MiB |
+| 2 | 120.2 MiB | 111.1 MiB |
+| 3 | 132.2 MiB | 122.8 MiB |
+| 4 | 140.8 MiB | 129.7 MiB |
+| 5 | 140.0 MiB | 129.3 MiB |
+| 6 | 148.0 MiB | 121.9 MiB |
+
+That is 120 selections in one process. Closed memory rose during warm-up,
+then stayed between 122 and 130 MiB for the last three cycles.
+It later fell to 118.3 MiB while idle.
+The process still reached a **320.2 MiB transient peak**. This is not
+a memory ceiling or proof that longer use cannot grow further.
+
+After the sixth close, the main heap held 43.7 MiB of live allocations
+and 38.7 MiB of charged unused space. The heap check found no live
+process-detail store or native trend surface. Small type metadata remained.
+The app still retained substantial framework and allocator memory.
+
+Before installing, the existing build-283 process ran the same 20-selection
+sequence once: 203.9 MiB open and 181.2 MiB closed. That older process had
+a longer and different usage history. These live readings are not a
+controlled percentage comparison between builds.
+
+Build 284 passed 1,036 tests: 1,031 passed, five skipped, none failed.
+Coverage includes all five native process charts, gaps, empty data, highs,
+bitmap scale, hover, and an inspector that keeps its size during selections.
+Formatting and both localization checks passed. Installation checks
+confirmed the notarization ticket, matching executable hashes, a running
+helper, and new samples in the recording database.
+
+## Recorder and menu-bar results in build 281
 
 Build 281 cuts steady menu-panel memory use by about 70% in this test.
 It does not yet meet the 60 MB idle target after all panels have been used.

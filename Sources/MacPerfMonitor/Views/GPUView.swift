@@ -3,8 +3,16 @@ import Combine
 import MacPerfMonitorCore
 import SwiftUI
 
-/// The GPU tab: what the GPU is doing, at what clock and power, who is using
-/// it, how much of that is AI work, and whether the Neural Engine is busy.
+/// The GPU tab: what the GPU is doing, who is using it, and how that has
+/// changed over the selected range.
+///
+/// Laid out so the first screenful answers the common question without
+/// scrolling: the headline cards across the top, then "who is using the GPU"
+/// with the category split and AI workloads beside it, then ONE history panel
+/// whose picker switches between utilization, power, bandwidth, Neural Engine
+/// and temperature (it used to be six full-width chart panels stacked above
+/// the process table), with the device read-outs and clock states beside it.
+/// Explanations sit behind info buttons instead of under every panel.
 ///
 /// Built like the Dashboard: the page is static SwiftUI chrome, every figure
 /// that moves is an AppKit surface fed by `GPUTimelineStore` on each tick
@@ -37,22 +45,27 @@ struct GPUView: View {
     /// chart re-renders about every 5 s and stays out of the live budget.
     @State private var thermalPoints: [SystemHistoryPoint] = []
 
+    /// AI workloads listed in the rail before the rest fold into "N more",
+    /// so the panel stays level with the process table beside it.
+    static let aiRowLimit = 4
+
     var body: some View {
         ScrollView {
-            MainRailLayout {
+            VStack(alignment: .leading, spacing: 16) {
                 pageHeader
                 headlineCards
-                utilizationPanel
-                GPUBandwidthPanel(timeline: timeline)
-                ANEActivityPanel(timeline: timeline)
-                ANEPowerPanel(timeline: timeline)
-                powerPanel
-                temperaturePanel
-                processesPanel
-            } rail: {
-                devicePanel
-                categoriesPanel
-                aiPanel
+                GPUPanelRow {
+                    processesPanel
+                } side: {
+                    categoriesPanel
+                        .fixedSize(horizontal: false, vertical: true)
+                    aiPanel
+                }
+                GPUPanelRow {
+                    GPUHistoryPanel(timeline: timeline, thermalPoints: thermalPoints, range: range)
+                } side: {
+                    devicePanel
+                }
             }
             .padding(20)
         }
@@ -152,7 +165,7 @@ struct GPUView: View {
                 footprint: process.physFootprint, lastActive: process.gpuLastActive,
                 active: Self.isRecentlyActive(process))
         }
-        .sorted { $0.gpuPercent > $1.gpuPercent }
+        .sorted { ($0.active ? 1 : 0, $0.gpuPercent) > ($1.active ? 1 : 0, $1.gpuPercent) }
     }
 
     private static func isRecentlyActive(_ process: ProcessSample) -> Bool {
@@ -181,78 +194,24 @@ struct GPUView: View {
         }
     }
 
+    /// All six cards on one row whenever the window is wide enough (the
+    /// row spans the page, not just the main column, which is what lets the
+    /// default 1280 pt window fit them), wrapping to a 3 x 2 grid otherwise.
     private var headlineCards: some View {
         MetricCardsRow(cards: timeline.cardTemplates, xDomain: nil, loading: false)
     }
 
-    // MARK: - Main column
+    // MARK: - Processes
 
-    private var utilizationPanel: some View {
-        GPUPanel("GPU utilization", systemImage: "display") {
-            VStack(alignment: .leading, spacing: 8) {
-                LiveTrendChart(feed: timeline.utilizationFeed, scrubbable: true)
-                    .frame(height: 170)
-                HStack(spacing: 22) {
-                    liveStat("DEVICE", timeline.utilizationText, NSColor.labelColor)
-                    liveStat("RENDERER", timeline.rendererText, NSColor.labelColor)
-                    liveStat("TILER", timeline.tilerText, NSColor.labelColor)
-                    liveStat("GPU awake", timeline.activeText, NSColor.labelColor)
-                    Spacer()
-                }
-                Text(
-                    "Device utilization shows how much the GPU was busy. Renderer and tiler are parts of its graphics pipeline. GPU awake shows time powered and clocked, including time waiting for work."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private var powerPanel: some View {
-        GPUPanel("Power", systemImage: "bolt") {
-            VStack(alignment: .leading, spacing: 8) {
-                LiveTrendChart(feed: timeline.powerFeed, scrubbable: true)
-                    .frame(height: 140)
-                HStack(spacing: 22) {
-                    liveStat("GPU", timeline.gpuWattsText, NSColor(DiskStyle.read))
-                    liveStat("CPU", timeline.cpuWattsText, NSColor.secondaryLabelColor)
-                    Spacer()
-                }
-                Text(
-                    "Reported chip power, averaged over the sampling interval. ANE activity is measured separately from kernel time accounting, not inferred from power."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private var temperaturePanel: some View {
-        GPUPanel("Temperature", systemImage: "thermometer.medium") {
-            VStack(alignment: .leading, spacing: 8) {
-                TemperatureChart(
-                    points: thermalPoints,
-                    xDomain: LiveChartGeometry.trailingDomain(
-                        latest: thermalPoints.last?.date, span: range.seconds),
-                    showsTimeAxis: true
-                )
-                .frame(height: 140)
-                HStack(spacing: 22) {
-                    liveStat("GPU DIE", timeline.temperatureText, NSColor(ThermalStyle.gpu))
-                    liveStat("FAN", timeline.fanText, NSColor.labelColor)
-                    Spacer()
-                }
-                Text(
-                    "Each line is the hottest sensor of its domain: CPU die in orange, GPU die in red. High numbers under load are normal; the Energy tab keeps the long-term thermal record and the throttling log."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-        }
-    }
+    /// Table height for a row count: header plus 24 pt rows.
+    private static func tableHeight(rows: Int) -> CGFloat { CGFloat(rows) * 24 + 30 }
 
     private var processesPanel: some View {
-        GPUPanel("Who is using the GPU", systemImage: "list.bullet.rectangle") {
+        GPUPanel(
+            "Who is using the GPU", systemImage: "list.bullet.rectangle",
+            info:
+                "GPU is the share of one GPU the process used over the last few seconds (the figure Activity Monitor calls % GPU); GPU ms/s is the same as milliseconds of GPU time per second. Browsers, Electron apps and Safari do their GPU work in helper processes, which appear under their own names."
+        ) {
             VStack(alignment: .leading, spacing: 8) {
                 ProcessOutlineTable(
                     rows: rows, revision: rowsRevision, showHierarchy: false, leakingIDs: [],
@@ -263,7 +222,13 @@ struct GPUView: View {
                     onVisibleRowsChange: { pids in model?.setVisibleProcesses(pids) },
                     columns: ProcessOutlineTable.ColumnSpec.gpu
                 )
-                .frame(height: max(180, CGFloat(min(rows.count, 14)) * 24 + 30))
+                // At least six rows, ideally every active process up to twelve,
+                // and taller still when the rail beside it is: the row matches
+                // the panels' heights, so the table takes up any slack.
+                .frame(
+                    minHeight: Self.tableHeight(rows: 6),
+                    idealHeight: Self.tableHeight(rows: min(max(rows.count, 6), 12)),
+                    maxHeight: .infinity)
                 HStack {
                     Text(idleSummary)
                         .font(.caption)
@@ -273,11 +238,6 @@ struct GPUView: View {
                         .toggleStyle(.checkbox)
                         .controlSize(.small)
                 }
-                Text(
-                    "GPU is the share of one GPU the process used over the last few seconds (the figure Activity Monitor calls % GPU); GPU ms/s is the same as milliseconds of GPU time per second. Browsers, Electron apps and Safari do their GPU work in helper processes, which appear under their own names."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
             }
         }
     }
@@ -293,7 +253,7 @@ struct GPUView: View {
 
     private var devicePanel: some View {
         GPUPanel("Device", systemImage: "cpu") {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 14) {
                 Grid(
                     alignment: .leadingFirstTextBaseline, horizontalSpacing: 10, verticalSpacing: 6
                 ) {
@@ -313,63 +273,55 @@ struct GPUView: View {
     }
 
     private var categoriesPanel: some View {
-        GPUPanel("By category", systemImage: "chart.bar.fill") {
-            VStack(alignment: .leading, spacing: 8) {
-                GPUShareSurface(feed: timeline.shareFeed)
-                Text(
-                    "Each process's GPU share, grouped by what it is: AI and ML runtimes, display and app UI, media, and everything else. Shares can overlap on the GPU, so the bar is the split of the busy time, not of the whole device."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
+        GPUPanel(
+            "By category", systemImage: "chart.bar.fill",
+            info:
+                "Each process's GPU share, grouped by what it is: AI and ML runtimes, display and app UI, media, and everything else. Shares can overlap on the GPU, so the bar is the split of the busy time, not of the whole device."
+        ) {
+            GPUShareSurface(feed: timeline.shareFeed)
         }
     }
 
     private var aiPanel: some View {
-        GPUPanel("AI workloads", systemImage: "brain") {
+        GPUPanel(
+            "AI workloads", systemImage: "brain",
+            info:
+                "GPU runtimes are identified by name. ANE time is counted separately across resource groups. Shared inference services can perform work for several apps, so this is not per-app ANE attribution."
+        ) {
             VStack(alignment: .leading, spacing: 8) {
                 if aiWorkloads.isEmpty {
                     Text("No AI or ML runtime is using the GPU.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(aiWorkloads.prefix(8)) { row in
+                    ForEach(aiWorkloads.prefix(Self.aiRowLimit)) { row in
                         AIWorkloadRowView(row: row)
                     }
+                    if aiWorkloads.count > Self.aiRowLimit {
+                        Text(t("%@ more", String(aiWorkloads.count - Self.aiRowLimit)))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                Spacer(minLength: 0)
+                Divider()
                 HStack(spacing: 6) {
                     Text("Neural Engine")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
                     LiveText(
-                        feed: timeline.aneStatusText, font: .systemFont(ofSize: 11, weight: .medium)
+                        feed: timeline.aneStatusText,
+                        font: .systemFont(ofSize: 11, weight: .medium),
+                        alignment: .right
                     )
                     .frame(width: 150, alignment: .trailing)
                 }
-                Text(
-                    "GPU runtimes are identified by name. ANE time is counted separately across resource groups. Shared inference services can perform work for several apps, so this is not per-app ANE attribution."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
             }
         }
     }
 
     // MARK: - Bits
-
-    private func liveStat(
-        _ label: LocalizedStringKey, _ feed: TextFeed, _ tint: NSColor
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.caption2.weight(.semibold))
-                .tracking(0.6)
-                .foregroundStyle(.secondary)
-            LiveText(feed: feed, color: tint)
-                .frame(width: 96)
-        }
-    }
 
     private func detailRow(_ label: LocalizedStringKey, _ feed: TextFeed) -> some View {
         GridRow {
@@ -382,6 +334,214 @@ struct GPUView: View {
                 alignment: .right
             )
             .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+}
+
+/// One row of the page: a flexible main panel and the fixed-width rail
+/// beside it, sized to the taller of the two so the panels line up. The
+/// panels fill the row's height (`GPUPanel` stretches), and the row reports
+/// its natural height rather than taking all the space the scroll view offers.
+private struct GPUPanelRow<Main: View, Side: View>: View {
+    @ViewBuilder var main: () -> Main
+    @ViewBuilder var side: () -> Side
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            main()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            VStack(alignment: .leading, spacing: 16) {
+                side()
+            }
+            .frame(width: MainRailLayout<EmptyView, EmptyView>.railWidth)
+            .frame(maxHeight: .infinity, alignment: .top)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+// MARK: - History panel
+
+/// The charts the history panel switches between. Five, not six: the two
+/// Neural Engine charts share a page side by side.
+enum GPUHistoryChart: String, CaseIterable, Identifiable {
+    case utilization, power, bandwidth, neuralEngine, temperature
+
+    var id: String { rawValue }
+
+    var title: LocalizedStringKey {
+        switch self {
+        case .utilization: return "Utilization"
+        case .power: return "Power"
+        case .bandwidth: return "Bandwidth"
+        case .neuralEngine: return "Neural Engine"
+        case .temperature: return "Temperature"
+        }
+    }
+}
+
+/// One panel for every GPU timeline, switched by a picker in its header.
+/// Only the selected chart is mounted; the store keeps publishing every feed,
+/// so switching shows the current window straight away.
+struct GPUHistoryPanel: View {
+    /// Shared by every chart page so switching never changes the panel height
+    /// by more than the page's read-outs. Every page's charts grow past it to
+    /// fill the row when the Device panel beside them is taller.
+    static let chartHeight: CGFloat = 170
+
+    /// Narrowest panel that fits the title and the picker on one line; below
+    /// it (the minimum window width) the picker moves under the title.
+    static let headerPickerWidth: CGFloat = 640
+
+    @ObservedObject var timeline: GPUTimelineStore
+    let thermalPoints: [SystemHistoryPoint]
+    let range: HistoryWindow
+    @AppStorage("gpu.historyChart") private var chart: GPUHistoryChart = .utilization
+    /// The panel's width from the layout pass, the same approach as
+    /// `MetricCardsRow` (a `ViewThatFits` would measure the charts twice).
+    @State private var width: CGFloat = 0
+
+    private var pickerInHeader: Bool { width == 0 || width >= Self.headerPickerWidth }
+
+    var body: some View {
+        GPUPanel("Over time", systemImage: "chart.xyaxis.line", info: info) {
+            if pickerInHeader { picker }
+        } content: {
+            VStack(alignment: .leading, spacing: 12) {
+                if !pickerInHeader { picker }
+                page
+            }
+        }
+        .onGeometryChange(for: CGFloat.self) {
+            $0.size.width
+        } action: {
+            width = $0
+        }
+    }
+
+    private var picker: some View {
+        Picker("Chart", selection: $chart) {
+            ForEach(GPUHistoryChart.allCases) { Text($0.title).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .controlSize(.small)
+        .labelsHidden()
+        .fixedSize()
+    }
+
+    private var info: LocalizedStringKey? {
+        switch chart {
+        case .utilization:
+            return
+                "Device utilization shows how much the GPU was busy. Renderer and tiler are parts of its graphics pipeline. GPU awake shows time powered and clocked, including time waiting for work."
+        case .power:
+            return
+                "Reported chip power, averaged over the sampling interval. ANE activity is measured separately from kernel time accounting, not inferred from power."
+        case .temperature:
+            return
+                "Each line is the hottest sensor of its domain: CPU die in orange, GPU die in red. High numbers under load are normal; the Energy tab keeps the long-term thermal record and the throttling log."
+        // These pages carry their own notes under the chart.
+        case .bandwidth, .neuralEngine:
+            return nil
+        }
+    }
+
+    @ViewBuilder private var page: some View {
+        switch chart {
+        case .utilization:
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 22) {
+                    GPULiveStat(label: "DEVICE", feed: timeline.utilizationText)
+                    GPULiveStat(label: "RENDERER", feed: timeline.rendererText)
+                    GPULiveStat(label: "TILER", feed: timeline.tilerText)
+                    GPULiveStat(label: "GPU awake", feed: timeline.activeText)
+                    Spacer()
+                }
+                LiveTrendChart(feed: timeline.utilizationFeed, scrubbable: true)
+                    .frame(
+                        minHeight: Self.chartHeight, idealHeight: Self.chartHeight,
+                        maxHeight: .infinity)
+            }
+        case .power:
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 22) {
+                    GPULiveStat(
+                        label: "GPU", feed: timeline.gpuWattsText, tint: NSColor(DiskStyle.read))
+                    GPULiveStat(
+                        label: "CPU", feed: timeline.cpuWattsText, tint: .secondaryLabelColor)
+                    Spacer()
+                }
+                LiveTrendChart(feed: timeline.powerFeed, scrubbable: true)
+                    .frame(
+                        minHeight: Self.chartHeight, idealHeight: Self.chartHeight,
+                        maxHeight: .infinity)
+            }
+        case .bandwidth:
+            GPUBandwidthPanel(timeline: timeline)
+        case .neuralEngine:
+            // Read-outs, charts and notes each share a row, so the two charts
+            // stretch together and stay level however long either note is.
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 20) {
+                    ANEReadout(
+                        label: "ANE time", value: timeline.aneTimeText,
+                        status: timeline.aneStatusText)
+                    ANEReadout(
+                        label: "ANE power", value: timeline.anePowerText,
+                        status: timeline.anePowerStatusText)
+                }
+                HStack(spacing: 20) {
+                    LiveTrendChart(feed: timeline.aneFeed, scrubbable: true)
+                    LiveTrendChart(feed: timeline.anePowerFeed, scrubbable: true)
+                }
+                .frame(
+                    minHeight: Self.chartHeight, idealHeight: Self.chartHeight,
+                    maxHeight: .infinity)
+                HStack(alignment: .top, spacing: 20) {
+                    TrendStatisticsCaption(model: timeline.aneFeed.model)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    TrendStatisticsCaption(model: timeline.anePowerFeed.model)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        case .temperature:
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 22) {
+                    GPULiveStat(
+                        label: "GPU DIE", feed: timeline.temperatureText,
+                        tint: NSColor(ThermalStyle.gpu))
+                    GPULiveStat(label: "FAN", feed: timeline.fanText)
+                    Spacer()
+                }
+                TemperatureChart(
+                    points: thermalPoints,
+                    xDomain: LiveChartGeometry.trailingDomain(
+                        latest: thermalPoints.last?.date, span: range.seconds),
+                    showsTimeAxis: true
+                )
+                .frame(
+                    minHeight: Self.chartHeight, idealHeight: Self.chartHeight, maxHeight: .infinity
+                )
+            }
+        }
+    }
+}
+
+/// A small uppercase label over a live value, for the read-outs above each
+/// history chart.
+private struct GPULiveStat: View {
+    let label: LocalizedStringKey
+    let feed: TextFeed
+    var tint: NSColor = .labelColor
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .tracking(0.6)
+                .foregroundStyle(.secondary)
+            LiveText(feed: feed, color: tint)
+                .frame(width: 96)
         }
     }
 }
@@ -453,17 +613,27 @@ private struct AIWorkloadRowView: View {
 
 // MARK: - Panel chrome
 
-private struct GPUPanel<Content: View>: View {
+/// A titled panel. `info` puts the panel's explanation behind an info button
+/// in the header rather than as a caption under the content, and `accessory`
+/// sits at the header's trailing edge (the history panel's chart picker). The
+/// panel fills the height it is offered, so panels in a `GPUPanelRow` match.
+private struct GPUPanel<Accessory: View, Content: View>: View {
     let title: LocalizedStringKey
     let systemImage: String
+    let info: LocalizedStringKey?
+    @ViewBuilder var accessory: () -> Accessory
     @ViewBuilder var content: () -> Content
+    @State private var showsInfo = false
 
     init(
-        _ title: LocalizedStringKey, systemImage: String,
+        _ title: LocalizedStringKey, systemImage: String, info: LocalizedStringKey? = nil,
+        @ViewBuilder accessory: @escaping () -> Accessory,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.title = title
         self.systemImage = systemImage
+        self.info = info
+        self.accessory = accessory
         self.content = content
     }
 
@@ -475,12 +645,32 @@ private struct GPUPanel<Content: View>: View {
                     .foregroundStyle(.secondary)
                 Text(title)
                     .font(.headline)
+                    .lineLimit(1)
+                if let info {
+                    Button {
+                        showsInfo = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("More info")
+                    .accessibilityLabel("More info")
+                    .popover(isPresented: $showsInfo) {
+                        Text(info)
+                            .font(.callout)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(16)
+                            .frame(width: 340)
+                    }
+                }
                 Spacer(minLength: 8)
+                accessory()
             }
             content()
         }
         .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(.quaternary.opacity(0.35))
@@ -489,6 +679,17 @@ private struct GPUPanel<Content: View>: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
         )
+    }
+}
+
+extension GPUPanel where Accessory == EmptyView {
+    init(
+        _ title: LocalizedStringKey, systemImage: String, info: LocalizedStringKey? = nil,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.init(
+            title, systemImage: systemImage, info: info, accessory: { EmptyView() },
+            content: content)
     }
 }
 
@@ -510,27 +711,15 @@ enum ANEActivityPresentation {
     }
 }
 
+/// The Neural Engine time chart, one half of the history panel's Neural
+/// Engine page (beside `ANEPowerPanel`).
 struct ANEActivityPanel: View {
     @ObservedObject var timeline: GPUTimelineStore
 
     var body: some View {
-        GPUPanel("Neural Engine activity", systemImage: "brain") {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    LiveText(feed: timeline.aneTimeText)
-                        .frame(width: 210, alignment: .leading)
-                    Spacer()
-                    LiveText(
-                        feed: timeline.aneStatusText, font: .systemFont(ofSize: 12),
-                        alignment: .right
-                    )
-                    .frame(width: 210, alignment: .trailing)
-                }
-                LiveTrendChart(feed: timeline.aneFeed, scrubbable: true)
-                    .frame(height: 140)
-                TrendStatisticsCaption(model: timeline.aneFeed.model)
-            }
-        }
+        ANEChartSection(
+            label: "ANE time", value: timeline.aneTimeText, status: timeline.aneStatusText,
+            feed: timeline.aneFeed)
     }
 }
 
@@ -546,27 +735,62 @@ enum ANEPowerPresentation {
     }
 }
 
+/// The Neural Engine power chart, the other half of the Neural Engine page.
 struct ANEPowerPanel: View {
     @ObservedObject var timeline: GPUTimelineStore
 
     var body: some View {
-        GPUPanel("ANE power", systemImage: "bolt") {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    LiveText(feed: timeline.anePowerText)
-                        .frame(width: 210, alignment: .leading)
-                    Spacer()
-                    LiveText(
-                        feed: timeline.anePowerStatusText, font: .systemFont(ofSize: 12),
-                        alignment: .right
-                    )
-                    .frame(width: 210, alignment: .trailing)
-                }
-                LiveTrendChart(feed: timeline.anePowerFeed, scrubbable: true)
-                    .frame(height: 140)
-                TrendStatisticsCaption(model: timeline.anePowerFeed.model)
-            }
+        ANEChartSection(
+            label: "ANE power", value: timeline.anePowerText, status: timeline.anePowerStatusText,
+            feed: timeline.anePowerFeed)
+    }
+}
+
+/// A labelled value and status over a chart and its statistics legend.
+private struct ANEChartSection: View {
+    let label: LocalizedStringKey
+    let value: TextFeed
+    let status: TextFeed
+    let feed: TrendFeed
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ANEReadout(label: label, value: value, status: status)
+            LiveTrendChart(feed: feed, scrubbable: true)
+                .frame(
+                    minHeight: GPUHistoryPanel.chartHeight,
+                    idealHeight: GPUHistoryPanel.chartHeight,
+                    maxHeight: .infinity)
+            TrendStatisticsCaption(model: feed.model)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// An ANE figure's label and live value, with its status at the trailing edge.
+private struct ANEReadout: View {
+    let label: LocalizedStringKey
+    let value: TextFeed
+    let status: TextFeed
+
+    var body: some View {
+        HStack(alignment: .lastTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .textCase(.uppercase)
+                    .font(.caption2.weight(.semibold))
+                    .tracking(0.6)
+                    .foregroundStyle(.secondary)
+                LiveText(feed: value)
+                    .frame(minWidth: 90, maxWidth: 160, alignment: .leading)
+            }
+            Spacer(minLength: 8)
+            // Shrinks so the pair still sits side by side in the narrowest
+            // window; the status is a short phrase.
+            LiveText(feed: status, font: .systemFont(ofSize: 11), alignment: .right)
+                .frame(minWidth: 70, maxWidth: 160, alignment: .trailing)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -1066,51 +1290,53 @@ enum GPUBandwidthDirection: CaseIterable {
     }
 }
 
+/// The history panel's bandwidth page: the three estimates as read-outs over
+/// the chart, with the method behind the info button beside "Preview".
 struct GPUBandwidthPanel: View {
     @ObservedObject var timeline: GPUTimelineStore
     @State private var showsExplanation = false
 
     var body: some View {
-        GPUPanel("GPU memory bandwidth", systemImage: "arrow.left.arrow.right") {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Text("Estimated average").font(.caption.weight(.medium))
-                    Text("Preview")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("gpu.bandwidth.preview")
-                    Button {
-                        showsExplanation = true
-                    } label: {
-                        Image(systemName: "info.circle")
-                    }
-                    .buttonStyle(.plain)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Text("Estimated average").font(.caption.weight(.medium))
+                Text("Preview")
+                    .font(.caption2.weight(.medium))
                     .foregroundStyle(.secondary)
-                    .help("About estimated GPU bandwidth")
-                    .accessibilityLabel("About estimated GPU bandwidth")
-                    .popover(isPresented: $showsExplanation) {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Estimated GPU bandwidth").font(.headline)
-                            Text(
-                                "macOS groups GPU traffic into bandwidth buckets. We weight each bucket's rate by its event count to find a mean. This estimates GB/s, not GPU load or exact bytes moved."
-                            )
-                            Text(
-                                "The lowest bucket can include no traffic. If all events fall there, we cannot give a mean. The top bucket can include higher rates, so the estimate may be low."
-                            )
-                            Text("Source: IOReport PMP / DCS BW.")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                        .padding(16)
-                        .frame(width: 360)
-                    }
-                    Spacer(minLength: 8)
+                    .accessibilityIdentifier("gpu.bandwidth.preview")
+                Button {
+                    showsExplanation = true
+                } label: {
+                    Image(systemName: "info.circle")
                 }
-                LiveTrendChart(feed: timeline.bandwidthChartFeed, scrubbable: true)
-                    .frame(height: 170)
-                GPUBandwidthSurface(feed: timeline.bandwidthFeed)
-                    .frame(height: 100)
-                TrendStatisticsCaption(model: timeline.bandwidthChartFeed.model)
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("About estimated GPU bandwidth")
+                .accessibilityLabel("About estimated GPU bandwidth")
+                .popover(isPresented: $showsExplanation) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Estimated GPU bandwidth").font(.headline)
+                        Text(
+                            "macOS groups GPU traffic into bandwidth buckets. We weight each bucket's rate by its event count to find a mean. This estimates GB/s, not GPU load or exact bytes moved."
+                        )
+                        Text(
+                            "The lowest bucket can include no traffic. If all events fall there, we cannot give a mean. The top bucket can include higher rates, so the estimate may be low."
+                        )
+                        Text("Source: IOReport PMP / DCS BW.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    .padding(16)
+                    .frame(width: 360)
+                }
+                Spacer(minLength: 8)
             }
+            GPUBandwidthSurface(feed: timeline.bandwidthFeed)
+            LiveTrendChart(feed: timeline.bandwidthChartFeed, scrubbable: true)
+                .frame(
+                    minHeight: GPUHistoryPanel.chartHeight,
+                    idealHeight: GPUHistoryPanel.chartHeight,
+                    maxHeight: .infinity)
+            TrendStatisticsCaption(model: timeline.bandwidthChartFeed.model)
         }
     }
 }
@@ -1149,6 +1375,14 @@ struct GPUBandwidthSurface: NSViewRepresentable {
     }
 
     static func dismantleNSView(_ view: GPUBandwidthSurfaceView, coordinator: ()) { view.detach() }
+
+    func sizeThatFits(
+        _ proposal: ProposedViewSize, nsView: GPUBandwidthSurfaceView, context: Context
+    ) -> CGSize? {
+        CGSize(
+            width: proposal.width ?? 360,
+            height: GPUBandwidthSurfaceView.height(showingNotes: nsView.showsNotes))
+    }
 }
 
 final class GPUBandwidthSurfaceView: NSView {
@@ -1166,18 +1400,26 @@ final class GPUBandwidthSurfaceView: NSView {
     var displayedNotes: [String] { notes.map(\.stringValue) }
     override var isFlipped: Bool { true }
 
+    /// Heading and value per direction, plus a line for the notes only while
+    /// one has something to say ("May include zero traffic" is the only note,
+    /// and most samples have none), so no blank line sits above the chart.
+    static func height(showingNotes: Bool) -> CGFloat { showingNotes ? 58 : 40 }
+
+    private(set) var showsNotes = false
+
     init() {
         super.init(frame: .zero)
         for direction in GPUBandwidthDirection.allCases {
             let heading = NSTextField(labelWithString: direction.title)
             heading.font = .systemFont(ofSize: 12, weight: .medium)
             heading.textColor = NSColor(direction.color)
-            let value = NSTextField(wrappingLabelWithString: "")
-            value.font = .monospacedDigitSystemFont(ofSize: 22, weight: .medium)
-            value.maximumNumberOfLines = 2
-            let note = NSTextField(wrappingLabelWithString: "")
+            let value = NSTextField(labelWithString: "")
+            value.font = .monospacedDigitSystemFont(ofSize: 15, weight: .medium)
+            value.lineBreakMode = .byTruncatingTail
+            let note = NSTextField(labelWithString: "")
             note.font = .systemFont(ofSize: 11)
-            note.maximumNumberOfLines = 3
+            note.lineBreakMode = .byTruncatingTail
+            note.isHidden = true
             for field in [heading, value, note] { addSubview(field) }
             headings.append(heading)
             values.append(value)
@@ -1211,9 +1453,9 @@ final class GPUBandwidthSurfaceView: NSView {
         let width = max(1, (bounds.width - 32) / 3)
         for index in values.indices {
             let horizontal = Double(index) * (width + 16)
-            headings[index].frame = CGRect(x: horizontal, y: 0, width: width, height: 18)
-            values[index].frame = CGRect(x: horizontal, y: 20, width: width, height: 32)
-            notes[index].frame = CGRect(x: horizontal, y: 52, width: width, height: 48)
+            headings[index].frame = CGRect(x: horizontal, y: 0, width: width, height: 16)
+            values[index].frame = CGRect(x: horizontal, y: 17, width: width, height: 22)
+            notes[index].frame = CGRect(x: horizontal, y: 40, width: width, height: 16)
         }
     }
 
@@ -1247,6 +1489,13 @@ final class GPUBandwidthSurfaceView: NSView {
                 headings[index].stringValue + ": " + value + (note.isEmpty ? "" : ". " + note)
         }
         setAccessibilityValue(values.compactMap(\.toolTip).joined(separator: ", "))
+        // Re-measure only when the notes line comes or goes, never per tick.
+        let notesShown = notes.contains { !$0.stringValue.isEmpty }
+        if notesShown != showsNotes {
+            showsNotes = notesShown
+            for note in notes { note.isHidden = !notesShown }
+            invalidateIntrinsicContentSize()
+        }
     }
 }
 
@@ -1277,13 +1526,9 @@ struct GPUClockStatesSection: View {
                         .frame(width: 360)
                 }
             }
+            // The one-line meaning lives in the info popover and the surface's
+            // accessibility help, not under the bars.
             GPUStatesSurface(feed: feed)
-            Text(
-                "Clock states are GPU speed levels. Percentages show time in each state in the latest sample, not GPU load or history-range averages."
-            )
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

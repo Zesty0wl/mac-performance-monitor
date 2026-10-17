@@ -12,14 +12,12 @@ struct MetricSample: Identifiable, Equatable {
 }
 
 /// A compact, reusable line chart for a single per-process metric (footprint,
-/// CPU, file descriptors, disk throughput), drawn with the Canvas `TrendChart`.
+/// CPU, file descriptors, disk throughput). Process inspectors use bitmap-backed
+/// native surfaces; other callers keep the Canvas renderer unless they opt in.
 /// The Y axis is formatted by the caller so each metric reads in its natural
 /// units. Hovering or dragging over the plot scrubs the series, pinning a
 /// marker and a value read-out at the nearest sample.
 ///
-/// This was a Swift Charts view. With five of them in the inspector, each
-/// 1 Hz update cost about 34 ms of main-thread time laying out marks; the
-/// Canvas version draws the same series in well under a millisecond.
 struct MetricChart: View, Equatable {
     let samples: [MetricSample]
     var tint: Color = .blue
@@ -38,6 +36,7 @@ struct MetricChart: View, Equatable {
     /// VoiceOver name for this chart, e.g. "Memory footprint". Supplied by the
     /// caller because only it knows which metric the series represents.
     var accessibilityTitle: String = "Trend"
+    var rasterizesDrawing = false
     let yFormat: (Double) -> String
 
     /// Re-render (and so re-downsample) only when the data or framing actually
@@ -50,6 +49,8 @@ struct MetricChart: View, Equatable {
             && lhs.tint == rhs.tint
             && lhs.minTop == rhs.minTop
             && lhs.quarterSteps == rhs.quarterSteps
+            && lhs.rasterizesDrawing == rhs.rasterizesDrawing
+            && lhs.accessibilityTitle == rhs.accessibilityTitle
             && lhs.samples.count == rhs.samples.count
             && lhs.samples.first == rhs.samples.first
             && lhs.samples.last == rhs.samples.last
@@ -106,37 +107,63 @@ struct MetricChart: View, Equatable {
             "Currently %1$@. Peak %2$@ over the shown window.", yFormat(latest), yFormat(peak))
     }
 
-    var body: some View {
-        let segments = segments
+    private var yDomain: ClosedRange<Double> {
         // Sit the tallest value near the top of the plot with a little headroom,
         // rather than crushing the data onto the floor or jamming the peak into
         // the ceiling. The floor only applies when the series is near zero.
         // Snapped to a nice value so the axis holds still between ticks.
         var peak = 0.0
-        for segment in segments {
-            for sample in segment where sample.value > peak { peak = sample.value }
+        for sample in samples where sample.value.isFinite && sample.value > peak {
+            peak = sample.value
         }
         let maxValue = LiveChartGeometry.niceCeiling(
             max(peak * 1.12, minTop), quarterSteps: quarterSteps)
-        return TrendChart(
-            // Each gap-free run is its own series so the line breaks, rather
-            // than bridging a straight diagonal, wherever data is missing. The
-            // runs are already split, so the chart must not split them again.
+        return 0...maxValue
+    }
+
+    var surfaceModel: TrendModel {
+        TrendModel(
             series: segments.map { run in
-                TrendSeries(
-                    points: run.map { TrendPoint(date: $0.date, value: $0.value, high: $0.high) },
+                TrendSurfaceSeries(
+                    column: LiveColumn(
+                        times: ArraySlice(run.map { $0.date.timeIntervalSinceReferenceDate }),
+                        values: ArraySlice(run.map(\.value)),
+                        highs: run.contains { $0.high != nil }
+                            ? ArraySlice(run.map { $0.high ?? $0.value }) : nil),
                     color: tint, filled: false, lineWidth: 1.8)
             },
             xDomain: xDomain,
-            yDomain: 0...maxValue,
+            yDomain: yDomain,
             yFormat: yFormat,
             showsTimeAxis: true,
             timeAxis: .ago,
             gapThreshold: .infinity,
             plotBorder: true,
-            scrubbable: true,
-            leftGutter: 52
+            leftGutter: 52,
+            accessibilityLabel: t(accessibilityTitle),
+            accessibilityValue: accessibilitySummary
         )
+    }
+
+    var body: some View {
+        Group {
+            if rasterizesDrawing {
+                TrendSnapshotChart(model: surfaceModel, rasterizesDrawing: true)
+            } else {
+                TrendChart(
+                    series: segments.map { run in
+                        TrendSeries(
+                            points: run.map {
+                                TrendPoint(
+                                    date: $0.date, value: $0.value, high: $0.high)
+                            },
+                            color: tint, filled: false, lineWidth: 1.8)
+                    },
+                    xDomain: xDomain, yDomain: yDomain, yFormat: yFormat,
+                    showsTimeAxis: true, timeAxis: .ago, gapThreshold: .infinity,
+                    plotBorder: true, scrubbable: true, leftGutter: 52)
+            }
+        }
         .accessibilityLabel(t(accessibilityTitle))
         .accessibilityValue(accessibilitySummary)
         .reducedMotionAware()

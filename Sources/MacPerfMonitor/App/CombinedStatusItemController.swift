@@ -45,6 +45,7 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
     private var popover: NSPopover?
     private var cancellables = Set<AnyCancellable>()
     private var shownSignature: String?
+    private var shownAlarmCount: Int?
     private var activeConsumer: MenuListKind?
     private var gpuSamplingActive = false
     /// Whether the open popover is showing the GPU panel, which is registered
@@ -131,6 +132,7 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
         item.button?.action = #selector(togglePopover(_:))
         item.button?.imagePosition = .imageOnly
         statusItem = item
+        shownAlarmCount = nil
         refreshImage()
     }
 
@@ -174,8 +176,11 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
         guard signature != shownSignature else { return }
         button.image = CombinedMenuBarImage.image(
             readouts: readouts, presentation: configuration.presentation)
-        button.imagePosition = alarmCount > 0 ? .imageLeading : .imageOnly
-        button.attributedTitle = alarmTitle(count: alarmCount)
+        if shownAlarmCount != alarmCount {
+            button.imagePosition = alarmCount > 0 ? .imageLeading : .imageOnly
+            button.attributedTitle = alarmTitle(count: alarmCount)
+            shownAlarmCount = alarmCount
+        }
         let summary = readouts.map {
             [$0.metric.title, $0.value, $0.secondaryValue].compactMap { $0 }.joined(separator: " ")
         }.joined(separator: ", ")

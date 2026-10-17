@@ -1,5 +1,27 @@
 # GPU tab: what Apple Silicon exposes, and a design
 
+## Page layout (17 October 2026)
+
+The tab had grown to six full-width chart panels stacked above the process
+table, so "who is using the GPU" sat about three screens down. The page now
+reads top to bottom in order of importance:
+
+1. The six headline cards on one row across the whole page (a 3 x 2 grid
+   below about 960 pt).
+2. **Who is using the GPU** beside **By category** and **AI workloads**. The
+   table shows six to twelve rows and grows to match the rail. The AI list
+   shows four rows (active first), then "N more".
+3. One **Over time** panel with a picker: Utilization, Power, Bandwidth,
+   Neural Engine (ANE time and ANE power side by side) and Temperature.
+   Only the selected page is mounted; the choice is stored in
+   `gpu.historyChart`. Beside it, **Device** with the clock-state bars.
+
+Panel explanations moved from captions into info buttons in the panel headers.
+In the default 1280 x 720 window the whole process table is visible without
+scrolling. `testGPUProcessTableIsOnTheFirstScreenful` checks this at the
+default and minimum widths. Preview with
+`--benchmark-charts --scenario gpuPage --mode host --width 1280 --height 670 --snapshot out.png`.
+
 ## Menu Charts and Awake Time (18 September 2026)
 
 The GPU menu now has separate ANE time and power charts for the last 60 seconds.
@@ -34,7 +56,7 @@ records samples; it cannot recover GPU memory values from older logs.
 
 The **GPU memory bandwidth** panel shows Total, Reads, and Writes on one history
 chart, using GB/s and the same time range as GPU utilization. Compact values
-below the plot show the latest sample. Clock-state bars remain in the right-hand
+above the plot show the latest sample. Clock-state bars remain in the right-hand
 rail. The data comes from the GPU's `AGX RD`, `AGX WR`, and `AGX RD+WR` channels
 under IOReport `PMP / DCS BW`. The reader adds only these three channels to the
 existing GPU sampling path. It does not start another process or request helper

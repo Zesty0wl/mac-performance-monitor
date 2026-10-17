@@ -472,7 +472,13 @@ extension SampleStore {
     private static func rawHistory(
         _ db: Database, since: Double, until: Double = .greatestFiniteMagnitude
     ) throws -> [SystemHistoryPoint] {
-        try Row.fetchAll(
+        // Count through the time index so these wide values need only one allocation.
+        let count =
+            try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM system_samples WHERE timestamp >= ? AND timestamp <= ?",
+                arguments: [since, until]) ?? 0
+        let rows = try Row.fetchCursor(
             db,
             sql: """
                 SELECT timestamp, pressure_percent, app_memory, wired, compressed, cached_files, swap_used, cpu_load,
@@ -497,14 +503,16 @@ extension SampleStore {
                 WHERE timestamp >= ? AND timestamp <= ?
                 ORDER BY timestamp ASC
                 """, arguments: [since, until]
-        ).map { row in
-            var point = decodeHistoryPoint(row)
-            point.cpuDieAverageC = point.cpuDieC
-            point.gpuDieAverageC = point.gpuDieC
-            point.cpuDieSampleCount = point.cpuDieC == nil ? 0 : 1
-            point.gpuDieSampleCount = point.gpuDieC == nil ? 0 : 1
-            return point
-        }
+        )
+        return try Array(
+            rows.map { row in
+                var point = decodeHistoryPoint(row)
+                point.cpuDieAverageC = point.cpuDieC
+                point.gpuDieAverageC = point.gpuDieC
+                point.cpuDieSampleCount = point.cpuDieC == nil ? 0 : 1
+                point.gpuDieSampleCount = point.gpuDieC == nil ? 0 : 1
+                return point
+            }, minimumCapacity: count)
     }
 
     private static func aggregateHistory(
@@ -516,7 +524,11 @@ extension SampleStore {
         } else {
             legacyBucketDuration = try Retention.meta(db, "minute_bucket_seconds") ?? 60
         }
-        return try Row.fetchAll(
+        let count =
+            try Int.fetchOne(
+                db, sql: "SELECT COUNT(*) FROM \(table) WHERE bucket >= ? AND bucket <= ?",
+                arguments: [since, until]) ?? 0
+        let rows = try Row.fetchCursor(
             db,
             sql: """
                 SELECT bucket, pressure_avg, app_avg, wired_avg, compressed_avg, cached_avg, swap_used_avg, cpu_avg,
@@ -552,7 +564,8 @@ extension SampleStore {
                 WHERE bucket >= ? AND bucket <= ?
                 ORDER BY bucket ASC
                 """, arguments: [legacyBucketDuration, since, until]
-        ).map(Self.decodeAggregatePoint)
+        )
+        return try Array(rows.map(Self.decodeAggregatePoint), minimumCapacity: count)
     }
 
     /// The shared decode plus the aggregate statistics (columns 41 through 74).

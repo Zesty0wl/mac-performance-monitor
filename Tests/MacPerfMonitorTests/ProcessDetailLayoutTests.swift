@@ -80,6 +80,10 @@ final class ProcessDetailLayoutTests: XCTestCase {
                     current.contentSize.width + 0.5)
             }
             XCTAssertEqual(original.contentView.bounds.minY, 0, accuracy: 0.5)
+            let charts = chartSurfaces(in: original)
+            XCTAssertEqual(charts.count, 5)
+            XCTAssertTrue(charts.allSatisfy(\.rasterizesDrawing))
+            XCTAssertTrue(charts.allSatisfy(\.scrubbable))
         }
         try capture(window, width: width)
     }
@@ -106,6 +110,10 @@ final class ProcessDetailLayoutTests: XCTestCase {
 
     private func scrollViews(in view: NSView) -> [NSScrollView] {
         (view as? NSScrollView).map { [$0] } ?? view.subviews.flatMap(scrollViews)
+    }
+
+    private func chartSurfaces(in view: NSView) -> [TrendSurfaceView] {
+        (view as? TrendSurfaceView).map { [$0] } ?? view.subviews.flatMap(chartSurfaces)
     }
 
     private func capture(_ window: NSWindow, width: CGFloat) throws {

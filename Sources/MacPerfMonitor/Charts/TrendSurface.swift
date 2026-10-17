@@ -442,7 +442,7 @@ final class TrendSurfaceView: LiveSurfaceView {
             // previous one: repaint back past two sample spacings (the gap
             // threshold is three) so that segment gets its final tangent.
             let reach = Int(
-                (max(2 * gapThreshold / 3, 2 * (model.statisticsInterval ?? 0))
+                (min(max(2 * gapThreshold / 3, 2 * (model.statisticsInterval ?? 0)), span)
                     / bucketWidth).rounded(.up))
             dirtyFrom = max(current.drawnThrough - 3 - reach, current.home)
             current.drawnThrough = live
@@ -1157,7 +1157,9 @@ enum TrendRenderer {
         // threshold back (further and it is a new run), and each of those needs
         // the full trailing window behind it for its averaged value to agree.
         let smoothing = smoothingColumns(span: tick.span, bucketWidth: bucketWidth)
-        let gapColumns = bucketWidth > 0 ? Int((tick.gapThreshold / bucketWidth).rounded(.up)) : 1
+        let gapColumns =
+            bucketWidth > 0
+            ? Int((min(tick.gapThreshold, tick.span) / bucketWidth).rounded(.up)) : 1
         let context = 2 * gapColumns + smoothing + 2
 
         for s in model.series {

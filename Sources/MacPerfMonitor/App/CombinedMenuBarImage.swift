@@ -1,7 +1,7 @@
 import AppKit
 import MacPerfMonitorCore
 
-struct CombinedMenuBarReadout {
+struct CombinedMenuBarReadout: Equatable {
     var metric: MenuBarMetric
     var value: String
     var secondaryValue: String?
@@ -88,6 +88,10 @@ enum CombinedMenuBarImage {
     private static let itemHeight: CGFloat = 22
     /// Matched figure size for every two-line cell (caption+value and ↓/↑).
     private static let stackedFigureSize: CGFloat = 9.5
+    // One layout per metric, not one per changing readout value.
+    private static var layoutCache:
+        [MenuBarMetric: (readout: CombinedMenuBarReadout, layout: CellLayout)] = [:]
+    static var cachedLayoutCount: Int { layoutCache.count }
 
     static func image(
         readouts: [CombinedMenuBarReadout], presentation: MenuBarPresentation
@@ -136,8 +140,9 @@ enum CombinedMenuBarImage {
         let label = attributed(
             readout.metric.shortTitle,
             font: MenuBarReadoutImage.valueFont(size: 8, weight: .semibold), color: color)
+        let labelSize = label.size()
         let hasDirectionalValues = readout.secondaryValue != nil
-        let labelWidth: CGFloat = hasDirectionalValues ? 14 : ceil(label.size().width)
+        let labelWidth: CGFloat = hasDirectionalValues ? 14 : ceil(labelSize.width)
         let gap: CGFloat = hasDirectionalValues ? 5 : 4
 
         if let secondaryValue = readout.secondaryValue {
@@ -151,8 +156,10 @@ enum CombinedMenuBarImage {
                 secondaryValue, figureFont: figureFont, arrowFont: arrowFont, color: color)
             let sample = directionalAttributed(
                 "999M↓", figureFont: figureFont, arrowFont: arrowFont, color: color)
+            let primarySize = primary.size()
+            let secondarySize = secondary.size()
             let valuesWidth = ceil(
-                max(primary.size().width, secondary.size().width, sample.size().width))
+                max(primarySize.width, secondarySize.width, sample.size().width))
             let width = labelWidth + gap + valuesWidth + 1
 
             return MenuBarReadoutImage.render(width: width, height: itemHeight) { size in
@@ -161,24 +168,26 @@ enum CombinedMenuBarImage {
                     in: NSRect(x: 0, y: (size.height - 13) / 2, width: 13, height: 13),
                     color: color, pointSize: 11)
                 drawStackedLines(
-                    top: primary, bottom: secondary,
-                    topX: labelWidth + gap + valuesWidth - primary.size().width,
-                    bottomX: labelWidth + gap + valuesWidth - secondary.size().width,
+                    top: primary, bottom: secondary, topSize: primarySize,
+                    bottomSize: secondarySize,
+                    topX: labelWidth + gap + valuesWidth - primarySize.width,
+                    bottomX: labelWidth + gap + valuesWidth - secondarySize.width,
                     height: size.height)
             }
         }
 
         let valueFont = MenuBarReadoutImage.valueFont(size: 13 * 1.05, weight: .bold)
         let primary = attributed(readout.value, font: valueFont, color: color)
-        let valuesWidth = ceil(primary.size().width)
+        let primarySize = primary.size()
+        let valuesWidth = ceil(primarySize.width)
         let width = labelWidth + gap + valuesWidth + 1
 
         return MenuBarReadoutImage.render(width: width, height: itemHeight) { size in
-            label.draw(at: NSPoint(x: 0, y: (size.height - label.size().height) / 2))
+            label.draw(at: NSPoint(x: 0, y: (size.height - labelSize.height) / 2))
             primary.draw(
                 at: NSPoint(
                     x: labelWidth + gap,
-                    y: (size.height - primary.size().height) / 2))
+                    y: (size.height - primarySize.height) / 2))
         }
     }
 
@@ -199,14 +208,28 @@ enum CombinedMenuBarImage {
         }
     }
 
-    private struct CellLayout {
-        var width: CGFloat
-        var draw: (_ x: CGFloat, _ height: CGFloat) -> Void
+    final class CellLayout {
+        let width: CGFloat
+        let draw: (_ x: CGFloat, _ height: CGFloat) -> Void
+
+        init(width: CGFloat, draw: @escaping (_ x: CGFloat, _ height: CGFloat) -> Void) {
+            self.width = width
+            self.draw = draw
+        }
 
         func draw(at x: CGFloat, height: CGFloat) { draw(x, height) }
     }
 
-    private static func layout(for readout: CombinedMenuBarReadout) -> CellLayout {
+    static func layout(for readout: CombinedMenuBarReadout) -> CellLayout {
+        if let cached = layoutCache[readout.metric], cached.readout == readout {
+            return cached.layout
+        }
+        let layout = makeLayout(for: readout)
+        layoutCache[readout.metric] = (readout, layout)
+        return layout
+    }
+
+    private static func makeLayout(for readout: CombinedMenuBarReadout) -> CellLayout {
         let color = NSColor.black
         if let secondary = readout.secondaryValue {
             let labelWidth: CGFloat = 14
@@ -220,7 +243,9 @@ enum CombinedMenuBarImage {
                 secondary, figureFont: figureFont, arrowFont: arrowFont, color: color)
             let sample = directionalAttributed(
                 "999M↓", figureFont: figureFont, arrowFont: arrowFont, color: color)
-            let figuresWidth = ceil(max(top.size().width, bottom.size().width, sample.size().width))
+            let topSize = top.size()
+            let bottomSize = bottom.size()
+            let figuresWidth = ceil(max(topSize.width, bottomSize.width, sample.size().width))
             let gap: CGFloat = 5
             let width = labelWidth + gap + figuresWidth + 1
             return CellLayout(width: width) { x, height in
@@ -229,9 +254,9 @@ enum CombinedMenuBarImage {
                     in: NSRect(x: x, y: (height - 13) / 2, width: 13, height: 13),
                     color: color, pointSize: 11)
                 drawStackedLines(
-                    top: top, bottom: bottom,
-                    topX: x + labelWidth + gap + figuresWidth - top.size().width,
-                    bottomX: x + labelWidth + gap + figuresWidth - bottom.size().width,
+                    top: top, bottom: bottom, topSize: topSize, bottomSize: bottomSize,
+                    topX: x + labelWidth + gap + figuresWidth - topSize.width,
+                    bottomX: x + labelWidth + gap + figuresWidth - bottomSize.width,
                     height: height)
             }
         }
@@ -253,15 +278,17 @@ enum CombinedMenuBarImage {
             ? "100"
             : readout.value.hasSuffix("°") ? "100°" : "199W"
         let sample = attributed(sampleText, font: font, color: color)
-        let width = ceil(max(value.size().width, sample.size().width, label.size().width)) + 1
+        let labelSize = label.size()
+        let valueSize = value.size()
+        let width = ceil(max(valueSize.width, sample.size().width, labelSize.width)) + 1
         return CellLayout(width: width) { x, height in
             label.draw(
                 at: NSPoint(
-                    x: x + (width - label.size().width) / 2,
-                    y: height - label.size().height + 1))
+                    x: x + (width - labelSize.width) / 2,
+                    y: height - labelSize.height + 1))
             value.draw(
                 at: NSPoint(
-                    x: x + (width - value.size().width) / 2,
+                    x: x + (width - valueSize.width) / 2,
                     y: 0))
         }
     }
@@ -271,17 +298,18 @@ enum CombinedMenuBarImage {
     /// so Strip (and Focus dual) heights read as one band.
     private static func drawStackedLines(
         top: NSAttributedString, bottom: NSAttributedString,
+        topSize: NSSize, bottomSize: NSSize,
         topX: CGFloat, bottomX: CGFloat, height: CGFloat
     ) {
         let rowH = height / 2
         top.draw(
             at: NSPoint(
                 x: topX,
-                y: rowH + max(0, (rowH - top.size().height) / 2)))
+                y: rowH + max(0, (rowH - topSize.height) / 2)))
         bottom.draw(
             at: NSPoint(
                 x: bottomX,
-                y: max(0, (rowH - bottom.size().height) / 2)))
+                y: max(0, (rowH - bottomSize.height) / 2)))
     }
 
     private static func attributed(

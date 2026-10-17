@@ -8315,6 +8315,36 @@
         }
       }
     },
+    "Bandwidth" : {
+      "comment" : "GPU tab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bandbreite"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bandwidth"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bande passante"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "带宽"
+          }
+        }
+      }
+    },
     "Bandwidth data unavailable" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14631,6 +14661,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "光标处"
+          }
+        }
+      }
+    },
+    "Chart" : {
+      "comment" : "GPU tab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagramm"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chart"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Graphique"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图表"
           }
         }
       }
@@ -54849,6 +54909,36 @@
         }
       }
     },
+    "More info" : {
+      "comment" : "GPU tab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weitere Informationen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More info"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus d’infos"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多信息"
+          }
+        }
+      }
+    },
     "Most recent at %@." : {
       "comment" : "Identity entries: English renders the key verbatim. Present so the two tables mirror each other and English copy stays auditable in one place; check-localization.py enforces the parity.",
       "extractionState" : "manual",
@@ -80494,6 +80584,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "占用 {memory.bytes|bytes}（系统内存的 {memory.pctOfRAM}%）。"
+          }
+        }
+      }
+    },
+    "Utilization" : {
+      "comment" : "GPU tab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auslastung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilization"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "利用率"
           }
         }
       }

@@ -178,7 +178,7 @@ extension SampleStore {
         arguments.append(to)
         arguments.append(from)
 
-        let rows = try Row.fetchAll(
+        let rows = try Row.fetchCursor(
             db,
             sql: """
                 SELECT p.id, p.pid, p.start_time, p.last_seen
@@ -186,14 +186,15 @@ extension SampleStore {
                 WHERE \(predicate) AND p.first_seen <= ? AND p.last_seen >= ?
                 ORDER BY p.last_seen DESC, p.start_time DESC, p.id DESC
                 """, arguments: StatementArguments(arguments))
-        var candidates = rows.map { row in
-            ProcessHistoryLineageRun(
-                databaseID: row["id"],
-                identity: ProcessIdentity(
-                    pid: row["pid"],
-                    startTime: Date(timeIntervalSince1970: row["start_time"])),
-                startTime: row["start_time"], lastSeen: row["last_seen"])
-        }
+        var candidates = try Array(
+            rows.map { row in
+                ProcessHistoryLineageRun(
+                    databaseID: row["id"],
+                    identity: ProcessIdentity(
+                        pid: row["pid"],
+                        startTime: Date(timeIntervalSince1970: row["start_time"])),
+                    startTime: row["start_time"], lastSeen: row["last_seen"])
+            })
         candidates.removeAll { $0.databaseID == targetID }
 
         var lineage = [
@@ -229,11 +230,11 @@ extension SampleStore {
                 arguments.append(identity.pid)
                 arguments.append(identity.startTime.timeIntervalSince1970)
             }
-            let rows = try Row.fetchAll(
+            let rows = try Row.fetchCursor(
                 db,
                 sql: "SELECT id, pid, start_time FROM processes WHERE \(predicates)",
                 arguments: StatementArguments(arguments))
-            for row in rows {
+            while let row = try rows.next() {
                 let id: Int64 = row[0]
                 let pid: Int32 = row[1]
                 let startTime: Double = row[2]
@@ -317,14 +318,16 @@ extension SampleStore {
         return try databasePool.read { db in
             if let table = Self.processTable(for: window) {
                 guard let processID = try Self.processRowID(db, identity) else { return [] }
-                return try Row.fetchAll(
+                let rows = try Row.fetchCursor(
                     db, sql: Self.aggregateSQL(table: table), arguments: [processID, since]
-                ).map { Self.decodePoint($0) }
+                )
+                return try Array(rows.map { Self.decodePoint($0) })
             }
-            return try Row.fetchAll(
+            let rows = try Row.fetchCursor(
                 db, sql: Self.pointSQL,
                 arguments: [identity.pid, identity.startTime.timeIntervalSince1970, since]
-            ).map { Self.decodePoint($0) }
+            )
+            return try Array(rows.map { Self.decodePoint($0) })
         }
     }
 
@@ -364,14 +367,14 @@ extension SampleStore {
         since: Date
     ) throws -> [ProcessHistoryPoint] {
         try databasePool.read { db in
-            try Row.fetchAll(
+            let rows = try Row.fetchCursor(
                 db, sql: Self.pointSQL,
                 arguments: [
                     identity.pid, identity.startTime.timeIntervalSince1970,
                     since.timeIntervalSince1970,
                 ]
             )
-            .map { Self.decodePoint($0) }
+            return try Array(rows.map { Self.decodePoint($0) })
         }
     }
 
