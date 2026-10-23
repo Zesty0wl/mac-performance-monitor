@@ -11,6 +11,7 @@ struct HardwareOverviewView: View {
     @EnvironmentObject private var sampler: SamplerModel
     @EnvironmentObject private var appState: AppState
     @StateObject private var sensorLive = SensorLiveStore()
+    @StateObject private var portPower = PortPowerLiveStore()
     @Environment(\.colorScheme) private var colorScheme
     /// The domain whose live per-sensor sheet is open, if any.
     @State private var detailGroup: SensorDetailSelection?
@@ -43,6 +44,10 @@ struct HardwareOverviewView: View {
                         cell(softwareCard)
                     }
                     GridRow {
+                        cell(portsCard)
+                            .gridCellColumns(2)
+                    }
+                    GridRow {
                         cell(sensorsCard)
                             .gridCellColumns(2)
                     }
@@ -57,6 +62,7 @@ struct HardwareOverviewView: View {
                     powerCard
                     connectivityCard
                     softwareCard
+                    portsCard
                     sensorsCard
                 }
             }
@@ -268,7 +274,12 @@ struct HardwareOverviewView: View {
                         ?? (model.section("wifi") != nil ? t("No Wi-Fi interface") : nil)
                 ),
                 ("Bluetooth", facts.bluetoothSummary),
-                ("USB devices", facts.usbDeviceCount.map { "\($0)" }),
+                // Where the Ports card lists devices per port, it carries
+                // the count; this row is for Macs without port data.
+                (
+                    "USB devices",
+                    facts.ports?.isEmpty == false ? nil : facts.usbDeviceCount.map { "\($0)" }
+                ),
                 ("Thunderbolt ports", facts.thunderboltPortCount.map { "\($0)" }),
             ])
         }
@@ -290,6 +301,54 @@ struct HardwareOverviewView: View {
                 ("Uptime", facts.bootTime.map { HardwareUptime.string(since: $0) }),
                 ("Secure boot", facts.secureBoot),
             ])
+        }
+    }
+
+    // MARK: - Ports
+
+    /// One tile per physical port: what is plugged in, the negotiated link,
+    /// the charger and cable, and any finding. The charging port's draw
+    /// follows the refresh cycle while the page is visible.
+    private var portsCard: some View {
+        HardwarePanel(
+            "Ports", systemImage: "cable.connector.horizontal",
+            action: { model.selectedID = "ports" }
+        ) {
+            if let ports = facts.ports, !ports.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    HardwareFlowLayout(spacing: 12, equalHeights: true) {
+                        ForEach(ports, id: \.nodeID) { port in
+                            PortTile(
+                                port: port,
+                                livePower: port.isCharging ? portPower.input?.wattsLabel : nil
+                            ) {
+                                model.selectedID = port.nodeID
+                            }
+                        }
+                    }
+                    Text(
+                        "Numbered as macOS reports them, which may not match their order on the "
+                            + "case. Plugging something in updates this page."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+            } else if facts.ports != nil {
+                Text("This Mac's port drivers do not report per-port details.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                pending
+            }
+        }
+        .onReceive(sampler.liveTick) {
+            guard appState.mainWindowVisible,
+                facts.ports?.contains(where: \.isCharging) == true
+            else { return }
+            portPower.readIfDue()
+        }
+        .onAppear {
+            if facts.ports?.contains(where: \.isCharging) == true { portPower.readIfDue() }
         }
     }
 
@@ -663,6 +722,106 @@ private struct SensorDetailSheet: View {
             }
             .padding(16)
         }
+    }
+}
+
+/// The charger's live draw for the Ports card: one small IOKit read,
+/// throttled so a fast refresh cycle cannot turn it into a hot loop.
+private final class PortPowerLiveStore: ObservableObject {
+    @Published private(set) var input: PowerInput?
+    private var lastRead: Date?
+    private var inFlight = false
+
+    func readIfDue(now: Date = Date(), every interval: TimeInterval = 2) {
+        if let lastRead, now.timeIntervalSince(lastRead) < interval { return }
+        guard !inFlight else { return }
+        inFlight = true
+        lastRead = now
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let input = PortRegistryReader.powerInput()
+            DispatchQueue.main.async {
+                self?.inFlight = false
+                self?.input = input
+            }
+        }
+    }
+}
+
+/// One port on the overview, opening the port's page.
+private struct PortTile: View {
+    let port: HardwareFacts.PortSummary
+    /// "7.1 W" on the port the Mac is charging through.
+    let livePower: String?
+    let open: () -> Void
+    @State private var hovering = false
+
+    private var hasWarning: Bool { port.findings.contains { $0.severity == .warning } }
+
+    var body: some View {
+        Button(action: open) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: port.systemImage)
+                        .font(.title3)
+                        .foregroundStyle(port.isConnected ? Color.accentColor : Color.secondary)
+                        .frame(width: 26)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(port.title)
+                            .font(.callout.weight(.semibold))
+                            .lineLimit(1)
+                        Text(port.headline)
+                            .font(.caption)
+                            .foregroundStyle(port.isConnected ? .primary : .secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
+                    if port.isCharging {
+                        Image(systemName: "bolt.fill")
+                            .foregroundStyle(.green)
+                            .help("Charging through this port")
+                    }
+                }
+                ForEach(Array(port.lines.enumerated()), id: \.offset) { _, line in
+                    Text(line)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let livePower {
+                    Text(t("Drawing %@ now", livePower))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.green)
+                }
+                ForEach(port.findings) { finding in
+                    Label(
+                        finding.title,
+                        systemImage: finding.severity == .warning
+                            ? "exclamationmark.triangle.fill" : "info.circle.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(finding.severity == .warning ? .orange : .blue)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(10)
+            .frame(width: 260, alignment: .topLeading)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.primary.opacity(hovering ? 0.08 : 0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(
+                        hasWarning ? Color.orange.opacity(0.6) : Color.primary.opacity(0.12),
+                        lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
     }
 }
 

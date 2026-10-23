@@ -102,6 +102,7 @@ public struct BatteryReader: Sendable {
                 sample.chargePercent = min(100, max == 100 ? cur : cur / max * 100)
             }
             sample.isCharging = (ps[kIOPSIsChargingKey] as? Bool) ?? false
+            sample.isFullyCharged = (ps[kIOPSIsChargedKey] as? Bool) ?? false
             if let state = ps[kIOPSPowerSourceStateKey] as? String {
                 sample.isOnAC = (state == kIOPSACPowerValue)
             }
@@ -168,6 +169,8 @@ public struct BatteryReader: Sendable {
             sample.adapterName = adapter["Name"] as? String
         }
         sample.isLowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+        // Only meaningful on the adapter; a stat per read, parsed on change.
+        if sample.isOnAC { sample.chargeHold = ChargeHoldReader.read() }
 
         return sample
     }

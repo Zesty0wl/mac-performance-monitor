@@ -181,6 +181,34 @@ public struct HardwareFacts: Hashable, Sendable, Codable {
         }
     }
 
+    /// One physical port as the overview draws it: what is plugged in, the
+    /// one-line data, power and cable summaries, and the findings.
+    public struct PortSummary: Hashable, Sendable, Codable {
+        /// The port's node in the explorer, for opening it.
+        public var nodeID: String
+        public var title: String
+        public var systemImage: String
+        public var isConnected: Bool
+        public var headline: String
+        public var lines: [String]
+        public var findings: [PortFinding]
+        /// The Mac is charging through this port.
+        public var isCharging: Bool
+        public init(
+            nodeID: String, title: String, systemImage: String, isConnected: Bool,
+            headline: String, lines: [String], findings: [PortFinding], isCharging: Bool
+        ) {
+            self.nodeID = nodeID
+            self.title = title
+            self.systemImage = systemImage
+            self.isConnected = isConnected
+            self.headline = headline
+            self.lines = lines
+            self.findings = findings
+            self.isCharging = isCharging
+        }
+    }
+
     public var productName: String?
     public var modelIdentifier: String?
     public var serialNumber: String?
@@ -208,6 +236,9 @@ public struct HardwareFacts: Hashable, Sendable, Codable {
     /// overview can say so instead of spinning forever.
     public var sensorGroups: [SensorGroup]?
     public var fanRPMs: [Int]?
+    /// Empty (not nil) when the port drivers were read and reported no
+    /// ports, as on Macs that predate them.
+    public var ports: [PortSummary]?
 
     public init() {}
 
@@ -238,6 +269,7 @@ public struct HardwareFacts: Hashable, Sendable, Codable {
         if let v = other.secureBoot { secureBoot = v }
         if let v = other.sensorGroups { sensorGroups = v }
         if let v = other.fanRPMs { fanRPMs = v }
+        if let v = other.ports { ports = v }
     }
 }
 
