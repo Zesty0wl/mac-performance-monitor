@@ -58,7 +58,7 @@ enum ChartBenchmark {
     struct Options {
         enum Scenario: String {
             case dashboard, trend, cards, menu, inspector, processes, dashboardPage, gpuPage
-            case hardwarePage, analyticsPage, diskMapPage
+            case hardwarePage, analyticsPage, diskMapPage, batteryMenu
         }
         enum Mode: String { case image, host }
 
@@ -641,6 +641,20 @@ enum ChartBenchmark {
 
     @MainActor
     static func makeScenario(_ options: Options) -> Scenario {
+        if options.scenario == .batteryMenu {
+            let store = BatteryMenuStore(
+                state: ProcessInfo.processInfo.environment["MPM_BATTERY_STATE"] ?? "held")
+            return Scenario(
+                view: AnyView(
+                    BatteryMenuBarContentView(embedded: true)
+                        .padding(12)
+                        .frame(width: 360)
+                        .environmentObject(store.model)
+                        .environmentObject(store.model.menuLists)
+                        .environmentObject(store.appState)
+                        .environmentObject(store.clock)),
+                tick: { store.tick() })
+        }
         if options.scenario == .hardwarePage {
             // The real inventory, read once on appearance; the tick only
             // applies an optional selection and search once it has landed, so
@@ -764,7 +778,8 @@ enum ChartBenchmark {
         case .cards: return AnyView(CardsScenario(store: store, width: options.width))
         case .menu: return AnyView(MenuScenario(store: store, width: options.width))
         case .inspector: return AnyView(InspectorScenario(store: store, width: options.width))
-        case .processes, .dashboardPage, .gpuPage, .hardwarePage, .analyticsPage, .diskMapPage:
+        case .processes, .dashboardPage, .gpuPage, .hardwarePage, .analyticsPage, .diskMapPage,
+            .batteryMenu:
             return AnyView(EmptyView())
         }
     }
@@ -865,6 +880,87 @@ enum ChartBenchmark {
                 scope: .folder("/Benchmark"), rootPath: "/Benchmark", tree: tree,
                 reconciliation: reconciliation, scannedAt: Date(), duration: 0, partial: false,
                 smallFileThreshold: 0, revision: 1)
+        }
+    }
+
+    /// The energy menu-bar dropdown fed a synthetic battery, so each charging
+    /// state can be snapshotted without unplugging: `MPM_BATTERY_STATE` is
+    /// `held` (Optimised Battery Charging at 80 %), `charging`, `limit`
+    /// (charging towards a hold), `battery`, `unplug` (adapter, then battery)
+    /// or `shortfall` (a small adapter under load).
+    @MainActor
+    final class BatteryMenuStore {
+        let model = SamplerModel(interval: 1, persistenceEnabled: false)
+        let appState = AppState()
+        lazy var clock = MenuClock(source: model.liveTick.eraseToAnyPublisher())
+        private let state: String
+        private let base: Sampler.Snapshot
+        private var generator = Generator()
+        private var index = 0
+        private let start = Date()
+
+        init(state: String) {
+            self.state = state
+            let (system, cpu, _, network, disk, _) = Sampler().tickSystem()
+            base = Sampler.Snapshot(
+                system: system, processes: [], unreadableProcessCount: 0, cpu: cpu,
+                battery: nil, network: network, disk: disk)
+            for _ in 0..<model.systemHistory.capacity { tick() }
+        }
+
+        func tick() {
+            index += 1
+            let now = start.addingTimeInterval(Double(index - model.systemHistory.capacity))
+            // A Mac mostly idling with bursts of work.
+            let burst = index % 180 < 25 ? 18 + 6 * generator.next() : 0
+            let load = 7 + 2 * generator.next() + burst
+            let onBattery = state == "battery" || (state == "unplug" && index > 600)
+            var battery = BatterySample(
+                timestamp: now, isPresent: true, chargePercent: 80, isOnAC: !onBattery,
+                voltageMilliVolts: 12_600, temperatureCelsius: 31.5, cycleCount: 212,
+                maxCapacitymAh: 5_473, healthPercent: 88, adapterWatts: onBattery ? nil : 96)
+            battery.systemPowerWatts = load
+            switch state {
+            case "charging", "limit":
+                battery.isCharging = true
+                battery.chargePercent = state == "limit" ? 52 : 86
+                battery.amperageMilliAmps = 3_100
+                battery.timeToFullMinutes = 48
+                if state == "limit" {
+                    battery.chargeHold = ChargeHold(
+                        reason: .optimizedCharging, policyName: "optimizedChargeLimit",
+                        limitPercent: 80)
+                }
+            case "shortfall":
+                battery.adapterWatts = 30
+                battery.chargePercent = 64
+                battery.systemPowerWatts = 38 + 4 * generator.next()
+                battery.amperageMilliAmps = -900
+            case "battery",
+                "unplug" where onBattery:
+                battery.chargePercent = 62
+                battery.amperageMilliAmps = -Int(load / 12.6 * 1000)
+                battery.runtimeEstimate = BatteryRuntimeEstimate(
+                    minutesRemaining: 214, fullChargeMinutes: 345, source: .recentUse)
+            default:
+                battery.isFullyCharged = false
+                battery.amperageMilliAmps = 12
+                battery.chargeHold = ChargeHold(
+                    reason: .optimizedCharging, policyName: "optimizedChargeLimit",
+                    limitPercent: 80)
+            }
+            battery.powerWatts =
+                Double(abs(battery.amperageMilliAmps)) * Double(battery.voltageMilliVolts)
+                / 1_000_000
+            var snapshot = base
+            snapshot.system.timestamp = now
+            snapshot.system.batteryPresent = true
+            snapshot.system.batteryCharge = battery.chargePercent
+            snapshot.system.batteryPowerWatts = battery.powerWatts
+            snapshot.system.batteryIsCharging = battery.isCharging
+            snapshot.system.batterySystemPowerWatts = battery.systemPowerWatts
+            snapshot.battery = battery
+            model.publishForBenchmark(snapshot, table: false)
         }
     }
 

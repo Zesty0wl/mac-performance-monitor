@@ -6,8 +6,64 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Added
+
+- **USB-C port diagnostics in the Hardware tab** (#153). A new **Ports**
+  section lists every USB-C, MagSafe, HDMI and SD port, with an overview
+  card showing what each one is doing. For each port it shows:
+  - what is plugged in and the negotiated data link (USB 3 at 10 Gbps,
+    DisplayPort lanes and link rate)
+  - the charger's power options, the one the Mac chose, and what it is
+    drawing now
+  - the cable's rating, read from its e-marker chip: speed, 3 A or 5 A,
+    60, 100 or 240 W, and approximate length
+  - the port's overcurrent and liquid-detection counters, and the USB
+    devices behind it
+
+  Plain-language findings flag these problems:
+  - an overcurrent event
+  - liquid in the port
+  - an accessory waiting for approval
+  - a USB 2-only cable on a fast port
+  - a 3 A cable capping charging at 60 W
+  - a slow or non-Power Delivery charger
+  - a USB 3 device running at USB 2 speed
+
+  The USB devices on each port now appear under that port, nested by hub,
+  with their serial number and firmware version. The separate USB section
+  has been removed, because it listed the same devices by bus without
+  saying which port they were plugged into. It still appears on Macs whose
+  port drivers report no port data.
+
+  The page updates about a second after something is plugged in or
+  removed, while the Hardware tab is open. Everything is read without
+  administrator rights. It relies on undocumented macOS port data, so
+  older Macs and systems may show less.
+
 ### Changed
 
+- **The energy menu shows where the power comes from.** On a laptop, the
+  battery charge line, which sat flat for most of its 15-minute window, is
+  replaced by a stacked power chart:
+  - blue: what the Mac draws from the adapter
+  - green: what it draws from the battery
+  - green on top of the blue: what goes into the battery while it charges
+
+  A legend under the chart gives the current figures. When on battery, it
+  also gives roughly when the battery will run out.
+
+  The header now says what the battery is doing:
+  - time left while on battery
+  - time to full while charging, or time to the limit (such as 80%) when
+    Optimised Battery Charging or a charge limit will stop it there
+  - **Charging on hold** when macOS is holding a plugged-in battery at a
+    limit, with the reason: Optimised Battery Charging or a charge limit
+  - **Not charging** when macOS has paused charging and gives no reason
+  - a note when the adapter is too small and the battery is helping
+
+  The hold reason comes from the charging policy macOS publishes, read
+  without administrator rights. Macs that report no power figures keep
+  the charge line.
 - **Explorer charts fill the window.** Charts now share the space instead
   of sitting at a fixed height. Three or four charts fill the view in a
   2 x 2 grid. A chart is never taller than 520 pt or shorter than it was

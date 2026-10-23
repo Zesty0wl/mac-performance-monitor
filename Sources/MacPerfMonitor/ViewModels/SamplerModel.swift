@@ -1618,6 +1618,7 @@ final class SamplerModel: ObservableObject {
     ) {
         systemHistory.append(snapshot.system)
         appendRecentCPU(snapshot.cpu)
+        if let battery = snapshot.battery { recentBattery = battery }
         if let gpu {
             recentGPUSamples.append(gpu)
             if recentGPUSamples.count > cpuSmoothingTicks {
@@ -2159,6 +2160,12 @@ final class SamplerModel: ObservableObject {
     /// as the charge-vs-drain rate.
     func batteryChargeTrail() -> [Double] {
         systemHistory.elements().map(\.batteryCharge)
+    }
+
+    /// The recent window as stacked power bands (from adapter, from battery,
+    /// into battery), for the energy menubar's power chart on a laptop.
+    func batteryPowerFlow() -> BatteryPowerFlow {
+        BatteryPowerFlow(systemHistory.elements())
     }
 
     /// Recent whole-machine power-draw trail (watts, most recent last), for the

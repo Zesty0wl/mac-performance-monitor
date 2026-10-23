@@ -24,7 +24,11 @@ struct HardwareView: View {
                     .frame(minWidth: 480, maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .onAppear { model.refreshIfNeeded() }
+        .onAppear {
+            model.refreshIfNeeded()
+            model.watchPorts(true)
+        }
+        .onDisappear { model.watchPorts(false) }
     }
 
     // MARK: - Header
@@ -278,6 +282,10 @@ private struct HardwareNodeDetail: View {
 
     private var isSectionRoot: Bool { node.id == section?.id }
     private var isFeatureList: Bool { node.id.hasSuffix("/native/features") }
+    /// The port this page shows, when it is one.
+    private var port: HardwareFacts.PortSummary? {
+        model.facts.ports?.first { $0.nodeID == node.id }
+    }
 
     var body: some View {
         ScrollView {
@@ -287,13 +295,20 @@ private struct HardwareNodeDetail: View {
                 if let note = section?.note, isSectionRoot {
                     noteBanner(note)
                 }
+                if let port {
+                    HardwarePanel("Diagnostics", systemImage: "stethoscope") {
+                        PortFindingList(findings: port.findings)
+                    }
+                }
                 if isFeatureList {
                     HardwarePanel("Features", systemImage: "checklist") {
                         HardwareFeatureCloud(properties: node.properties, query: query)
                     }
                 } else if !node.properties.isEmpty {
                     HardwarePanel("Properties", systemImage: "list.bullet.rectangle") {
-                        HardwarePropertyTable(node: node, query: query, model: model)
+                        HardwarePropertyTable(
+                            node: node, query: query, model: model,
+                            hiddenGroup: port == nil ? nil : PortDiagnostics.propertyGroup)
                     }
                 }
                 if !node.children.isEmpty {
@@ -396,10 +411,15 @@ private struct HardwarePropertyTable: View {
     let node: HardwareNode
     let query: String
     @ObservedObject var model: HardwareExplorerModel
+    /// A group drawn elsewhere on the page (a port's findings).
+    var hiddenGroup: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(node.propertyGroups.enumerated()), id: \.offset) { _, group in
+            ForEach(
+                Array(node.propertyGroups.filter { $0 == nil || $0 != hiddenGroup }.enumerated()),
+                id: \.offset
+            ) { _, group in
                 VStack(alignment: .leading, spacing: 4) {
                     if let group {
                         Text(group.uppercased())
@@ -464,6 +484,48 @@ private struct HardwarePropertyRow: View {
             Button("Copy Value") { model.copyToPasteboard(property.value) }
             Button("Copy \u{201C}\(property.label): \(property.value)\u{201D}") {
                 model.copyToPasteboard("\(property.label): \(property.value)")
+            }
+        }
+    }
+}
+
+/// A port's findings, warnings first, or a clean bill of health.
+struct PortFindingList: View {
+    let findings: [PortFinding]
+
+    var body: some View {
+        if findings.isEmpty {
+            Label("No problems found", systemImage: "checkmark.circle.fill")
+                .font(.callout)
+                .foregroundStyle(.green)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(findings.sorted { $0.severity == .warning && $1.severity != .warning }) {
+                    finding in
+                    let tint: Color = finding.severity == .warning ? .orange : .blue
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Image(
+                            systemName: finding.severity == .warning
+                                ? "exclamationmark.triangle.fill" : "info.circle.fill"
+                        )
+                        .foregroundStyle(tint)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(finding.title)
+                                .font(.callout.weight(.semibold))
+                            Text(finding.detail)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(tint.opacity(0.1))
+                    )
+                    .textSelection(.enabled)
+                }
             }
         }
     }

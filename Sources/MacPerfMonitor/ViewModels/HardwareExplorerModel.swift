@@ -25,6 +25,11 @@ final class HardwareExplorerModel: ObservableObject {
     @Published var query = ""
 
     private var generation = 0
+    /// Watches for plug events while the Hardware tab is on screen.
+    private var portMonitor: PortChangeMonitor?
+    /// The sections a plug event can change: the ports themselves, and the
+    /// two `system_profiler` buses whose device lists follow them.
+    static let portSectionIDs = ["ports", "usb", "thunderbolt"]
 
     var total: Int { HardwareInventory.specs.count }
 
@@ -99,6 +104,57 @@ final class HardwareExplorerModel: ObservableObject {
                 self.finish(snapshot, generation: current, started: started)
             }
         }
+    }
+
+    /// Re-read just these sections (the ports after a plug event), leaving the
+    /// rest of the inventory as it was. Skipped before the first capture and
+    /// while a full refresh runs, which picks the change up anyway.
+    func refreshSections(_ ids: [String]) {
+        guard capturedAt != nil, !isRefreshing else { return }
+        let specs = ids.compactMap { HardwareInventory.spec(withID: $0) }
+        guard !specs.isEmpty else { return }
+        let current = generation
+        Task.detached(priority: .utility) { [weak self] in
+            guard let self else { return }
+            let runner = SystemProfilerRunner()
+            let sections = specs.map { HardwareInventory.capture($0, runner: runner) }
+            await MainActor.run {
+                self.replace(sections, generation: current)
+            }
+        }
+    }
+
+    private func replace(_ replacements: [HardwareSection], generation: Int) {
+        guard generation == self.generation, !isRefreshing else { return }
+        for section in replacements {
+            if let index = sections.firstIndex(where: { $0.id == section.id }) {
+                sections[index] = section
+            }
+        }
+        // A device that was unplugged takes its page with it; land on its
+        // section rather than the overview.
+        if let selected = selectedID, selected != Self.overviewID, node(withID: selected) == nil {
+            selectedID =
+                replacements.first { selected.hasPrefix($0.id + "/") }?.id ?? Self.overviewID
+        }
+    }
+
+    /// Follow plug events while `on`: a cable, charger or device arriving or
+    /// leaving re-reads the port sections about a second later. Kernel
+    /// notifications, so nothing runs while nothing changes.
+    func watchPorts(_ on: Bool) {
+        guard on else {
+            portMonitor?.stop()
+            return
+        }
+        if portMonitor == nil {
+            portMonitor = PortChangeMonitor { [weak self] in
+                MainActor.assumeIsolated {
+                    self?.refreshSections(Self.portSectionIDs)
+                }
+            }
+        }
+        portMonitor?.start()
     }
 
     private func merge(_ section: HardwareSection, generation: Int) {

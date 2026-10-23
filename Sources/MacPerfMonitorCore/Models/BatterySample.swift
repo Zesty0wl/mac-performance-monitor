@@ -81,6 +81,12 @@ public struct BatterySample: Sendable, Codable, Equatable {
     public var chargingCurrentMilliAmps: Int?
     /// The battery's gas-gauge controller chip, e.g. "bq40z651". nil when absent.
     public var gasGaugeChip: String?
+    /// macOS considers the battery charged (the power source's "Is Charged"),
+    /// which it keeps reporting while the charge settles a few points below 100.
+    public var isFullyCharged: Bool
+    /// The cap macOS has put on charging on the adapter, if any (Optimised
+    /// Battery Charging, a charge limit). See `ChargeHoldReader`.
+    public var chargeHold: ChargeHold?
 
     public init(
         timestamp: Date,
@@ -112,7 +118,9 @@ public struct BatterySample: Sendable, Codable, Equatable {
         adapterVoltageMilliVolts: Int? = nil,
         adapterAmperageMilliAmps: Int? = nil,
         chargingCurrentMilliAmps: Int? = nil,
-        gasGaugeChip: String? = nil
+        gasGaugeChip: String? = nil,
+        isFullyCharged: Bool = false,
+        chargeHold: ChargeHold? = nil
     ) {
         self.timestamp = timestamp
         self.isPresent = isPresent
@@ -144,6 +152,8 @@ public struct BatterySample: Sendable, Codable, Equatable {
         self.adapterAmperageMilliAmps = adapterAmperageMilliAmps
         self.chargingCurrentMilliAmps = chargingCurrentMilliAmps
         self.gasGaugeChip = gasGaugeChip
+        self.isFullyCharged = isFullyCharged
+        self.chargeHold = chargeHold
     }
 
     /// Whether the battery is in a healthy condition (no permanent failure).

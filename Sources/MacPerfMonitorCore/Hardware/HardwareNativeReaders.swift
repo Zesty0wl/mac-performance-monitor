@@ -752,6 +752,24 @@ enum HardwareNativeReaders {
         return result
     }
 
+    // MARK: - Ports
+
+    /// Every physical port with what is plugged in, the negotiated links, the
+    /// cable's marker, the charger's offer and the port's health counters,
+    /// plus the findings drawn from them and the USB devices behind each
+    /// port as a hub tree.
+    static func ports(parentID: String, systemImage: String) -> Result {
+        var result = Result()
+        let inventory = PortRegistryReader.inventory()
+        result.nodes = PortNodes.nodes(for: inventory, parentID: parentID)
+        result.facts.ports = PortNodes.summaries(for: inventory, parentID: parentID)
+        // Hubs count, as they do in the USB bus tree this replaces.
+        if inventory.ports.contains(where: { $0.kind.hasPrefix("USB") }) {
+            result.facts.usbDeviceCount = inventory.ports.reduce(0) { $0 + $1.devices.count }
+        }
+        return result
+    }
+
     // MARK: - Sensors
 
     /// Shared shaping for the sensor facts: display-ordered groups with

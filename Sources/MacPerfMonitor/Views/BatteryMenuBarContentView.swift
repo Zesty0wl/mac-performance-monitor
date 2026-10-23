@@ -2,9 +2,10 @@ import AppKit
 import MacPerfMonitorCore
 import SwiftUI
 
-/// The energy menubar dropdown (window style). On a laptop: a charge + power
-/// header, a one-line power-flow summary, the top energy-using apps, a health
-/// snippet, and actions. On a desktop (no battery): a bolt header, the top
+/// The energy menubar dropdown (window style). On a laptop: a charge header
+/// that says how long the battery lasts, how long until it is charged, or why
+/// it is not charging; a stacked chart of where the power comes from; the top
+/// energy-using apps, a health snippet, and actions. On a desktop (no battery): a bolt header, the top
 /// energy users, and actions. Tapping the header, the power summary, or the
 /// energy list opens the main window's Energy tab. The CPU/memory twins live in
 /// `CPUMenuBarContentView` / `MenuBarContentView`; the three share the row
@@ -36,10 +37,16 @@ struct BatteryMenuBarContentView: View {
     private var panel: some View {
         VStack(alignment: .leading, spacing: 10) {
             if let battery = model.latestBattery, battery.isPresent {
-                header(battery)
-                chargeChart(battery)
-                Divider()
-                powerSummary(battery)
+                let status = BatteryChargeStatus(battery)
+                header(battery, status)
+                if let note = statusNote(battery, status) {
+                    Text(note)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .help(statusHelp(status) ?? "")
+                }
+                powerFlow(battery, status)
                 Divider()
                 topEnergy
                 Divider()
@@ -102,6 +109,120 @@ struct BatteryMenuBarContentView: View {
 
     // MARK: - Trend charts
 
+    /// Where the power has come from over the recent window, as stacked bands:
+    /// blue for what the adapter supplies to the Mac, green for what the
+    /// battery supplies, and green on top for what goes into the battery while
+    /// it charges. A legend underneath gives the current figures. Falls back
+    /// to the charge line on a Mac that reports no power figures.
+    @ViewBuilder private func powerFlow(
+        _ battery: BatterySample, _ status: BatteryChargeStatus
+    ) -> some View {
+        let flow = model.batteryPowerFlow()
+        if flow.isEmpty {
+            chargeChart(battery)
+            Divider()
+            powerSummary(battery)
+        } else {
+            let upper = MenuChart.niceUpperBound(flow.peak)
+            let legend = flowLegend(flow, battery, status)
+            Button(action: openBattery) {
+                VStack(alignment: .leading, spacing: 6) {
+                    MenuBitmapChart(
+                        model: .init(
+                            series: [
+                                .init(
+                                    values: flow.adapterTop, color: BatteryStyle.charger,
+                                    smooth: false, gradient: false),
+                                .init(
+                                    values: flow.batteryTop, color: BatteryStyle.battery,
+                                    smooth: false, gradient: false, floor: flow.batteryFloor),
+                                .init(
+                                    values: flow.chargingTop, color: BatteryStyle.battery,
+                                    smooth: false, gradient: false, floor: flow.chargingFloor),
+                            ],
+                            domain: 0...upper, capacity: model.systemHistory.capacity,
+                            ticks: [0, upper], labels: ["0", "\(Int(upper.rounded())) W"],
+                            gutter: MenuChart.gutter, accessibilityLabel: t("Power"),
+                            accessibilityValue: legend.items.map(\.text).joined(separator: ", "))
+                    )
+                    .frame(height: MenuChart.height)
+                    // The trailing figure gives way first when a translation
+                    // runs long.
+                    ViewThatFits(in: .horizontal) {
+                        legendRow(legend.items, trailing: legend.trailing)
+                        legendRow(legend.items, trailing: nil)
+                    }
+                    .font(.caption.monospacedDigit())
+                    .lineLimit(1)
+                }
+            }
+            .buttonStyle(.plain)
+            .help("Open the Energy tab")
+        }
+    }
+
+    private func legendRow(_ items: [LegendItem], trailing: String?) -> some View {
+        HStack(spacing: 10) {
+            ForEach(items, id: \.text) { item in
+                HStack(spacing: 4) {
+                    Circle().fill(item.color).frame(width: 6, height: 6)
+                    Text(item.text)
+                }
+            }
+            Spacer(minLength: 4)
+            if let trailing {
+                Text(trailing).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private struct LegendItem {
+        var color: Color
+        var text: String
+    }
+
+    /// The legend under the power chart: the current flows, in the chart's
+    /// colours, and on the right when the battery runs out or the adapter size.
+    private func flowLegend(
+        _ flow: BatteryPowerFlow, _ battery: BatterySample, _ status: BatteryChargeStatus
+    ) -> (items: [LegendItem], trailing: String?) {
+        let now = flow.latest
+        var items: [LegendItem] = []
+        // While charging the adapter feeds both bands, so name where each
+        // goes; otherwise the Mac is the only consumer, so name the sources.
+        if now.fromAdapter > 0 {
+            let watts = BatteryFormat.watts(now.fromAdapter)
+            items.append(
+                .init(
+                    color: BatteryStyle.charger,
+                    text: now.intoBattery > 0 ? t("%@ to Mac", watts) : t("%@ from adapter", watts))
+            )
+        }
+        if now.fromBattery > 0 {
+            items.append(
+                .init(
+                    color: BatteryStyle.battery,
+                    text: t("%@ from battery", BatteryFormat.watts(now.fromBattery))))
+        }
+        if now.intoBattery > 0 {
+            items.append(
+                .init(
+                    color: BatteryStyle.battery,
+                    text: t("%@ into battery", BatteryFormat.watts(now.intoBattery))))
+        }
+        if items.isEmpty {
+            items.append(.init(color: BatteryStyle.charger, text: t("On power adapter")))
+        }
+        var trailing: String?
+        if case .onBattery(let minutes?) = status, minutes > 0 {
+            let empty = Date().addingTimeInterval(minutes * 60)
+            trailing = t("Until about %@", empty.formatted(date: .omitted, time: .shortened))
+        } else if battery.isOnAC, let watts = battery.adapterWatts {
+            trailing = t("%@ W adapter", String(watts))
+        }
+        return (items, trailing)
+    }
+
     /// Charge over the recent window as a line on a fixed 0–100 scale — matching
     /// the CPU/memory/network header style. Absolute (not peak-relative) so a
     /// steady 80 % reads as a flat line near the top, sloping down while draining /
@@ -136,47 +257,124 @@ struct BatteryMenuBarContentView: View {
 
     // MARK: - Header
 
-    private func header(_ battery: BatterySample) -> some View {
+    private func header(_ battery: BatterySample, _ status: BatteryChargeStatus) -> some View {
         let level = BatteryLevel(percent: battery.chargePercent)
+        let tint = stateColor(status, level: level)
         return Button(action: openBattery) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Image(systemName: battery.isCharging ? "battery.100.bolt" : level.symbolName)
-                        .foregroundStyle(battery.isCharging ? BatteryStyle.battery : level.color)
-                        .imageScale(.small)
-                    Text(BatteryFormat.percent(battery.chargePercent))
-                        .font(.title2.weight(.semibold).monospacedDigit())
-                        .frame(minWidth: 58, alignment: .leading)
-                    Text(stateWord(battery))
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(battery.isCharging ? BatteryStyle.battery : level.color)
-                    Spacer()
-                    Text(timeRemaining(battery))
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: stateSymbol(status, level: level))
+                    .foregroundStyle(tint)
+                    .imageScale(.small)
+                Text(BatteryFormat.percent(battery.chargePercent))
+                    .font(.title2.weight(.semibold).monospacedDigit())
+                    .frame(minWidth: 58, alignment: .leading)
+                Text(stateWord(status))
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(tint)
+                Spacer()
+                Text(stateDetail(status))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
             }
         }
         .buttonStyle(.plain)
         .help("Open the Energy tab")
     }
 
-    private func stateWord(_ battery: BatterySample) -> String {
-        if battery.isCharging { return t("Charging") }
-        if battery.isOnAC {
-            return battery.chargePercent >= 99 ? t("Battery full") : t("Plugged in")
+    private func stateWord(_ status: BatteryChargeStatus) -> String {
+        switch status {
+        case .onBattery: return t("On battery")
+        case .charging: return t("Charging")
+        case .onHold: return t("Charging on hold")
+        case .charged: return t("Battery full")
+        case .adapterShortfall: return t("Plugged in")
+        case .notCharging: return t("Not charging")
         }
-        return t("On battery")
     }
 
-    private func timeRemaining(_ battery: BatterySample) -> String {
-        if battery.isCharging, let m = battery.timeToFullMinutes, m > 0 {
-            return t("%@ to full", BatteryFormat.duration(minutes: m))
+    private func stateSymbol(_ status: BatteryChargeStatus, level: BatteryLevel) -> String {
+        switch status {
+        case .onBattery: return level.symbolName
+        case .charging, .charged: return "battery.100.bolt"
+        case .onHold, .adapterShortfall, .notCharging: return "powerplug.fill"
         }
-        if !battery.isOnAC, let m = battery.timeToEmptyMinutes, m > 0 {
-            return t("%@ left", BatteryFormat.duration(minutes: m))
+    }
+
+    private func stateColor(_ status: BatteryChargeStatus, level: BatteryLevel) -> Color {
+        switch status {
+        case .onBattery: return level.color
+        case .charging, .charged: return BatteryStyle.battery
+        case .onHold: return BatteryStyle.charger
+        case .adapterShortfall, .notCharging: return BatteryStyle.consumer
         }
-        return ""
+    }
+
+    /// The figure on the right of the header: time left on battery, or time
+    /// to full (or to the hold's limit) while charging.
+    private func stateDetail(_ status: BatteryChargeStatus) -> String {
+        switch status {
+        case .onBattery(let minutes?) where minutes > 0:
+            return t("%@ left", BatteryFormat.duration(minutes: Int(minutes.rounded())))
+        case .charging(100, let minutes?) where minutes > 0:
+            return t("%@ to full", BatteryFormat.duration(minutes: Int(minutes.rounded())))
+        case .charging(let target, let minutes?) where minutes > 0:
+            return t(
+                "%1$@ in %2$@", BatteryFormat.percent(Double(target)),
+                BatteryFormat.duration(minutes: Int(minutes.rounded())))
+        default:
+            return ""
+        }
+    }
+
+    /// The tooltip on the note: how to get past an Optimised Battery Charging
+    /// hold, which macOS offers only from its own battery menu.
+    private func statusHelp(_ status: BatteryChargeStatus) -> String? {
+        guard case .onHold(let hold) = status, hold.reason == .optimizedCharging else { return nil }
+        return t(
+            "To charge to 100% now, choose Charge to Full Now from the battery menu in the menu bar."
+        )
+    }
+
+    /// A sentence under the header when the state needs explaining: why a
+    /// plugged-in battery is not charging, or where charging will stop.
+    private func statusNote(_ battery: BatterySample, _ status: BatteryChargeStatus) -> String? {
+        switch status {
+        case .onHold(let hold):
+            let limit = BatteryFormat.percent(Double(hold.limitPercent))
+            switch hold.reason {
+            case .optimizedCharging:
+                return t(
+                    "Optimised Battery Charging is waiting at %@ and will finish charging before you usually unplug.",
+                    limit)
+            case .chargeLimit:
+                return t("Charging stops at %@, the charge limit set in Battery settings.", limit)
+            case .other:
+                return t("macOS is holding the battery at %@.", limit)
+            }
+        case .charging(let target, _) where target < 100:
+            let limit = BatteryFormat.percent(Double(target))
+            switch battery.chargeHold?.reason {
+            case .optimizedCharging:
+                return t("Optimised Battery Charging will pause charging at %@.", limit)
+            case .chargeLimit:
+                return t("Charging stops at %@, the charge limit set in Battery settings.", limit)
+            default:
+                return t("macOS will pause charging at %@.", limit)
+            }
+        case .adapterShortfall(let watts):
+            if let adapter = battery.adapterWatts {
+                return t(
+                    "The %1$@ W adapter can't supply everything, so the battery is adding %2$@.",
+                    String(adapter), BatteryFormat.watts(watts))
+            }
+            return t(
+                "The adapter can't supply everything, so the battery is adding %@.",
+                BatteryFormat.watts(watts))
+        case .notCharging:
+            return t("macOS has paused charging without giving a reason.")
+        default:
+            return nil
+        }
     }
 
     // MARK: - Power summary

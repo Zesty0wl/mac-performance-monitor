@@ -177,6 +177,11 @@ the window, with a setting to keep it visible.
 
 - **Hardware:** browse a searchable inventory of the chip, memory, displays,
   storage, and connected devices. Refresh on demand or save a report.
+  **Ports** shows each USB-C, MagSafe, HDMI and SD port: what is plugged in,
+  the negotiated data link, the charger's offer and live draw, the cable's
+  rating from its e-marker, and plain-language warnings such as a cable that
+  limits charging or a USB 3 drive stuck at USB 2 speed. The USB devices on
+  each port are listed under it, nested by hub.
 
 - **History and diagnostics:** choose recording detail and retention, find top
   consumers over time, and investigate processes with on-device diagnostics.

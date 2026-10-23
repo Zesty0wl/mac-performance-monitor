@@ -56,6 +56,9 @@ struct MenuBitmapChart: NSViewRepresentable {
         var gradient = true
         var downward = false
         var lineWidth: CGFloat = MenuChart.lineWidth
+        /// The lower edge of the fill, one value per sample, for a band stacked
+        /// on another series; nil fills down to zero.
+        var floor: [Double]? = nil
     }
 
     struct Model: Equatable {
@@ -190,6 +193,7 @@ final class MenuBitmapChartView: NSView {
         context.clip(to: plot.insetBy(dx: -1, dy: -1))
         for (index, series) in model.series.enumerated() where colors.indices.contains(index) {
             var run: [CGPoint] = []
+            var floorRun: [CGPoint] = []
             func paintRun() {
                 guard let first = run.first else { return }
                 let line = CGMutablePath()
@@ -207,8 +211,12 @@ final class MenuBitmapChartView: NSView {
                     let baseline = y(0)
                     let area = CGMutablePath()
                     area.addPath(line)
-                    area.addLine(to: CGPoint(x: last.x, y: baseline))
-                    area.addLine(to: CGPoint(x: first.x, y: baseline))
+                    if floorRun.count == run.count {
+                        for point in floorRun.reversed() { area.addLine(to: point) }
+                    } else {
+                        area.addLine(to: CGPoint(x: last.x, y: baseline))
+                        area.addLine(to: CGPoint(x: first.x, y: baseline))
+                    }
                     area.closeSubpath()
                     context.saveGState()
                     context.addPath(area)
@@ -238,9 +246,11 @@ final class MenuBitmapChartView: NSView {
                 context.strokePath()
             }
             for (slot, value) in series.values.enumerated() {
-                guard value.isFinite else {
+                let floor = series.floor.map { $0.indices.contains(slot) ? $0[slot] : .nan }
+                guard value.isFinite, floor?.isFinite ?? true else {
                     paintRun()
                     run.removeAll(keepingCapacity: true)
+                    floorRun.removeAll(keepingCapacity: true)
                     continue
                 }
                 let x: Double
@@ -250,10 +260,11 @@ final class MenuBitmapChartView: NSView {
                 } else {
                     x = series.values.count > 1 ? Double(slot) / Double(series.values.count - 1) : 0
                 }
-                run.append(
-                    CGPoint(
-                        x: plot.minX + CGFloat(x) * plot.width,
-                        y: y(series.downward ? -value : value)))
+                let xx = plot.minX + CGFloat(x) * plot.width
+                run.append(CGPoint(x: xx, y: y(series.downward ? -value : value)))
+                if let floor {
+                    floorRun.append(CGPoint(x: xx, y: y(series.downward ? -floor : floor)))
+                }
             }
             paintRun()
         }

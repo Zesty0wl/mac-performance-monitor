@@ -38,7 +38,17 @@ public struct HardwareSectionSpec: Identifiable, Sendable {
 /// thread. Nothing here runs on a timer: the explorer refreshes only when
 /// asked.
 public enum HardwareInventory {
-    public static let specs: [HardwareSectionSpec] = [
+    /// The sections the explorer shows. The USB bus tree is only a fallback:
+    /// where the port drivers report ports, the Ports section lists the same
+    /// devices under the receptacle they are plugged into, so the USB section
+    /// would repeat it. Decided once; the port drivers do not come and go.
+    public static let specs: [HardwareSectionSpec] = {
+        guard PortRegistryReader.reportsPorts() else { return allSpecs }
+        return allSpecs.filter { $0.id != "usb" }
+    }()
+
+    /// Every section this code knows how to read, shown or not.
+    static let allSpecs: [HardwareSectionSpec] = [
         HardwareSectionSpec(
             id: "mac", title: "Mac", systemImage: "macbook", dataTypes: ["SPHardwareDataType"],
             native: { HardwareNativeReaders.identity(parentID: $0, systemImage: $1) }),
@@ -79,6 +89,9 @@ public enum HardwareInventory {
             id: "bluetooth", title: "Bluetooth", systemImage: "antenna.radiowaves.left.and.right",
             dataTypes: ["SPBluetoothDataType"], facts: bluetoothFacts),
         HardwareSectionSpec(
+            id: "ports", title: "Ports", systemImage: "cable.connector.horizontal",
+            native: { HardwareNativeReaders.ports(parentID: $0, systemImage: $1) }),
+        HardwareSectionSpec(
             id: "usb", title: "USB", systemImage: "cable.connector",
             dataTypes: ["SPUSBHostDataType"], fallbackDataTypes: ["SPUSBDataType"], facts: usbFacts),
         HardwareSectionSpec(
@@ -109,7 +122,7 @@ public enum HardwareInventory {
     ]
 
     public static func spec(withID id: String) -> HardwareSectionSpec? {
-        specs.first { $0.id == id }
+        allSpecs.first { $0.id == id }
     }
 
     /// Every section, at most `maxConcurrent` at a time, each handed to
