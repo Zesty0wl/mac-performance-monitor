@@ -8,6 +8,8 @@ on:
   push:
     branches: [main, 2.0.0]
   pull_request:
+  # The Crowdin sync workflow starts a run after it pushes translations.
+  workflow_dispatch:
 
 permissions:
   contents: read
