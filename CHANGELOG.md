@@ -36,9 +36,14 @@ Notable changes to Mac Performance Monitor. This project follows
   port drivers report no port data.
 
   The page updates about a second after something is plugged in or
-  removed, while the Hardware tab is open. Everything is read without
+  removed. Anything plugged in while another tab is showing is there when
+  you come back. Everything is read without
   administrator rights. It relies on undocumented macOS port data, so
   older Macs and systems may show less.
+- **USB drives on the Disk page show their USB link.** A drive's card now
+  gives the USB version its enclosure declares, the speed it connected at
+  (such as "USB 3.2, 10 Gbps"), and the port it is plugged into, through
+  any hubs. A drive running slower than its USB version allows is flagged.
 
 ### Changed
 

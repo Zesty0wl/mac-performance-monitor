@@ -52,6 +52,27 @@ final class DiskInfoReaderTests: XCTestCase {
         XCTAssertNil(info.serialNumber)
     }
 
+    func testUSBDriveCarriesItsLinkAndPort() {
+        var bridge = PortUSBDevice(name: "Sabrent")
+        bridge.bcdUSB = 0x0320
+        bridge.linkBitsPerSecond = 10_000_000_000
+        bridge.speedCode = 4
+        let info = DiskInfoReader.info(
+            from: .init(
+                registryEntryID: 9, bsdName: "disk5",
+                deviceCharacteristics: [:], protocolCharacteristics: [:],
+                mediaPreferredBlockSize: nil, controllerClass: nil, controllerProperties: [:],
+                usb: bridge,
+                usbIOPort: "IOService:/AppleARMPE/arm-io@10F00000/AppleH15IO/"
+                    + "hpm1@A/AppleHPMDeviceHALType3@A/Port-USB-C@2"))
+        XCTAssertEqual(info.usb?.usbVersion, "3.2")
+        XCTAssertEqual(info.usb?.linkLabel, "10 Gbps")
+        XCTAssertEqual(info.usbPort, "USB-C 2")
+        XCTAssertEqual(
+            DiskInfoReader.portName(fromUSBIOPort: "IOService:/a/Port-MagSafe 3@1"), "MagSafe 3 1")
+        XCTAssertNil(DiskInfoReader.portName(fromUSBIOPort: "IOService:/a/usb-drd1-port-ss"))
+    }
+
     func testSerialFallsBackToControllerWhenDeviceOmitsIt() {
         let info = DiskInfoReader.info(
             from: .init(
@@ -104,6 +125,10 @@ final class DiskInfoReaderTests: XCTestCase {
                 continue
             }
             XCTAssertEqual(info.bsdName, device.bsdName)
+            // A USB drive finds the bridge it sits behind.
+            if info.interconnect == "USB" {
+                XCTAssertNotNil(info.usb, "\(device.bsdName) is on USB but has no USB link")
+            }
         }
     }
 }

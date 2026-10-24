@@ -35,4 +35,11 @@ public struct DiskHardwareInfo: Sendable, Equatable, Identifiable {
     /// Registry entry IDs `NVMeSMARTReader` should try for this disk, in
     /// order. Empty when no NVMe controller was found above the device.
     public var smartCandidateIDs: [UInt64] = []
+
+    // USB attachment, nil for drives that are not on USB.
+    /// The USB device the drive sits behind (its enclosure's bridge): the
+    /// USB version it declares and the speed it linked at.
+    public var usb: PortUSBDevice?
+    /// The receptacle it is plugged into, through any hubs: "USB-C 2".
+    public var usbPort: String?
 }
