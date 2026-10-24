@@ -1619,6 +1619,7 @@ final class SamplerModel: ObservableObject {
         systemHistory.append(snapshot.system)
         appendRecentCPU(snapshot.cpu)
         if let battery = snapshot.battery { recentBattery = battery }
+        appendRecentDisk(snapshot.disk)
         if let gpu {
             recentGPUSamples.append(gpu)
             if recentGPUSamples.count > cpuSmoothingTicks {

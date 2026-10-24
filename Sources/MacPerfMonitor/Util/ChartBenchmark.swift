@@ -58,7 +58,7 @@ enum ChartBenchmark {
     struct Options {
         enum Scenario: String {
             case dashboard, trend, cards, menu, inspector, processes, dashboardPage, gpuPage
-            case hardwarePage, analyticsPage, diskMapPage, batteryMenu
+            case hardwarePage, analyticsPage, diskMapPage, batteryMenu, diskPage
         }
         enum Mode: String { case image, host }
 
@@ -633,6 +633,27 @@ enum ChartBenchmark {
         }
     }
 
+    /// The Disk tab's overview page, on this Mac's own disks.
+    struct DiskPageScenario: View {
+        let store: ProcessScenarioStore
+        let width: CGFloat
+        let height: CGFloat
+
+        var body: some View {
+            DiskUsageView()
+                .frame(width: width, height: height)
+                .environmentObject(store.model)
+                .environment(\.samplerModel, store.model)
+                .environmentObject(store.appState)
+                .environmentObject(store.monitor)
+                .environmentObject(store.groupStore)
+                .environmentObject(store.helper)
+                .environmentObject(store.components)
+                .environmentObject(FullDiskAccessManager())
+                .onAppear { UserDefaults.standard.set("Overview", forKey: "diskSubPage") }
+        }
+    }
+
     /// A scenario's view plus the closure that advances it one tick.
     struct Scenario {
         let view: AnyView
@@ -744,6 +765,7 @@ enum ChartBenchmark {
         }
         if options.scenario == .processes || options.scenario == .dashboardPage
             || options.scenario == .gpuPage || options.scenario == .analyticsPage
+            || options.scenario == .diskPage
         {
             let store = ProcessScenarioStore(options: options)
             let view: AnyView
@@ -753,6 +775,12 @@ enum ChartBenchmark {
             case .gpuPage:
                 view = AnyView(
                     GPUPageScenario(store: store, width: options.width, height: options.height))
+            case .diskPage:
+                // This Mac's real disks and volumes under synthetic history.
+                store.appState.mainWindowOpen = true
+                store.appState.mainWindowVisible = true
+                view = AnyView(
+                    DiskPageScenario(store: store, width: options.width, height: options.height))
             case .analyticsPage:
                 store.pinBusy(options.monitored)
                 // Fill the per-process trails to capacity before mounting, so
@@ -779,7 +807,7 @@ enum ChartBenchmark {
         case .menu: return AnyView(MenuScenario(store: store, width: options.width))
         case .inspector: return AnyView(InspectorScenario(store: store, width: options.width))
         case .processes, .dashboardPage, .gpuPage, .hardwarePage, .analyticsPage, .diskMapPage,
-            .batteryMenu:
+            .batteryMenu, .diskPage:
             return AnyView(EmptyView())
         }
     }

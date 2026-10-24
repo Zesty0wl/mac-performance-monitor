@@ -75,10 +75,10 @@ struct DiskUsageView: View {
         ScrollView {
             MainRailLayout {
                 pageHeader
+                drivesPanel
                 headlineCards
                 throughputPanel
                 activityPanel
-                devicesPanel
                 capacityPanel
             } rail: {
                 healthPanel
@@ -104,8 +104,8 @@ struct DiskUsageView: View {
 
     // MARK: - Header
 
-    /// The primary (internal) disk's identity on the left, the shared range
-    /// control on the right, mirroring the dashboard's page header.
+    /// The drives by name on the left, the shared range control on the
+    /// right, mirroring the dashboard's page header.
     private var pageHeader: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 1) {
@@ -133,28 +133,34 @@ struct DiskUsageView: View {
         }
     }
 
-    private var primaryDevice: DiskDeviceSample? {
-        model.latestDisk?.devices.first
-    }
-
-    private var primaryDiskTitle: String {
-        primaryDevice?.model ?? t("Disk")
-    }
+    private var primaryDiskTitle: String { t("Disk") }
 
     private var primaryDiskSubtitle: String {
-        guard let device = primaryDevice else { return t("Waiting for the first disk sample") }
-        var parts: [String] = []
-        if let size = device.sizeBytes { parts.append(ByteFormat.string(size)) }
-        if let name = device.protocolName { parts.append(name) }
-        parts.append(device.isInternal == true ? t("internal") : t("external"))
-        let others = (model.latestDisk?.devices.count ?? 1) - 1
-        if others > 0 {
-            parts.append(
-                others == 1
-                    ? t("+%@ more disk", String(others))
-                    : t("+%@ more disks", String(others)))
+        let devices = orderedDevices
+        guard !devices.isEmpty else { return t("Waiting for the first disk sample") }
+        let layout = volumeLayout
+        return devices.map {
+            layout?.drive($0.bsdName)?.name
+                ?? driveModel($0, diskDetail.hardware[$0.registryEntryID])
         }
-        return parts.joined(separator: ", ")
+        .joined(separator: ", ")
+    }
+
+    /// Volumes and containers grouped by the drive under them; nil until the
+    /// detail model's first volume read.
+    private var volumeLayout: DiskVolumeLayout? {
+        guard let snapshot = diskDetail.volumeSnapshot else { return nil }
+        return DiskVolumeLayout(
+            drives: (model.latestDisk?.devices ?? []).map(\.bsdName), snapshot: snapshot)
+    }
+
+    /// The physical disks, the boot drive first.
+    private var orderedDevices: [DiskDeviceSample] {
+        let devices = model.latestDisk?.devices ?? []
+        guard let order = volumeLayout?.drives.map(\.bsdName) else { return devices }
+        return devices.sorted {
+            (order.firstIndex(of: $0.bsdName) ?? .max) < (order.firstIndex(of: $1.bsdName) ?? .max)
+        }
     }
 
     // MARK: - Headline cards
@@ -192,32 +198,23 @@ struct DiskUsageView: View {
                     },
                     unit: .percent,
                     help: t("Read plus write operations per second across all disks.")),
-                bootFreeCard,
+                busyCard,
             ],
             xDomain: chartDomain,
             gridColumns: 4,
             loading: awaitingData)
     }
 
-    private var bootFreeCard: MetricCardData {
-        let root = diskDetail.volumeSnapshot?.volumes.first(where: \.isRoot)
-        // Finder-style figure (includes purgeable) when known; the sampler's
-        // plain statfs figure otherwise.
-        let free =
-            root?.importantUsageAvailableBytes
-            ?? root?.availableBytes
-            ?? model.latest?.system.bootVolumeFreeBytes
-        let total = root?.totalBytes ?? model.latest?.system.bootVolumeTotalBytes
-        return MetricCardData(
-            label: t("Free space"),
-            value: free.map { ByteFormat.string($0) },
+    private var busyCard: MetricCardData {
+        MetricCardData(
+            label: t("Busy"),
+            value: model.latestDisk?.utilizationPercent.map { "\(Int($0.rounded()))%" },
+            tint: DiskStyle.utilization(model.latestDisk?.utilizationPercent ?? 0),
             samples: points.compactMap { point in
-                point.bootFreeBytes.map { MetricSample(date: point.date, value: Double($0)) }
+                point.diskUtilizationPercent.map { MetricSample(date: point.date, value: $0) }
             },
-            detail: total.map { t("of %@", ByteFormat.string($0)) },
-            help: t(
-                "Space the system could make available on the boot volume, "
-                    + "including purgeable content."))
+            unit: .percent,
+            help: t("The busiest disk's share of time spent servicing I/O."))
     }
 
     // MARK: - Main column panels
@@ -244,7 +241,6 @@ struct DiskUsageView: View {
                     t("Write latency"),
                     model.latestDisk?.writeLatencyMs.map { String(format: "%.2f ms", $0) },
                     DiskStyle.write)
-                utilizationStat
                 Spacer(minLength: 0)
             }
             chartCaption("OPERATIONS PER SECOND")
@@ -261,58 +257,56 @@ struct DiskUsageView: View {
         }
     }
 
-    @ViewBuilder private var utilizationStat: some View {
-        let utilization = model.latestDisk?.utilizationPercent
-        VStack(alignment: .leading, spacing: 2) {
-            Text("UTILIZATION")
-                .font(.caption2.weight(.semibold))
-                .tracking(0.6)
-                .foregroundStyle(.secondary)
-            HStack(spacing: 6) {
-                Text(utilization.map { "\(Int($0.rounded()))%" } ?? "--")
-                    .font(.title3.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(DiskStyle.utilization(utilization ?? 0))
-                Gauge(value: min(utilization ?? 0, 100), in: 0...100) { EmptyView() }
-                    .gaugeStyle(.accessoryLinearCapacity)
-                    .tint(DiskStyle.utilization(utilization ?? 0))
-                    .frame(width: 60)
-                    .accessibilityLabel("Disk utilization")
-            }
-        }
-    }
-
-    private var devicesPanel: some View {
-        DiskPanel("Devices", systemImage: "externaldrive") {
-            if let devices = model.latestDisk?.devices, !devices.isEmpty {
-                ForEach(devices) { device in
-                    DeviceCard(
-                        device: device,
-                        hardware: diskDetail.hardware[device.registryEntryID])
-                }
-            } else {
+    /// One card per physical drive: what is free on it, how it is attached,
+    /// its health and what it is doing now.
+    private var drivesPanel: some View {
+        let layout = volumeLayout
+        let devices = orderedDevices
+        return DiskPanel("Drives", systemImage: "externaldrive") {
+            if devices.isEmpty {
                 Text("No physical disks visible yet.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            } else {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 340), spacing: 12, alignment: .top)],
+                    alignment: .leading, spacing: 12
+                ) {
+                    ForEach(devices) { device in
+                        DriveCard(
+                            device: device,
+                            hardware: diskDetail.hardware[device.registryEntryID],
+                            drive: layout?.drive(device.bsdName),
+                            smart: diskDetail.smart[device.registryEntryID],
+                            volumesLoaded: layout != nil)
+                    }
+                }
             }
         }
     }
 
     private var capacityPanel: some View {
-        DiskPanel("Capacity and volumes", systemImage: "chart.bar.doc.horizontal") {
-            if let snapshot = diskDetail.volumeSnapshot {
-                let standalone = snapshot.volumes.filter { $0.containerBSDName == nil }
-                ForEach(orderedContainers(snapshot)) { container in
-                    CapacityBarSection(
-                        title: containerTitle(container, volumes: snapshot.volumes),
-                        subtitle: containerSubtitle(container),
-                        slices: DiskCapacityBreakdown.slices(
-                            container: container, volumes: snapshot.volumes))
+        let layout = volumeLayout
+        return DiskPanel("Capacity and volumes", systemImage: "chart.bar.doc.horizontal") {
+            if let snapshot = diskDetail.volumeSnapshot, let layout {
+                ForEach(layout.drives.filter { $0.hasVolumes || !$0.systemContainers.isEmpty }) {
+                    drive in
+                    driveVolumes(drive, snapshot: snapshot)
                 }
-                ForEach(standalone) { volume in
-                    CapacityBarSection(
-                        title: volume.name,
-                        subtitle: t("%1$@ at %2$@", volume.fsTypeName, volume.mountPoint),
-                        slices: DiskCapacityBreakdown.slices(standaloneVolume: volume))
+                let others = layout.otherContainers.count + layout.otherVolumes.count
+                if others > 0 {
+                    DisclosureGroup {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(layout.otherContainers) { container in
+                                containerSection(container, snapshot: snapshot)
+                            }
+                            ForEach(layout.otherVolumes) { volumeSection($0) }
+                        }
+                        .padding(.top, 6)
+                    } label: {
+                        Text(t("Disk images and system mounts (%@)", String(others)))
+                            .font(.subheadline.weight(.semibold))
+                    }
                 }
                 footnote(
                     "APFS volumes share their container's free pool, so a container's volumes are one bar. Purgeable space is allocated content the system can reclaim when needed."
@@ -325,15 +319,54 @@ struct DiskUsageView: View {
         }
     }
 
-    /// Boot container first, then the rest by name.
-    private func orderedContainers(_ snapshot: VolumeSnapshot) -> [APFSContainerInfo] {
-        let bootContainer = snapshot.volumes.first(where: \.isRoot)?.containerBSDName
-        return snapshot.containers.sorted {
-            if ($0.bsdName == bootContainer) != ($1.bsdName == bootContainer) {
-                return $0.bsdName == bootContainer
+    /// One drive's volumes under its name, with the containers macOS keeps
+    /// for itself folded away.
+    private func driveVolumes(_ drive: DiskDriveVolumes, snapshot: VolumeSnapshot) -> some View {
+        let device = model.latestDisk?.devices.first { $0.bsdName == drive.bsdName }
+        let name = device.map { driveModel($0, diskDetail.hardware[$0.registryEntryID]) }
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: device?.isInternal == true ? "internaldrive" : "externaldrive")
+                    .foregroundStyle(.secondary)
+                Text(drive.name ?? name ?? drive.bsdName)
+                    .font(.headline)
+                Text([name, drive.bsdName].compactMap { $0 }.joined(separator: ", "))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                Spacer()
             }
-            return $0.bsdName.localizedStandardCompare($1.bsdName) == .orderedAscending
+            ForEach(drive.containers) { containerSection($0, snapshot: snapshot) }
+            ForEach(drive.volumes) { volumeSection($0) }
+            if !drive.systemContainers.isEmpty {
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(drive.systemContainers) { containerSection($0, snapshot: snapshot) }
+                    }
+                    .padding(.top, 6)
+                } label: {
+                    Text(t("macOS system containers (%@)", String(drive.systemContainers.count)))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
+        .padding(.bottom, 6)
+    }
+
+    private func containerSection(
+        _ container: APFSContainerInfo, snapshot: VolumeSnapshot
+    ) -> some View {
+        CapacityBarSection(
+            title: containerTitle(container, volumes: snapshot.volumes),
+            subtitle: containerSubtitle(container),
+            slices: DiskCapacityBreakdown.slices(container: container, volumes: snapshot.volumes))
+    }
+
+    private func volumeSection(_ volume: VolumeInfo) -> some View {
+        CapacityBarSection(
+            title: volume.name,
+            subtitle: t("%1$@ at %2$@", volume.fsTypeName, volume.mountPoint),
+            slices: DiskCapacityBreakdown.slices(standaloneVolume: volume))
     }
 
     private func containerTitle(_ container: APFSContainerInfo, volumes: [VolumeInfo]) -> String {
@@ -610,81 +643,225 @@ struct DiskUsageView: View {
     }
 }
 
-// MARK: - Device card
+// MARK: - Drive card
 
-/// One physical disk: identity row, hardware facts (nil rows omitted), and a
-/// live activity strip. Hardware identity arrives from `DiskDetailModel` a
-/// beat after first render; rows appear as they resolve.
-private struct DeviceCard: View {
+/// What the drive calls itself. A USB enclosure's bridge often leaves the
+/// product name empty and fills in only the vendor ("Sabrent"), so fall back
+/// through the USB product string and the vendor.
+private func driveModel(_ device: DiskDeviceSample, _ hardware: DiskHardwareInfo?) -> String {
+    [device.model, hardware?.productName, hardware?.usb?.name, hardware?.vendorName]
+        .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
+        .first { !$0.isEmpty } ?? t("Disk")
+}
+
+/// One physical drive as a person sees it: its name and free space up
+/// front, then how it is attached, its health, and what it is doing now,
+/// with the hardware identity behind a disclosure. Volume figures and
+/// hardware identity arrive from `DiskDetailModel` a beat after first
+/// render; rows appear as they resolve.
+private struct DriveCard: View {
     let device: DiskDeviceSample
     let hardware: DiskHardwareInfo?
+    let drive: DiskDriveVolumes?
+    let smart: NVMeSMARTSnapshot?
+    let volumesLoaded: Bool
+    @EnvironmentObject private var appState: AppState
+
+    /// One fact; `link` names a Hardware tab page the value opens.
+    private struct Fact {
+        var label: String
+        var value: String
+        var link: String?
+    }
+
+    private var isInternal: Bool { device.isInternal == true }
+
+    private var model: String { driveModel(device, hardware) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 7) {
-                Image(systemName: device.isInternal == true ? "internaldrive" : "externaldrive")
-                    .foregroundStyle(.secondary)
-                Text(device.model)
-                    .font(.subheadline.weight(.semibold))
-                Text(device.bsdName)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                if device.isRemovable {
-                    badge("Removable")
-                }
-                badge(device.isInternal == true ? "Internal" : "External")
-                Spacer()
-                if let size = device.sizeBytes {
-                    Text(ByteFormat.string(size))
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            factGrid
-
+        VStack(alignment: .leading, spacing: 9) {
+            identity
+            capacity
+            connection
             liveStrip
+            DisclosureGroup {
+                factGrid
+                    .padding(.top, 4)
+            } label: {
+                Text("Details")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
-        .padding(10)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(.quaternary.opacity(0.4)))
     }
 
-    private var facts: [(String, String)] {
-        var rows: [(String, String)] = []
-        if let name = device.protocolName { rows.append((t("Protocol"), name)) }
-        if let hardware {
-            if let vendor = hardware.vendorName { rows.append((t("Vendor"), vendor)) }
-            if let revision = hardware.productRevision { rows.append((t("Revision"), revision)) }
-            if let firmware = hardware.firmwareRevision, firmware != hardware.productRevision {
-                rows.append((t("Firmware"), firmware))
+    private var identity: some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: isInternal ? "internaldrive" : "externaldrive.fill")
+                .font(.title2)
+                .foregroundStyle(isInternal ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(drive?.name ?? model)
+                    .font(.headline)
+                    .lineLimit(1)
+                Text(identityDetail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
-            if let serial = hardware.serialNumber { rows.append((t("Serial"), serial)) }
+            Spacer(minLength: 6)
+            if let smart { healthBadge(smart) }
+            badge(isInternal ? "Internal" : "External")
+        }
+    }
+
+    /// The model (when the name is a volume's), size and BSD name.
+    private var identityDetail: String {
+        var parts: [String] = []
+        if drive?.name != nil { parts.append(model) }
+        if let size = device.sizeBytes { parts.append(ByteFormat.string(size)) }
+        parts.append(device.bsdName)
+        return parts.joined(separator: ", ")
+    }
+
+    @ViewBuilder private var capacity: some View {
+        if let drive, drive.hasVolumes, drive.capacityBytes > 0 {
+            let usedFraction = 1 - Double(drive.freeBytes) / Double(drive.capacityBytes)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text(t("%@ free", ByteFormat.string(drive.freeBytes)))
+                        .font(.title3.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(freeTint(usedFraction))
+                    Text(t("of %@", ByteFormat.string(drive.capacityBytes)))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(t("%@ used", "\(Int((usedFraction * 100).rounded()))%"))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                CapacityBar(slices: drive.primarySlices)
+                    .frame(height: 8)
+                    .accessibilityHidden(true)
+            }
+        } else {
+            Text(volumesLoaded ? "No mounted volumes" : "Reading volumes…")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Orange under a tenth free, red under a twentieth, as Finder warns.
+    private func freeTint(_ usedFraction: Double) -> Color {
+        if usedFraction >= 0.95 { return .red }
+        if usedFraction >= 0.9 { return .orange }
+        return .primary
+    }
+
+    /// How the drive is attached: the USB version and speed and the port
+    /// it is in for a USB drive, the bus otherwise.
+    private var connection: some View {
+        HStack(spacing: 5) {
+            Image(
+                systemName: hardware?.usb != nil
+                    ? "cable.connector" : "point.3.connected.trianglepath.dotted"
+            )
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            let port = hardware?.usbPort
+            Text(port == nil ? connectionText : connectionText + ",")
+                .font(.caption)
+                .lineLimit(1)
+            if let port, let link = hardware?.usbPortNodeID {
+                Button {
+                    HardwareExplorerModel.shared.show(link)
+                    appState.requestedMainTab = .hardware
+                } label: {
+                    Text(port)
+                        .font(.caption)
+                }
+                .buttonStyle(.link)
+                .help(t("Show this port in the Hardware tab"))
+            }
+            if hardware?.usb?.isBelowDeclaredSpeed == true {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .help(t("Below the USB version it declares"))
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var connectionText: String {
+        if let usb = hardware?.usb {
+            let parts = [usb.usbVersion.map { "USB \($0)" }, usb.linkLabel].compactMap { $0 }
+            if !parts.isEmpty { return parts.joined(separator: ", ") }
+        }
+        return hardware?.interconnect ?? device.protocolName
+            ?? (isInternal ? t("Internal") : t("External"))
+    }
+
+    private func healthBadge(_ smart: NVMeSMARTSnapshot) -> some View {
+        HStack(spacing: 3) {
+            Image(
+                systemName: smart.isHealthy
+                    ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+            Text(smart.isHealthy ? "Verified" : "Failing")
+        }
+        .font(.caption2)
+        .foregroundStyle(smart.isHealthy ? Color.green : Color.red)
+        .help(
+            t(
+                "SMART status %1$@ for %2$@", smart.isHealthy ? t("verified") : t("failing"),
+                device.bsdName))
+    }
+
+    private var facts: [Fact] {
+        var rows: [Fact] = []
+        func append(_ label: String, _ value: String) {
+            rows.append(Fact(label: label, value: value))
+        }
+        if let name = device.protocolName { append(t("Protocol"), name) }
+        if let hardware {
+            if let vendor = hardware.vendorName { append(t("Vendor"), vendor) }
+            if let revision = hardware.productRevision { append(t("Revision"), revision) }
+            if let firmware = hardware.firmwareRevision, firmware != hardware.productRevision {
+                append(t("Firmware"), firmware)
+            }
+            if let serial = hardware.serialNumber { append(t("Serial"), serial) }
             if let interconnect = hardware.interconnect {
                 let location = hardware.interconnectLocation.map { " (\($0))" } ?? ""
-                rows.append((t("Interconnect"), interconnect + location))
+                append(t("Interconnect"), interconnect + location)
             }
             if let usb = hardware.usb {
                 let link = [usb.usbVersion.map { "USB \($0)" }, usb.linkLabel].compactMap { $0 }
-                if !link.isEmpty { rows.append((t("USB link"), link.joined(separator: ", "))) }
+                if !link.isEmpty { append(t("USB link"), link.joined(separator: ", ")) }
                 if usb.isBelowDeclaredSpeed {
-                    rows.append((t("Speed check"), t("Below the USB version it declares")))
+                    append(t("Speed check"), t("Below the USB version it declares"))
                 }
             }
-            if let port = hardware.usbPort { rows.append((t("Port"), port)) }
+            if let port = hardware.usbPort {
+                rows.append(Fact(label: t("Port"), value: port, link: hardware.usbPortNodeID))
+            }
             if let solidState = hardware.isSolidState {
-                rows.append((t("Medium"), solidState ? t("Solid state") : t("Rotational")))
+                append(t("Medium"), solidState ? t("Solid state") : t("Rotational"))
             }
             if let blockSize = hardware.physicalBlockSizeBytes {
-                rows.append((t("Block size"), t("%@ bytes", String(blockSize))))
+                append(t("Block size"), t("%@ bytes", String(blockSize)))
             }
-            if let nand = hardware.nandStatus { rows.append((t("NAND status"), nand)) }
+            if let nand = hardware.nandStatus { append(t("NAND status"), nand) }
             if let revision = hardware.nvmeRevision {
-                rows.append((t("NVMe revision"), revision))
+                append(t("NVMe revision"), revision)
             }
             if let controller = hardware.controllerClass {
-                rows.append((t("Controller"), controller))
+                append(t("Controller"), controller)
             }
         }
         return rows
@@ -695,15 +872,28 @@ private struct DeviceCard: View {
             columns: [GridItem(.flexible()), GridItem(.flexible())],
             alignment: .leading, spacing: 4
         ) {
-            ForEach(facts, id: \.0) { fact in
+            ForEach(facts, id: \.label) { fact in
                 HStack(spacing: 4) {
-                    Text(fact.0)
+                    Text(fact.label)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text(fact.1)
-                        .font(.caption2.monospacedDigit())
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    if let link = fact.link {
+                        Button {
+                            HardwareExplorerModel.shared.show(link)
+                            appState.requestedMainTab = .hardware
+                        } label: {
+                            Text(fact.value)
+                                .font(.caption2.monospacedDigit())
+                                .lineLimit(1)
+                        }
+                        .buttonStyle(.link)
+                        .help(t("Show this port in the Hardware tab"))
+                    } else {
+                        Text(fact.value)
+                            .font(.caption2.monospacedDigit())
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
                 }
             }
         }
@@ -776,7 +966,7 @@ private struct CapacityBarSection: View {
                     .foregroundStyle(.secondary)
                 Spacer()
             }
-            bar
+            CapacityBar(slices: slices)
                 .frame(height: 14)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(t("%@ capacity", title))
@@ -784,23 +974,6 @@ private struct CapacityBarSection: View {
             legend
         }
         .padding(.bottom, 6)
-    }
-
-    private var bar: some View {
-        GeometryReader { geometry in
-            let gaps = CGFloat(max(slices.count - 1, 0)) * 2
-            let available = max(geometry.size.width - gaps, 1)
-            HStack(spacing: 2) {
-                ForEach(Array(slices.enumerated()), id: \.element.id) { index, slice in
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .fill(color(for: slice, at: index))
-                        .frame(
-                            width: max(
-                                available * CGFloat(slice.bytes) / CGFloat(totalBytes),
-                                slice.bytes > 0 ? 3 : 0))
-                }
-            }
-        }
     }
 
     private var legend: some View {
@@ -841,11 +1014,8 @@ private struct CapacityBarSection: View {
         }
     }
 
-    /// Named volume slices count their own index among volumes so folded and
-    /// fixed-slot slices do not shift their colors.
     private func color(for slice: DiskCapacitySlice, at index: Int) -> Color {
-        let namedIndex = slices.prefix(index).filter { $0.kind == .volume }.count
-        return DiskStyle.capacityColor(for: slice, namedIndex: namedIndex)
+        CapacityBar.color(of: slices, at: index)
     }
 
     private func legendLabel(_ slice: DiskCapacitySlice) -> String {
@@ -864,6 +1034,38 @@ private struct CapacityBarSection: View {
     private var accessibilitySummary: String {
         slices.map { "\(legendLabel($0)) \(ByteFormat.string($0.bytes))" }
             .joined(separator: ", ")
+    }
+}
+
+/// The stacked bar alone, with 2 point gaps between slices; the free slice
+/// renders as a recessive track.
+private struct CapacityBar: View {
+    let slices: [DiskCapacitySlice]
+
+    private var totalBytes: UInt64 { max(slices.reduce(0) { $0 + $1.bytes }, 1) }
+
+    var body: some View {
+        GeometryReader { geometry in
+            let gaps = CGFloat(max(slices.count - 1, 0)) * 2
+            let available = max(geometry.size.width - gaps, 1)
+            HStack(spacing: 2) {
+                ForEach(Array(slices.enumerated()), id: \.element.id) { index, slice in
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(Self.color(of: slices, at: index))
+                        .frame(
+                            width: max(
+                                available * CGFloat(slice.bytes) / CGFloat(totalBytes),
+                                slice.bytes > 0 ? 3 : 0))
+                }
+            }
+        }
+    }
+
+    /// Named volume slices count their own index among volumes so folded and
+    /// fixed-slot slices do not shift their colors.
+    static func color(of slices: [DiskCapacitySlice], at index: Int) -> Color {
+        let namedIndex = slices.prefix(index).filter { $0.kind == .volume }.count
+        return DiskStyle.capacityColor(for: slices[index], namedIndex: namedIndex)
     }
 }
 

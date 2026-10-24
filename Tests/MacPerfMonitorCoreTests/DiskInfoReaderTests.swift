@@ -67,10 +67,13 @@ final class DiskInfoReaderTests: XCTestCase {
                     + "hpm1@A/AppleHPMDeviceHALType3@A/Port-USB-C@2"))
         XCTAssertEqual(info.usb?.usbVersion, "3.2")
         XCTAssertEqual(info.usb?.linkLabel, "10 Gbps")
+        XCTAssertEqual(info.usbPortKey, "USB-C@2")
         XCTAssertEqual(info.usbPort, "USB-C 2")
+        // The same page the Ports section files the receptacle under.
+        XCTAssertEqual(info.usbPortNodeID, "ports/usb-c-2")
         XCTAssertEqual(
-            DiskInfoReader.portName(fromUSBIOPort: "IOService:/a/Port-MagSafe 3@1"), "MagSafe 3 1")
-        XCTAssertNil(DiskInfoReader.portName(fromUSBIOPort: "IOService:/a/usb-drd1-port-ss"))
+            DiskInfoReader.portKey(fromUSBIOPort: "IOService:/a/Port-MagSafe 3@1"), "MagSafe 3@1")
+        XCTAssertNil(DiskInfoReader.portKey(fromUSBIOPort: "IOService:/a/usb-drd1-port-ss"))
     }
 
     func testSerialFallsBackToControllerWhenDeviceOmitsIt() {

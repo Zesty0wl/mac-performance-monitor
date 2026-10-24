@@ -43,10 +43,24 @@ Notable changes to Mac Performance Monitor. This project follows
 - **USB drives on the Disk page show their USB link.** A drive's card now
   gives the USB version its enclosure declares, the speed it connected at
   (such as "USB 3.2, 10 Gbps"), and the port it is plugged into, through
-  any hubs. A drive running slower than its USB version allows is flagged.
+  any hubs. Click the port to open it in Hardware > Ports. A drive running
+  slower than its USB version allows is flagged.
 
 ### Changed
 
+- **The Disk page leads with your drives.** A new Drives panel at the top
+  has a card for each internal and external drive, showing:
+  - its name, free space and a capacity bar, so an external drive's free
+    space is as easy to see as the internal one's
+  - how it is connected, its SMART status where available, and its live
+    reads and writes
+  - its hardware details, behind a disclosure
+
+  The boot volume's Free space card is replaced by a Busy card for disk
+  utilization. Capacity and volumes are now grouped by drive. The small
+  containers macOS keeps for itself (Preboot, Recovery) and disk images
+  (cryptexes, simulator runtimes) are folded away, so they no longer bury
+  the volumes you use.
 - **The energy menu shows where the power comes from.** On a laptop, the
   battery charge line, which sat flat for most of its 15-minute window, is
   replaced by a stacked power chart:
