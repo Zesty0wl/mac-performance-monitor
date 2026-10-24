@@ -669,7 +669,10 @@ enum PortInventoryParser {
             nonEmpty(record["DataRateDescription"] as? String)
             ?? nonEmpty(record["LinkRateDescription"] as? String)
         if let generation = nonEmpty(record["GenerationDescription"] as? String) {
-            if let signaling = nonEmpty(record["SuperSpeedSignalingDescription"] as? String) {
+            if let signaling = superSpeedSignaling(
+                rate: link.rate,
+                reported: nonEmpty(record["SuperSpeedSignalingDescription"] as? String))
+            {
                 link.generation = "\(generation) \(signaling)"
             } else {
                 link.generation = generation
@@ -692,6 +695,18 @@ enum PortInventoryParser {
         link.authorization = nonEmpty(record["AuthorizationStatusDescription"] as? String)
         link.accessoryPolicy = nonEmpty(record["TRM_ProfileDescription"] as? String)
         return link
+    }
+
+    /// The SuperSpeed generation, from the data rate when it names one: the
+    /// signalling field can lag a renegotiation (a drive running at 10 Gbps
+    /// still read "Gen 1"), while the rate is what the link runs at.
+    static func superSpeedSignaling(rate: String?, reported: String?) -> String? {
+        switch rate?.split(separator: " ").first {
+        case "5": return "Gen 1"
+        case "10": return "Gen 2"
+        case "20": return "Gen 2x2"
+        default: return reported
+        }
     }
 
     static func pdIdentity(from record: [String: Any]) -> PDIdentity {

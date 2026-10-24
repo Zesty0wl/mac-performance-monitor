@@ -665,6 +665,14 @@ private struct DeviceCard: View {
                 let location = hardware.interconnectLocation.map { " (\($0))" } ?? ""
                 rows.append((t("Interconnect"), interconnect + location))
             }
+            if let usb = hardware.usb {
+                let link = [usb.usbVersion.map { "USB \($0)" }, usb.linkLabel].compactMap { $0 }
+                if !link.isEmpty { rows.append((t("USB link"), link.joined(separator: ", "))) }
+                if usb.isBelowDeclaredSpeed {
+                    rows.append((t("Speed check"), t("Below the USB version it declares")))
+                }
+            }
+            if let port = hardware.usbPort { rows.append((t("Port"), port)) }
             if let solidState = hardware.isSolidState {
                 rows.append((t("Medium"), solidState ? t("Solid state") : t("Rotational")))
             }

@@ -19,6 +19,10 @@ public final class DiskInfoReader {
         var controllerProperties: [String: String]
         /// Registry entry IDs to try for the SMART plug-in, controller first.
         var smartCandidateIDs: [UInt64] = []
+        /// The `IOUSBHostDevice` above the drive, when it is on USB.
+        var usb: PortUSBDevice?
+        /// That device's `UsbIOPort` path, which ends in the receptacle.
+        var usbIOPort: String?
     }
 
     private let source: () -> [DeviceReadout]
@@ -72,7 +76,18 @@ public final class DiskInfoReader {
             firmwareRevision: nonEmpty(controller["Firmware Revision"]),
             nandStatus: nonEmpty(controller["AppleNANDStatus"]),
             nvmeRevision: nonEmpty(controller["NVMe Revision Supported"]),
-            smartCandidateIDs: readout.smartCandidateIDs)
+            smartCandidateIDs: readout.smartCandidateIDs,
+            usb: readout.usb,
+            usbPort: readout.usbIOPort.flatMap(portName(fromUSBIOPort:)))
+    }
+
+    /// "USB-C 2" from a `UsbIOPort` path ending in "Port-USB-C@2".
+    static func portName(fromUSBIOPort path: String) -> String? {
+        guard let last = path.split(separator: "/").last, last.hasPrefix("Port-"),
+            let at = last.lastIndex(of: "@")
+        else { return nil }
+        let kind = last[last.index(last.startIndex, offsetBy: "Port-".count)..<at]
+        return "\(kind) \(last[last.index(after: at)...])"
     }
 
     /// The registry publishes some identity strings as "" rather than omitting
@@ -146,6 +161,30 @@ public final class DiskInfoReader {
                         }
                     }
 
+                    // A USB drive is a few levels under its bridge: the
+                    // SCSI peripheral, logical unit, target, the UAS or
+                    // bulk-only driver, and the interface.
+                    var usb: PortUSBDevice?
+                    var usbIOPort: String?
+                    if let host = IOKitProperty.firstParent(
+                        of: driver, conformingTo: "IOUSBHostDevice", maxDepth: 10)
+                    {
+                        defer { IOObjectRelease(host) }
+                        var unmanaged: Unmanaged<CFMutableDictionary>?
+                        if IORegistryEntryCreateCFProperties(
+                            host, &unmanaged, kCFAllocatorDefault, 0) == KERN_SUCCESS,
+                            let record = unmanaged?.takeRetainedValue() as? [String: Any]
+                        {
+                            usb = PortInventoryParser.usbDevice(from: record)
+                        }
+                        let options = IOOptionBits(
+                            kIORegistryIterateRecursively | kIORegistryIterateParents)
+                        usbIOPort =
+                            IORegistryEntrySearchCFProperty(
+                                host, kIOServicePlane, "UsbIOPort" as CFString,
+                                kCFAllocatorDefault, options) as? String
+                    }
+
                     result.append(
                         DeviceReadout(
                             registryEntryID: entryID,
@@ -156,7 +195,8 @@ public final class DiskInfoReader {
                                 media, "Preferred Block Size"),
                             controllerClass: controllerClass,
                             controllerProperties: controllerProperties,
-                            smartCandidateIDs: smartCandidates))
+                            smartCandidateIDs: smartCandidates,
+                            usb: usb, usbIOPort: usbIOPort))
                 }
             }
             IOObjectRelease(driver)

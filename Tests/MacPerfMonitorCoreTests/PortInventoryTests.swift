@@ -176,6 +176,19 @@ final class PortInventoryTests: XCTestCase {
         XCTAssertEqual(inventory.ports[3].links.first?.isActive, false)
     }
 
+    func testSuperSpeedGenerationFollowsTheDataRate() {
+        // Seen on a 10 Gbps drive: the signalling field still said Gen 1.
+        XCTAssertEqual(
+            PortInventoryParser.superSpeedSignaling(rate: "10 Gbps", reported: "Gen 1"), "Gen 2")
+        XCTAssertEqual(
+            PortInventoryParser.superSpeedSignaling(rate: "5 Gbps", reported: nil), "Gen 1")
+        XCTAssertEqual(
+            PortInventoryParser.superSpeedSignaling(rate: "20 Gbps", reported: "Gen 2"), "Gen 2x2")
+        XCTAssertEqual(
+            PortInventoryParser.superSpeedSignaling(rate: nil, reported: "Gen 2"), "Gen 2")
+        XCTAssertNil(PortInventoryParser.superSpeedSignaling(rate: "None", reported: nil))
+    }
+
     func testPartnerAndCableIdentitiesDecode() {
         let port = PortInventoryParser.inventory(from: Self.fixture()).ports[0]
         let partner = try! XCTUnwrap(port.partner)

@@ -25,8 +25,13 @@ final class HardwareExplorerModel: ObservableObject {
     @Published var query = ""
 
     private var generation = 0
-    /// Watches for plug events while the Hardware tab is on screen.
+    /// Watches for plug events from the first time the Hardware tab shows.
     private var portMonitor: PortChangeMonitor?
+    /// Whether the Hardware tab is on screen, so a plug event re-reads the
+    /// ports at once rather than on the next visit.
+    private var isWatchingPorts = false
+    /// A plug event arrived while the tab was hidden.
+    private var portsChangedWhileHidden = false
     /// The sections a plug event can change: the ports themselves, and the
     /// two `system_profiler` buses whose device lists follow them.
     static let portSectionIDs = ["ports", "usb", "thunderbolt"]
@@ -140,21 +145,30 @@ final class HardwareExplorerModel: ObservableObject {
     }
 
     /// Follow plug events while `on`: a cable, charger or device arriving or
-    /// leaving re-reads the port sections about a second later. Kernel
-    /// notifications, so nothing runs while nothing changes.
+    /// leaving re-reads the port sections about a second later. The monitor
+    /// keeps running while the tab is hidden (kernel notifications, so
+    /// nothing runs while nothing changes) and only notes the change, so a
+    /// drive plugged in on another tab is there on return.
     func watchPorts(_ on: Bool) {
-        guard on else {
-            portMonitor?.stop()
-            return
-        }
+        isWatchingPorts = on
+        guard on else { return }
         if portMonitor == nil {
             portMonitor = PortChangeMonitor { [weak self] in
                 MainActor.assumeIsolated {
-                    self?.refreshSections(Self.portSectionIDs)
+                    guard let self else { return }
+                    if self.isWatchingPorts {
+                        self.refreshSections(Self.portSectionIDs)
+                    } else {
+                        self.portsChangedWhileHidden = true
+                    }
                 }
             }
+            portMonitor?.start()
         }
-        portMonitor?.start()
+        if portsChangedWhileHidden {
+            portsChangedWhileHidden = false
+            refreshSections(Self.portSectionIDs)
+        }
     }
 
     private func merge(_ section: HardwareSection, generation: Int) {
