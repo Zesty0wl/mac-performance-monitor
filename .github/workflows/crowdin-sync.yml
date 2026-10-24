@@ -1,0 +1,103 @@
+name: Crowdin sync
+
+# Crowdin's GitHub integration exports the String Catalog to the l10n_main
+# branch and opens a pull request from it. Those pull requests never merge:
+# the branch stays on the commit it was cut from while main edits the catalog
+# with every feature, so it conflicts within a day, and GitHub runs no checks
+# on a conflicting pull request. Almost everything in them is also an echo of
+# translations main already has.
+#
+# This workflow replaces that pull request. On every push to l10n_main it
+# takes the translations people actually made on Crowdin into main
+# (Scripts/merge-crowdin.py explains what counts), checks the catalog, pushes,
+# starts CI on main, then closes Crowdin's pull request and deletes the branch
+# so Crowdin's next export starts from current main.
+
+on:
+  push:
+    branches: [l10n_main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: crowdin-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: macos-15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Fetch Crowdin's export
+        id: fetch
+        run: |
+          if git fetch origin l10n_main:refs/remotes/origin/l10n_main; then
+            echo "sha=$(git rev-parse origin/l10n_main)" >> "$GITHUB_OUTPUT"
+          else
+            echo "No l10n_main branch, nothing to do."
+          fi
+
+      # Main can move while this runs; on a rejected push, start again from
+      # the new main rather than rebasing a 2.7 MB JSON file.
+      - name: Merge new translations into main
+        id: merge
+        if: steps.fetch.outputs.sha != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for _ in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            Scripts/merge-crowdin.py | tee "$RUNNER_TEMP/merge.txt"
+            echo "summary=$(tail -n 1 "$RUNNER_TEMP/merge.txt")" >> "$GITHUB_OUTPUT"
+            if git diff --quiet; then
+              exit 0
+            fi
+            Scripts/check-localization.py
+            xcrun xcstringstool compile Localizations/Localizable.xcstrings \
+              --output-directory "$RUNNER_TEMP/lproj"
+            {
+              printf 'Merge translations from Crowdin\n\n'
+              sed '$d' "$RUNNER_TEMP/merge.txt" | head -n 50
+            } > "$RUNNER_TEMP/message.txt"
+            git commit --quiet -a -F "$RUNNER_TEMP/message.txt"
+            if git push origin HEAD:main; then
+              echo "commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "Main kept moving; leaving l10n_main for the next run."
+          exit 1
+
+      # A push made with the workflow token does not start other workflows,
+      # except through a dispatch.
+      - name: Run CI on main
+        if: steps.merge.outputs.commit != ''
+        run: gh workflow run ci.yml --ref main
+
+      - name: Close Crowdin's pull request and branch
+        if: steps.fetch.outputs.sha != ''
+        run: |
+          if [ -n "${{ steps.merge.outputs.commit }}" ]; then
+            message="Merged into main as ${{ steps.merge.outputs.commit }}: ${{ steps.merge.outputs.summary }}. Closed by the Crowdin sync workflow."
+          else
+            message="Nothing new: every translation here is already on main. Closed by the Crowdin sync workflow."
+          fi
+          for pr in $(gh pr list --head l10n_main --state open --json number --jq '.[].number'); do
+            gh pr close "$pr" --comment "$message"
+          done
+          # Only if Crowdin has not pushed again since the fetch; a newer push
+          # queues its own run.
+          git push --force-with-lease="refs/heads/l10n_main:${{ steps.fetch.outputs.sha }}" \
+            origin :refs/heads/l10n_main
