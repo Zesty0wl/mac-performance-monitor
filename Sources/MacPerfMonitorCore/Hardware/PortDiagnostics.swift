@@ -137,7 +137,13 @@ enum PortNodes {
     static var findingsGroup: String { PortDiagnostics.propertyGroup }
 
     static func nodeID(for port: HardwarePort, parentID: String) -> String {
-        let slug = port.key.lowercased()
+        nodeID(forPortKey: port.key, parentID: parentID)
+    }
+
+    /// The node for the port `key` names ("USB-C@2"), so another page can
+    /// link to it.
+    static func nodeID(forPortKey key: String, parentID: String) -> String {
+        let slug = key.lowercased()
             .replacingOccurrences(of: "@", with: "-")
             .replacingOccurrences(of: " ", with: "-")
         return "\(parentID)/\(slug)"

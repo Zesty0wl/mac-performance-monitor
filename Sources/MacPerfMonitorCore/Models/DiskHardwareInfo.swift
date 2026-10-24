@@ -40,6 +40,15 @@ public struct DiskHardwareInfo: Sendable, Equatable, Identifiable {
     /// The USB device the drive sits behind (its enclosure's bridge): the
     /// USB version it declares and the speed it linked at.
     public var usb: PortUSBDevice?
-    /// The receptacle it is plugged into, through any hubs: "USB-C 2".
-    public var usbPort: String?
+    /// The receptacle it is plugged into, through any hubs, as the port
+    /// drivers name it: "USB-C@2".
+    public var usbPortKey: String?
+
+    /// "USB-C 2".
+    public var usbPort: String? { usbPortKey?.replacingOccurrences(of: "@", with: " ") }
+
+    /// That port's page in the Hardware tab.
+    public var usbPortNodeID: String? {
+        usbPortKey.map { PortNodes.nodeID(forPortKey: $0, parentID: "ports") }
+    }
 }

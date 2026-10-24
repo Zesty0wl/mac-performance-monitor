@@ -78,16 +78,16 @@ public final class DiskInfoReader {
             nvmeRevision: nonEmpty(controller["NVMe Revision Supported"]),
             smartCandidateIDs: readout.smartCandidateIDs,
             usb: readout.usb,
-            usbPort: readout.usbIOPort.flatMap(portName(fromUSBIOPort:)))
+            usbPortKey: readout.usbIOPort.flatMap(portKey(fromUSBIOPort:)))
     }
 
-    /// "USB-C 2" from a `UsbIOPort` path ending in "Port-USB-C@2".
-    static func portName(fromUSBIOPort path: String) -> String? {
+    /// "USB-C@2" from a `UsbIOPort` path ending in "Port-USB-C@2", the key
+    /// the Ports section files that receptacle under.
+    static func portKey(fromUSBIOPort path: String) -> String? {
         guard let last = path.split(separator: "/").last, last.hasPrefix("Port-"),
-            let at = last.lastIndex(of: "@")
+            last.contains("@")
         else { return nil }
-        let kind = last[last.index(last.startIndex, offsetBy: "Port-".count)..<at]
-        return "\(kind) \(last[last.index(after: at)...])"
+        return String(last.dropFirst("Port-".count))
     }
 
     /// The registry publishes some identity strings as "" rather than omitting

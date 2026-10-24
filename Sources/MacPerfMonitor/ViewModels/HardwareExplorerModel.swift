@@ -32,6 +32,9 @@ final class HardwareExplorerModel: ObservableObject {
     private var isWatchingPorts = false
     /// A plug event arrived while the tab was hidden.
     private var portsChangedWhileHidden = false
+    /// A page another tab linked to before the inventory holding it was
+    /// read; selected when it arrives.
+    private var pendingSelection: String?
     /// The sections a plug event can change: the ports themselves, and the
     /// two `system_profiler` buses whose device lists follow them.
     static let portSectionIDs = ["ports", "usb", "thunderbolt"]
@@ -85,6 +88,23 @@ final class HardwareExplorerModel: ObservableObject {
     /// (the temperature unit); nothing is captured if the tab was never opened.
     func refreshIfCaptured() {
         if capturedAt != nil, !isRefreshing { refresh() }
+    }
+
+    /// Open the page `id` names: at once when it has been read, otherwise
+    /// as soon as the capture reaches it.
+    func show(_ id: String) {
+        if node(withID: id) != nil {
+            selectedID = id
+            pendingSelection = nil
+        } else {
+            pendingSelection = id
+        }
+    }
+
+    private func applyPendingSelection() {
+        guard let pending = pendingSelection, node(withID: pending) != nil else { return }
+        selectedID = pending
+        pendingSelection = nil
     }
 
     func refreshIfNeeded() {
@@ -183,6 +203,7 @@ final class HardwareExplorerModel: ObservableObject {
                 (order.firstIndex(of: $0.id) ?? 0) < (order.firstIndex(of: $1.id) ?? 0)
             }
         }
+        applyPendingSelection()
     }
 
     private func finish(_ snapshot: HardwareSnapshot, generation: Int, started: Date) {
@@ -192,6 +213,13 @@ final class HardwareExplorerModel: ObservableObject {
         lastCaptureSeconds = Date().timeIntervalSince(started)
         completed = total
         isRefreshing = false
+        applyPendingSelection()
+        // A link to a page that is not there (the device went) lands on its
+        // section.
+        if let pending = pendingSelection {
+            pendingSelection = nil
+            selectedID = sections.first { pending.hasPrefix($0.id + "/") }?.id ?? selectedID
+        }
         if let selectedID, selectedID != Self.overviewID, node(withID: selectedID) == nil {
             self.selectedID = Self.overviewID
         }
