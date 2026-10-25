@@ -6,6 +6,16 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Disk page's drive cards no longer jump around as readings
+  change.** Each live reading (R, W, IOPS, latency, Busy) has a fixed
+  width, and latency and Busy show "--" on an idle tick instead of
+  disappearing, so the row never wraps and the cards keep their height.
+- **Drive cards fill the Drives panel.** Two drives in a wide window
+  each take half the panel instead of sharing the left half, and a wide
+  card shows its readings on one row.
+
 ## [2.5.0] - 2026-10-25
 
 ### Added
