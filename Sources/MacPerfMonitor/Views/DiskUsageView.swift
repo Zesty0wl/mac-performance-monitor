@@ -19,6 +19,8 @@ struct DiskUsageView: View {
     @State private var points: [SystemHistoryPoint] = []
     @State private var loadedRange: HistoryWindow?
     @State private var topDiskConsumers: [ProcessConsumer] = []
+    /// The Drives panel's content width, which sets how many cards share a row.
+    @State private var drivesWidth: CGFloat = 0
 
     /// The tab's two pages. Remembered across launches: someone who came for
     /// the Disk Map keeps landing on it.
@@ -269,7 +271,9 @@ struct DiskUsageView: View {
                     .foregroundStyle(.secondary)
             } else {
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 340), spacing: 12, alignment: .top)],
+                    columns: Array(
+                        repeating: GridItem(.flexible(), spacing: 12, alignment: .top),
+                        count: driveColumns(devices.count)),
                     alignment: .leading, spacing: 12
                 ) {
                     ForEach(devices) { device in
@@ -281,8 +285,22 @@ struct DiskUsageView: View {
                             volumesLoaded: layout != nil)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .onGeometryChange(for: CGFloat.self) {
+                    $0.size.width
+                } action: {
+                    drivesWidth = $0
+                }
             }
         }
+    }
+
+    /// As many 340 point columns as fit, but never more than there are
+    /// drives: an adaptive grid would leave two drives in the left half of a
+    /// wide window with empty columns beside them.
+    private func driveColumns(_ driveCount: Int) -> Int {
+        let fitting = Int((drivesWidth + 12) / (340 + 12))
+        return max(1, min(driveCount, fitting))
     }
 
     private var capacityPanel: some View {
@@ -899,38 +917,76 @@ private struct DriveCard: View {
         }
     }
 
+    /// Throughput then service time, with every value in a slot as wide as
+    /// its widest reading: one row when the card is wide enough, else two.
+    /// The strip refreshes each tick, so a rate growing from "0 B/s" to
+    /// "1023.9 KB/s", or latency going nil on a tick with no I/O, must not
+    /// reflow the row, wrap it, or change the card's height (which shifts the
+    /// whole grid row). Both layouts have fixed widths, so which one fits
+    /// depends only on the card's width, never on the values.
     private var liveStrip: some View {
-        HStack(spacing: 14) {
-            liveValue("R", ByteFormat.rate(device.readBytesPerSec), DiskStyle.read)
-            liveValue("W", ByteFormat.rate(device.writeBytesPerSec), DiskStyle.write)
-            liveValue(
-                "IOPS",
-                "\(Int((device.readOperationsPerSec + device.writeOperationsPerSec).rounded()))",
-                .primary)
-            if let readTime = device.averageReadTimeMilliseconds {
-                liveValue(t("R lat"), String(format: "%.2f ms", readTime), .secondary)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 14) {
+                throughputValues
+                serviceTimeValues
             }
-            if let writeTime = device.averageWriteTimeMilliseconds {
-                liveValue(t("W lat"), String(format: "%.2f ms", writeTime), .secondary)
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 3) {
+                GridRow { throughputValues }
+                GridRow { serviceTimeValues }
             }
-            if let utilization = device.utilizationPercent {
-                liveValue(
-                    t("Busy"), "\(Int(utilization.rounded()))%",
-                    DiskStyle.utilization(utilization))
-            }
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func liveValue(_ label: String, _ value: String, _ tint: Color) -> some View {
+    @ViewBuilder private var throughputValues: some View {
+        liveValue(
+            "R", ByteFormat.rate(device.readBytesPerSec), widest: "1023.9 MB/s",
+            DiskStyle.read)
+        liveValue(
+            "W", ByteFormat.rate(device.writeBytesPerSec), widest: "1023.9 MB/s",
+            DiskStyle.write)
+        liveValue(
+            "IOPS",
+            "\(Int((device.readOperationsPerSec + device.writeOperationsPerSec).rounded()))",
+            widest: "88888", .primary)
+    }
+
+    @ViewBuilder private var serviceTimeValues: some View {
+        liveValue(
+            t("R lat"), device.averageReadTimeMilliseconds.map { String(format: "%.2f ms", $0) },
+            widest: "888.88 ms", .secondary)
+        liveValue(
+            t("W lat"), device.averageWriteTimeMilliseconds.map { String(format: "%.2f ms", $0) },
+            widest: "888.88 ms", .secondary)
+        liveValue(
+            t("Busy"), device.utilizationPercent.map { "\(Int($0.rounded()))%" },
+            widest: "100%", DiskStyle.utilization(device.utilizationPercent ?? 0))
+    }
+
+    /// A label and a trailing-aligned value in a slot sized by `widest`, so the
+    /// cell keeps one width whatever the value. A reading wider than that
+    /// (a multi-second latency) scales down instead of wrapping.
+    private func liveValue(
+        _ label: String, _ value: String?, widest: String, _ tint: Color
+    ) -> some View {
         HStack(spacing: 3) {
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
-            Text(value)
+                .lineLimit(1)
+            Text(widest)
                 .font(.caption.monospacedDigit())
-                .foregroundStyle(tint)
+                .lineLimit(1)
+                .hidden()
+                .overlay(alignment: .trailing) {
+                    Text(value ?? "--")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(value == nil ? Color.secondary : tint)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
         }
+        .fixedSize()
     }
 
     private func badge(_ text: LocalizedStringKey) -> some View {
