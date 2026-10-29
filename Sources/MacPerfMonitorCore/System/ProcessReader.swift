@@ -247,6 +247,40 @@ public struct ProcessReader: Sendable {
         return String(cString: buffer)
     }
 
+    /// The process's resource coalition ID. macOS puts an app, the children it
+    /// forks, and the XPC services launched on its behalf into one coalition,
+    /// which is what lets the Apps view total them; a parent-PID tree cannot,
+    /// because XPC services (WebKit's content processes among them) are
+    /// launchd's children. `PROC_PIDCOALITIONINFO` (flavor 20) is not in the
+    /// public SDK: it fills the resource and jetsam coalition IDs then three
+    /// reserved words. Readable for every process as the user.
+    public func coalitionID(_ pid: pid_t) -> UInt64? {
+        var words: (UInt64, UInt64, UInt64, UInt64, UInt64) = (0, 0, 0, 0, 0)
+        let size = Int32(MemoryLayout.size(ofValue: words))
+        let ret = withUnsafeMutablePointer(to: &words) {
+            proc_pidinfo(pid, Self.pidCoalitionInfoFlavor, 0, $0, size)
+        }
+        guard ret == size, words.0 != 0 else { return nil }
+        return words.0
+    }
+
+    private static let pidCoalitionInfoFlavor: Int32 = 20
+
+    /// The process macOS holds responsible for `pid`: an app for its helpers
+    /// and XPC services, the process itself otherwise. Private libsystem SPI
+    /// resolved once; nil when missing or when the call fails, which it does
+    /// for many root processes.
+    public func responsiblePID(_ pid: pid_t) -> pid_t? {
+        guard let responsibleFor = Self.responsibleFor else { return nil }
+        let responsible = responsibleFor(pid)
+        return responsible > 0 ? responsible : nil
+    }
+
+    private typealias ResponsibleFor = @convention(c) (pid_t) -> pid_t
+    private static let responsibleFor: ResponsibleFor? = dlsym(
+        UnsafeMutableRawPointer(bitPattern: -2), "responsibility_get_pid_responsible_for_pid"
+    ).map { unsafeBitCast($0, to: ResponsibleFor.self) }
+
     /// File-descriptor count and type breakdown.
     public func fdBreakdown(_ pid: pid_t) -> FDBreakdown? {
         let bufferSize = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, nil, 0)

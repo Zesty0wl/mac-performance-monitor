@@ -170,6 +170,9 @@ public final class Sampler {
         var teamID: String?
         var isTranslated: Bool?
         var architecture: Architecture
+        /// Fixed at spawn, so read once per identity like the rest.
+        var coalitionID: UInt64?
+        var responsiblePID: Int32?
         /// Whether the (expensive) Team-ID code-sign lookup has actually run for
         /// this identity. False means it was deferred by the per-tick budget (see
         /// `teamIDResolvePerTick`) and should be retried on a later tick — as
@@ -716,6 +719,8 @@ public final class Sampler {
                     teamID: codeSigningResolver.teamID(forExecutablePath: partial.executablePath),
                     isTranslated: partial.isTranslated,
                     architecture: partial.architecture,
+                    coalitionID: partial.coalitionID,
+                    responsiblePID: partial.responsiblePID,
                     teamIDResolved: true)
             } else {
                 staticInfo = partial
@@ -733,6 +738,8 @@ public final class Sampler {
                 teamID: resolveTeam ? codeSigningResolver.teamID(forExecutablePath: path) : nil,
                 isTranslated: translated,
                 architecture: processReader.architecture(translated: translated),
+                coalitionID: processReader.coalitionID(pid),
+                responsiblePID: processReader.responsiblePID(pid),
                 teamIDResolved: resolveTeam)
         }
         newStaticCache[identity] = staticInfo
@@ -776,7 +783,9 @@ public final class Sampler {
             footprintReadable: rusage != nil,
             gpuTimeNanos: gpuTimeNanos,
             gpuPercent: gpuPercent,
-            gpuLastActive: gpuLastActive
+            gpuLastActive: gpuLastActive,
+            coalitionID: staticInfo.coalitionID,
+            responsiblePID: staticInfo.responsiblePID
         )
     }
 

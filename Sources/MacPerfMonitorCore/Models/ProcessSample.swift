@@ -96,6 +96,14 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
     public var gpuPercent: Double?
     /// When the process last submitted GPU work.
     public var gpuLastActive: Date?
+    // App grouping (`AppGrouping`). Optional for the same reason as the GPU
+    // fields: nil when unreadable, and old traces still decode.
+    /// The process's resource coalition, shared by an app, the children it
+    /// forks, and the XPC services launched on its behalf.
+    public var coalitionID: UInt64?
+    /// The process macOS holds responsible for this one (an app for its
+    /// helpers); used to pick which member names an app group.
+    public var responsiblePID: Int32?
 
     public var id: ProcessIdentity { ProcessIdentity(pid: pid, startTime: startTime) }
 
@@ -167,7 +175,9 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
         footprintReadable: Bool,
         gpuTimeNanos: UInt64? = nil,
         gpuPercent: Double? = nil,
-        gpuLastActive: Date? = nil
+        gpuLastActive: Date? = nil,
+        coalitionID: UInt64? = nil,
+        responsiblePID: Int32? = nil
     ) {
         self.timestamp = timestamp
         self.pid = pid
@@ -205,5 +215,7 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
         self.gpuTimeNanos = gpuTimeNanos
         self.gpuPercent = gpuPercent
         self.gpuLastActive = gpuLastActive
+        self.coalitionID = coalitionID
+        self.responsiblePID = responsiblePID
     }
 }

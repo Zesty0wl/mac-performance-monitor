@@ -6,6 +6,20 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Added
+
+- **See how much memory each app uses across all of its processes**
+  ([#162](https://github.com/Zesty0wl/mac-performance-monitor/issues/162)).
+  The Processes tab's new Apps layout shows one row per app with its
+  Memory, CPU, threads and open files added up across every process
+  working for it, and those processes listed beneath. That includes the
+  helpers macOS starts on an app's behalf, such as Safari's and Mail's
+  web content processes, which the parent-process Hierarchy view could
+  not connect to their app. Selecting an app shows its totals and its
+  processes, largest first, and an app can be quit from its row. The
+  layout picker (Processes, Apps, Hierarchy) replaces the Hierarchy
+  toggle and remembers your choice.
+
 ### Fixed
 
 - **The Disk page's drive cards no longer jump around as readings

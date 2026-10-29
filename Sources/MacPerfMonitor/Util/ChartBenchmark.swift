@@ -378,7 +378,9 @@ enum ChartBenchmark {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 Group {
-                    if let selection {
+                    if let selection, selection.isAppGroup {
+                        AppGroupDetailView(identity: selection, selection: $selection)
+                    } else if let selection {
                         ProcessDetailView(identity: selection)
                     } else {
                         Color.clear
@@ -388,7 +390,11 @@ enum ChartBenchmark {
                 .padding(12)
             }
             .frame(width: width, height: 900)
-            .onAppear { selection = store.firstIdentity }
+            .onAppear {
+                selection =
+                    ProcessListLayout.stored == .apps
+                    ? .appGroup(coalitionID: 1) : store.firstIdentity
+            }
             .environmentObject(store.model)
             .environment(\.samplerModel, store.model)
             .environmentObject(store.appState)
@@ -479,7 +485,10 @@ enum ChartBenchmark {
                         diskBytesRead: 0, diskBytesWritten: 0,
                         isTranslated: i % 97 == 0, architecture: .arm64,
                         startTime: start.addingTimeInterval(-Double(i)), uid: 501,
-                        dataSource: .directUserRead, footprintReadable: true))
+                        dataSource: .directUserRead, footprintReadable: true,
+                        // Apps of seven processes each, for the Apps layout,
+                        // each blaming its first process.
+                        coalitionID: UInt64(1 + i / 7), responsiblePID: Int32(100 + i / 7 * 7)))
             }
         }
 

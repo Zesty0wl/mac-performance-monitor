@@ -44706,36 +44706,6 @@
         }
       }
     },
-    "Group processes by which launched which." : {
-      "comment" : "Process Explorer & Tables",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prozesse nach dem Prozess gruppieren, der sie gestartet hat."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Group processes by which launched which."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Grouper les processus selon celui qui les a lancés."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "按进程派生关系分组。"
-          }
-        }
-      }
-    },
     "Groups" : {
       "comment" : "ContentView & Navigation",
       "extractionState" : "manual",
@@ -90152,6 +90122,246 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最繁忙磁盘处理 I/O 所用的时间占比。"
+          }
+        }
+      }
+    },
+    "Apps" : {
+      "comment" : "Processes tab: Apps layout (issue #162)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apps"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apps"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apps"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用"
+          }
+        }
+      }
+    },
+    "Layout" : {
+      "comment" : "Processes tab: Apps layout (issue #162)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Darstellung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Layout"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disposition"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "布局"
+          }
+        }
+      }
+    },
+    "List processes one by one, add up each app with every process working for it, or nest processes under the one that launched them." : {
+      "comment" : "Processes tab: Apps layout (issue #162)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prozesse einzeln auflisten, jede App mit allen für sie arbeitenden Prozessen zusammenrechnen oder Prozesse unter dem Prozess einordnen, der sie gestartet hat."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "List processes one by one, add up each app with every process working for it, or nest processes under the one that launched them."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lister les processus un par un, additionner chaque app avec tous les processus qui travaillent pour elle, ou imbriquer les processus sous celui qui les a lancés."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "逐个列出进程，按应用汇总为其工作的所有进程，或将进程嵌套在启动它的进程之下。"
+          }
+        }
+      }
+    },
+    "Quit App" : {
+      "comment" : "Processes tab: Apps layout (issue #162)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App beenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit App"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitter l'app"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退出应用"
+          }
+        }
+      }
+    },
+    "One of this app's processes looks like it's leaking memory." : {
+      "comment" : "Processes tab: Apps layout (issue #162)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einer der Prozesse dieser App hat anscheinend ein Speicherleck."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One of this app's processes looks like it's leaking memory."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un des processus de cette app semble avoir une fuite mémoire."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该应用的某个进程疑似存在内存泄漏。"
+          }
+        }
+      }
+    },
+    "App no longer running" : {
+      "comment" : "Processes tab: Apps layout (issue #162)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App läuft nicht mehr"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App no longer running"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'app n'est plus ouverte"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用已不再运行"
+          }
+        }
+      }
+    },
+    "Added up across the app and every process working for it, including services macOS started on its behalf." : {
+      "comment" : "Processes tab: Apps layout (issue #162)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zusammengerechnet über die App und alle für sie arbeitenden Prozesse, einschließlich der Dienste, die macOS für sie gestartet hat."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added up across the app and every process working for it, including services macOS started on its behalf."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total de l'app et de tous les processus qui travaillent pour elle, y compris les services que macOS a lancés pour son compte."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "汇总了该应用及为其工作的所有进程，包括 macOS 代其启动的服务。"
+          }
+        }
+      }
+    },
+    "Quit the app the normal way, as Quit in its menu does." : {
+      "comment" : "Processes tab: Apps layout (issue #162)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beendet die App auf normalem Weg, wie der Befehl „Beenden“ in ihrem Menü."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit the app the normal way, as Quit in its menu does."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitte l'app normalement, comme la commande Quitter de son menu."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以正常方式退出应用，与其菜单中的“退出”相同。"
           }
         }
       }

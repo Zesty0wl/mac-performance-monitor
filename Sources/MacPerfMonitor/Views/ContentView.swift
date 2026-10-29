@@ -318,6 +318,8 @@ struct ProcessesTab: View {
     @EnvironmentObject private var appState: AppState
     @Binding var selection: ProcessIdentity?
 
+    @AppStorage(ProcessListLayout.storageKey) private var layout = ProcessListLayout.initial
+
     /// True once the tab has opened its initial selection, so the one-time
     /// auto-expand of the top process happens only on the first visit and never
     /// re-pops the inspector the user has since closed.
@@ -356,7 +358,9 @@ struct ProcessesTab: View {
     /// reflows on selection.
     private var detailCard: some View {
         Group {
-            if let selection {
+            if let selection, selection.isAppGroup {
+                AppGroupDetailView(identity: selection, selection: $selection)
+            } else if let selection {
                 ProcessDetailView(identity: selection)
             } else {
                 ContentUnavailableView(
@@ -388,17 +392,26 @@ struct ProcessesTab: View {
     }
 
     /// On the tab's first visit, open the detail inspector for the largest
-    /// process (the top row under the default footprint sort) so the user lands
-    /// on something useful instead of an empty inspector. Runs once, never
-    /// overrides an explicit selection or a notification's navigation target,
-    /// and defers until the first sample carrying processes has arrived.
+    /// process (the top row under the default footprint sort; the largest app
+    /// in the Apps layout) so the user lands on something useful instead of an
+    /// empty inspector. Runs once, never overrides an explicit selection or a
+    /// notification's navigation target, and defers until the first sample
+    /// carrying processes has arrived.
     private func autoSelectTopProcessIfNeeded() {
         guard !didAutoSelect,
             selection == nil,
             appState.navigationTarget == nil,
-            let top = model.latest?.processes.max(by: { $0.physFootprint < $1.physFootprint })
+            let processes = model.latest?.processes,
+            let top = processes.max(by: { $0.physFootprint < $1.physFootprint })
         else { return }
         didAutoSelect = true
         selection = top.id
+        guard layout == .apps else { return }
+        let (groups, _) = AppGrouping.group(processes)
+        if let app = groups.max(by: { $0.total.physFootprint < $1.total.physFootprint }),
+            app.total.physFootprint > top.physFootprint
+        {
+            selection = app.identity
+        }
     }
 }
