@@ -86802,7 +86802,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "new",
             "value" : "%1$@ A (%2$@ W)"
           }
         },
@@ -86814,13 +86814,13 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "new",
             "value" : "%1$@ A (%2$@ W)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "new",
             "value" : "%1$@ A (%2$@ W)"
           }
         }
@@ -88524,7 +88524,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "new",
             "value" : "Ports"
           }
         },
@@ -88992,7 +88992,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "new",
             "value" : "USB 3.2 Gen 2 (10 Gbps), USB4 20 Gbps"
           }
         },
@@ -89004,13 +89004,13 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "new",
             "value" : "USB 3.2 Gen 2 (10 Gbps), USB4 20 Gbps"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "new",
             "value" : "USB 3.2 Gen 2 (10 Gbps), USB4 20 Gbps"
           }
         }
@@ -89892,7 +89892,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "new",
             "value" : "%1$@ in %2$@"
           }
         },
@@ -90132,7 +90132,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "new",
             "value" : "Apps"
           }
         },
@@ -90144,7 +90144,7 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "new",
             "value" : "Apps"
           }
         },
