@@ -214,7 +214,7 @@ struct GPUView: View {
         ) {
             VStack(alignment: .leading, spacing: 8) {
                 ProcessOutlineTable(
-                    rows: rows, revision: rowsRevision, showHierarchy: false, leakingIDs: [],
+                    rows: rows, revision: rowsRevision, layout: .processes, leakingIDs: [],
                     terminatedIDs: [], selection: $selection, sortOrder: $sortOrder,
                     menu: { _ in nil },
                     values: model?.processValuesTick.eraseToAnyPublisher()

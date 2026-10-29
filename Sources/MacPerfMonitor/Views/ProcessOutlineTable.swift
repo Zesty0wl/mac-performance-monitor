@@ -13,8 +13,9 @@ import SwiftUI
 /// with fixed-height reused cells sets a few hundred strings in a couple of
 /// milliseconds.
 ///
-/// Flat and hierarchy modes are the same view: rows are items, and a row with
-/// children shows a disclosure triangle. Items are stable objects keyed by
+/// Every layout is the same view: rows are items, and a row with children
+/// (an app's processes, or the ones a process launched) shows a disclosure
+/// triangle. Items are stable objects keyed by
 /// process identity, so expansion survives a reload; selection is re-applied
 /// from the binding after each reload. Sorting goes through the column
 /// headers' sort descriptors, mapped to the same `KeyPathComparator`s the
@@ -24,7 +25,7 @@ struct ProcessOutlineTable: NSViewRepresentable {
     /// Bumped by the owner whenever `rows` is rebuilt; stands in for comparing
     /// the array so an unchanged revision skips the reload.
     let revision: Int
-    let showHierarchy: Bool
+    let layout: ProcessListLayout
     let leakingIDs: Set<ProcessIdentity>
     let terminatedIDs: Set<ProcessIdentity>
     @Binding var selection: Set<ProcessIdentity>
@@ -127,7 +128,7 @@ struct ProcessOutlineTable: NSViewRepresentable {
         }
         coordinator.onVisibleRowsChange = onVisibleRowsChange
         coordinator.apply(
-            rows: rows, revision: revision, showHierarchy: showHierarchy,
+            rows: rows, revision: revision, layout: layout,
             leakingIDs: leakingIDs, terminatedIDs: terminatedIDs)
         coordinator.applySelection(selection)
         if let outline = coordinator.outlineView {
@@ -326,7 +327,12 @@ struct ProcessOutlineTable: NSViewRepresentable {
             pids.reserveCapacity(visible.length)
             if visible.length > 0 {
                 for row in visible.location..<(visible.location + visible.length) {
-                    if let item = outlineView.item(atRow: row) as? Item {
+                    guard let item = outlineView.item(atRow: row) as? Item else { continue }
+                    if item.node.appID != nil {
+                        // An app row's totals move with every member, shown
+                        // or collapsed, so all of them are kept fresh.
+                        pids.append(contentsOf: item.children?.map(\.node.process.pid) ?? [])
+                    } else {
                         pids.append(item.node.process.pid)
                     }
                 }
@@ -348,13 +354,27 @@ struct ProcessOutlineTable: NSViewRepresentable {
                 item.node.process = sample
                 touched = true
             }
-            if touched { refreshVisibleCells(outlineView, columns: Self.valueColumns) }
+            guard touched else { return }
+            for app in appItems {
+                guard let members = app.children,
+                    members.contains(where: { patches[$0.id] != nil })
+                else { continue }
+                let samples = members.map(\.node.process)
+                // The totals sample is the leader's, so its id finds the leader.
+                let leader = samples.first { $0.id == app.node.process.id } ?? samples[0]
+                app.node.process = AppGrouping.total(leader: leader, members: samples)
+            }
+            refreshVisibleCells(outlineView, columns: Self.valueColumns)
         }
 
         private var roots: [Item] = []
         private var itemsByID: [ProcessIdentity: Item] = [:]
+        /// Each nested item's parent, to reveal a selection under a collapsed row.
+        private var parentByID: [ProcessIdentity: Item] = [:]
+        /// The app rows, whose totals are re-added when a member is patched.
+        private var appItems: [Item] = []
         private var appliedRevision: Int?
-        private var appliedHierarchy: Bool?
+        private var appliedLayout: ProcessListLayout?
         private var leakingIDs: Set<ProcessIdentity> = []
         private var terminatedIDs: Set<ProcessIdentity> = []
         /// Set while we change the selection ourselves, so the delegate echo is
@@ -368,25 +388,27 @@ struct ProcessOutlineTable: NSViewRepresentable {
         /// internal row cache stays valid and the visible cells are updated in
         /// place with no `reloadData`. A full reload (which drops and rebuilds
         /// every visible cell view) happens only when the row count changes.
-        /// Hierarchy mode keys items by identity so expansion survives, and
-        /// reloads; it is the opt-in mode.
+        /// The nested layouts (apps, hierarchy) key items by identity so
+        /// expansion survives, and reload; they are opt-in.
         func apply(
-            rows: [ProcessNode], revision: Int, showHierarchy: Bool,
+            rows: [ProcessNode], revision: Int, layout: ProcessListLayout,
             leakingIDs: Set<ProcessIdentity>, terminatedIDs: Set<ProcessIdentity>
         ) {
             let stylingChanged =
                 leakingIDs != self.leakingIDs || terminatedIDs != self.terminatedIDs
-            let modeChanged = showHierarchy != appliedHierarchy
+            let modeChanged = layout != appliedLayout
             guard revision != appliedRevision || modeChanged || stylingChanged else { return }
             self.leakingIDs = leakingIDs
             self.terminatedIDs = terminatedIDs
             appliedRevision = revision
-            appliedHierarchy = showHierarchy
+            appliedLayout = layout
             guard let outlineView else { return }
 
-            if showHierarchy {
+            parentByID.removeAll()
+            appItems.removeAll()
+            if layout != .processes {
                 var seen: Set<ProcessIdentity> = []
-                func build(_ nodes: [ProcessNode]) -> [Item] {
+                func build(_ nodes: [ProcessNode], parent: Item?) -> [Item] {
                     nodes.map { node in
                         let item: Item
                         if let existing = itemsByID[node.id], !modeChanged {
@@ -397,12 +419,14 @@ struct ProcessOutlineTable: NSViewRepresentable {
                             itemsByID[node.id] = item
                         }
                         seen.insert(node.id)
-                        item.children = node.children.map(build)
+                        if let parent { parentByID[node.id] = parent }
+                        if node.appID != nil { appItems.append(item) }
+                        item.children = node.children.map { build($0, parent: item) }
                         return item
                     }
                 }
                 if modeChanged { itemsByID.removeAll() }
-                roots = build(rows)
+                roots = build(rows, parent: nil)
                 for id in itemsByID.keys where !seen.contains(id) {
                     itemsByID.removeValue(forKey: id)
                 }
@@ -491,11 +515,14 @@ struct ProcessOutlineTable: NSViewRepresentable {
         private func configure(_ view: NSView, column: NSTableColumn, item: Item) {
             guard let columnID = ColumnID(rawValue: column.identifier.rawValue) else { return }
             let process = item.node.process
-            let terminated = terminatedIDs.contains(process.id)
+            // Keyed on the row, not the sample: an app row's sample is its
+            // leader's, whose own leak or exit belongs to the leader's row.
+            let terminated = terminatedIDs.contains(item.id)
             if let cell = view as? ProcessCellView {
                 cell.configure(
                     process: process,
-                    isLeaking: leakingIDs.contains(process.id),
+                    memberCount: item.node.appID != nil ? item.children?.count : nil,
+                    isLeaking: leakingIDs.contains(item.id),
                     descendantLeaking: hasLeakingDescendant(item),
                     isTerminated: terminated)
             } else if let cell = view as? ValueCellView {
@@ -527,7 +554,20 @@ struct ProcessOutlineTable: NSViewRepresentable {
             let indexes = NSMutableIndexSet()
             for id in ids {
                 if let item = itemsByID[id] {
-                    let row = outlineView.row(forItem: item)
+                    var row = outlineView.row(forItem: item)
+                    if row < 0 {
+                        // Nested under a collapsed row (the app's process picked
+                        // in the inspector, a notification's target): open the
+                        // rows above it so it can be shown.
+                        var ancestors: [Item] = []
+                        var cursor = parentByID[id]
+                        while let parent = cursor {
+                            ancestors.append(parent)
+                            cursor = parentByID[parent.id]
+                        }
+                        for parent in ancestors.reversed() { outlineView.expandItem(parent) }
+                        row = outlineView.row(forItem: item)
+                    }
                     if row >= 0 { indexes.add(row) }
                 }
             }
@@ -612,7 +652,9 @@ struct ProcessOutlineTable: NSViewRepresentable {
             switch column {
             case .process:
                 if !leakingIDs.contains(item.id), hasLeakingDescendant(item) {
-                    return t("A process started by this one looks like it's leaking memory.")
+                    return item.node.appID != nil
+                        ? t("One of this app's processes looks like it's leaking memory.")
+                        : t("A process started by this one looks like it's leaking memory.")
                 }
                 return item.node.process.displayName
             case .memory:
@@ -670,6 +712,7 @@ final class ProcessCellView: NSTableCellView {
 
     private var shownPath: String??
     private var shownName: String?
+    private var shownCount: Int?
     private var shownStyle: (leaking: Bool, warning: Bool, terminated: Bool, translated: Bool)?
 
     override init(frame frameRect: NSRect) {
@@ -721,8 +764,10 @@ final class ProcessCellView: NSTableCellView {
         }
     }
 
+    /// `memberCount` is set on an app row, shown after the name.
     func configure(
-        process: ProcessSample, isLeaking: Bool, descendantLeaking: Bool, isTerminated: Bool
+        process: ProcessSample, memberCount: Int? = nil, isLeaking: Bool,
+        descendantLeaking: Bool, isTerminated: Bool
     ) {
         if shownPath != .some(process.executablePath) {
             shownPath = .some(process.executablePath)
@@ -737,8 +782,9 @@ final class ProcessCellView: NSTableCellView {
                 $0.leaking != style.leaking || $0.warning != style.warning
                     || $0.terminated != style.terminated || $0.translated != style.translated
             } ?? true
-        if styleChanged || shownName != process.displayName {
+        if styleChanged || shownName != process.displayName || shownCount != memberCount {
             shownName = process.displayName
+            shownCount = memberCount
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: Self.nameFont,
                 .foregroundColor: isTerminated
@@ -747,8 +793,17 @@ final class ProcessCellView: NSTableCellView {
                 .strikethroughStyle: isTerminated ? NSUnderlineStyle.single.rawValue : 0,
                 .strikethroughColor: NSColor.secondaryLabelColor,
             ]
-            name.attributedStringValue = NSAttributedString(
+            let text = NSMutableAttributedString(
                 string: process.displayName, attributes: attributes)
+            if let memberCount {
+                text.append(
+                    NSAttributedString(
+                        string: " (\(memberCount))",
+                        attributes: [
+                            .font: Self.nameFont, .foregroundColor: NSColor.secondaryLabelColor,
+                        ]))
+            }
+            name.attributedStringValue = text
         }
         guard styleChanged else { return }
         shownStyle = style

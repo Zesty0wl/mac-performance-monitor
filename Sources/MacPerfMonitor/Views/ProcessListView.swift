@@ -6,7 +6,7 @@ import SwiftUI
 /// the stable `ProcessIdentity` (pid + start time), so rows keep their place and
 /// selection across re-sorts and live updates rather than flickering.
 ///
-/// This view owns the data and the table's state (search, sort, hierarchy) and
+/// This view owns the data and the table's state (search, sort, layout) and
 /// prepares the sorted/filtered `rows` once per real change. The table itself is
 /// the separate, `Equatable` `ProcessTable` child: the enclosing views re-render
 /// once a second to keep the live system header moving, and isolating the table
@@ -24,10 +24,11 @@ struct ProcessListView: View {
     ]
     @State private var search = ""
 
-    /// When on, processes are shown as a tree keyed on parent PID (which process
-    /// launched which) instead of one flat sorted list. Persisted so the choice
-    /// survives relaunches.
-    @AppStorage("processShowHierarchy") private var showHierarchy = false
+    /// One flat sorted list, one row per app with its processes nested, or a
+    /// tree keyed on parent PID (which process launched which). Persisted so
+    /// the choice survives relaunches; the default carries over the older
+    /// hierarchy toggle.
+    @AppStorage(ProcessListLayout.storageKey) private var layout = ProcessListLayout.initial
 
     /// `launchd`, the ancestor of nearly every process. Hidden as a node in the
     /// hierarchy view since its parentage is implied.
@@ -41,7 +42,7 @@ struct ProcessListView: View {
 
     /// The prepared rows the table draws, memoized in `@State`. Rebuilt by
     /// `rebuildRows()` only when an input that affects them changes (the data
-    /// version, sort order, search text, or hierarchy toggle) — never on the 1 s
+    /// version, sort order, search text, or layout) — never on the 1 s
     /// `latest` republish — so the O(n log n) filter+sort over ~600 processes does
     /// not run on every render.
     @State private var rows: [ProcessNode] = []
@@ -58,7 +59,7 @@ struct ProcessListView: View {
             ProcessTable(
                 rows: rows,
                 revision: rowsRevision,
-                showHierarchy: showHierarchy,
+                layout: layout,
                 leakingIDs: model.leakingProcessIDs,
                 terminatedIDs: model.terminatedProcessIDs,
                 selection: $selection,
@@ -73,7 +74,7 @@ struct ProcessListView: View {
             .onChange(of: model.displayProcessesVersion, initial: true) { _, _ in rebuildRows() }
             .onChange(of: sortOrder) { _, _ in rebuildRows() }
             .onChange(of: search) { _, _ in rebuildRows() }
-            .onChange(of: showHierarchy) { _, _ in rebuildRows() }
+            .onChange(of: layout) { _, _ in rebuildRows() }
         }
     }
 
@@ -95,12 +96,18 @@ struct ProcessListView: View {
             }
             Divider()
                 .frame(height: 16)
-            Toggle(isOn: $showHierarchy) {
-                Label("Hierarchy", systemImage: "list.bullet.indent")
+            Picker("Layout", selection: $layout) {
+                Text("Processes").tag(ProcessListLayout.processes)
+                Text("Apps").tag(ProcessListLayout.apps)
+                Text("Hierarchy").tag(ProcessListLayout.tree)
             }
-            .toggleStyle(.button)
+            .pickerStyle(.segmented)
+            .labelsHidden()
             .controlSize(.small)
-            .help("Group processes by which launched which.")
+            .fixedSize()
+            .help(
+                "List processes one by one, add up each app with every process working for it, or nest processes under the one that launched them."
+            )
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -108,26 +115,53 @@ struct ProcessListView: View {
 
     /// The visible processes after the search filter, before sorting or nesting.
     private var filteredSamples: [ProcessSample] {
-        search.isEmpty
-            ? processes
-            : processes.filter {
-                $0.displayName.localizedCaseInsensitiveContains(search)
-                    || $0.name.localizedCaseInsensitiveContains(search)
-            }
+        search.isEmpty ? processes : processes.filter { Self.matches($0, search) }
+    }
+
+    private static func matches(_ sample: ProcessSample, _ search: String) -> Bool {
+        sample.displayName.localizedCaseInsensitiveContains(search)
+            || sample.name.localizedCaseInsensitiveContains(search)
     }
 
     /// Recompute the table's rows from the current inputs and bump the revision.
-    /// Flat mode is a single sorted level; hierarchy mode nests each process under
-    /// the visible process that launched it, with every level sorted by the active
+    /// Flat mode is a single sorted level; apps mode nests each app's processes
+    /// under a row carrying their totals; hierarchy mode nests each process under
+    /// the visible process that launched it. Every level is sorted by the active
     /// column.
     private func rebuildRows() {
         let compare = Self.comparison(for: sortOrder)
-        if showHierarchy {
-            rows = buildForest(from: filteredSamples, compare: compare)
-        } else {
-            rows = Self.sortedNodes(filteredSamples, compare: compare)
+        switch layout {
+        case .processes: rows = Self.sortedNodes(filteredSamples, compare: compare)
+        case .apps: rows = Self.appNodes(from: processes, search: search, compare: compare)
+        case .tree: rows = buildForest(from: filteredSamples, compare: compare)
         }
         rowsRevision &+= 1
+    }
+
+    /// One row per app (a coalition of more than one process) with its
+    /// processes nested beneath, and every other process as a plain row. The
+    /// search keeps an app whose name or any member's matches, whole: a total
+    /// covering only the matching members would understate the app.
+    private static func appNodes(
+        from samples: [ProcessSample], search: String,
+        compare: @escaping (ProcessSample, ProcessSample) -> Bool
+    ) -> [ProcessNode] {
+        let (groups, loose) = AppGrouping.group(samples)
+        var nodes: [ProcessNode] = []
+        nodes.reserveCapacity(groups.count + loose.count)
+        for group in groups
+        where search.isEmpty || matches(group.total, search)
+            || group.members.contains(where: { matches($0, search) })
+        {
+            nodes.append(
+                ProcessNode(
+                    process: group.total, children: sortedNodes(group.members, compare: compare),
+                    appID: group.identity))
+        }
+        for sample in loose where search.isEmpty || matches(sample, search) {
+            nodes.append(ProcessNode(process: sample, children: nil))
+        }
+        return nodes.sorted { compare($0.process, $1.process) }
     }
 
     /// Sort with direct property access. `sorted(using:)` over the table's
@@ -273,7 +307,7 @@ private struct ProcessTable: View, Equatable {
     /// Stands in for comparing the non-`Equatable` `rows` array; bumped whenever
     /// the parent rebuilds the rows.
     let revision: Int
-    let showHierarchy: Bool
+    let layout: ProcessListLayout
     let leakingIDs: Set<ProcessIdentity>
     let terminatedIDs: Set<ProcessIdentity>
     @Binding var selection: ProcessIdentity?
@@ -291,7 +325,7 @@ private struct ProcessTable: View, Equatable {
     /// draws is a value compared here. `revision` proxies for the row contents.
     static func == (lhs: ProcessTable, rhs: ProcessTable) -> Bool {
         lhs.revision == rhs.revision
-            && lhs.showHierarchy == rhs.showHierarchy
+            && lhs.layout == rhs.layout
             && lhs.selection == rhs.selection
             && lhs.multiSelection == rhs.multiSelection
             && lhs.leakingIDs == rhs.leakingIDs
@@ -302,7 +336,7 @@ private struct ProcessTable: View, Equatable {
         ProcessOutlineTable(
             rows: rows,
             revision: revision,
-            showHierarchy: showHierarchy,
+            layout: layout,
             leakingIDs: leakingIDs,
             terminatedIDs: terminatedIDs,
             selection: $multiSelection,
@@ -313,16 +347,16 @@ private struct ProcessTable: View, Equatable {
         )
         .onChange(of: multiSelection) { _, ids in
             // Drive the single-row inspector from the table selection. An
-            // EMPTY set is deliberately ignored: in hierarchy mode the Table
-            // cannot materialise a row nested under a collapsed parent, so
-            // when an external selection (a notification or a click from
-            // another view) sets `selection` and we mirror it into
-            // `multiSelection` below, the Table rejects it and writes the set
-            // back to empty. Clearing `selection` on that echo snapped the
-            // inspector straight shut, so a navigation target "didn't
+            // EMPTY set is deliberately ignored: a selection the table cannot
+            // show (a process that is filtered out, or gone) comes back as an
+            // empty set when an external selection (a notification or a click
+            // from another view) sets `selection` and we mirror it into
+            // `multiSelection` below. Clearing `selection` on that echo snapped
+            // the inspector straight shut, so a navigation target "didn't
             // select". Leaving `selection` untouched on empty keeps the
             // target open; a multi-row selection still clears the single-row
-            // inspector for the batch action.
+            // inspector for the batch action. (A row nested under a collapsed
+            // parent is revealed by the table rather than rejected.)
             if ids.count == 1 {
                 selection = ids.first
             } else if ids.count > 1 {
@@ -345,6 +379,10 @@ private struct ProcessTable: View, Equatable {
     /// full process action menu for one. Mirrors `ProcessActionMenu` item for
     /// item, built as an `NSMenu` because the table is AppKit-hosted.
     private func contextMenu(for ids: Set<ProcessIdentity>) -> NSMenu? {
+        if ids.count == 1, let id = ids.first, id.isAppGroup { return appMenu(for: id) }
+        // App rows have no process behind them to pin.
+        let ids = ids.filter { !$0.isAppGroup }
+        guard !ids.isEmpty else { return nil }
         let menu = NSMenu()
         if ids.count > 1 {
             let addable = addableCount(ids)
@@ -448,6 +486,33 @@ private struct ProcessTable: View, Equatable {
                 enabled: live != nil
             ) {
                 appState.pendingForceQuit = id
+            })
+        return menu
+    }
+
+    /// The right-click menu for an app row: quit the app the normal way, or
+    /// reveal it. There is deliberately no force quit for the whole group: an
+    /// app's coalition includes system services macOS started for it (shader
+    /// compilers, store helpers), which are not the app's to kill. Each
+    /// process row keeps its own menu, force quit included.
+    private func appMenu(for id: ProcessIdentity) -> NSMenu? {
+        guard let node = rows.first(where: { $0.id == id }) else { return nil }
+        let leader = model.currentSample(for: node.process.id) ?? node.process
+        let menu = NSMenu()
+        let app = AppGroupActions.runningApp(for: leader)
+        menu.addItem(
+            ClosureMenuItem(
+                String(localized: "Quit App"), symbol: "power", enabled: app != nil
+            ) {
+                app?.terminate()
+            })
+        let executable = leader.executablePath.flatMap { $0.isEmpty ? nil : $0 }
+        let path = AppGrouping.appBundlePath(forExecutablePath: executable) ?? executable
+        menu.addItem(
+            ClosureMenuItem(
+                String(localized: "Reveal in Finder"), symbol: "folder", enabled: path != nil
+            ) {
+                _ = ProcessActions.revealInFinder(path: path)
             })
         return menu
     }
@@ -560,9 +625,11 @@ private struct ProcessTable: View, Equatable {
         }
     }
 
-    /// Flatten a forest into depth-first display order.
+    /// Flatten a forest into depth-first display order. App rows are skipped:
+    /// their sample is the totals under the leader's identity, and the leader
+    /// itself is among their children.
     private func flatten(_ nodes: [ProcessNode]) -> [ProcessSample] {
-        nodes.flatMap { [$0.process] + flatten($0.children ?? []) }
+        nodes.flatMap { ($0.appID == nil ? [$0.process] : []) + flatten($0.children ?? []) }
     }
 
     /// Whether any process nested beneath `node` is a suspected leak. Used to
@@ -586,15 +653,42 @@ private struct ProcessTable: View, Equatable {
     }
 }
 
-/// A process plus the processes it launched, for the optional hierarchy view.
-/// Identity is the wrapped process's stable identity, so table selection, row
-/// expansion, and the detail inspector all key on the same value as flat mode.
+/// A process plus the processes nested under it: the ones it launched in the
+/// hierarchy layout, or an app's processes in the apps layout. Identity is the
+/// wrapped process's stable identity, so table selection, row expansion, and
+/// the detail inspector all key on the same value as flat mode. An app row
+/// carries the app's totals in `process` and keys on its own `appID` instead.
 struct ProcessNode: Identifiable, Equatable {
     var process: ProcessSample
     var children: [ProcessNode]?
     /// A short label for the GPU table's category column (empty elsewhere).
     var badge: String = ""
-    var id: ProcessIdentity { process.id }
+    /// Set on an app row (see `AppGrouping`).
+    var appID: ProcessIdentity?
+    var id: ProcessIdentity { appID ?? process.id }
+}
+
+/// How the Processes tab lays out its list.
+enum ProcessListLayout: String {
+    /// One flat sorted list.
+    case processes
+    /// One row per app, totalling every process working for it (issue #162).
+    case apps
+    /// Nested by parent PID: which process launched which.
+    case tree
+
+    static let storageKey = "processListLayout"
+
+    /// The layout before the user picks one: the tree if they had turned on
+    /// the hierarchy toggle this picker replaced.
+    static var initial: ProcessListLayout {
+        UserDefaults.standard.bool(forKey: "processShowHierarchy") ? .tree : .processes
+    }
+
+    /// The layout in effect, outside a view.
+    static var stored: ProcessListLayout {
+        UserDefaults.standard.string(forKey: storageKey).flatMap(Self.init(rawValue:)) ?? initial
+    }
 }
 
 extension ProcessSample {
