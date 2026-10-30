@@ -24,6 +24,12 @@
 /// `<sys/proc.h>` and is awkward to reach from Swift.
 int cmacperfmonitor_is_translated(pid_t pid);
 
+/// Whether `uid` is root or a member of the local `admin` group (gid 80), as
+/// Directory Services resolves it (nested and network groups included).
+/// Returns 1 or 0; any lookup failure is 0. In C because `<membership.h>` is
+/// not visible from Swift's Darwin module.
+int cmacperfmonitor_is_admin(uid_t uid);
+
 /// Read `phys_footprint` and related rusage figures for a process via
 /// `proc_pid_rusage(RUSAGE_INFO_V6, ...)`.
 ///

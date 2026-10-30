@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/un.h>
+#include <membership.h>
 
 // Defined in <sys/proc.h> on macOS; guard in case a future SDK relocates it.
 #ifndef P_TRANSLATED
@@ -25,6 +26,21 @@ int cmacperfmonitor_is_translated(pid_t pid) {
         return -1;
     }
     return (info.kp_proc.p_flag & P_TRANSLATED) ? 1 : 0;
+}
+
+int cmacperfmonitor_is_admin(uid_t uid) {
+    if (uid == 0) {
+        return 1;
+    }
+    uuid_t user, group;
+    int member = 0;
+    if (mbr_uid_to_uuid(uid, user) != 0 || mbr_gid_to_uuid(80, group) != 0) {
+        return 0;
+    }
+    if (mbr_check_membership(user, group, &member) != 0) {
+        return 0;
+    }
+    return member ? 1 : 0;
 }
 
 int cmacperfmonitor_rusage(pid_t pid,

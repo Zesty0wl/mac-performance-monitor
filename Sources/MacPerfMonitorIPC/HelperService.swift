@@ -1,3 +1,4 @@
+import CMacPerfMonitor
 import Darwin
 import Foundation
 import MacPerfMonitorCore
@@ -16,15 +17,28 @@ public final class HelperService: NSObject, MacPerfMonitorHelperProtocol {
     private let version: String
     private let power: any ANEPowerProviding
     private let powerClient = UUID()
+    private let caller: HelperCaller
 
     public convenience init(version: String = "1") {
         self.init(version: version, power: ANEPowerSampler())
     }
 
-    init(version: String, power: any ANEPowerProviding) {
+    init(version: String, power: any ANEPowerProviding, caller: HelperCaller = .current) {
         self.version = version
         self.power = power
+        self.caller = caller
         super.init()
+    }
+
+    /// Whether the caller may act on `pid` as root: an administrator on any
+    /// process, anyone else only on their own. Logs a refusal.
+    private func callerMayAct(on pid: pid_t, _ action: StaticString) -> Bool {
+        let owner = reader.taskAllInfo(pid)?.uid
+        if caller.mayAct(onProcessOwnedBy: owner) { return true }
+        log.error(
+            "\(action, privacy: .public) refused: uid \(self.caller.uid, privacy: .public) is not an administrator and does not own pid \(pid, privacy: .public)"
+        )
+        return false
     }
 
     deinit { power.stop(for: powerClient) }
@@ -57,6 +71,10 @@ public final class HelperService: NSObject, MacPerfMonitorHelperProtocol {
     }
 
     public func listFileDescriptors(_ pid: NSNumber, reply: @escaping (Data?) -> Void) {
+        guard callerMayAct(on: pid.int32Value, "listFileDescriptors") else {
+            reply(nil)
+            return
+        }
         let fds = reader.openFileDescriptors(pid.int32Value) ?? []
         do {
             let data = try JSONEncoder().encode(fds)
@@ -68,7 +86,7 @@ public final class HelperService: NSObject, MacPerfMonitorHelperProtocol {
     }
 
     public func terminateProcess(
-        _ pid: NSNumber, signal: NSNumber, reply: @escaping (Int32) -> Void
+        _ pid: NSNumber, startedAt: NSNumber, signal: NSNumber, reply: @escaping (Int32) -> Void
     ) {
         let target = pid.int32Value
         let sig = signal.int32Value
@@ -83,6 +101,22 @@ public final class HelperService: NSObject, MacPerfMonitorHelperProtocol {
         guard sig == SIGTERM || sig == SIGKILL else {
             log.error("terminate refused: disallowed signal \(sig, privacy: .public)")
             reply(EINVAL)
+            return
+        }
+        // The pid must still be the process the user confirmed: pids are
+        // reused, and the confirmation dialog can stay open for a while.
+        guard let info = reader.taskAllInfo(target),
+            abs(info.startTime.timeIntervalSince1970 - startedAt.doubleValue) < 0.001
+        else {
+            log.error("terminate refused: pid \(target, privacy: .public) is gone or reused")
+            reply(ESRCH)
+            return
+        }
+        guard caller.mayAct(onProcessOwnedBy: info.uid) else {
+            log.error(
+                "terminate refused: uid \(self.caller.uid, privacy: .public) is not an administrator and does not own pid \(target, privacy: .public)"
+            )
+            reply(EPERM)
             return
         }
         if kill(target, sig) == 0 {
@@ -108,6 +142,10 @@ public final class HelperService: NSObject, MacPerfMonitorHelperProtocol {
         let target = pid.int32Value
         guard target > 1 else {
             log.error("runMemoryTool refused: invalid pid \(target, privacy: .public)")
+            reply(nil)
+            return
+        }
+        guard callerMayAct(on: target, "runMemoryTool") else {
             reply(nil)
             return
         }
@@ -172,11 +210,48 @@ public final class HelperListenerDelegate: NSObject, NSXPCListenerDelegate {
             connection.setCodeSigningRequirement(clientRequirement)
         }
         connection.exportedInterface = NSXPCInterface(with: MacPerfMonitorHelperProtocol.self)
-        let service = HelperService(version: version, power: power)
+        let service = HelperService(
+            version: version, power: power, caller: HelperCaller(connection: connection))
         connection.exportedObject = service
         connection.invalidationHandler = { service.disconnected() }
         connection.interruptionHandler = { service.disconnected() }
         connection.resume()
         return true
+    }
+}
+
+/// The account on the other end of a helper connection, fixed when it is
+/// accepted. The code-signing pin only proves the caller is our app; on a Mac
+/// with several accounts, a standard user can run that app too, and must not
+/// get root over other people's processes through it.
+struct HelperCaller: Sendable {
+    let uid: uid_t
+    let isAdmin: Bool
+
+    /// Administrators act on any process, as Activity Monitor lets them after
+    /// a password; everyone else only on processes they own. An owner that
+    /// cannot be read (the process is gone) counts as someone else's.
+    func mayAct(onProcessOwnedBy owner: uid_t?) -> Bool {
+        isAdmin || owner == uid
+    }
+
+    init(uid: uid_t, isAdmin: Bool) {
+        self.uid = uid
+        self.isAdmin = isAdmin
+    }
+
+    init(connection: NSXPCConnection) {
+        let uid = connection.effectiveUserIdentifier
+        self.init(uid: uid, isAdmin: Self.isAdmin(uid))
+    }
+
+    /// This process's own user, for a service made outside a listener.
+    static var current: HelperCaller {
+        HelperCaller(uid: geteuid(), isAdmin: isAdmin(geteuid()))
+    }
+
+    /// Root, or a member of the `admin` group as Directory Services sees it.
+    static func isAdmin(_ uid: uid_t) -> Bool {
+        cmacperfmonitor_is_admin(uid) == 1
     }
 }

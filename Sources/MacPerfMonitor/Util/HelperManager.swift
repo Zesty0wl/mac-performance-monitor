@@ -310,13 +310,16 @@ final class HelperManager: ObservableObject {
     /// The XPC call runs off the main thread and the outcome is delivered on the
     /// main thread. Returns `.notPermitted` at once when elevated coverage is
     /// not active.
-    func forceQuit(pid: Int32, completion: @escaping (ProcessActions.KillOutcome) -> Void) {
+    func forceQuit(
+        _ identity: ProcessIdentity, completion: @escaping (ProcessActions.KillOutcome) -> Void
+    ) {
         guard coverage == .enabled, let connection else {
             completion(.notPermitted)
             return
         }
         DispatchQueue.global(qos: .userInitiated).async {
-            let code = connection.terminateProcess(pid: pid, signal: SIGKILL)
+            let code = connection.terminateProcess(
+                pid: identity.pid, startedAt: identity.startTime, signal: SIGKILL)
             let outcome: ProcessActions.KillOutcome
             switch code {
             case 0: outcome = .success

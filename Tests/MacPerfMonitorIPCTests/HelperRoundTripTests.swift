@@ -364,7 +364,15 @@ final class HelperRoundTripTests: XCTestCase {
         let pid = task.processIdentifier
         XCTAssertGreaterThan(pid, 1)
 
-        let code = connection.terminateProcess(pid: pid, signal: SIGKILL)
+        let started = try XCTUnwrap(ProcessReader().taskAllInfo(pid)?.startTime)
+
+        // A different start time means the pid was reused: nothing is signalled.
+        let reused = connection.terminateProcess(
+            pid: pid, startedAt: started.addingTimeInterval(-5), signal: SIGKILL)
+        XCTAssertEqual(reused, ESRCH)
+        XCTAssertTrue(task.isRunning, "A start-time mismatch must not signal the process")
+
+        let code = connection.terminateProcess(pid: pid, startedAt: started, signal: SIGKILL)
         XCTAssertEqual(code, 0, "Killing an owned child process should succeed")
 
         task.waitUntilExit()
@@ -374,14 +382,73 @@ final class HelperRoundTripTests: XCTestCase {
     func testTerminateRejectsInvalidPID() {
         // pid 0 and negative pids (which would signal a process group) are
         // refused by the daemon's guard rails before any kill(2) is attempted.
-        XCTAssertEqual(connection.terminateProcess(pid: 0, signal: SIGKILL), EINVAL)
-        XCTAssertEqual(connection.terminateProcess(pid: -1, signal: SIGKILL), EINVAL)
+        for pid: Int32 in [0, -1] {
+            XCTAssertEqual(
+                connection.terminateProcess(pid: pid, startedAt: .now, signal: SIGKILL), EINVAL)
+        }
     }
 
     func testTerminateRejectsDisallowedSignal() {
         let myPID = Int32(ProcessInfo.processInfo.processIdentifier)
         // A non-termination signal is rejected before any kill(2) call, so the
         // test runner is never actually signalled by this assertion.
-        XCTAssertEqual(connection.terminateProcess(pid: myPID, signal: SIGHUP), EINVAL)
+        XCTAssertEqual(
+            connection.terminateProcess(pid: myPID, startedAt: .now, signal: SIGHUP), EINVAL)
     }
+
+    // MARK: Caller authorization
+
+    func testCallerPolicy() {
+        let admin = HelperCaller(uid: 501, isAdmin: true)
+        let standard = HelperCaller(uid: 502, isAdmin: false)
+        XCTAssertTrue(admin.mayAct(onProcessOwnedBy: 0))
+        XCTAssertTrue(admin.mayAct(onProcessOwnedBy: 502))
+        XCTAssertTrue(standard.mayAct(onProcessOwnedBy: 502))
+        XCTAssertFalse(standard.mayAct(onProcessOwnedBy: 501))
+        XCTAssertFalse(standard.mayAct(onProcessOwnedBy: 0))
+        XCTAssertFalse(standard.mayAct(onProcessOwnedBy: nil))
+        XCTAssertEqual(HelperCaller.current.uid, geteuid())
+        XCTAssertTrue(HelperCaller.isAdmin(0))
+        XCTAssertFalse(HelperCaller.isAdmin(uid_t(bitPattern: -2)), "nobody is not an admin")
+    }
+
+    /// A standard account that does not own the target gets nothing from the
+    /// root service: no kill, no memory tool, no descriptor list.
+    func testStandardUserCannotActOnSomeoneElsesProcess() throws {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        task.arguments = ["100"]
+        try task.run()
+        defer { task.terminate() }
+        let pid = task.processIdentifier
+        let started = try XCTUnwrap(ProcessReader().taskAllInfo(pid)?.startTime)
+
+        let stranger = HelperCaller(uid: geteuid() &+ 1, isAdmin: false)
+        let service = HelperService(version: "1", power: PowerProviderStub(), caller: stranger)
+        var code: Int32 = -1
+        service.terminateProcess(
+            NSNumber(value: pid), startedAt: NSNumber(value: started.timeIntervalSince1970),
+            signal: NSNumber(value: SIGKILL)
+        ) { code = $0 }
+        XCTAssertEqual(code, EPERM)
+        XCTAssertTrue(task.isRunning)
+
+        var fds: Data? = Data()
+        service.listFileDescriptors(NSNumber(value: pid)) { fds = $0 }
+        XCTAssertNil(fds)
+
+        var tool: Data? = Data()
+        service.runMemoryTool(
+            NSNumber(value: MemoryInspection.Tool.footprint.rawValue), pid: NSNumber(value: pid)
+        ) { tool = $0 }
+        XCTAssertNil(tool)
+    }
+}
+
+private struct PowerProviderStub: ANEPowerProviding {
+    func read(for client: UUID, reply: @escaping @Sendable (ANEPowerReading?) -> Void) {
+        reply(nil)
+    }
+    func stop(for client: UUID) {}
+    func shutdown() {}
 }

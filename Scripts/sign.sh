@@ -40,6 +40,7 @@ if [[ -f "$HELPER" ]]; then
     --identifier "uk.co.bzwrd.macperfmonitor.helper" \
     --sign "$IDENTITY" \
     "$HELPER"
+  Scripts/constrain-helper.sh "$APP"
 fi
 
 MPM="$APP/Contents/MacOS/mpm"

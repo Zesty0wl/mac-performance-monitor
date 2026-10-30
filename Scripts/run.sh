@@ -104,6 +104,7 @@ if [[ "$SIGN_MODE" == "identity" ]]; then
     codesign --force --options runtime \
       --identifier "uk.co.bzwrd.macperfmonitor.helper" \
       --sign "$IDENTITY" "$HELPER"
+    Scripts/constrain-helper.sh "$APP"
   fi
   codesign --force --options runtime --identifier "uk.co.bzwrd.macperfmonitor.mpm" \
     --sign "$IDENTITY" "$MPM"

@@ -249,7 +249,7 @@ public final class HelperConnection: PrivilegedReader, @unchecked Sendable {
     /// already exited, `EPERM` if even root was refused). Returns `EHOSTDOWN`
     /// when the daemon is unreachable or the call times out, so the caller can
     /// tell a transport failure apart from the OS refusing the signal.
-    public func terminateProcess(pid: Int32, signal: Int32) -> Int32 {
+    public func terminateProcess(pid: Int32, startedAt: Date, signal: Int32) -> Int32 {
         guard let connection = currentConnection() else { return EHOSTDOWN }
 
         let resultLock = NSLock()
@@ -265,7 +265,10 @@ public final class HelperConnection: PrivilegedReader, @unchecked Sendable {
             return EHOSTDOWN
         }
 
-        helper.terminateProcess(NSNumber(value: pid), signal: NSNumber(value: signal)) { result in
+        helper.terminateProcess(
+            NSNumber(value: pid), startedAt: NSNumber(value: startedAt.timeIntervalSince1970),
+            signal: NSNumber(value: signal)
+        ) { result in
             resultLock.lock()
             code = result
             resultLock.unlock()
