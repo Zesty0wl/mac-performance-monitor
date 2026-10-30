@@ -169,18 +169,33 @@ extension CodeSignInfo {
         return result
     }
 
-    /// Map the signature to the closest app.settings `SigningState`. The anchor
-    /// check is authoritative for Apple platform binaries; the rest reads the leaf
-    /// certificate's common name, which is how Apple distinguishes distribution
-    /// channels.
+    /// Map the signature to the closest app.settings `SigningState`. A common
+    /// name is just text, and a self-signed certificate can claim "Developer ID
+    /// Application", so every state but `.all` first requires a chain to Apple's
+    /// root. Developer ID and the Mac App Store are then read from the marker
+    /// extensions Apple puts in those certificates; the rest from the leaf name
+    /// of the Apple-issued certificate.
     private static func deriveSigningState(
         staticCode: SecStaticCode, authorities: [String], isAdHoc: Bool, isSigned: Bool
     ) -> SigningState {
         if !isSigned { return .unsigned }
         if isAdHoc { return .adHoc }
         if satisfies(staticCode, "anchor apple") { return .apple }
+        guard satisfies(staticCode, "anchor apple generic") else { return .all }
+        if satisfies(
+            staticCode,
+            "anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] exists "
+                + "and certificate leaf[field.1.2.840.113635.100.6.1.13] exists")
+        {
+            return .developerID
+        }
+        if satisfies(
+            staticCode,
+            "anchor apple generic and certificate leaf[field.1.2.840.113635.100.6.1.9] exists")
+        {
+            return .appStore
+        }
         let leaf = authorities.first ?? ""
-        if leaf.hasPrefix("Developer ID Application") { return .developerID }
         if leaf.hasPrefix("Apple Mac OS Application Signing")
             || leaf.hasPrefix("3rd Party Mac Developer Application")
         {

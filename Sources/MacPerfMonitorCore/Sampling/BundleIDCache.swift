@@ -40,12 +40,28 @@ public struct BundleIDCache {
 
     /// Read `CFBundleIdentifier` from `<app>/Contents/Info.plist`.
     public static func readBundleID(fromAppBundle appBundlePath: String) -> String? {
-        let infoPlist = appBundlePath + "/Contents/Info.plist"
-        guard let data = FileManager.default.contents(atPath: infoPlist),
-            let plist = try? PropertyListSerialization.propertyList(from: data, format: nil),
-            let dict = plist as? [String: Any],
-            let bundleID = dict["CFBundleIdentifier"] as? String
+        readInfoPlist(ofAppBundle: appBundlePath)?["CFBundleIdentifier"] as? String
+    }
+
+    /// `<app>/Contents/Info.plist` as a dictionary. The bundle belongs to
+    /// whichever process we sampled, so only a regular file of at most
+    /// `maxBytes` is read: a huge (or sparse) plist or a FIFO planted there
+    /// must not balloon our memory or block the caller.
+    public static func readInfoPlist(
+        ofAppBundle appBundlePath: String, maxBytes: Int = 1 << 20
+    ) -> [String: Any]? {
+        let fd = open(appBundlePath + "/Contents/Info.plist", O_RDONLY | O_NONBLOCK | O_CLOEXEC)
+        guard fd >= 0 else { return nil }
+        defer { close(fd) }
+        var st = stat()
+        guard fstat(fd, &st) == 0, st.st_mode & S_IFMT == S_IFREG,
+            st.st_size > 0, st.st_size <= off_t(maxBytes)
         else { return nil }
-        return bundleID
+        let size = Int(st.st_size)
+        var data = Data(count: size)
+        let n = data.withUnsafeMutableBytes { read(fd, $0.baseAddress, size) }
+        guard n == size else { return nil }
+        return (try? PropertyListSerialization.propertyList(from: data, format: nil))
+            as? [String: Any]
     }
 }

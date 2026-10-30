@@ -42,6 +42,12 @@ SOURCES = os.path.join(ROOT, "Sources")
 
 ENTRY = re.compile(r'^"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"\s*;\s*$')
 SPEC = re.compile(r"%(?:(\d+)\$)?([@a-zA-Z%])")
+# The whole printf grammar: index, flags, width, precision, length, conversion.
+# SPEC alone reads `%#llx` or `%08llx` as no specifier at all, so a translation
+# could add one and String(format:) would read past its arguments.
+FULL_SPEC = re.compile(
+    r"%(?:(\d+)\$)?([-+ #0']*(?:\d+|\*)?(?:\.(?:\d*|\*))?(?:hh|h|ll|l|q|L|z|t|j)?)([@a-zA-Z%])"
+)
 
 # Left in English on purpose: proper nouns, units, and symbols that are the same
 # word in both languages. A string here is never reported as missing.
@@ -113,6 +119,28 @@ def specifiers(text):
             return ["mixed positional and unpositioned specifiers"]
         return [conversion for _, conversion in sorted(found, key=lambda f: int(f[0]))]
     return [conversion for _, conversion in found]
+
+
+def full_specifiers(text):
+    """Every specifier in `text` with its flags, width, precision and length,
+    in argument order (the positional index itself is dropped, as above).
+
+    Only applied to strings that are formatted, which is any key with a SPEC
+    conversion or an escaped `%%`. Elsewhere a bare percent is literal text
+    ("50% at", "100 %") that String(format:) never sees, and translations
+    legitimately move it.
+    """
+    found = [(m.group(1), m.group(2) + m.group(3))
+             for m in FULL_SPEC.finditer(text) if m.group(3) != "%"]
+    if any(index for index, _ in found):
+        if not all(index for index, _ in found):
+            return ["mixed positional and unpositioned specifiers"]
+        return [spec for _, spec in sorted(found, key=lambda f: int(f[0]))]
+    return [spec for _, spec in found]
+
+
+def is_format(text):
+    return "%%" in text or any(m.group(2) != "%" for m in SPEC.finditer(text))
 
 
 def unescape(text):
@@ -310,7 +338,10 @@ def main():
         tables[language] = entries
         for key, occurrences in entries.items():
             for _, value in occurrences:
-                if specifiers(unescape(key)) != specifiers(unescape(value)):
+                k, v = unescape(key), unescape(value)
+                if specifiers(k) != specifiers(v) or (
+                    is_format(k) and full_specifiers(k) != full_specifiers(v)
+                ):
                     errors.append(
                         f"{language}: placeholders differ between the key and its "
                         f"translation for {key!r}"

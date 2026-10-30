@@ -75,4 +75,25 @@ final class BundleIDCacheTests: XCTestCase {
         // Second call must hit cache (still correct).
         XCTAssertEqual(cache.bundleID(fromExecutablePath: exe), "com.test.bundleidcache")
     }
+
+    func testOversizedOrNonRegularInfoPlistIsNotRead() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BundleIDCacheTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let big = root.appendingPathComponent("Big.app/Contents", isDirectory: true)
+        try FileManager.default.createDirectory(at: big, withIntermediateDirectories: true)
+        // Sparse: 100 MiB long, no disk used. Must be refused before allocating.
+        let plist = big.appendingPathComponent("Info.plist").path
+        XCTAssertTrue(FileManager.default.createFile(atPath: plist, contents: nil))
+        XCTAssertEqual(truncate(plist, 100 << 20), 0)
+        let bigApp = root.appendingPathComponent("Big.app").path
+        XCTAssertNil(BundleIDCache.readInfoPlist(ofAppBundle: bigApp))
+
+        // A FIFO in place of the plist must not block the reader.
+        let pipe = root.appendingPathComponent("Pipe.app/Contents", isDirectory: true)
+        try FileManager.default.createDirectory(at: pipe, withIntermediateDirectories: true)
+        XCTAssertEqual(mkfifo(pipe.appendingPathComponent("Info.plist").path, 0o600), 0)
+        let pipeApp = root.appendingPathComponent("Pipe.app").path
+        XCTAssertNil(BundleIDCache.readInfoPlist(ofAppBundle: pipeApp))
+    }
 }

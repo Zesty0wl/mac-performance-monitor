@@ -28,3 +28,20 @@ public func ownTeamIdentifier() -> String? {
 
     return dict[kSecCodeInfoTeamIdentifier as String] as? String
 }
+
+/// The code directory hash (cdhash) of the code at `url`, a bundle or a single
+/// executable, or nil when it is unsigned or cannot be read.
+public func codeDirectoryHash(ofCodeAt url: URL) -> Data? {
+    var staticCode: SecStaticCode?
+    guard SecStaticCodeCreateWithPath(url as CFURL, [], &staticCode) == errSecSuccess,
+        let staticCode
+    else { return nil }
+
+    var info: CFDictionary?
+    let flags = SecCSFlags(rawValue: kSecCSSigningInformation)
+    guard SecCodeCopySigningInformation(staticCode, flags, &info) == errSecSuccess,
+        let dict = info as? [String: Any]
+    else { return nil }
+
+    return dict[kSecCodeInfoUnique as String] as? Data
+}

@@ -148,6 +148,16 @@ final class AppGroupingTests: XCTestCase {
                     "/System/Library/Frameworks/WebKit.framework/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
             ))
         XCTAssertNil(AppGrouping.appBundleName(forExecutablePath: nil))
+        // A second binary in an app's Contents/MacOS (a privileged helper) is
+        // not the app: only the bundle's CFBundleExecutable takes its name.
+        XCTAssertEqual(
+            AppGrouping.appBundleName(
+                forExecutablePath: "/System/Applications/Calculator.app/Contents/MacOS/Calculator"),
+            "Calculator")
+        XCTAssertNil(
+            AppGrouping.appBundleName(
+                forExecutablePath:
+                    "/System/Applications/Calculator.app/Contents/MacOS/CalculatorHelper"))
         XCTAssertEqual(
             AppGrouping.appBundlePath(
                 forExecutablePath: "/Applications/Microsoft Teams.app/Contents/MacOS/MSTeams"),

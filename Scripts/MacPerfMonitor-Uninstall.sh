@@ -32,6 +32,7 @@ LEGACY_APP_NAME="MacPerfMonitor"                 # pre-rename bundle name
 BUNDLE_ID="uk.co.bzwrd.macperfmonitor"
 HELPER_LABEL="uk.co.bzwrd.macperfmonitor.helper"
 HELPER_BIN="MacPerfMonitorHelper"
+TEAM_ID="8352865GK4"                             # Developer ID team of every release
 KEYCHAIN_SERVICE="uk.co.bzwrd.macperfmonitor.license"
 SUPPORT_DIR_NAME="MacPerformanceMonitor"         # ~/Library/Application Support/<this>
 STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -159,10 +160,21 @@ $(ls -d \
   "$HOME/Desktop/${APP_NAME}.app" \
   "$HOME/Desktop/${LEGACY_APP_NAME}.app" 2>/dev/null)"
 
+# Spotlight indexes every account's folders, and any app can claim our bundle
+# ID in its Info.plist. So a copy is only touched when it belongs to you or to
+# root, and its binary is only run when the signature is really ours.
+ME="$(id -u)"
+OUR_SIGNATURE="=identifier \"${BUNDLE_ID}\" and anchor apple generic and certificate leaf[subject.OU] = \"${TEAM_ID}\""
+
 # De-duplicate the list of real, existing paths.
 echo "$COPIES" | awk 'NF' | sort -u | while IFS= read -r app; do
   [ -z "$app" ] && continue
   [ -e "$app" ] || continue
+  owner="$(stat -f %u "$app" 2>/dev/null || echo '?')"
+  if [ "$owner" != "$ME" ] && [ "$owner" != "0" ]; then
+    echo "  skipping (belongs to another account): $app"
+    continue
+  fi
   build="$(defaults read "$app/Contents/Info.plist" CFBundleVersion 2>/dev/null || echo '?')"
 
   # Tear down THIS bundle's registrations from inside the bundle itself, BEFORE
@@ -174,8 +186,12 @@ echo "$COPIES" | awk 'NF' | sort -u | while IFS= read -r app; do
   # acts on this login session's registrations.
   exe="$(defaults read "$app/Contents/Info.plist" CFBundleExecutable 2>/dev/null || true)"
   if [ -n "$exe" ] && [ -x "$app/Contents/MacOS/$exe" ]; then
-    echo "  unregistering login item & helper from: $app"
-    "$app/Contents/MacOS/$exe" --uninstall 2>&1 | sed 's/^/    /' || true
+    if codesign --verify --test-requirement="$OUR_SIGNATURE" "$app" 2>/dev/null; then
+      echo "  unregistering login item & helper from: $app"
+      "$app/Contents/MacOS/$exe" --uninstall 2>&1 | sed 's/^/    /' || true
+    else
+      echo "  not running this copy (not signed by Mac Performance Monitor's developer): $app"
+    fi
   fi
 
   echo "  removing: $app  (build $build)"

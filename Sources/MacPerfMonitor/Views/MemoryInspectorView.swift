@@ -322,7 +322,7 @@ struct MemoryInspectorView: View {
                     InfoNote(
                         text:
                             "\(target.name) is a hardened app (no get-task-allow), so leaks can only partially inspect it and falls back to a conservative scan that over-reports — most of these \(leaks.leakCount.formatted()) blocks are very likely not real leaks, and their allocation backtraces can't be shown. This is normal even for Apple's own apps. To find a genuine leak, use Leak Hunt: capture a baseline, exercise the app, and watch for object classes that keep growing.",
-                        kind: .info)
+                        kind: .info, verbatim: true)
                 } else if leaks.significance == .notable {
                     InfoNote(
                         text:
@@ -683,16 +683,19 @@ private struct DeltaDataRow: View {
 /// a message the model has already localised. `LocalizedStringKey(_:)` at the
 /// render point looks up the literal call sites and passes an already-translated
 /// message through untouched, since it simply misses the table.
+/// `verbatim` is for a message that embeds the inspected process's name, which
+/// its owner chose and could write as a markdown link.
 private struct InfoNote: View {
     enum Kind { case info, success, warning }
     let text: String
     var kind: Kind = .info
+    var verbatim = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: symbol)
                 .foregroundStyle(tint)
-            Text(LocalizedStringKey(text))
+            (verbatim ? Text(verbatim: text) : Text(LocalizedStringKey(text)))
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
