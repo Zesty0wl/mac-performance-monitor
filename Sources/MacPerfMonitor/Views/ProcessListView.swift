@@ -520,12 +520,15 @@ private struct ProcessTable: View, Equatable {
 
     /// Pin every process of an app group to the Explorer, in the order the
     /// table shows them, so a group bigger than the free slots fills them
-    /// with its top rows under the current sort.
+    /// with its top rows under the current sort, and says so.
     private func explorerItem(forAppGroup node: ProcessNode) -> NSMenuItem {
         let ids = Set(flatten(node.children ?? []).map(\.id))
         let addable = addableCount(ids)
+        let unpinned = ids.filter { !monitor.contains($0) }.count
         let title: String
-        if addable == 1 {
+        if addable > 1, addable < unpinned {
+            title = String(format: String(localized: "Add Top %d Processes to Explorer"), addable)
+        } else if addable == 1 {
             title = String(format: String(localized: "Add %d Process to Explorer"), addable)
         } else if addable > 1 {
             title = String(format: String(localized: "Add %d Processes to Explorer"), addable)
