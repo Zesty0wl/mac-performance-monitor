@@ -286,20 +286,22 @@ struct CodesignSheet: View {
     /// A JSON object using the available app.settings binary-rule fields. The user
     /// can drop it into AllowedBinaries / DeniedBinaries and trim what they don't
     /// want (those arrays require at least CDHash or TeamID).
+    ///
+    /// Encoded rather than interpolated: the signing identifier and path are
+    /// whatever the inspected binary's author chose, and a quote in either
+    /// must not add a key (a `"TeamID" : "*APPLE*"`) to a rule an admin pastes.
     static func appSettingsRuleJSON(_ info: CodeSignInfo) -> String {
-        var fields: [(String, String)] = []
-        if let cd = info.cdHash { fields.append(("CDHash", cd)) }
-        if let team = info.appSettingsTeamID { fields.append(("TeamID", team)) }
-        if let sid = info.signingID { fields.append(("SigningID", sid)) }
-        fields.append(("PathPrefix", info.pathPrefixCandidate))
+        var fields: [String: String] = [:]
+        fields["CDHash"] = info.cdHash
+        fields["TeamID"] = info.appSettingsTeamID
+        fields["SigningID"] = info.signingID
+        fields["PathPrefix"] = info.pathPrefixCandidate
         if info.signingState.isAppSettingsValue {
-            fields.append(("SigningState", info.signingState.rawValue))
+            fields["SigningState"] = info.signingState.rawValue
         }
-        let body =
-            fields
-            .map { "  \"\($0.0)\" : \"\($0.1)\"" }
-            .joined(separator: ",\n")
-        return "{\n\(body)\n}"
+        let data = try? JSONSerialization.data(
+            withJSONObject: fields, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+        return data.flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
     }
 }
 

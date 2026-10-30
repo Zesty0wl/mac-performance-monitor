@@ -155,4 +155,14 @@ final class ProcessDiagnosticsTests: XCTestCase {
         XCTAssertEqual(r.overallStatus, .critical)
         XCTAssertTrue(r.headline.lowercased().contains("problem"))
     }
+
+    func testTemplateDoesNotRescanSubstitutedNames() {
+        // A binary named after a token used to make the fill loop forever.
+        var p = ProbeValues()
+        p.strings["sample.hotBinary"] = "{sample.hotBinary}"
+        p.numbers["cpu.percent"] = 97
+        XCTAssertEqual(
+            CheckCatalog.template("{sample.hotBinary} at {cpu.percent|pct} {", p),
+            "{sample.hotBinary} at 9700% {")
+    }
 }

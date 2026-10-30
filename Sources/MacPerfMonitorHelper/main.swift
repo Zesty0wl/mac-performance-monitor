@@ -11,8 +11,9 @@ import os.log
 // processes. It never mutates system state.
 //
 // Every connection is pinned to the genuine app's code signature
-// (HelperConstants.peerRequirement) before any request is served — the app must
-// share this helper's own Apple Developer team, anchored to Apple.
+// (HelperConstants.clientRequirement) before any request is served: the app must
+// share this helper's own Apple Developer team, anchored to Apple, or for an
+// ad-hoc build be the exact binary this helper shipped with.
 
 let log = Logger(subsystem: "uk.co.bzwrd.macperfmonitor", category: "helper-main")
 
@@ -29,12 +30,12 @@ log.notice(
     "MacPerfMonitorHelper starting (uid \(getuid(), privacy: .public), build \(launchBuild, privacy: .public))"
 )
 
-let clientRequirement = HelperConstants.peerRequirement(
-    forIdentifier: HelperConstants.appBundleIdentifier)
-if clientRequirement == nil {
-    log.warning(
-        "client code-signing pin DISABLED: this build has no team identifier (ad-hoc/unsigned). Local development only."
-    )
+// Bundle.main is the enclosing .app, so this pins the app this helper shipped in.
+let clientRequirement = HelperConstants.clientRequirement(appBundle: Bundle.main.bundleURL)
+if clientRequirement == "never" {
+    log.fault("no team identifier and no readable app cdhash: refusing every client")
+} else if !clientRequirement.contains("anchor apple generic") {
+    log.warning("ad-hoc build: clients pinned to this app's cdhash only. Local development only.")
 }
 let delegate = HelperListenerDelegate(clientRequirement: clientRequirement, version: launchBuild)
 let listener = NSXPCListener(machServiceName: HelperConstants.machServiceName)

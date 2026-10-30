@@ -25,16 +25,27 @@ public enum HelperConstants {
     /// and helper are always co-signed, so their teams match.
     ///
     /// Returns nil when the running code has no team identifier — an ad-hoc or
-    /// unsigned local build. Callers treat nil as "do not pin", so a locally
-    /// built app and helper still connect for development on any machine. This
-    /// is safe in practice: a distributed build is always Developer ID signed
-    /// and therefore always has a team, so the pin is always enforced in
-    /// release; only a deliberately ad-hoc dev build, on the developer's own
-    /// machine, runs the root helper unpinned.
+    /// unsigned local build. The app then connects to its helper unpinned; the
+    /// root helper never does, see `clientRequirement(appBundle:)`.
     public static func peerRequirement(forIdentifier identifier: String) -> String? {
         guard let team = ownTeamIdentifier() else { return nil }
         return "identifier \"\(identifier)\" and anchor apple generic "
             + "and certificate leaf[subject.OU] = \"\(team)\""
+    }
+
+    /// The requirement the root helper puts on every client. Never nil: an
+    /// unpinned root listener would serve any local process.
+    ///
+    /// A signed build pins the app's identifier and team. An ad-hoc build has
+    /// no team, and its identifier proves nothing (any ad-hoc binary can claim
+    /// one), so it pins the exact code of the app it shipped in: the cdhash of
+    /// `appBundle`'s executable, read when the helper starts. If even that
+    /// cannot be read, `never` rejects everyone.
+    public static func clientRequirement(appBundle: URL) -> String {
+        if let pinned = peerRequirement(forIdentifier: appBundleIdentifier) { return pinned }
+        guard let hash = codeDirectoryHash(ofCodeAt: appBundle) else { return "never" }
+        let hex = hash.map { String(format: "%02x", $0) }.joined()
+        return "identifier \"\(appBundleIdentifier)\" and cdhash H\"\(hex)\""
     }
 }
 

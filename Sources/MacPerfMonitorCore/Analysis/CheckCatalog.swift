@@ -91,13 +91,18 @@ public enum CheckCatalog {
     }
 
     /// Fill `{probe}`, `{probe|pct}`, `{probe|bytes}`, `{probe|rate}` tokens from the
-    /// probe values. Replacements never contain `{`, so the scan terminates.
+    /// probe values, in one left-to-right pass. String probes carry names the
+    /// sampled process chose (a binary called `{sample.hotBinary}`), so
+    /// substituted text is never scanned again.
     static func template(_ text: String, _ p: ProbeValues) -> String {
-        var out = text
-        while let open = out.firstIndex(of: "{"), let close = out[open...].firstIndex(of: "}") {
-            let token = String(out[out.index(after: open)..<close])
-            out.replaceSubrange(open...close, with: render(token, p))
+        var out = ""
+        var rest = text[...]
+        while let open = rest.firstIndex(of: "{"), let close = rest[open...].firstIndex(of: "}") {
+            out += rest[..<open]
+            out += render(String(rest[rest.index(after: open)..<close]), p)
+            rest = rest[rest.index(after: close)...]
         }
+        out += rest
         return out
     }
 

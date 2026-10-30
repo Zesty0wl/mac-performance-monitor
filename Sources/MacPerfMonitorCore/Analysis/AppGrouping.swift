@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// One app and every process working for it, for the Processes tab's Apps
 /// view: the processes sharing a resource coalition, named after the app that
@@ -153,11 +154,35 @@ public enum AppGrouping {
         appBundleName(forExecutablePath: leader.executablePath) ?? leader.displayName
     }
 
-    /// "Name" for a path ending `Name.app/Contents/MacOS/<executable>`; nil for
-    /// anything else (daemons, helpers inside frameworks, command-line tools).
+    /// "Name" for a path ending `Name.app/Contents/MacOS/<executable>` when
+    /// that executable is the bundle's main one; nil for anything else
+    /// (daemons, helpers inside frameworks, command-line tools). A second
+    /// binary in `Contents/MacOS`, such as this app's privileged helper, is a
+    /// separate process with its own coalition and must not borrow the app's
+    /// name, or the app is listed twice.
     static func appBundleName(forExecutablePath path: String?) -> String? {
-        guard let bundle = appBundlePath(forExecutablePath: path) else { return nil }
+        guard let path, let bundle = appBundlePath(forExecutablePath: path) else { return nil }
+        if let main = mainExecutable(ofBundle: bundle),
+            main != (path as NSString).lastPathComponent
+        {
+            return nil
+        }
         return String((bundle as NSString).lastPathComponent.dropLast(4))
+    }
+
+    /// `CFBundleExecutable` per bundle path, read once. Called from the
+    /// table's value patches on the main thread, so never re-read per call.
+    private static let mainExecutables = OSAllocatedUnfairLock(
+        initialState: BoundedCache<String, String?>(capacity: 256))
+
+    /// The bundle's `CFBundleExecutable`, or nil when its Info.plist cannot be
+    /// read (then the executable is taken to be the main one).
+    private static func mainExecutable(ofBundle bundle: String) -> String? {
+        if let cached = mainExecutables.withLock({ $0.value(forKey: bundle) }) { return cached }
+        let plist = BundleIDCache.readInfoPlist(ofAppBundle: bundle)
+        let main = plist?["CFBundleExecutable"] as? String
+        mainExecutables.withLock { $0.insert(main, forKey: bundle) }
+        return main
     }
 
     /// The `.app` bundle whose main executable `path` is, for revealing the

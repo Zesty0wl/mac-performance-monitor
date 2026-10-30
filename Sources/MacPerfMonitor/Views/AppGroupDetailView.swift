@@ -108,8 +108,11 @@ struct AppGroupDetailView: View {
         }
     }
 
+    /// Lazy: a booted Simulator's coalition holds ~170 processes, and building
+    /// every row (each drawing its icon) on each model change kept the main
+    /// thread busy for seconds after the row was selected.
     private func members(_ group: AppGroup) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        LazyVStack(alignment: .leading, spacing: 6) {
             Text("Processes")
                 .font(.headline)
             ForEach(

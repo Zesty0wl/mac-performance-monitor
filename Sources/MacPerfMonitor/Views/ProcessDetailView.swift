@@ -296,12 +296,20 @@ private struct ProcessDetailDescription: View {
         }
     }
 
+    /// Curated lines come from the signed glossary and may use markdown. A
+    /// derived line embeds the process's own path ("Part of <app>"), which
+    /// anyone can name `[x](https://...)`, so it is shown verbatim, never as
+    /// a link.
+    private static func text(_ string: String, curated: Bool) -> Text {
+        curated ? Text(LocalizedStringKey(string)) : Text(verbatim: string)
+    }
+
     private func card(_ d: ResolvedDescription) -> some View {
         let tint = Self.categoryTint(d.category)
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Image(systemName: Self.categoryIcon(d.category)).foregroundStyle(tint)
-                Text(LocalizedStringKey(d.title)).font(.callout.weight(.semibold))
+                Self.text(d.title, curated: d.curated).font(.callout.weight(.semibold))
                 if let vendor = d.vendor {
                     Text(LocalizedStringKey(vendor))
                         .font(.caption2.weight(.medium))
@@ -314,7 +322,7 @@ private struct ProcessDetailDescription: View {
                     Text("not yet documented").font(.caption2).foregroundStyle(.tertiary)
                 }
             }
-            Text(LocalizedStringKey(d.detail)).font(.callout).foregroundStyle(.secondary)
+            Self.text(d.detail, curated: d.curated).font(.callout).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if d.expectedHigh {
                 Label("High CPU/memory is normal for this process.", systemImage: "info.circle")
