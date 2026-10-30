@@ -293,8 +293,8 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and the
 [Code of Conduct](CODE_OF_CONDUCT.md). Security reports go through
 [SECURITY.md](SECURITY.md).
 
-The app ships in English, Simplified Chinese, German, and French. German and
-French began as AI translations and await review by native speakers. New 2.0
+The app ships in English, Simplified Chinese, German, French, and Russian. German,
+French, and Russian began as AI translations and await review by native speakers. New 2.0
 strings in Simplified Chinese also include generated copy awaiting review.
 Translate or review in your browser on
 [Crowdin](https://crowdin.com/project/mac-performance-monitor), or edit one file and open a

@@ -41,7 +41,8 @@ rules further down apply either way.
 
 The initial German and French translations were generated on 2026-09-03 by
 Claude Fable 5.1, Anthropic's AI model. They follow Apple's macOS terminology,
-informal "du" in German, and "vous" in French. Later 2.0 strings include further
+informal "du" in German, and "vous" in French. Russian was added following
+Apple's official macOS Russian terminology and marked for native-speaker review. Later 2.0 strings include further
 AI-generated translations in German, French, and Simplified Chinese. Their
 catalog comments identify them; they still need native-speaker review.
 

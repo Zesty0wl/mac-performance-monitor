@@ -8,6 +8,11 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Added
 
+- **Russian localization**, generated from the English source strings with
+  Apple macOS terminology and marked for native-speaker review. Settings
+  includes a language switcher entry for Russian, and strings are marked with
+  the catalog's "needs review" state awaiting review on Crowdin.
+
 - **See how much memory each app uses across all of its processes**
   ([#162](https://github.com/Zesty0wl/mac-performance-monitor/issues/162)).
   The Processes tab's new Apps layout shows one row per app with its

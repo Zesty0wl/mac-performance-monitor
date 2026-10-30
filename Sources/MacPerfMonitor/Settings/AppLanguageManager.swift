@@ -9,6 +9,7 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
     case de = "de"
     case fr = "fr"
     case zhHans = "zh-Hans"
+    case ru = "ru"
 
     var id: String { rawValue }
 
@@ -19,6 +20,7 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
         case .de: return "Deutsch"
         case .fr: return "Français"
         case .zhHans: return "简体中文"
+        case .ru: return "Русский"
         }
     }
 
@@ -34,6 +36,8 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
             return Locale(identifier: "fr")
         case .zhHans:
             return Locale(identifier: "zh-Hans")
+        case .ru:
+            return Locale(identifier: "ru")
         }
     }
 
@@ -42,7 +46,7 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
     /// Settings shows a notice for these so nobody mistakes them for reviewed
     /// work, and so people know where to send corrections. Remove a language
     /// from this set once a native speaker has been through it.
-    static let machineTranslated: Set<AppLanguage> = [.de, .fr]
+    static let machineTranslated: Set<AppLanguage> = [.de, .fr, .ru]
 
     /// The model that produced the machine translations, named in the notice.
     static let machineTranslationModel = "Claude Fable 5.1"
