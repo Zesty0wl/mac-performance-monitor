@@ -16315,6 +16315,36 @@
         }
       }
     },
+    "Add Top %d Processes to Explorer" : {
+      "comment" : "App group right-click action when only some of the app's processes fit in the Explorer: adds the first ones in the table's current sort order. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Top %d Prozesse zum Explorer hinzufügen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Top %d Processes to Explorer"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter les %d principaux processus à l’explorateur"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将前 %d 个进程添加到数据探索"
+          }
+        }
+      }
+    },
     "Add to Explorer" : {
       "comment" : "Process-list comparison action. AI-generated translations; native-speaker review pending.",
       "extractionState" : "manual",

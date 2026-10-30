@@ -490,8 +490,8 @@ private struct ProcessTable: View, Equatable {
         return menu
     }
 
-    /// The right-click menu for an app row: quit the app the normal way, or
-    /// reveal it. There is deliberately no force quit for the whole group: an
+    /// The right-click menu for an app row: quit the app the normal way,
+    /// reveal it, or pin its processes to the Explorer. There is deliberately no force quit for the whole group: an
     /// app's coalition includes system services macOS started for it (shader
     /// compilers, store helpers), which are not the app's to kill. Each
     /// process row keeps its own menu, force quit included.
@@ -514,7 +514,32 @@ private struct ProcessTable: View, Equatable {
             ) {
                 _ = ProcessActions.revealInFinder(path: path)
             })
+        menu.addItem(explorerItem(forAppGroup: node))
         return menu
+    }
+
+    /// Pin every process of an app group to the Explorer, in the order the
+    /// table shows them, so a group bigger than the free slots fills them
+    /// with its top rows under the current sort, and says so.
+    private func explorerItem(forAppGroup node: ProcessNode) -> NSMenuItem {
+        let ids = Set(flatten(node.children ?? []).map(\.id))
+        let addable = addableCount(ids)
+        let unpinned = ids.filter { !monitor.contains($0) }.count
+        let title: String
+        if addable > 1, addable < unpinned {
+            title = String(format: String(localized: "Add Top %d Processes to Explorer"), addable)
+        } else if addable == 1 {
+            title = String(format: String(localized: "Add %d Process to Explorer"), addable)
+        } else if addable > 1 {
+            title = String(format: String(localized: "Add %d Processes to Explorer"), addable)
+        } else if ids.allSatisfy(monitor.contains) {
+            title = String(localized: "In Explorer")
+        } else {
+            title = String(localized: "Explorer Full")
+        }
+        return ClosureMenuItem(title, symbol: "chart.xyaxis.line", enabled: addable > 0) {
+            addSelectionToMonitor(ids)
+        }
     }
 
     /// The most durable membership rule for a process: prefer its code-signing
