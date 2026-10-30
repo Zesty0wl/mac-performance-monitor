@@ -56,9 +56,16 @@ public enum HelperConstants {
 ///
 /// Most methods only *read* process data. The one mutating method,
 /// `terminateProcess`, is tightly constrained: it accepts only `SIGTERM` and
-/// `SIGKILL`, refuses pid <= 1, and signals exactly one process (never a process
-/// group), so even though it runs as root it cannot be turned into a
-/// general-purpose signal-injection tool.
+/// `SIGKILL`, refuses pid <= 1, signals exactly one process (never a process
+/// group), and only the process the user chose (checked by start time), so even
+/// though it runs as root it cannot be turned into a general-purpose
+/// signal-injection tool.
+///
+/// The pin proves which app is calling, not which user is running it, and the
+/// daemon serves every account on the Mac. So terminating, memory tools and
+/// descriptor listing act on another user's process only for an administrator
+/// (see `HelperCaller`); a standard account can still use them on its own
+/// processes.
 ///
 /// `runMemoryTool` lets the caller pick only *which* of a fixed set of
 /// Apple-signed tools to run (by enum raw value), never the path or arguments,
@@ -83,11 +90,14 @@ public enum HelperConstants {
     func listFileDescriptors(_ pid: NSNumber, reply: @escaping (Data?) -> Void)
 
     /// Send a termination signal to a process as root. `signal` must be
-    /// `SIGTERM` or `SIGKILL`; any other value, or pid <= 1, is rejected. The
-    /// reply is `0` on success or the POSIX `errno` (for example `ESRCH` if the
-    /// process had already exited). Lets the app force-quit system and
-    /// other-user processes the user cannot signal directly.
-    func terminateProcess(_ pid: NSNumber, signal: NSNumber, reply: @escaping (Int32) -> Void)
+    /// `SIGTERM` or `SIGKILL`; any other value, or pid <= 1, is rejected.
+    /// `startedAt` is the process's start time (seconds since 1970) when the
+    /// user chose it: if the pid now belongs to a different process, nothing is
+    /// signalled and the reply is `ESRCH`. The reply is `0` on success or the
+    /// POSIX `errno`. Lets the app force-quit system and other-user processes
+    /// the user cannot signal directly.
+    func terminateProcess(
+        _ pid: NSNumber, startedAt: NSNumber, signal: NSNumber, reply: @escaping (Int32) -> Void)
 
     /// Run one of the allow-listed Apple memory tools (`footprint`, `heap`,
     /// `leaks`) against a PID as root, replying with its combined stdout/stderr

@@ -50,7 +50,7 @@ let package = Package(
         // so it carries no SwiftUI and can be tested in process.
         .target(
             name: "MacPerfMonitorIPC",
-            dependencies: ["MacPerfMonitorCore"]
+            dependencies: ["MacPerfMonitorCore", "CMacPerfMonitor"]
         ),
 
         // The privileged root LaunchDaemon. A thin XPC listener over MacPerfMonitorIPC

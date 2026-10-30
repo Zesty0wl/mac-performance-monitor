@@ -34,8 +34,18 @@ enum ProcessActions {
     /// Send `SIGKILL` to a pid. MacPerfMonitor runs unsandboxed as the user, so this
     /// works for the user's own processes; system or other-user processes return
     /// `notPermitted`.
-    static func forceQuit(pid: Int32) -> KillOutcome {
+    static func forceQuit(_ identity: ProcessIdentity) -> KillOutcome {
+        let pid = identity.pid
         guard pid > 1 else { return .notPermitted }
+        // A pid is reused once its process exits, and the confirmation can sit
+        // open for a while: never signal a different process that took the
+        // number. Another user's process is unreadable here; kill(2) refuses
+        // it too, and the helper repeats this check before it acts as root.
+        if let info = ProcessReader().taskAllInfo(pid),
+            abs(info.startTime.timeIntervalSince(identity.startTime)) >= 0.001
+        {
+            return .alreadyGone
+        }
         let result = kill(pid, SIGKILL)
         if result == 0 { return .success }
         switch errno {
@@ -396,7 +406,7 @@ struct ForceQuitConfirmation: ViewModifier {
         // dismissing, which made a denied kill (the common case for a process the
         // user does not own) fail silently with no feedback at all.
         DispatchQueue.main.async {
-            switch ProcessActions.forceQuit(pid: pid) {
+            switch ProcessActions.forceQuit(identity) {
             case .success, .alreadyGone:
                 self.model.markTerminated(identity, lastSample: lastSample)
                 AppLog.ui.notice("force-quit pid \(pid, privacy: .public)")
@@ -423,7 +433,7 @@ struct ForceQuitConfirmation: ViewModifier {
                         + "Settings to stop processes as root.", AppInfo.displayName, name)
             return
         }
-        helper.forceQuit(pid: pid) { outcome in
+        helper.forceQuit(identity) { outcome in
             switch outcome {
             case .success, .alreadyGone:
                 self.model.markTerminated(identity, lastSample: lastSample)
