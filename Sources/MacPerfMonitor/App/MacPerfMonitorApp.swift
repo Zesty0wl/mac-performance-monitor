@@ -41,17 +41,22 @@ enum MacPerfMonitorMain {
     }
 }
 
-/// Backstop against more than one copy of the app running at once.
+/// Keeps one copy of the app per user session.
 ///
-/// `LSMultipleInstancesProhibited` (Info.plist) asks LaunchServices to coalesce
-/// repeat launches, but on macOS 26/27 a stale Background Task Management
-/// registration can have RunningBoard demand-launch a *second* copy of the same
-/// bundle directly, bypassing that. This in-process check is the safety net: if
-/// another instance of this bundle id is already running as we start up, hand off
-/// to it and exit — so a duplicate/stale registration can never leave two live
-/// menubar apps that each respawn when the other is killed (the field-reported
-/// "I quit it and it comes straight back" symptom). Runs before the SwiftUI
-/// lifecycle so the duplicate never builds its menubar items or starts sampling.
+/// LaunchServices coalesces repeat launches within a session, but on macOS 26/27
+/// a stale Background Task Management registration can have RunningBoard
+/// demand-launch a *second* copy of the same bundle directly, bypassing that.
+/// This in-process check is the safety net: if another instance of this bundle
+/// id is already running in this session as we start up, hand off to it and
+/// exit, so a duplicate or stale registration can never leave two live menu bar
+/// apps that each respawn when the other is killed (the field-reported "I quit
+/// it and it comes straight back" symptom). Runs before the SwiftUI lifecycle so
+/// the duplicate never builds its menu bar items or starts sampling.
+///
+/// Other users' sessions are deliberately out of scope: `NSRunningApplication`
+/// lists only this session's apps, so everyone on a shared Mac can run their own
+/// copy. The app no longer sets `LSMultipleInstancesProhibited`, which allowed
+/// one copy across all sessions and told the second user it was already running.
 private enum SingleInstanceGuard {
     static func activateExistingAndExitIfRunning() {
         guard let bundleID = Bundle.main.bundleIdentifier else { return }

@@ -50,8 +50,6 @@
 	<string>306</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
-	<key>LSMultipleInstancesProhibited</key>
-	<true/>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppSleepDisabled</key>
