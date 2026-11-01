@@ -6,6 +6,43 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-11-01
+
+### Security
+
+These come from a security review of the app in October 2026. None was
+known to be exploited.
+
+- **The privileged helper now checks who is asking.** It runs once for the
+  whole Mac, so a standard user on a shared Mac could force quit or inspect
+  other accounts' processes through it without a password. Now an
+  administrator can act on any process, and anyone else only on their own.
+  The process list and power readings stay visible to everyone, as in
+  Activity Monitor.
+- **Force quit cannot hit a recycled process ID.** The app and the helper
+  both check the process's start time before sending the signal, so if the
+  process exited and its ID was reused, nothing is stopped.
+- **macOS only starts the helper we signed.** The helper's launch
+  definition carries a launch constraint naming our team and signing
+  identity, so a swapped binary in the app bundle is not run as root. A
+  development build without a team ID now pins the app's exact code hash
+  instead of accepting any caller.
+- **Process names and paths are shown as plain text.** A path written to
+  look like a link no longer renders as one.
+- **Odd app bundles cannot stall the app.** An app's `Info.plist` is read
+  only if it is a regular file under 1 MB, so a huge or never-ending file
+  no longer costs memory or blocks the window.
+- **Deep Dive no longer hangs on a crafted binary name.** A process named
+  after one of Deep Dive's template placeholders made it loop forever.
+- **The uninstaller is stricter.** It ignores copies of the app owned by
+  another account and only runs one signed with our Developer ID.
+- **The code signing sheet** builds its rule with a JSON encoder, so a quote
+  in a signing identifier cannot add a key, and it reports Developer ID or
+  App Store only for a certificate chain that leads to Apple.
+- **Translations cannot change format specifiers.** The localization check
+  now compares every specifier's flags, width and precision, so a
+  translation cannot add one such as `%#llx`.
+
 ### Added
 
 - **See how much memory each app uses across all of its processes**
@@ -19,8 +56,18 @@ Notable changes to Mac Performance Monitor. This project follows
   processes, largest first, and an app can be quit from its row. The
   layout picker (Processes, Apps, Hierarchy) replaces the Hierarchy
   toggle and remembers your choice.
+- **Add an app's processes to the Explorer.** Right-click an app row in the
+  Apps layout and choose **Add N Processes to Explorer**. The Explorer
+  holds eight processes, so a bigger app offers **Add Top N Processes**,
+  taken in the table's current sort; sort by Memory or CPU first to get the
+  heaviest.
 
 ### Fixed
+
+- **Large apps open quickly in the Apps layout.** An app with about 170
+  processes, such as a booted Simulator, took seconds to show its details.
+- **An app with a second program in its bundle is listed once.** Our own
+  helper made Mac Performance Monitor appear twice.
 
 - **The Disk page's drive cards no longer jump around as readings
   change.** Each live reading (R, W, IOPS, latency, Busy) has a fixed
@@ -1322,7 +1369,8 @@ processes behind them.
 - A clean split between a headless, unit-tested data layer and the SwiftUI app. CI
   builds, tests, and lints on every push and pull request.
 
-[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.5.0.297...HEAD
+[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.6.0.305...HEAD
+[2.6.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.5.0.297...v2.6.0.305
 [2.5.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.4.0.289...v2.5.0.297
 [2.4.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.3.1.280...v2.4.0.289
 [2.3.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.3.0.279...v2.3.1.280

@@ -150,7 +150,8 @@ the window, with a setting to keep it visible.
 
 - **Processes:** sort and filter the process table, inspect memory and CPU
   history, and check file descriptors, disk I/O, and Rosetta status.
-  Right-click a row and choose **Usage Timeline** for sampled running history.
+  The **Apps** layout adds up each app's memory and CPU across all of its
+  processes, including the helpers macOS starts for it. Right-click a row and choose **Usage Timeline** for sampled running history.
   Optional Apple app and media activity appears separately, with unverified
   device and foreground status. It requires Full Disk Access and a per-window
   opt-in; the app keeps these activity records in memory only.

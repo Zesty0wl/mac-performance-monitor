@@ -1,46 +1,42 @@
-# Mac Performance Monitor 2.5.0
+# Mac Performance Monitor 2.6.0
 
-Build 297, 25 October 2026. For Apple silicon Macs running macOS 15 or later.
-This update includes changes since 2.4.0, build 289.
+Build 305, 1 November 2026. For Apple silicon Macs running macOS 15 or later.
+This update includes changes since 2.5.0, build 297.
 
-[Download the signed installer](https://github.com/Zesty0wl/mac-performance-monitor/releases/download/v2.5.0.297/MacPerformanceMonitor.pkg).
+[Download the signed installer](https://github.com/Zesty0wl/mac-performance-monitor/releases/download/v2.6.0.305/MacPerformanceMonitor.pkg).
 Existing installs can use **Check for Updates** through Sparkle. Homebrew uses
 the same installer; its cask update may arrive after this release.
 
-## USB-C Port Diagnostics
+## Memory Per App
 
-The Hardware tab has a new **Ports** section listing every USB-C, MagSafe,
-HDMI and SD port. For each one it shows what is plugged in and the link it
-negotiated, the charger's power options and what the Mac is drawing, the
-cable's rating from its e-marker chip, and the USB devices behind it, nested
-by hub.
+The Processes tab has a new **Apps** layout: one row per app, with its memory,
+CPU, threads and open files added up across every process working for it, and
+those processes listed beneath. That includes the helpers macOS starts on an
+app's behalf, such as Safari's and Mail's web content processes, which the
+Hierarchy view could not connect to their app. Select an app to see its totals
+and its processes, largest first.
 
-Plain-language findings flag problems such as an overcurrent event, liquid in
-the port, a USB 2-only cable on a fast port, a 3 A cable capping charging at
-60 W, a slow charger, or a USB 3 device running at USB 2 speed. The page
-updates about a second after something is plugged in or removed, and needs no
-administrator rights.
+Right-click an app row to quit it, reveal it in Finder, or add its processes to
+the Explorer. Switch between Processes, Apps and Hierarchy with the new layout
+picker; your choice is remembered.
 
-## The Disk Page Leads With Your Drives
+## Security Hardening
 
-A new Drives panel puts a card for each internal and external drive at the
-top, with its free space, capacity bar, connection, SMART status and live
-reads and writes. USB drives show the USB version and speed they connected at
-and the port they are plugged into; click the port to jump to Hardware > Ports.
-System containers and disk images are folded away so they no longer bury the
-volumes you use.
+An October security review led to these changes. None was known to be
+exploited.
 
-## Where Your Power Comes From
+- The privileged helper now checks who is asking. On a shared Mac, a standard
+  user can force quit or inspect only their own processes; administrators can
+  still act on any process.
+- Force quit checks the process's start time, so it cannot stop a different
+  process that reused the same ID.
+- macOS only starts the helper if it carries our signature.
+- Process names and paths are always shown as plain text, odd app bundles can
+  no longer stall the window, and the uninstaller only runs a copy signed by us.
 
-On a laptop, the energy menu now shows a stacked chart of power from the
-adapter, power from the battery, and power going into the battery while it
-charges. The header says what the battery is doing: time left, time to full or
-to its charge limit, **Charging on hold** with the reason, or **Not charging**.
+## Steadier Disk Page
 
-## Bigger Explorer Charts
-
-Explorer charts now share the window instead of sitting at a fixed height, so
-three or four charts fill the view. The chart layout button is a menu: keep
-**Fit to window**, or pick 1, 2, 4, 6 or 9 charts per screen.
+The drive cards on the Disk page no longer jump as readings change, and two
+drives in a wide window each take half of the Drives panel.
 
 See the [changelog](CHANGELOG.md) for the full list.
