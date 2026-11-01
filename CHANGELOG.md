@@ -1376,8 +1376,8 @@ processes behind them.
 - A clean split between a headless, unit-tested data layer and the SwiftUI app. CI
   builds, tests, and lints on every push and pull request.
 
-[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.6.0.305...HEAD
-[2.6.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.5.0.297...v2.6.0.305
+[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.6.0.306...HEAD
+[2.6.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.5.0.297...v2.6.0.306
 [2.5.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.4.0.289...v2.5.0.297
 [2.4.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.3.1.280...v2.4.0.289
 [2.3.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.3.0.279...v2.3.1.280
