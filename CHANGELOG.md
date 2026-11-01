@@ -45,6 +45,13 @@ known to be exploited.
 
 ### Added
 
+- **Russian**, contributed by @coolswood in
+  [#168](https://github.com/Zesty0wl/mac-performance-monitor/pull/168).
+  Choose Русский in Settings > General > Language. It is an AI translation
+  that follows Apple's macOS Russian terminology, uses Russian's three plural
+  forms for counts, and awaits review by native speakers; Settings says so
+  while it is active. Corrections are welcome on
+  [Crowdin](https://crowdin.com/project/mac-performance-monitor).
 - **See how much memory each app uses across all of its processes**
   ([#162](https://github.com/Zesty0wl/mac-performance-monitor/issues/162)).
   The Processes tab's new Apps layout shows one row per app with its

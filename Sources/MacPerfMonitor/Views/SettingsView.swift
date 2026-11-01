@@ -74,9 +74,15 @@ private struct GeneralSettingsView: View {
                 }
                 caption("Choose the display language for \(AppInfo.displayName).")
                 if languageManager.language.isMachineTranslated {
-                    caption(
-                        "This language was translated by \(AppLanguage.machineTranslationModel), an AI model, and has not yet been reviewed by native speakers. Corrections are welcome at crowdin.com/project/mac-performance-monitor."
-                    )
+                    if let model = languageManager.language.machineTranslationModel {
+                        caption(
+                            "This language was translated by \(model), an AI model, and has not yet been reviewed by native speakers. Corrections are welcome at crowdin.com/project/mac-performance-monitor."
+                        )
+                    } else {
+                        caption(
+                            "This language was translated by an AI model and has not yet been reviewed by native speakers. Corrections are welcome at crowdin.com/project/mac-performance-monitor."
+                        )
+                    }
                 }
                 Picker("Temperature", selection: $temperatureUnit) {
                     Text("Match System (\(systemTemperatureSymbol))")
