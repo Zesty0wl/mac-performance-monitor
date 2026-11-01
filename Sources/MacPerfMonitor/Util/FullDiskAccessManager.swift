@@ -74,8 +74,8 @@ final class FullDiskAccessManager: ObservableObject {
 
     /// Quit and reopen so a fresh grant applies. `open` runs after a short
     /// delay from a detached shell so the new instance starts once this one
-    /// has exited (`LSMultipleInstancesProhibited` refuses a second copy while
-    /// the first is still up). The bundle path is passed as an argument, not
+    /// has exited (while the first is still up, `open` would only activate it,
+    /// and `SingleInstanceGuard` would make a second copy exit). The bundle path is passed as an argument, not
     /// interpolated, so a space in `/Applications/Mac Performance Monitor.app`
     /// cannot break the command.
     func relaunch() {

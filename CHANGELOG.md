@@ -6,6 +6,15 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Everyone on a shared Mac can run the app at the same time.** Only one
+  copy could run across all logged-in users, so a second person who
+  switched to their account was told the app was already running. Each
+  user now gets their own copy, and the privileged helper still limits
+  everyone but administrators to their own processes. One copy per user is
+  still enforced, so a stale login item can't start a duplicate.
+
 ## [2.6.0] - 2026-11-01
 
 ### Security
