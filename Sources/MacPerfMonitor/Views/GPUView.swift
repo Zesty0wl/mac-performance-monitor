@@ -1168,7 +1168,7 @@ final class GPUTimelineStore: ObservableObject {
     }
 
     private static func point(from s: SystemSample) -> SystemHistoryPoint {
-        SystemHistoryPoint(
+        var point = SystemHistoryPoint(
             date: s.timestamp,
             pressurePercent: s.pressurePercent,
             appMemory: s.appMemory,
@@ -1195,6 +1195,12 @@ final class GPUTimelineStore: ObservableObject {
             aneSampleIsPartial: s.aneSampleIsPartial,
             aneSampleCount: s.aneTimeMillisecondsPerSecond == nil ? 0 : 1
         )
+        // Not in the memberwise call (it is at the type checker's limit). The
+        // live Clock chart reads this column; without it, history loaded from
+        // the database drew a line and every live tick appended a gap.
+        point.gpuClockMHz = s.gpuClockMHz
+        point.gpuClockSampleCount = s.gpuClockMHz == nil ? 0 : 1
+        return point
     }
 
     private static func makeCardTemplates(feeds: [MetricCardFeed]) -> [MetricCardData] {

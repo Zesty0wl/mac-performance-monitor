@@ -170,6 +170,36 @@ final class GPUDevicePanelTests: XCTestCase {
         view.subviews.flatMap { ($0 as? T).map { [$0] } ?? [] + descendants(of: $0, type: type) }
     }
 
+    /// Live ticks must extend the Clock chart, not only stored history. Build
+    /// 310 drew the loaded history and then a gap for every live tick, because
+    /// the live sample-to-point conversion did not carry the clock.
+    func testLiveTicksExtendTheClockLine() throws {
+        let start = Date()
+        let store = GPUTimelineStore()
+        var stored = SystemHistoryPoint(
+            date: start.addingTimeInterval(-10), pressurePercent: 0, appMemory: 0, wired: 0,
+            compressed: 0, cachedFiles: 0, swapUsed: 0)
+        stored.gpuClockMHz = 500
+        stored.gpuClockSampleCount = 1
+        var gpu = GPUSample(utilization: 50)
+        gpu.clockMHz = 903
+        gpu.maximumClockMHz = 1380
+        store.replace([stored], span: 300, live: nil, gpu: gpu)
+        for offset in 1...3 {
+            var sample = SystemSample(
+                timestamp: start.addingTimeInterval(Double(offset)), totalRAM: 0, free: 0,
+                active: 0, inactive: 0, wired: 0, speculative: 0, compressed: 0, appMemory: 0,
+                cachedFiles: 0, swapTotal: 0, swapUsed: 0, pressureLevel: .normal,
+                pressurePercent: 0, pageIns: 0, pageOuts: 0, compressions: 0, decompressions: 0)
+            sample.gpuClockMHz = 900 + Double(offset)
+            store.append(sample, gpu: gpu)
+        }
+        let column = try XCTUnwrap(store.clockFeed.model.series.first?.column)
+        XCTAssertEqual(Array(column.values.suffix(4)), [500, 901, 902, 903])
+        XCTAssertEqual(column.weights.map { Array($0.suffix(3)) }, [1, 1, 1])
+        XCTAssertEqual(store.clockFeed.model.yDomain, 0...1500)
+    }
+
     func testBarListFeedSkipsUnchangedRowsAndKeepsItsRowCount() {
         let feed = GPUBarListFeed(rowCount: 2, emptyText: "None")
         var calls = 0
