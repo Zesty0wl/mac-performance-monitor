@@ -111280,6 +111280,258 @@
           }
         }
       }
+    },
+    "Update to %@…" : {
+      "comment" : "UpdateController",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update to %@…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "更新到 %@…"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Auf %@ aktualisieren …"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Mettre à jour vers %@…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Обновить до %@…"
+          }
+        }
+      }
+    },
+    "Update" : {
+      "comment" : "CombinedMenuBarContentView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "更新"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Update"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Mise à jour"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Обновить"
+          }
+        }
+      }
+    },
+    "Version %@ is available. Click to see what's new and install it." : {
+      "comment" : "CombinedMenuBarContentView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@ is available. Click to see what's new and install it."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "版本 %@ 已推出。点按可查看新功能并安装。"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Version %@ ist verfügbar. Klicken, um die Neuerungen anzusehen und das Update zu installieren."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "La version %@ est disponible. Cliquez pour voir les nouveautés et l’installer."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Доступна версия %@. Нажмите, чтобы узнать, что нового, и установить её."
+          }
+        }
+      }
+    },
+    "Updates" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updates"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "更新"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Updates"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Mises à jour"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Обновления"
+          }
+        }
+      }
+    },
+    "Check for updates automatically" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check for updates automatically"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "自动检查更新"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Automatisch nach Updates suchen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Rechercher automatiquement les mises à jour"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Автоматически проверять обновления"
+          }
+        }
+      }
+    },
+    "Install updates automatically" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install updates automatically"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "自动安装更新"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Updates automatisch installieren"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Installer automatiquement les mises à jour"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Автоматически устанавливать обновления"
+          }
+        }
+      }
+    },
+    "New versions never open a window on their own. When one is found, Update appears in the menu bar panel. With automatic install on, it downloads in the background and installs the next time no %@ window is open." : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New versions never open a window on their own. When one is found, Update appears in the menu bar panel. With automatic install on, it downloads in the background and installs the next time no %@ window is open."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "新版本绝不会自行打开窗口。发现新版本时，菜单栏面板中会出现“更新”。开启自动安装后，新版本会在后台下载，并在下次没有打开任何 %@ 窗口时安装。"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Neue Versionen öffnen nie von selbst ein Fenster. Wird eine gefunden, erscheint „Update“ im Menüleistenfenster. Mit automatischer Installation wird sie im Hintergrund geladen und installiert, sobald kein Fenster von %@ geöffnet ist."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Les nouvelles versions n’ouvrent jamais de fenêtre d’elles-mêmes. Lorsqu’une version est trouvée, « Mise à jour » apparaît dans le panneau de la barre des menus. Avec l’installation automatique, elle est téléchargée en arrière-plan et installée dès qu’aucune fenêtre de %@ n’est ouverte."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Новые версии никогда не открывают окно сами. Когда найдена новая версия, в панели строки меню появляется кнопка «Обновить». При автоматической установке она загружается в фоне и устанавливается, когда ни одно окно %@ не открыто."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

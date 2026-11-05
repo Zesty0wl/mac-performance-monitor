@@ -210,6 +210,7 @@ struct MacPerfMonitorApp: App {
                     .environmentObject(appDelegate.loginItemManager)
                     .environmentObject(appDelegate.components)
                     .environmentObject(appDelegate.menuBarConfiguration)
+                    .environmentObject(appDelegate.updateController)
             }
         }
 
@@ -642,21 +643,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         if !onboarding.hasCompletedSetup {
             onboarding.autoConfigOnly = onboarding.hasCompleted
             WindowOpenBridge.shared.open(id: WindowID.onboarding)
+        } else if UpdateController.consumeQuietRelaunch() {
+            // Relaunched by an update that installed itself while no window was
+            // open. Come back the way we were: in the background.
+            AppLog.ui.notice("relaunched after a quiet update: not opening the main window")
         } else if loginItemManager.shouldPresentMainWindow(menuBarEnabled: components.menuBarItem) {
             presentMainWindowAtLaunch()
         }
 
-        // Check for updates on every cold start (silent unless one is available),
-        // and again whenever the Mac wakes — a menubar app can stay running across
-        // many sleep/wake cycles, so wake is the practical "new session" moment.
-        // The 24-hour periodic check is handled by Sparkle's own scheduler
-        // (SUEnableAutomaticChecks + SUScheduledCheckInterval in Info.plist).
-        DispatchQueue.main.async { [updateController] in
-            updateController.checkInBackground()
-        }
-        NSWorkspace.shared.notificationCenter.addObserver(
-            self, selector: #selector(systemDidWake(_:)),
-            name: NSWorkspace.didWakeNotification, object: nil)
+        // Update checks are Sparkle's own (see UpdateController): its scheduler
+        // runs an overdue check at launch and fires on wake if one fell due
+        // during sleep, and it follows the user's setting. Extra launch and wake
+        // checks here used to bypass that setting (#177).
     }
 
     /// A second copy of the app was launched and handed off to us. Surface the
@@ -709,12 +707,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     /// `terminateIfNothingLeftToDo`, which knows about both.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
-    }
-
-    /// The Mac woke from sleep: run a silent update check (no UI unless an update
-    /// is found). Coalesced by Sparkle if a check is already in flight.
-    @objc private func systemDidWake(_ note: Notification) {
-        updateController.checkInBackground()
     }
 
     /// Guards the one-shot quit teardown so the deferred `.terminateNow` reply

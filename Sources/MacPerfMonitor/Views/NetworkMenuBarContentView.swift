@@ -164,7 +164,7 @@ struct NetworkMenuBarContentView: View {
                 dismiss()
                 showStandardAboutPanel()
             }
-            MenuActionButton(title: "Check for Updates\u{2026}", systemImage: "arrow.down.circle") {
+            MenuActionButton(title: updateController.menuTitle, systemImage: updateController.menuSymbol) {
                 checkForUpdates()
             }
             .disabled(!updateController.canCheckForUpdates)

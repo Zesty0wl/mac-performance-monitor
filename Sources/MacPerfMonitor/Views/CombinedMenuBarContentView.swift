@@ -229,6 +229,23 @@ struct CombinedMenuBarContentView: View {
 
             Spacer()
 
+            // The gentle reminder for an update a scheduled check found. It sits
+            // here, outside the More menu, so it can be noticed without ever
+            // putting a window up on its own (#177).
+            if let version = updateController.pendingUpdateVersion {
+                Button {
+                    dismiss()
+                    NSApp.activate(ignoringOtherApps: true)
+                    updateController.checkForUpdates()
+                } label: {
+                    Label("Update", systemImage: "arrow.down.circle")
+                }
+                // Filled, so it reads on whatever the glass shows through.
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .help("Version \(version) is available. Click to see what's new and install it.")
+            }
+
             Menu {
                 if AskAvailability.isOffered(enabled: askEnabled) {
                     Button("Ask About This Mac", systemImage: "sparkles") {
@@ -268,7 +285,7 @@ struct CombinedMenuBarContentView: View {
                     dismiss()
                     showStandardAboutPanel()
                 }
-                Button("Check for Updates\u{2026}", systemImage: "arrow.down.circle") {
+                Button(updateController.menuTitle, systemImage: updateController.menuSymbol) {
                     dismiss()
                     NSApp.activate(ignoringOtherApps: true)
                     updateController.checkForUpdates()

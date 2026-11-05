@@ -496,7 +496,7 @@ struct BatteryMenuBarContentView: View {
                 showStandardAboutPanel()
             }
             MenuActionButton(
-                title: "Check for Updates…", systemImage: "arrow.down.circle"
+                title: updateController.menuTitle, systemImage: updateController.menuSymbol
             ) {
                 checkForUpdates()
             }
