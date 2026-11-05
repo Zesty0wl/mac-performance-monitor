@@ -93,6 +93,10 @@ public struct SystemHistoryWindow {
         case gpuActiveMinimum
         case gpuActivePeak
         case gpuActiveSampleCount
+        case gpuClockMHz
+        case gpuClockMinimum
+        case gpuClockPeak
+        case gpuClockSampleCount
         case gpuReadBandwidthGBps
         case gpuReadBandwidthMinimum
         case gpuReadBandwidthPeak
@@ -280,6 +284,11 @@ public struct SystemHistoryWindow {
         columns[Column.gpuActivePeak.rawValue].append(peaks.gpuActiveResidency ?? .nan)
         columns[Column.gpuActiveSampleCount.rawValue].append(
             Double(point.gpuActiveSampleCount ?? (point.gpuActiveResidency == nil ? 0 : 1)))
+        columns[Column.gpuClockMHz.rawValue].append(point.gpuClockMHz ?? .nan)
+        columns[Column.gpuClockMinimum.rawValue].append(minima?.gpuClockMHz ?? .nan)
+        columns[Column.gpuClockPeak.rawValue].append(peaks.gpuClockMHz ?? .nan)
+        columns[Column.gpuClockSampleCount.rawValue].append(
+            Double(point.gpuClockSampleCount ?? (point.gpuClockMHz == nil ? 0 : 1)))
         columns[Column.gpuReadBandwidthGBps.rawValue].append(point.gpuReadBandwidthGBps ?? .nan)
         columns[Column.gpuReadBandwidthMinimum.rawValue].append(
             minima?.gpuReadBandwidthGBps ?? .nan)

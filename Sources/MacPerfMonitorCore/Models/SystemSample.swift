@@ -111,6 +111,8 @@ public struct SystemSample: Sendable, Codable {
     public var gpuPowerWatts: Double?
     public var gpuMemoryBytes: UInt64?
     public var gpuActiveResidency: Double?
+    /// Mean GPU clock while awake, MHz (v26).
+    public var gpuClockMHz: Double? = nil
     public var gpuReadBandwidthGBps: Double?
     public var gpuWriteBandwidthGBps: Double?
     public var gpuTotalBandwidthGBps: Double?

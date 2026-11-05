@@ -64,7 +64,7 @@ struct GPUView: View {
                 GPUPanelRow {
                     GPUHistoryPanel(timeline: timeline, thermalPoints: thermalPoints, range: range)
                 } side: {
-                    devicePanel
+                    GPUDevicePanel(timeline: timeline)
                 }
             }
             .padding(20)
@@ -251,27 +251,6 @@ struct GPUView: View {
 
     // MARK: - Rail
 
-    private var devicePanel: some View {
-        GPUPanel("Device", systemImage: "cpu") {
-            VStack(alignment: .leading, spacing: 14) {
-                Grid(
-                    alignment: .leadingFirstTextBaseline, horizontalSpacing: 10, verticalSpacing: 6
-                ) {
-                    detailRow("Chip", timeline.chipText)
-                    detailRow("Cores", timeline.coresText)
-                    detailRow("Memory in use", timeline.memoryText)
-                    detailRow("Allocated", timeline.allocatedText)
-                    detailRow("Die temperature", timeline.temperatureText)
-                    detailRow("Fan", timeline.fanText)
-                    detailRow("Thermal limit", timeline.throttleText)
-                    detailRow("Power cap", timeline.capText)
-                    detailRow("GPU recoveries", timeline.recoveryText)
-                }
-                GPUClockStatesSection(feed: timeline.statesFeed)
-            }
-        }
-    }
-
     private var categoriesPanel: some View {
         GPUPanel(
             "By category", systemImage: "chart.bar.fill",
@@ -320,22 +299,6 @@ struct GPUView: View {
             }
         }
     }
-
-    // MARK: - Bits
-
-    private func detailRow(_ label: LocalizedStringKey, _ feed: TextFeed) -> some View {
-        GridRow {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .gridColumnAlignment(.leading)
-            LiveText(
-                feed: feed, font: .monospacedDigitSystemFont(ofSize: 11, weight: .regular),
-                alignment: .right
-            )
-            .frame(maxWidth: .infinity, alignment: .trailing)
-        }
-    }
 }
 
 /// One row of the page: a flexible main panel and the fixed-width rail
@@ -362,10 +325,10 @@ private struct GPUPanelRow<Main: View, Side: View>: View {
 
 // MARK: - History panel
 
-/// The charts the history panel switches between. Five, not six: the two
-/// Neural Engine charts share a page side by side.
+/// The charts the history panel switches between. The two Neural Engine
+/// charts share a page side by side.
 enum GPUHistoryChart: String, CaseIterable, Identifiable {
-    case utilization, power, bandwidth, neuralEngine, temperature
+    case utilization, power, clock, bandwidth, neuralEngine, temperature
 
     var id: String { rawValue }
 
@@ -373,6 +336,7 @@ enum GPUHistoryChart: String, CaseIterable, Identifiable {
         switch self {
         case .utilization: return "Utilization"
         case .power: return "Power"
+        case .clock: return "Clock"
         case .bandwidth: return "Bandwidth"
         case .neuralEngine: return "Neural Engine"
         case .temperature: return "Temperature"
@@ -389,9 +353,10 @@ struct GPUHistoryPanel: View {
     /// fill the row when the Device panel beside them is taller.
     static let chartHeight: CGFloat = 170
 
-    /// Narrowest panel that fits the title and the picker on one line; below
-    /// it (the minimum window width) the picker moves under the title.
-    static let headerPickerWidth: CGFloat = 640
+    /// The panel's horizontal padding plus the header's minimum spacer, added
+    /// to the measured header to decide whether the picker fits beside the
+    /// title.
+    static let headerChrome: CGFloat = 32 + 8
 
     @ObservedObject var timeline: GPUTimelineStore
     let thermalPoints: [SystemHistoryPoint]
@@ -400,8 +365,15 @@ struct GPUHistoryPanel: View {
     /// The panel's width from the layout pass, the same approach as
     /// `MetricCardsRow` (a `ViewThatFits` would measure the charts twice).
     @State private var width: CGFloat = 0
+    /// The natural width of the title row with the picker in it, measured from
+    /// a hidden copy. It was a fixed 640 pt, which fitted five English
+    /// segments; with six (the Clock page) the header needs about 712 pt, more
+    /// in German and Russian, and a panel between the two overflowed its row.
+    @State private var headerWidth: CGFloat = 0
 
-    private var pickerInHeader: Bool { width == 0 || width >= Self.headerPickerWidth }
+    private var pickerInHeader: Bool {
+        width == 0 || headerWidth == 0 || width >= headerWidth + Self.headerChrome
+    }
 
     var body: some View {
         GPUPanel("Over time", systemImage: "chart.xyaxis.line", info: info) {
@@ -416,6 +388,24 @@ struct GPUHistoryPanel: View {
             $0.size.width
         } action: {
             width = $0
+        }
+        // A background never affects the panel's size, so measuring here
+        // cannot feed back into the width it is compared with.
+        .background(alignment: .topLeading) {
+            HStack(spacing: 7) {
+                Image(systemName: "chart.xyaxis.line").font(.subheadline)
+                Text("Over time").font(.headline).lineLimit(1)
+                Image(systemName: "info.circle")
+                picker
+            }
+            .fixedSize()
+            .hidden()
+            .accessibilityHidden(true)
+            .onGeometryChange(for: CGFloat.self) {
+                $0.size.width
+            } action: {
+                headerWidth = $0
+            }
         }
     }
 
@@ -437,6 +427,9 @@ struct GPUHistoryPanel: View {
         case .power:
             return
                 "Reported chip power, averaged over the sampling interval. ANE activity is measured separately from kernel time accounting, not inferred from power."
+        case .clock:
+            return
+                "The GPU's mean clock while awake, against the chip's top clock. A GPU that stays busy but drops below its usual clock is being held back by heat or power; the Device panel's Limits page shows which."
         case .temperature:
             return
                 "Each line is the hottest sensor of its domain: CPU die in orange, GPU die in red. High numbers under load are normal; the Energy tab keeps the long-term thermal record and the throttling log."
@@ -475,6 +468,20 @@ struct GPUHistoryPanel: View {
                     .frame(
                         minHeight: Self.chartHeight, idealHeight: Self.chartHeight,
                         maxHeight: .infinity)
+            }
+        case .clock:
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 22) {
+                    GPULiveStat(label: "CLOCK", feed: timeline.clockText, tint: .systemOrange)
+                    GPULiveStat(label: "LIMITED", feed: timeline.device.limitedText)
+                    GPULiveStat(label: "GPU awake", feed: timeline.activeText)
+                    Spacer()
+                }
+                LiveTrendChart(feed: timeline.clockFeed, scrubbable: true)
+                    .frame(
+                        minHeight: Self.chartHeight, idealHeight: Self.chartHeight,
+                        maxHeight: .infinity)
+                TrendStatisticsCaption(model: timeline.clockFeed.model)
             }
         case .bandwidth:
             GPUBandwidthPanel(timeline: timeline)
@@ -617,7 +624,7 @@ private struct AIWorkloadRowView: View {
 /// in the header rather than as a caption under the content, and `accessory`
 /// sits at the header's trailing edge (the history panel's chart picker). The
 /// panel fills the height it is offered, so panels in a `GPUPanelRow` match.
-private struct GPUPanel<Accessory: View, Content: View>: View {
+struct GPUPanel<Accessory: View, Content: View>: View {
     let title: LocalizedStringKey
     let systemImage: String
     let info: LocalizedStringKey?
@@ -845,6 +852,10 @@ final class GPUTimelineStore: ObservableObject {
     let statesFeed = GPUStatesFeed()
     let bandwidthFeed = GPUBandwidthFeed()
     let shareFeed = GPUShareFeed()
+    let clockFeed = TrendFeed()
+    let clockText = TextFeed()
+    let device = GPUDeviceFeeds()
+    private var clockTop: Double = 500
 
     init() {
         cardTemplates = Self.makeCardTemplates(feeds: cardFeeds)
@@ -899,6 +910,8 @@ final class GPUTimelineStore: ObservableObject {
         aneTop = max(aneTop, LiveChartGeometry.niceCeiling(max(anePeak * 1.1, 1000)))
         let powerPeak = window.values(.anePowerPeak).reduce(0.0) { $1.isFinite ? max($0, $1) : $0 }
         anePowerTop = max(anePowerTop, LiveChartGeometry.niceCeiling(max(powerPeak * 1.15, 1)))
+        let clockPeak = window.values(.gpuClockPeak).reduce(0.0) { $1.isFinite ? max($0, $1) : $0 }
+        clockTop = max(clockTop, LiveChartGeometry.niceCeiling(max(clockPeak, 500)))
         let memoryPeak = window.values(.gpuMemoryPeak).reduce(0.0) {
             $1.isFinite ? max($0, $1) : $0
         }
@@ -1099,6 +1112,37 @@ final class GPUTimelineStore: ObservableObject {
         recoveryText.publish(gpu?.recoveryCount.map { "\($0)" } ?? "--")
         aneStatusText.publish(ANEActivityPresentation.status(gpu))
         statesFeed.publish(gpu?.performanceStates ?? [], active: gpu?.activeResidency)
+        device.publish(gpu)
+        clockText.publish(gpu?.clockMHz.map(GPUDevicePresentation.megahertz) ?? "--")
+        if let maximum = gpu?.maximumClockMHz, maximum > 0, maximum > clockTop {
+            // A fixed scale at the chip's top clock, so a throttled GPU reads
+            // as a lower line rather than a rescaled one.
+            clockTop = LiveChartGeometry.niceCeiling(maximum)
+        }
+        var clockColumn = LiveColumn(
+            window, .gpuClockMHz, peak: .gpuClockPeak, minimum: .gpuClockMinimum)
+        clockColumn.weights = window.values(.gpuClockSampleCount)
+        var clock = TrendModel()
+        clock.series = [
+            TrendSurfaceSeries(column: clockColumn, color: .orange, name: t("GPU clock"))
+        ]
+        clock.xDomain = domain
+        clock.yDomain = 0...clockTop
+        clock.yFormat = GPUDevicePresentation.megahertz
+        clock.detailFormat = GPUDevicePresentation.megahertz
+        clock.valueUnit = "MHz"
+        clock.showsTimeAxis = true
+        clock.leftGutter = 72
+        clock.plotBorder = true
+        clock.statisticsInterval = aneStatisticsInterval
+        clock.gapThreshold = 15
+        clock.statisticsNote = t(
+            "Mean clock while the GPU was awake. Time powered off is a gap, not zero. Older logs have no clock data."
+        )
+        clock.accessibilityLabel = t("GPU clock history")
+        clock.accessibilityValue =
+            gpu?.clockMHz.map(GPUDevicePresentation.megahertz) ?? t("Unavailable")
+        clockFeed.publish(clock, replacingHistory: replacingHistory)
         bandwidthFeed.publish(gpu?.bandwidth)
 
         if !didDescribeDevice, let gpu {
@@ -1109,7 +1153,8 @@ final class GPUTimelineStore: ObservableObject {
             parts.append(t("unified memory"))
             subtitle = parts.joined(separator: " · ")
             chipText.publish(gpu.name ?? "--")
-            coresText.publish(gpu.coreCount.map { "\($0)" } ?? "--")
+            coresText.publish(
+                GPUDevicePresentation.cores(count: gpu.coreCount, clusters: gpu.coreClusters))
         }
     }
 
@@ -1542,19 +1587,19 @@ struct GPUClockStatesExplanation: View {
                 "Time with the GPU powered down. A large OFF share is normal when little graphics work is needed."
             )
             definition(
-                "P states",
-                "Speed levels, ordered from lower to higher clock speeds. Higher states can finish work faster but usually use more power."
+                "Clock speeds",
+                "Each bar is one speed level, slowest first, labelled with its clock from the chip's frequency table. Higher clocks finish work faster but use more power."
             )
             definition(
                 "Time, not load",
-                "P3 at 25% means the GPU spent one quarter of the latest sample in P3. It does not mean 25% of GPU capacity."
+                "A level at 25% means the GPU spent one quarter of the latest sample at that clock. It does not mean 25% of GPU capacity."
             )
             definition(
                 "Reading the pattern",
-                "macOS changes states to balance work, power and heat. Low states alone do not mean the GPU is being throttled. Check Thermal limit and Power cap for limits."
+                "macOS changes speed to balance work, power and heat. Low clocks alone do not mean the GPU is being throttled. The Limits page shows what set the clock."
             )
             Text(
-                "The state names are not GHz values. This source does not report an exact frequency for each state."
+                "Where the chip publishes no frequency table, the bars keep the driver's state names, P1 upwards."
             )
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -1575,12 +1620,17 @@ struct GPUClockStatesExplanation: View {
 final class GPUStatesFeed {
     private(set) var states: [GPUPerformanceState] = []
     private(set) var activeResidency: Double?
+    /// The most states this feed has published. The surface is sized to it,
+    /// not to the latest list, so a tick with fewer states (or none) never
+    /// shrinks the Device panel and grows it back a tick later.
+    private(set) var rowCapacity = 0
     private var observers: [UUID: () -> Void] = [:]
 
     func publish(_ states: [GPUPerformanceState], active: Double?) {
         guard states != self.states || active != activeResidency else { return }
         self.states = states
         self.activeResidency = active
+        rowCapacity = max(rowCapacity, states.count)
         for observer in observers.values { observer() }
     }
 
@@ -1619,7 +1669,7 @@ struct GPUStatesSurface: NSViewRepresentable {
     {
         CGSize(
             width: proposal.width ?? 260,
-            height: GPUStatesSurfaceView.height(forStates: feed.states.count))
+            height: GPUStatesSurfaceView.height(forStates: feed.rowCapacity))
     }
 }
 
@@ -1630,6 +1680,7 @@ final class GPUStatesSurfaceView: LiveSurfaceView {
     private var shownCount = -1
     static let rowHeight: CGFloat = 16
     static let barInset: CGFloat = 44
+    static let labelledBarInset: CGFloat = 66
 
     static func height(forStates count: Int) -> CGFloat {
         CGFloat(max(1, count + 1)) * rowHeight
@@ -1665,11 +1716,13 @@ final class GPUStatesSurfaceView: LiveSurfaceView {
 
     private func feedDidPublish() {
         guard let feed else { return }
-        if feed.states.count != shownCount {
-            shownCount = feed.states.count
+        if feed.rowCapacity != shownCount {
+            shownCount = feed.rowCapacity
             invalidateIntrinsicContentSize()
         }
-        var readings = feed.states.map { ($0.name, $0.residency) }
+        var readings = feed.states.map {
+            ($0.frequencyMHz.map(GPUDevicePresentation.megahertz) ?? $0.name, $0.residency)
+        }
         if let active = feed.activeResidency {
             readings.insert(("OFF", max(0, 100 - active)), at: 0)
         }
@@ -1692,20 +1745,27 @@ final class GPUStatesSurfaceView: LiveSurfaceView {
         if let active = feed.activeResidency {
             rows.append(("OFF", max(0, 100 - active), .secondaryLabelColor))
         }
+        // Label each state with its clock when the frequency table names it.
+        let labelled = feed.states.contains { $0.frequencyMHz != nil }
         for state in feed.states {
-            rows.append((state.name, state.residency, .controlAccentColor))
+            let name =
+                state.frequencyMHz.map {
+                    GPUDevicePresentation.megahertz($0)
+                } ?? state.name
+            rows.append((name, state.residency, .controlAccentColor))
         }
+        let barInset = labelled ? Self.labelledBarInset : Self.barInset
         guard !rows.isEmpty else {
             labels.label("Reading the GPU\u{2026}", style: .axis).draw(at: .zero, in: context)
             return
         }
         let width = bounds.width
-        let barWidth = max(1, width - Self.barInset - 42)
+        let barWidth = max(1, width - barInset - 42)
         for (index, row) in rows.enumerated() {
             let y = CGFloat(index) * Self.rowHeight
             let name = labels.label(row.0, style: .legend)
             name.draw(at: CGPoint(x: 0, y: y + 2), in: context)
-            let track = CGRect(x: Self.barInset, y: y + 4, width: barWidth, height: 8)
+            let track = CGRect(x: barInset, y: y + 4, width: barWidth, height: 8)
             context.setFillColor(NSColor.secondaryLabelColor.withAlphaComponent(0.15).cgColor)
             context.addPath(
                 CGPath(roundedRect: track, cornerWidth: 4, cornerHeight: 4, transform: nil))

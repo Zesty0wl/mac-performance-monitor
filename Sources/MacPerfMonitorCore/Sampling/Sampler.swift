@@ -342,7 +342,11 @@ public final class Sampler {
                     freshGPU?.throttled = power.gpuThrottled
                     freshGPU?.powerCapPercent = power.gpuPowerCapPercent
                     freshGPU?.bandwidth = power.gpuBandwidth
+                    freshGPU?.diagnostics = power.gpuDiagnostics
+                    freshGPU?.health = power.gpuHealth
                 }
+                freshGPU?.resolveClock(
+                    table: gpuReader.frequencyTable, helper: anePower, now: now)
                 if let thermal = cachedThermal {
                     // Prefer the GPU's own cluster sensors; fall back to the
                     // CPU die max on chips with no GPU-specific keys.
@@ -955,6 +959,7 @@ public final class Sampler {
         sample.memorySampleInterval = activity?.elapsed
         sample.gpuMemoryBytes = gpu?.inUseMemoryBytes
         sample.gpuActiveResidency = gpu?.activeResidency
+        sample.gpuClockMHz = gpu?.clockMHz
         let bandwidth = gpu?.bandwidth?.estimatedRates(at: now)
         sample.gpuReadBandwidthGBps = bandwidth?.read
         sample.gpuWriteBandwidthGBps = bandwidth?.write

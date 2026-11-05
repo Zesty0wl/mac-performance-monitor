@@ -1,5 +1,80 @@
 # GPU tab: what Apple Silicon exposes, and a design
 
+## Clock, limits, work, memory and health (5 November 2026)
+
+The Device rail became a panel with five pages behind one picker, and the
+history panel gained a **Clock** chart. Every page is laid out at once (the
+hidden ones are transparent), so switching pages never changes the row's
+height. `testSwitchingPagesKeepsThePanelHeight` checks this. The page is kept
+in `gpu.devicePage`. Everything below reads without root on an M3 Pro, macOS
+27.2. The live test is `MACPERF_TEST_GPU_DIAGNOSTICS=1 swift test --filter
+GPUDiagnosticsTests/testLiveReadersUnderComputeLoad`, which runs a Metal
+compute loop.
+
+**Per-core GPU usage is not available.** IOReport splits CPU energy per core
+(`ECPU0`, `PCPU0`, ...) but has one whole-GPU `GPU` channel, and every `GPU
+Stats` channel is split by P-state, never by core. Metal's public counter sets
+offer only `timestamp`. Apple's raw counter framework (`GPURawCounter`,
+`GRCCopyAllCounterSourceGroup`) refuses to start ("Fail to instantiate
+AGXGPURawCounterSourceGroup") without the Apple-only
+`com.apple.private.agx.performance-spi` entitlement that Xcode's
+`DTServiceHub` holds. The firmware spreads every command buffer across all
+cores anyway, so the OS never accounts work per core.
+
+- **Clock.** The pmgr node's `voltage-states9` is the GPU frequency table:
+  little-endian pairs of UInt32 Hz and mV, with a leading 0 Hz OFF entry. On
+  the M3 Pro it decodes to 338, 618, 796, 832, 924, 952, 1056, 1064, 1182,
+  1182, 1312, 1242 and 1380 MHz. `GPUPH` state Pn is the nth non-zero entry:
+  under full compute load the GPU sat in P13, the 1,380 MHz entry and the
+  chip's rated top clock. The clock is the residency-weighted mean of the
+  awake states (`GPUFrequencyTable.effectiveMHz`). It is refused when more
+  than 1% of awake time is in a state the table cannot name. States past the
+  table (P14 and P15 here) are hidden while empty. With the helper approved,
+  the same powermetrics frame that carries ANE energy also has
+  `gpu.freq_hz` (MHz despite the name) and `gpu.dvfm_states[].freq`. The
+  helper returns both in `ANEPowerReading`. They are a fallback only, for
+  chips without a table (`GPUSample.resolveClock`). Build 307 let them win
+  over the table, and on this Mac the clock went missing in 35% of seconds
+  while the GPU was awake, and the clock-state bars changed count, so the
+  Device panel grew and shrank. The helper's list did not always cover the
+  states the GPU used. The bar list is now also sized to the most states it
+  has shown (`GPUStatesFeed.rowCapacity`), so it never shrinks on a tick.
+  The helper path adds no new privileged command or argument. Schema v26
+  stores `gpu_clock` with avg, min, max and sample-count rollups, exactly like
+  `gpu_active`.
+- **Limits.** `GPU Power Controller States` (`PWRCTRL`) says what set the
+  clock. Only names whose meaning is plain are classified (`GPUControllerState`):
+  IDLE_OFF, STANDBY, PERF, AVGPERF, DEADLINE, DEADAWAR, PRFBOOST, CLTMLIMI,
+  POWER, PWR_ZONE, PPMLIMIT, PPMTARGE and PRFLIMIT. FAST_DIE, SE, CORE_EFF,
+  TURB0, AVMR, PMULOOP and UT are shown under their own names. "Limited time"
+  is the share in the thermal, power and performance-limit states. `PMU Loop
+  Lost Performance Reason Code States` (`PMU_RC`) gives the firmware's own
+  record of lost performance per block (GPU0 to GPU7, AFR0 and AFR1, FAB0),
+  as thermal (`_TH`) or electrical (`_EMT`) limits. NONE means nothing was
+  lost.
+- **Work.** `CDM`, `FRG` and `GTP vChannel Usage` count work the firmware
+  queued on the compute, fragment and geometry engines; the sum per second is
+  shown. `Context Switch Latencies` holds the CL, 3D and TA histograms in
+  microsecond buckets; the page shows switches per second and the bucket 95%
+  fell under. `Active Time Histogram` and `Idle Time Histogram` (24 MHz
+  ticks) give wake-ups per second (completed busy periods) and the mean busy
+  and idle lengths. Trap: in a delta, an empty bucket's sum is `Int64.min`,
+  not 0, so empty buckets are skipped. Measured: an idle desktop woke about
+  99 times a second with 4.7 ms busy periods; a sustained compute loop never
+  idled, which reads as "Busy throughout".
+- **Memory.** The limit is `iogpu.wired_limit_mb` when it is set (custom),
+  otherwise Metal's `recommendedMaxWorkingSetSize` (14.3 GB on an 18 GB M3
+  Pro). Headroom is the limit minus `In use system memory`. This is the
+  ceiling that decides the largest model a GPU runtime can load.
+- **Health.** These are since-boot counters read from the absolute sample
+  every 5 s: `Issue Counts` (total restarts; CDM, FRG and GTP kill counts;
+  memoryless render failures), `UV Warn State` and `THM Counters`, beside the
+  accelerator's `recoveryCount`.
+
+The extra subscription is about 70 channels. A sample went from 0.62 to
+0.82 ms median. The harness `gpuPage` tick showed no measurable change
+against main.
+
 ## Page layout (17 October 2026)
 
 The tab had grown to six full-width chart panels stacked above the process

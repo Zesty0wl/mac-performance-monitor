@@ -240,6 +240,43 @@ final class HelperRoundTripTests: XCTestCase {
         }
     }
 
+    /// The same frame's `gpu_power` section rides along: powermetrics' active
+    /// clock and the MHz of each state. Implausible or partial values are
+    /// dropped, and a frame without the section still yields ANE watts.
+    func testANEPowerFrameCarriesTheGPUClock() throws {
+        let timestamp = Date()
+        var report: [String: Any] = [
+            "timestamp": timestamp, "elapsed_ns": 1_000_000_000,
+            "processor": ["ane_energy": 0],
+            "gpu": [
+                "freq_hz": 1379.6, "idle_ratio": 0.01,
+                "dvfm_states": [338, 618, 1380].map { ["freq": $0, "used_ns": 0] },
+            ],
+        ]
+        let reading = try XCTUnwrap(ANEPowerFrameDecoder.reading(from: report))
+        XCTAssertEqual(reading.gpuFrequencyMHz, 1379.6)
+        XCTAssertEqual(reading.gpuStateFrequenciesMHz, [338, 618, 1380])
+
+        // A value in hertz is converted; a bad state entry drops the list.
+        report["gpu"] = [
+            "freq_hz": 1_380_000_000,
+            "dvfm_states": [["freq": 338], ["freq": -1]],
+        ]
+        let hertz = try XCTUnwrap(ANEPowerFrameDecoder.reading(from: report))
+        XCTAssertEqual(hertz.gpuFrequencyMHz, 1380)
+        XCTAssertNil(hertz.gpuStateFrequenciesMHz)
+
+        // An idle GPU reports 0: no clock rather than a 0 MHz clock.
+        report["gpu"] = ["freq_hz": 0]
+        XCTAssertNil(try XCTUnwrap(ANEPowerFrameDecoder.reading(from: report)).gpuFrequencyMHz)
+        report["gpu"] = nil
+        let none = try XCTUnwrap(ANEPowerFrameDecoder.reading(from: report))
+        XCTAssertNil(none.gpuFrequencyMHz)
+        XCTAssertEqual(none.watts, 0)
+        // The XPC payload stays well inside the 4 KB reply limit.
+        XCTAssertLessThan(try JSONEncoder().encode(reading).count, 1024)
+    }
+
     func testANEPowerUsesActualIntervalAndSeparatesMissingFromZero() throws {
         let timestamp = Date()
         let report: [String: Any] = [

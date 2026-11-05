@@ -435,6 +435,56 @@ final class GPUHistoryTests: XCTestCase {
         }
     }
 
+    /// v26: the mean clock follows the awake-time path exactly: invalid
+    /// readings are not stored, missing ones stay gaps, and the minute, hour
+    /// and chart reductions weight by valid readings with true bounds.
+    func testGPUClockHistoryRollupsKeepWeightsBoundsAndGaps() throws {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let readings: [(TimeInterval, Double?)] = [
+            (1, 400), (2, 1200), (3, nil), (4, -5), (5, .nan), (61, 1380), (62, nil), (121, nil),
+        ]
+        var raw = SystemHistoryWindow(span: 3600)
+        for (offset, clock) in readings {
+            var sample = Make.system(
+                timestamp: start.addingTimeInterval(offset), pressurePercent: 5)
+            sample.gpuClockMHz = clock
+            try store.insert(systemSample: sample)
+            let stored = try XCTUnwrap(store.latestSystemSample())
+            XCTAssertEqual(
+                stored.gpuClockMHz, clock.flatMap { $0.isFinite && $0 > 0 ? $0 : nil })
+            raw.append(SystemHistoryPoint(sample: stored))
+        }
+        XCTAssertEqual(raw.values(.gpuClockMHz).first, 400)
+        XCTAssertEqual(raw.values(.gpuClockPeak)[1], 1200)
+        XCTAssertTrue(raw.values(.gpuClockMHz)[2].isNaN)
+        XCTAssertEqual(Array(raw.values(.gpuClockSampleCount)), [1, 1, 0, 0, 0, 1, 0, 0])
+
+        let rawHistory = try store.systemHistory(
+            from: start, to: start.addingTimeInterval(200), granularity: .raw)
+        XCTAssertEqual(rawHistory.first?.gpuClockMHz, 400)
+        XCTAssertEqual(rawHistory.first?.gpuClockSampleCount, 1)
+
+        try Retention.run(store.databasePool, now: start.addingTimeInterval(3700))
+        let minutes = try store.systemHistory(
+            from: start, to: start.addingTimeInterval(3599), granularity: .minute)
+        XCTAssertEqual(minutes[0].gpuClockMHz, 800)
+        XCTAssertEqual(minutes[0].gpuClockSampleCount, 2)
+        XCTAssertEqual(minutes[0].minima?.gpuClockMHz, 400)
+        XCTAssertEqual(minutes[0].effectivePeaks.gpuClockMHz, 1200)
+        XCTAssertNil(minutes[2].gpuClockMHz)
+        let hour = try XCTUnwrap(
+            store.systemHistory(from: start, to: start.addingTimeInterval(3599), granularity: .hour)
+                .first)
+        let reduced = try XCTUnwrap(minutes.chartDownsampled(span: 3600, to: 1).first)
+        for point in [hour, reduced] {
+            XCTAssertEqual(
+                try XCTUnwrap(point.gpuClockMHz), (400 + 1200 + 1380) / 3, accuracy: 0.001)
+            XCTAssertEqual(point.gpuClockSampleCount, 3)
+            XCTAssertEqual(point.minima?.gpuClockMHz, 400)
+            XCTAssertEqual(point.effectivePeaks.gpuClockMHz, 1380)
+        }
+    }
+
     func testANEPowerWithoutHelperSourceDoesNotBecomeReportedPower() throws {
         let now = Date()
         var sample = Make.system(timestamp: now, pressurePercent: 5)

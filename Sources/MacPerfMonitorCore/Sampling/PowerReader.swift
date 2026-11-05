@@ -19,6 +19,8 @@ struct PowerSample: Sendable, Equatable {
     var gpuThrottled: Bool?
     var gpuPowerCapPercent: Double?
     var gpuBandwidth: GPUBandwidthSample? = nil
+    var gpuDiagnostics: GPUDiagnostics? = nil
+    var gpuHealth: GPUHealthCounters? = nil
 }
 
 final class PowerReader {
@@ -27,6 +29,8 @@ final class PowerReader {
     private var subscribedChannels: CFMutableDictionary?
     private var previousSample: CFDictionary?
     private var previousTime: Date?
+    private var health: GPUHealthCounters?
+    private var healthReadAt: Date?
 
     /// Power averaged over the interval since the last call. nil on the very first
     /// call (no interval yet) or when IOReport is unavailable.
@@ -59,8 +63,23 @@ final class PowerReader {
         var bandwidthRead: GPUBandwidthHistogram?
         var bandwidthWrite: GPUBandwidthHistogram?
         var bandwidthCombined: GPUBandwidthHistogram?
+        var diagnostics = GPUDiagnostics()
+        var sawDiagnostics = false
+        var submissions: [GPUEngine: Int64] = [:]
+        var switchBuckets: [GPUEngine: [GPUContextSwitches.Bucket]] = [:]
         io.iterate(delta) { channel in
-            if self.io.subGroupName(channel) == Self.bandwidthSubgroup {
+            let subgroup = self.io.subGroupName(channel)
+            // Since-boot counters: read from the absolute sample below.
+            if Self.healthSubgroups.contains(subgroup) { return }
+            if Self.diagnosticSubgroups.contains(subgroup) || subgroup.hasSuffix(" vChannel Usage")
+            {
+                sawDiagnostics = true
+                Self.accumulate(
+                    channel: channel, subgroup: subgroup, io: self.io, into: &diagnostics,
+                    submissions: &submissions, switches: &switchBuckets)
+                return
+            }
+            if subgroup == Self.bandwidthSubgroup {
                 let histogram = self.io.bandwidthHistogram(channel)
                 switch self.io.channelName(channel) {
                 case "AGX RD": bandwidthRead = histogram
@@ -116,6 +135,16 @@ final class PowerReader {
                 }
             }
         }
+        if sawDiagnostics {
+            Self.finish(
+                &diagnostics, submissions: submissions, switches: switchBuckets, interval: dt)
+        }
+        if healthReadAt.map({ now.timeIntervalSince($0) >= Self.healthInterval || $0 > now })
+            ?? true
+        {
+            health = Self.health(in: current, io: io)
+            healthReadAt = now
+        }
         return PowerSample(
             gpuWatts: sawGPU ? gpu / dt : nil,
             aneWatts: sawANE ? ane / dt : nil,
@@ -126,7 +155,9 @@ final class PowerReader {
             gpuPowerCapPercent: powerCap,
             gpuBandwidth: GPUBandwidthSample(
                 timestamp: now, interval: dt, read: bandwidthRead, write: bandwidthWrite,
-                combined: bandwidthCombined))
+                combined: bandwidthCombined),
+            gpuDiagnostics: sawDiagnostics ? diagnostics : nil,
+            gpuHealth: health)
     }
 
     /// "GPU Stats" subgroups worth a subscription: the clock-state residency,
@@ -136,6 +167,121 @@ final class PowerReader {
     static let throttleSubgroup = "CLTM-induced GPU Performance States"
     static let powerCapSubgroup = "PPM Target as % of Max GPU Power"
     static let bandwidthSubgroup = "DCS BW"
+
+    /// Extra "GPU Stats" subgroups behind the GPU tab's Clock, Limits and Work
+    /// pages (about 70 channels; the subscription's sample went from 0.62 to
+    /// 0.82 ms median on an M3 Pro). The three `vChannel Usage` subgroups are
+    /// matched by suffix.
+    static let controllerSubgroup = "GPU Power Controller States"
+    static let lostPerformanceSubgroup = "PMU Loop Lost Performance Reason Code States"
+    static let activeHistogramSubgroup = "Active Time Histogram"
+    static let idleHistogramSubgroup = "Idle Time Histogram"
+    static let contextSwitchSubgroup = "Context Switch Latencies"
+    static let diagnosticSubgroups: Set<String> = [
+        controllerSubgroup, lostPerformanceSubgroup, activeHistogramSubgroup,
+        idleHistogramSubgroup, contextSwitchSubgroup,
+    ]
+    /// Cumulative since-boot counters, read from the absolute sample rather
+    /// than the delta, every `healthInterval` seconds.
+    static let healthSubgroups: Set<String> = ["Issue Counts", "UV Warn State", "THM Counters"]
+    static let healthInterval: TimeInterval = 5
+
+    private static func accumulate(
+        channel: CFDictionary, subgroup: String, io: IOReportBindings,
+        into diagnostics: inout GPUDiagnostics, submissions: inout [GPUEngine: Int64],
+        switches: inout [GPUEngine: [GPUContextSwitches.Bucket]]
+    ) {
+        switch subgroup {
+        case controllerSubgroup:
+            diagnostics.controllerStates = io.stateResidencies(channel)
+                .filter { $0.residency > 0 }
+                .sorted { $0.residency > $1.residency }
+        case lostPerformanceSubgroup:
+            let states = io.stateResidencies(channel)
+            guard !states.isEmpty else { return }
+            diagnostics.lostPerformanceKnown = true
+            diagnostics.lostPerformance = states.filter {
+                let name = $0.name.uppercased()
+                return name != "NONE" && name != "INVALID" && $0.residency > 0
+            }
+            .sorted { $0.residency > $1.residency }
+        case activeHistogramSubgroup, idleHistogramSubgroup:
+            guard let totals = io.histogramTotals(channel) else { return }
+            let milliseconds = totals.hits > 0 ? totals.seconds / Double(totals.hits) * 1000 : nil
+            if subgroup == activeHistogramSubgroup {
+                // Hits are completed busy periods: wake-ups. The rate is set
+                // in `finish` once the interval is known.
+                diagnostics.wakeupsPerSecond = Double(totals.hits)
+                diagnostics.meanBusyMilliseconds = milliseconds
+            } else {
+                diagnostics.meanIdleMilliseconds = milliseconds
+            }
+        case contextSwitchSubgroup:
+            let name = io.channelName(channel)
+            guard let parsed = GPUContextSwitches.parse(channel: name),
+                let engine = GPUEngine.allCases.first(where: {
+                    $0.contextSwitchPrefix == parsed.prefix
+                })
+            else { return }
+            let count = io.simpleValue(channel)
+            guard count >= 0 else { return }
+            switches[engine, default: []].append(
+                .init(upperBoundMicroseconds: parsed.upperBound, count: count))
+        default:
+            guard
+                let engine = GPUEngine.allCases.first(where: {
+                    subgroup == "\($0.submissionPrefix) vChannel Usage"
+                })
+            else { return }
+            let count = io.simpleValue(channel)
+            guard count >= 0 else { return }
+            submissions[engine, default: 0] += count
+        }
+    }
+
+    private static func finish(
+        _ diagnostics: inout GPUDiagnostics, submissions: [GPUEngine: Int64],
+        switches: [GPUEngine: [GPUContextSwitches.Bucket]], interval: TimeInterval
+    ) {
+        if let hits = diagnostics.wakeupsPerSecond {
+            diagnostics.wakeupsPerSecond = hits / interval
+        }
+        for engine in GPUEngine.allCases {
+            var activity = GPUEngineActivity()
+            if let count = submissions[engine] {
+                activity.submissionsPerSecond = Double(count) / interval
+            }
+            if let buckets = switches[engine], let histogram = GPUContextSwitches(buckets: buckets)
+            {
+                activity.contextSwitches = histogram
+                activity.contextSwitchesPerSecond = Double(histogram.total) / interval
+            }
+            if activity != GPUEngineActivity() { diagnostics.engines[engine] = activity }
+        }
+    }
+
+    private static func health(in sample: CFDictionary, io: IOReportBindings) -> GPUHealthCounters?
+    {
+        var counters = GPUHealthCounters()
+        var saw = false
+        io.iterate(sample) { channel in
+            guard healthSubgroups.contains(io.subGroupName(channel)) else { return }
+            let value = io.simpleValue(channel)
+            guard value >= 0 else { return }
+            saw = true
+            switch io.channelName(channel) {
+            case "Total Restarts": counters.restarts = value
+            case "CDM Kill Count": counters.killedWork[.compute] = value
+            case "FRG Kill Count": counters.killedWork[.fragment] = value
+            case "GTP Kill Count": counters.killedWork[.geometry] = value
+            case "Memless Render Failed": counters.memorylessRenderFailures = value
+            case "UVWarn Instances": counters.undervoltageWarnings = value
+            case "THM Activation Count": counters.thermalActivations = value
+            default: break
+            }
+        }
+        return saw ? counters : nil
+    }
 
     static func activeResidency(in states: [GPUPerformanceState]) -> Double? {
         let offStates = states.filter { $0.name.uppercased() == "OFF" }
@@ -150,9 +296,11 @@ final class PowerReader {
         // Subscribe to only the GPU / ANE / CPU energy channels (3, not ~180)
         // plus three GPU state channels, so each per-tick sample is cheap.
         var kept = io.filteredEnergyChannelList(channels)
-        for subgroup in [
-            Self.performanceStatesSubgroup, Self.throttleSubgroup, Self.powerCapSubgroup,
-        ] {
+        let gpuSubgroups =
+            [Self.performanceStatesSubgroup, Self.throttleSubgroup, Self.powerCapSubgroup]
+            + Self.diagnosticSubgroups.sorted() + Self.healthSubgroups.sorted()
+            + GPUEngine.allCases.map { "\($0.submissionPrefix) vChannel Usage" }
+        for subgroup in gpuSubgroups {
             if let group = io.copyChannelsInGroup("GPU Stats", subgroup: subgroup) {
                 kept += io.channelList(group)
             }
@@ -176,7 +324,7 @@ final class PowerReader {
 
 /// Runtime (`dlsym`) bindings to the IOReport SPI. Kept tiny and self-contained so
 /// the rest of the code never touches the raw C ABI.
-private final class IOReportBindings {
+final class IOReportBindings {
     private typealias CopyChannelsFn =
         @convention(c) (
             CFString?, CFString?, UInt64, UInt64, UInt64
@@ -199,6 +347,8 @@ private final class IOReportBindings {
     private typealias StateCountFn = @convention(c) (CFDictionary) -> Int32
     private typealias StateNameFn = @convention(c) (CFDictionary, Int32) -> Unmanaged<CFString>?
     private typealias StateResidencyFn = @convention(c) (CFDictionary, Int32) -> Int64
+    private typealias HistogramCountFn = @convention(c) (CFDictionary) -> Int32
+    private typealias HistogramValueFn = @convention(c) (CFDictionary, Int32) -> Int64
     private typealias IterateFn =
         @convention(c) (
             CFDictionary, @convention(block) (CFDictionary) -> Int32
@@ -217,6 +367,9 @@ private final class IOReportBindings {
     private let stateCountFn: StateCountFn?
     private let stateNameFn: StateNameFn?
     private let stateResidencyFn: StateResidencyFn?
+    private let histogramCountFn: HistogramCountFn?
+    private let histogramHitsFn: HistogramValueFn?
+    private let histogramSumFn: HistogramValueFn?
 
     var isAvailable: Bool {
         copyChannelsFn != nil && createSubFn != nil && createSamplesFn != nil
@@ -242,6 +395,40 @@ private final class IOReportBindings {
         stateCountFn = sym("IOReportStateGetCount", StateCountFn.self)
         stateNameFn = sym("IOReportStateGetNameForIndex", StateNameFn.self)
         stateResidencyFn = sym("IOReportStateGetResidency", StateResidencyFn.self)
+        histogramCountFn = sym("IOReportHistogramGetBucketCount", HistogramCountFn.self)
+        histogramHitsFn = sym("IOReportHistogramGetBucketHits", HistogramValueFn.self)
+        histogramSumFn = sym("IOReportHistogramGetBucketSum", HistogramValueFn.self)
+    }
+
+    /// A simple (integer) channel's value, or -1 when it is not one.
+    func simpleValue(_ channel: CFDictionary) -> Int64 {
+        guard formatFn?(channel) == 1, let simpleIntFn else { return -1 }
+        return simpleIntFn(channel, 0)
+    }
+
+    /// A histogram channel's total hits and the summed duration of its
+    /// entries in seconds. Only the GPU's `24Mticks` (24 MHz) unit is
+    /// understood; anything else returns nil rather than a mis-scaled time.
+    func histogramTotals(_ channel: CFDictionary) -> (hits: Int64, seconds: Double)? {
+        guard formatFn?(channel) == 3, let histogramCountFn, let histogramHitsFn,
+            let histogramSumFn,
+            (unitLabelFn?(channel)?.takeUnretainedValue() as String?)?.lowercased() == "24mticks"
+        else { return nil }
+        let count = histogramCountFn(channel)
+        guard count > 0, count <= 256 else { return nil }
+        var hits: Int64 = 0
+        var ticks: Int64 = 0
+        for index in 0..<count {
+            let bucketHits = histogramHitsFn(channel, index)
+            // An empty bucket's sum in a delta is a sentinel (Int64.min, seen
+            // on an M3 Pro), not zero: skip it rather than reject the channel.
+            guard bucketHits != 0 else { continue }
+            let bucketSum = histogramSumFn(channel, index)
+            guard bucketHits > 0, bucketSum >= 0 else { return nil }
+            hits += bucketHits
+            ticks += bucketSum
+        }
+        return (hits, Double(ticks) / 24_000_000)
     }
 
     func copyChannelsInGroup(_ group: String, subgroup: String? = nil) -> CFMutableDictionary? {

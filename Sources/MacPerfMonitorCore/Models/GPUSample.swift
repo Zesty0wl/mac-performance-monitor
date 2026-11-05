@@ -6,11 +6,23 @@ public struct GPUPerformanceState: Sendable, Codable, Equatable {
     public var name: String
     /// 0...100.
     public var residency: Double
+    /// The state's clock in MHz, when the GPU's frequency table (or the
+    /// helper's powermetrics reading) names it.
+    public var frequencyMHz: Double? = nil
 
-    public init(name: String, residency: Double) {
+    public init(name: String, residency: Double, frequencyMHz: Double? = nil) {
         self.name = name
         self.residency = residency
+        self.frequencyMHz = frequencyMHz
     }
+}
+
+/// Where the GPU clock figure came from.
+public enum GPUClockSource: String, Sendable, Codable, Equatable {
+    /// IOReport residency weighted by the power manager's frequency table.
+    case frequencyTable
+    /// Apple's powermetrics, read by the privileged helper.
+    case powermetrics
 }
 
 public struct GPUBandwidthHistogram: Sendable, Codable, Equatable {
@@ -126,6 +138,8 @@ public struct GPUSample: Sendable, Codable, Equatable {
     public var bandwidth: GPUBandwidthSample?
     /// GPU core count, e.g. 16 (static).
     public var coreCount: Int?
+    /// Enabled cores in each GPU cluster, e.g. [7, 7] (static).
+    public var coreClusters: [Int]?
     /// The GPU / chip name, e.g. "Apple M2 Pro" (static; read once).
     public var name: String?
 
@@ -154,6 +168,17 @@ public struct GPUSample: Sendable, Codable, Equatable {
     public var powerCapPercent: Double?
     /// GPU hang recoveries since boot (IOAccelerator `recoveryCount`).
     public var recoveryCount: Int?
+    /// Mean clock while awake over the interval, in MHz, and the top of the
+    /// frequency table. See `GPUFrequencyTable`.
+    public var clockMHz: Double?
+    public var maximumClockMHz: Double?
+    public var clockSource: GPUClockSource?
+    /// Power-controller, lost-performance and per-engine readings.
+    public var diagnostics: GPUDiagnostics?
+    /// Fault counters since boot.
+    public var health: GPUHealthCounters?
+    /// How much unified memory the GPU may wire.
+    public var memoryLimit: GPUMemoryLimit?
     // --- SMC thermal, filled by the Sampler ---
     /// GPU die temperature (°C): the hottest GPU cluster sensor, falling back
     /// to the hottest CPU die sensor on chips with no GPU-specific keys.

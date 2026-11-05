@@ -147,6 +147,8 @@ enum ChartBenchmark {
             point.gpuMemorySampleCount = 1
             point.gpuActiveResidency = min(100, 30 + wave * 60 + spike * 10)
             point.gpuActiveSampleCount = 1
+            point.gpuClockMHz = min(1380, 520 + 700 * wave + 300 * spike)
+            point.gpuClockSampleCount = 1
             point.gpuReadBandwidthGBps = 2 + 8 * wave + 6 * spike
             point.gpuWriteBandwidthGBps = 1 + 3 * wave + 2 * spike
             point.gpuTotalBandwidthGBps = 3.5 + 11 * wave + 8 * spike
@@ -581,6 +583,50 @@ enum ChartBenchmark {
                 GPUPerformanceState(name: "P2", residency: 45),
                 GPUPerformanceState(name: "P3", residency: 7),
             ]
+            // An M3 Pro's table, so the states, clock and pages read like the
+            // real thing (see GPUFrequencyTable).
+            let table = GPUFrequencyTable(megahertz: [
+                338, 618, 796, 832, 924, 952, 1056, 1064, 1182, 1182, 1312, 1242, 1380,
+            ])
+            gpu.coreCount = 14
+            gpu.coreClusters = [7, 7]
+            gpu.resolveClock(table: table, helper: nil, now: now)
+            var diagnostics = GPUDiagnostics()
+            diagnostics.controllerStates = [
+                GPUPerformanceState(name: "PERF", residency: 72),
+                GPUPerformanceState(name: "DEADLINE", residency: 18),
+                GPUPerformanceState(name: "IDLE_OFF", residency: 10),
+            ]
+            diagnostics.lostPerformanceKnown = true
+            diagnostics.wakeupsPerSecond = 118
+            diagnostics.meanBusyMilliseconds = 6.4
+            diagnostics.meanIdleMilliseconds = 2.1
+            func switches(_ fast: Int64, _ slow: Int64) -> GPUContextSwitches? {
+                GPUContextSwitches(buckets: [
+                    .init(upperBoundMicroseconds: 100, count: fast),
+                    .init(upperBoundMicroseconds: 500, count: slow),
+                    .init(upperBoundMicroseconds: nil, count: 0),
+                ])
+            }
+            diagnostics.engines = [
+                .compute: GPUEngineActivity(
+                    submissionsPerSecond: 360, contextSwitches: switches(113, 1),
+                    contextSwitchesPerSecond: 114),
+                .fragment: GPUEngineActivity(
+                    submissionsPerSecond: 2_180, contextSwitches: switches(3, 1),
+                    contextSwitchesPerSecond: 4),
+                .geometry: GPUEngineActivity(submissionsPerSecond: 2_030),
+            ]
+            gpu.diagnostics = diagnostics
+            var health = GPUHealthCounters()
+            health.restarts = 0
+            health.killedWork = [.compute: 0, .fragment: 0, .geometry: 0]
+            health.memorylessRenderFailures = 0
+            health.undervoltageWarnings = 0
+            health.thermalActivations = 0
+            gpu.health = health
+            gpu.memoryLimit = GPUMemoryLimit(
+                bytes: ProcessInfo.processInfo.physicalMemory / 4 * 3, isCustom: false)
             gpu.throttled = false
             gpu.powerCapPercent = 100
             gpu.recoveryCount = 0
@@ -590,6 +636,7 @@ enum ChartBenchmark {
             snapshot.system.gpuPowerWatts = gpu.gpuPowerWatts
             snapshot.system.gpuMemoryBytes = gpu.inUseMemoryBytes
             snapshot.system.gpuActiveResidency = gpu.activeResidency
+            snapshot.system.gpuClockMHz = gpu.clockMHz
             snapshot.system.anePowerWatts = gpu.anePowerWatts
             snapshot.system.anePowerSampledAt = now
             snapshot.system.anePowerSampleInterval = interval
