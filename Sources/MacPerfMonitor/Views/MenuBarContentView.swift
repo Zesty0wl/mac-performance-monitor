@@ -156,7 +156,9 @@ struct MenuBarContentView: View {
                 showStandardAboutPanel()
             }
 
-            MenuActionButton(title: "Check for Updates\u{2026}", systemImage: "arrow.down.circle") {
+            MenuActionButton(
+                title: updateController.menuTitle, systemImage: updateController.menuSymbol
+            ) {
                 updateController.checkForUpdates()
                 NSApp.activate(ignoringOtherApps: true)
             }
