@@ -299,9 +299,9 @@ public final class SampleStore {
                    swap_sample_valid, pressure_sample_valid, swap_in_rate, swap_out_rate,
                    swap_in_pages_delta, swap_out_pages_delta, memory_page_size, memory_interval,
                    ane_time, ane_partial, ane_power_observed_at, ane_power_interval, gpu_memory, gpu_active,
-                   gpu_bw_read, gpu_bw_write, gpu_bw_total)
+                   gpu_bw_read, gpu_bw_write, gpu_bw_total, gpu_clock)
                 VALUES (?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?)
+                    ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?)
                 """)
         try statement.execute(
             arguments: [
@@ -340,6 +340,7 @@ public final class SampleStore {
                 s.gpuReadBandwidthGBps.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil },
                 s.gpuWriteBandwidthGBps.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil },
                 s.gpuTotalBandwidthGBps.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil },
+                s.gpuClockMHz.flatMap { $0.isFinite && (1...10_000).contains($0) ? $0 : nil },
             ])
     }
 
@@ -524,7 +525,7 @@ public final class SampleStore {
     static func decodeSystem(_ row: Row) -> SystemSample {
         let ts: Double = row["timestamp"]
         let level: Int = row["pressure_level"]
-        return SystemSample(
+        var sample = SystemSample(
             timestamp: Date(timeIntervalSince1970: ts),
             totalRAM: SQLInt.read(row["total_ram"]),
             free: SQLInt.read(row["free"]),
@@ -604,6 +605,8 @@ public final class SampleStore {
             memoryPageSize: (row["memory_page_size"] as Int64?).map(SQLInt.read),
             memorySampleInterval: row["memory_interval"]
         )
+        sample.gpuClockMHz = row["gpu_clock"]
+        return sample
     }
 
     static func decodeProcess(_ row: Row) -> ProcessSample {

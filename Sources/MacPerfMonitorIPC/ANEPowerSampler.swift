@@ -260,8 +260,31 @@ struct ANEPowerFrameDecoder {
             }
             watts = milliwatts / 1000
         }
-        let reading = ANEPowerReading(timestamp: timestamp, interval: interval, watts: watts)
+        let gpu = gpuClock(from: report["gpu"] as? [String: Any])
+        let reading = ANEPowerReading(
+            timestamp: timestamp, interval: interval, watts: watts,
+            gpuFrequencyMHz: gpu.frequency, gpuStateFrequenciesMHz: gpu.states)
         return reading.isFresh(at: timestamp) ? reading : nil
+    }
+
+    /// The `gpu` dictionary of a `gpu_power` frame: `freq_hz` (despite the
+    /// name, powermetrics reports MHz; a value above 100,000 is treated as
+    /// Hz) and `dvfm_states`, one entry per P-state with its `freq` in MHz.
+    /// Anything implausible is dropped, never guessed.
+    static func gpuClock(from gpu: [String: Any]?) -> (frequency: Double?, states: [Double]?) {
+        guard let gpu else { return (nil, nil) }
+        func megahertz(_ value: Any?) -> Double? {
+            guard let raw = number(value), raw > 0 else { return nil }
+            let mhz = raw > 100_000 ? raw / 1_000_000 : raw
+            return (50...10_000).contains(mhz) ? mhz : nil
+        }
+        let frequency = megahertz(gpu["freq_hz"])
+        var states: [Double]?
+        if let entries = gpu["dvfm_states"] as? [[String: Any]], (2...64).contains(entries.count) {
+            let values = entries.compactMap { megahertz($0["freq"]) }
+            if values.count == entries.count { states = values }
+        }
+        return (frequency, states)
     }
 
     private static func number(_ value: Any?) -> Double? {

@@ -310,7 +310,8 @@ public enum Retention {
                     gpu_active_avg, gpu_active_min, gpu_active_max, gpu_active_samples,
                     gpu_bw_read_avg, gpu_bw_read_min, gpu_bw_read_max, gpu_bw_read_samples,
                     gpu_bw_write_avg, gpu_bw_write_min, gpu_bw_write_max, gpu_bw_write_samples,
-                    gpu_bw_total_avg, gpu_bw_total_min, gpu_bw_total_max, gpu_bw_total_samples)
+                    gpu_bw_total_avg, gpu_bw_total_min, gpu_bw_total_max, gpu_bw_total_samples,
+                    gpu_clock_avg, gpu_clock_min, gpu_clock_max, gpu_clock_samples)
                 SELECT CAST(timestamp / \(b) AS INTEGER) * \(b) AS b,
                        AVG(pressure_percent), MAX(pressure_percent),
                        CAST(AVG(app_memory) AS INTEGER), CAST(AVG(wired) AS INTEGER),
@@ -355,7 +356,8 @@ public enum Retention {
                          AVG(gpu_active), MIN(gpu_active), MAX(gpu_active), COUNT(gpu_active),
                          AVG(gpu_bw_read), MIN(gpu_bw_read), MAX(gpu_bw_read), COUNT(gpu_bw_read),
                          AVG(gpu_bw_write), MIN(gpu_bw_write), MAX(gpu_bw_write), COUNT(gpu_bw_write),
-                         AVG(gpu_bw_total), MIN(gpu_bw_total), MAX(gpu_bw_total), COUNT(gpu_bw_total)
+                         AVG(gpu_bw_total), MIN(gpu_bw_total), MAX(gpu_bw_total), COUNT(gpu_bw_total),
+                         AVG(gpu_clock), MIN(gpu_clock), MAX(gpu_clock), COUNT(gpu_clock)
                 FROM system_samples
                 WHERE timestamp >= ? AND timestamp < ?
                 GROUP BY b
@@ -460,7 +462,11 @@ public enum Retention {
                                     gpu_bw_total_avg = excluded.gpu_bw_total_avg,
                                     gpu_bw_total_min = excluded.gpu_bw_total_min,
                                     gpu_bw_total_max = excluded.gpu_bw_total_max,
-                                    gpu_bw_total_samples = excluded.gpu_bw_total_samples
+                                    gpu_bw_total_samples = excluded.gpu_bw_total_samples,
+                                    gpu_clock_avg = excluded.gpu_clock_avg,
+                                    gpu_clock_min = excluded.gpu_clock_min,
+                                    gpu_clock_max = excluded.gpu_clock_max,
+                                    gpu_clock_samples = excluded.gpu_clock_samples
                 """, arguments: [watermark, completeUpTo])
 
         try SampleStore.rollBatteryHistory(
@@ -538,7 +544,8 @@ public enum Retention {
                     gpu_active_avg, gpu_active_min, gpu_active_max, gpu_active_samples,
                     gpu_bw_read_avg, gpu_bw_read_min, gpu_bw_read_max, gpu_bw_read_samples,
                     gpu_bw_write_avg, gpu_bw_write_min, gpu_bw_write_max, gpu_bw_write_samples,
-                    gpu_bw_total_avg, gpu_bw_total_min, gpu_bw_total_max, gpu_bw_total_samples)
+                    gpu_bw_total_avg, gpu_bw_total_min, gpu_bw_total_max, gpu_bw_total_samples,
+                    gpu_clock_avg, gpu_clock_min, gpu_clock_max, gpu_clock_samples)
                 SELECT CAST(bucket / 3600 AS INTEGER) * 3600 AS b,
                        SUM(pressure_avg * samples) / SUM(samples), MAX(pressure_max),
                        CAST(SUM(app_avg * samples) / SUM(samples) AS INTEGER),
@@ -647,7 +654,9 @@ public enum Retention {
                         SUM(gpu_bw_write_avg * gpu_bw_write_samples) / NULLIF(SUM(gpu_bw_write_samples), 0),
                         MIN(gpu_bw_write_min), MAX(gpu_bw_write_max), SUM(gpu_bw_write_samples),
                         SUM(gpu_bw_total_avg * gpu_bw_total_samples) / NULLIF(SUM(gpu_bw_total_samples), 0),
-                        MIN(gpu_bw_total_min), MAX(gpu_bw_total_max), SUM(gpu_bw_total_samples)
+                        MIN(gpu_bw_total_min), MAX(gpu_bw_total_max), SUM(gpu_bw_total_samples),
+                        SUM(gpu_clock_avg * gpu_clock_samples) / NULLIF(SUM(gpu_clock_samples), 0),
+                        MIN(gpu_clock_min), MAX(gpu_clock_max), SUM(gpu_clock_samples)
                 FROM system_minute
                 WHERE bucket >= ? AND bucket < ?
                 GROUP BY b
@@ -752,7 +761,11 @@ public enum Retention {
                                     gpu_bw_total_avg = excluded.gpu_bw_total_avg,
                                     gpu_bw_total_min = excluded.gpu_bw_total_min,
                                     gpu_bw_total_max = excluded.gpu_bw_total_max,
-                                    gpu_bw_total_samples = excluded.gpu_bw_total_samples
+                                    gpu_bw_total_samples = excluded.gpu_bw_total_samples,
+                                    gpu_clock_avg = excluded.gpu_clock_avg,
+                                    gpu_clock_min = excluded.gpu_clock_min,
+                                    gpu_clock_max = excluded.gpu_clock_max,
+                                    gpu_clock_samples = excluded.gpu_clock_samples
                 """, arguments: [watermark, completeUpTo])
 
         try SampleStore.rollBatteryHistory(

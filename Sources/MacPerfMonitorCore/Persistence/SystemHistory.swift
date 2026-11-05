@@ -71,6 +71,9 @@ public struct SystemHistoryPoint: Sendable, Identifiable, Equatable {
     public var gpuWriteBandwidthSampleCount: Int?
     public var gpuTotalBandwidthGBps: Double?
     public var gpuTotalBandwidthSampleCount: Int?
+    /// Mean GPU clock while awake, MHz (v26), and its valid-reading count.
+    public var gpuClockMHz: Double? = nil
+    public var gpuClockSampleCount: Int? = nil
     public var anePowerWatts: Double?
     public var anePowerSampleCount: Int?
     public var aneTimeMillisecondsPerSecond: Double?
@@ -267,6 +270,7 @@ public struct SystemHistoryPeaks: Sendable, Equatable {
     public var gpuReadBandwidthGBps: Double? = nil
     public var gpuWriteBandwidthGBps: Double? = nil
     public var gpuTotalBandwidthGBps: Double? = nil
+    public var gpuClockMHz: Double? = nil
 
     public init(
         pressurePercent: Double, cpuLoad: Double, networkInBytesPerSec: Double,
@@ -323,6 +327,7 @@ public struct SystemHistoryPeaks: Sendable, Equatable {
             gpuReadBandwidthGBps: point.gpuReadBandwidthGBps,
             gpuWriteBandwidthGBps: point.gpuWriteBandwidthGBps,
             gpuTotalBandwidthGBps: point.gpuTotalBandwidthGBps)
+        gpuClockMHz = point.gpuClockMHz
     }
 
     /// The element-wise larger of two peaks.
@@ -365,7 +370,15 @@ public struct SystemHistoryPeaks: Sendable, Equatable {
             }.max(),
             gpuTotalBandwidthGBps: [gpuTotalBandwidthGBps, other.gpuTotalBandwidthGBps].compactMap {
                 $0
-            }.max())
+            }.max()
+        )
+        .with(gpuClockMHz: [gpuClockMHz, other.gpuClockMHz].compactMap { $0 }.max())
+    }
+
+    private func with(gpuClockMHz value: Double?) -> SystemHistoryPeaks {
+        var copy = self
+        copy.gpuClockMHz = value
+        return copy
     }
 }
 
@@ -498,7 +511,8 @@ extension SampleStore {
                       gpu_active, CASE WHEN gpu_active IS NULL THEN 0 ELSE 1 END AS gpu_active_samples,
                       gpu_bw_read, CASE WHEN gpu_bw_read IS NULL THEN 0 ELSE 1 END AS gpu_bw_read_samples,
                       gpu_bw_write, CASE WHEN gpu_bw_write IS NULL THEN 0 ELSE 1 END AS gpu_bw_write_samples,
-                      gpu_bw_total, CASE WHEN gpu_bw_total IS NULL THEN 0 ELSE 1 END AS gpu_bw_total_samples
+                      gpu_bw_total, CASE WHEN gpu_bw_total IS NULL THEN 0 ELSE 1 END AS gpu_bw_total_samples,
+                      gpu_clock, CASE WHEN gpu_clock IS NULL THEN 0 ELSE 1 END AS gpu_clock_samples
                 FROM system_samples
                 WHERE timestamp >= ? AND timestamp <= ?
                 ORDER BY timestamp ASC
@@ -559,7 +573,8 @@ extension SampleStore {
                        gpu_active_avg AS gpu_active, gpu_active_min, gpu_active_max, gpu_active_samples,
                        gpu_bw_read_avg AS gpu_bw_read, gpu_bw_read_min, gpu_bw_read_max, gpu_bw_read_samples,
                        gpu_bw_write_avg AS gpu_bw_write, gpu_bw_write_min, gpu_bw_write_max, gpu_bw_write_samples,
-                       gpu_bw_total_avg AS gpu_bw_total, gpu_bw_total_min, gpu_bw_total_max, gpu_bw_total_samples
+                       gpu_bw_total_avg AS gpu_bw_total, gpu_bw_total_min, gpu_bw_total_max, gpu_bw_total_samples,
+                       gpu_clock_avg AS gpu_clock, gpu_clock_min, gpu_clock_max, gpu_clock_samples
                 FROM \(table)
                 WHERE bucket >= ? AND bucket <= ?
                 ORDER BY bucket ASC
@@ -609,6 +624,8 @@ extension SampleStore {
         point.minima?.gpuReadBandwidthGBps = row["gpu_bw_read_min"]
         point.minima?.gpuWriteBandwidthGBps = row["gpu_bw_write_min"]
         point.minima?.gpuTotalBandwidthGBps = row["gpu_bw_total_min"]
+        point.minima?.gpuClockMHz = row["gpu_clock_min"]
+        point.peaks?.gpuClockMHz = row["gpu_clock_max"]
         point.gpuDieAverageC = row[72]
         point.cpuDieSampleCount = row[73]
         point.gpuDieSampleCount = row[74]
@@ -622,7 +639,7 @@ extension SampleStore {
     /// which over a few hundred points × 14 columns was a measurable read cost.
     private static func decodeHistoryPoint(_ row: Row) -> SystemHistoryPoint {
         let ts: Double = row[0]
-        return SystemHistoryPoint(
+        var point = SystemHistoryPoint(
             date: Date(timeIntervalSince1970: ts),
             pressurePercent: row[1],
             appMemory: SQLInt.read(row[2]),
@@ -679,5 +696,8 @@ extension SampleStore {
             voltageRailC: row[36],
             otherSensorC: row[37]
         )
+        point.gpuClockMHz = row["gpu_clock"]
+        point.gpuClockSampleCount = row["gpu_clock_samples"]
+        return point
     }
 }

@@ -30,11 +30,21 @@ public struct ANEPowerReading: Codable, Equatable, Sendable {
     public let timestamp: Date
     public let interval: TimeInterval
     public let watts: Double
+    /// From the same powermetrics frame's `gpu_power` sampler: the GPU's
+    /// mean active clock and the clock of each of its P-states, lowest
+    /// first. Optional so readings from an older helper still decode.
+    public var gpuFrequencyMHz: Double? = nil
+    public var gpuStateFrequenciesMHz: [Double]? = nil
 
-    public init(timestamp: Date, interval: TimeInterval, watts: Double) {
+    public init(
+        timestamp: Date, interval: TimeInterval, watts: Double, gpuFrequencyMHz: Double? = nil,
+        gpuStateFrequenciesMHz: [Double]? = nil
+    ) {
         self.timestamp = timestamp
         self.interval = interval
         self.watts = watts
+        self.gpuFrequencyMHz = gpuFrequencyMHz
+        self.gpuStateFrequenciesMHz = gpuStateFrequenciesMHz
     }
 
     public func isFresh(at now: Date) -> Bool {

@@ -257,6 +257,8 @@ extension SystemHistoryPoint {
             cpuPCoreDieC: sample.cpuPCoreDieC, cpuECoreDieC: sample.cpuECoreDieC,
             airflowC: sample.airflowC, skinC: sample.skinC, wirelessC: sample.wirelessC,
             voltageRailC: sample.voltageRailC, otherSensorC: sample.otherSensorC)
+        gpuClockMHz = sample.gpuClockMHz
+        gpuClockSampleCount = sample.gpuClockMHz == nil ? 0 : 1
     }
 }
 

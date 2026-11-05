@@ -337,6 +337,17 @@ public enum MacPerfMonitorDatabase {
                 }
             }
         }
+        migrator.registerMigration("v26-gpu-clock-history") { db in
+            try db.execute(sql: "ALTER TABLE system_samples ADD COLUMN gpu_clock REAL")
+            for table in ["system_minute", "system_hour"] {
+                for (column, type) in [
+                    ("gpu_clock_avg", "REAL"), ("gpu_clock_min", "REAL"),
+                    ("gpu_clock_max", "REAL"), ("gpu_clock_samples", "INTEGER"),
+                ] {
+                    try db.execute(sql: "ALTER TABLE \(table) ADD COLUMN \(column) \(type)")
+                }
+            }
+        }
         return migrator
     }
 }

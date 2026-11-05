@@ -10301,76 +10301,6 @@
         }
       }
     },
-    "P states" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "P-Zustände"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "P states"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "États P"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "P 状态"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "P-состояния"
-          }
-        }
-      }
-    },
-    "Speed levels, ordered from lower to higher clock speeds. Higher states can finish work faster but usually use more power." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Geschwindigkeitsstufen, von niedrigen zu höheren Taktraten geordnet. Höhere Zustände können Arbeit schneller erledigen, benötigen aber meist mehr Leistung."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Speed levels, ordered from lower to higher clock speeds. Higher states can finish work faster but usually use more power."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Niveaux de vitesse, classés de la fréquence la plus basse à la plus haute. Les états supérieurs peuvent finir le travail plus vite, mais consomment généralement plus d'énergie."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "速度档位按时钟频率从低到高排列。较高档位可以更快完成任务，但通常功耗也更高。"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Уровни скорости, упорядоченные от более низкой к более высокой тактовой частоте. Более высокие состояния позволяют быстрее выполнять задачи, но обычно потребляют больше энергии."
-          }
-        }
-      }
-    },
     "Time, not load" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -10406,41 +10336,6 @@
         }
       }
     },
-    "P3 at 25% means the GPU spent one quarter of the latest sample in P3. It does not mean 25% of GPU capacity." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "P3 mit 25% bedeutet, dass die GPU ein Viertel des letzten Messintervalls in P3 verbracht hat. Das bedeutet nicht 25% ihrer Rechenkapazität."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "P3 at 25% means the GPU spent one quarter of the latest sample in P3. It does not mean 25% of GPU capacity."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "P3 à 25% signifie que le GPU a passé un quart du dernier intervalle dans l'état P3. Cela ne signifie pas 25% de sa capacité de calcul."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "P3 显示 25% 表示 GPU 在最近一次采样时段中有四分之一的时间处于 P3 状态，并不代表使用了 GPU 计算能力的 25%。"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "P3 на уровне 25% означает, что GPU провел в P3 четверть времени последней выборки. Это не означает 25% от производительности GPU."
-          }
-        }
-      }
-    },
     "Reading the pattern" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -10472,76 +10367,6 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Интерпретация показателей"
-          }
-        }
-      }
-    },
-    "macOS changes states to balance work, power and heat. Low states alone do not mean the GPU is being throttled. Check Thermal limit and Power cap for limits." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "macOS wechselt die Zustände, um Arbeit, Leistungsaufnahme und Wärme auszugleichen. Niedrige Zustände allein bedeuten nicht, dass die GPU gedrosselt wird. Prüfe Temperaturlimit und Leistungslimit auf Begrenzungen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "macOS changes states to balance work, power and heat. Low states alone do not mean the GPU is being throttled. Check Thermal limit and Power cap for limits."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "macOS change d'état pour équilibrer travail, consommation et chaleur. Les états bas seuls ne signifient pas que le GPU est bridé. Vérifiez la limite thermique et le plafond de puissance."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "macOS 会切换状态，以平衡任务、功耗与发热。仅凭低档位不能判断 GPU 正在降频限速。请查看温度限制和功率上限。"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "macOS переключает состояния для балансировки нагрузки, энергопотребления и нагрева. Низкие состояния сами по себе не означают троттлинг GPU. Проверьте «Thermal limit» и «Power cap» на наличие ограничений."
-          }
-        }
-      }
-    },
-    "The state names are not GHz values. This source does not report an exact frequency for each state." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Zustandsnamen sind keine GHz-Werte. Diese Datenquelle meldet keine genaue Frequenz für die einzelnen Zustände."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The state names are not GHz values. This source does not report an exact frequency for each state."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les noms des états ne sont pas des valeurs en GHz. Cette source ne fournit pas la fréquence exacte de chaque état."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "状态名称不是 GHz 数值。此数据源不会报告各状态的准确频率。"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Названия состояний не являются значениями в ГГц. Этот источник не сообщает точную частоту для каждого состояния."
           }
         }
       }
@@ -108860,6 +108685,2598 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Русский"
+          }
+        }
+      }
+    },
+    "Reading the GPU…" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU wird gelesen…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading the GPU…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture du GPU…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在读取 GPU…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чтение GPU…"
+          }
+        }
+      }
+    },
+    "GPU off" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU aus"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU off"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU éteint"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU 已关闭"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU выключен"
+          }
+        }
+      }
+    },
+    "%@ · custom" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · benutzerdefiniert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · custom"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · personnalisée"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 自定义"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · пользовательский"
+          }
+        }
+      }
+    },
+    "%@ · default" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · Standard"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · default"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · par défaut"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 默认"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · по умолчанию"
+          }
+        }
+      }
+    },
+    "%@ MHz" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ MHz"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ MHz"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ MHz"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ MHz"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ МГц"
+          }
+        }
+      }
+    },
+    "Maximum %@" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximum %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximum %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximum %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高 %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Максимум %@"
+          }
+        }
+      }
+    },
+    "%1$@%% of the %2$@ maximum" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %% des Maximums von %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@%% of the %2$@ maximum"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %% du maximum de %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高 %2$@ 的 %1$@%%"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@%% от максимума %2$@"
+          }
+        }
+      }
+    },
+    "Frequency table" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequenztabelle"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequency table"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Table des fréquences"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "频率表"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Таблица частот"
+          }
+        }
+      }
+    },
+    "powermetrics (helper)" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "powermetrics (Helfer)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "powermetrics (helper)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "powermetrics (assistant)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "powermetrics（辅助程序）"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "powermetrics (помощник)"
+          }
+        }
+      }
+    },
+    "Idle, powered off" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leerlauf, ausgeschaltet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idle, powered off"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inactif, hors tension"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "空闲，已断电"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Простой, питание отключено"
+          }
+        }
+      }
+    },
+    "Following demand" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folgt dem Bedarf"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Following demand"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suit la demande"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跟随负载"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По нагрузке"
+          }
+        }
+      }
+    },
+    "Average demand" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durchschnittlicher Bedarf"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Average demand"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demande moyenne"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平均负载"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Средняя нагрузка"
+          }
+        }
+      }
+    },
+    "Frame deadline" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frame-Deadline"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frame deadline"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Échéance d'image"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "帧截止时间"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Срок кадра"
+          }
+        }
+      }
+    },
+    "Deadline aware" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deadline-bewusst"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deadline aware"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selon l'échéance"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "感知截止时间"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "С учётом срока"
+          }
+        }
+      }
+    },
+    "Boost" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boost"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boost"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boost"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加速"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ускорение"
+          }
+        }
+      }
+    },
+    "Power limit" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leistungsgrenze"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Power limit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limite de puissance"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "功耗限制"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Предел мощности"
+          }
+        }
+      }
+    },
+    "Power zone" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leistungszone"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Power zone"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zone de puissance"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "功耗区间"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Зона мощности"
+          }
+        }
+      }
+    },
+    "Peak power limit" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spitzenleistungsgrenze"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Peak power limit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limite de puissance de crête"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "峰值功耗限制"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Предел пиковой мощности"
+          }
+        }
+      }
+    },
+    "Peak power target" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spitzenleistungsziel"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Peak power target"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cible de puissance de crête"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "峰值功耗目标"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Цель пиковой мощности"
+          }
+        }
+      }
+    },
+    "Performance limit" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leistungslimit der Performance"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Performance limit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limite de performances"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "性能限制"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Предел производительности"
+          }
+        }
+      }
+    },
+    "%@ thermal" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ thermisch"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ thermal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ thermique"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 温度"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, тепловое"
+          }
+        }
+      }
+    },
+    "%@ electrical" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ elektrisch"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ electrical"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ électrique"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 电气"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, электрическое"
+          }
+        }
+      }
+    },
+    "Compute" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compute"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compute"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calcul"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "计算"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вычисления"
+          }
+        }
+      }
+    },
+    "Fragment" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fragment"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fragment"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fragment"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片段"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Фрагменты"
+          }
+        }
+      }
+    },
+    "Geometry" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geometrie"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geometry"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Géométrie"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "几何"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Геометрия"
+          }
+        }
+      }
+    },
+    "%1$@ · 95%% under %2$@ µs" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · 95 %% unter %2$@ µs"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · 95%% under %2$@ µs"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · 95 %% sous %2$@ µs"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · 95%% 低于 %2$@ µs"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · 95%% быстрее %2$@ мкс"
+          }
+        }
+      }
+    },
+    "%@ · some over 40 ms" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · einige über 40 ms"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · some over 40 ms"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · certains au-delà de 40 ms"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 部分超过 40 ms"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · некоторые дольше 40 мс"
+          }
+        }
+      }
+    },
+    "Busy throughout" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durchgehend ausgelastet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Busy throughout"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Occupé en continu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "持续忙碌"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Занят всё время"
+          }
+        }
+      }
+    },
+    "%@ ms" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ms"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ms"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ms"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ms"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ мс"
+          }
+        }
+      }
+    },
+    "Of the GPU limit" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vom GPU-Limit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Of the GPU limit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De la limite GPU"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "占 GPU 上限"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "От предела GPU"
+          }
+        }
+      }
+    },
+    "No GPU recoveries since the Mac started" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine GPU-Wiederherstellungen seit dem Start des Mac"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No GPU recoveries since the Mac started"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune récupération du GPU depuis le démarrage du Mac"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自 Mac 启动以来无 GPU 恢复"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "С момента запуска Mac восстановлений GPU не было"
+          }
+        }
+      }
+    },
+    "The GPU has recovered from a hang" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die GPU hat sich von einem Hänger erholt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The GPU has recovered from a hang"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le GPU a récupéré d'un blocage"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU 曾从挂起中恢复"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU восстановился после зависания"
+          }
+        }
+      }
+    },
+    "No GPU faults since the Mac started" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine GPU-Fehler seit dem Start des Mac"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No GPU faults since the Mac started"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune erreur du GPU depuis le démarrage du Mac"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自 Mac 启动以来无 GPU 故障"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "С момента запуска Mac сбоев GPU не было"
+          }
+        }
+      }
+    },
+    "GPU faults since the Mac started" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU-Fehler seit dem Start des Mac"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU faults since the Mac started"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erreurs du GPU depuis le démarrage du Mac"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自 Mac 启动以来有 GPU 故障"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сбои GPU с момента запуска Mac"
+          }
+        }
+      }
+    },
+    "Device page" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geräteseite"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device page"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Page de l'appareil"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设备页面"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Страница устройства"
+          }
+        }
+      }
+    },
+    "GPU clock" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU-Takt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU clock"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fréquence GPU"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU 频率"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Частота GPU"
+          }
+        }
+      }
+    },
+    "Mean clock while the GPU was awake. Time powered off is a gap, not zero. Older logs have no clock data." : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mittlerer Takt, solange die GPU wach war. Ausgeschaltete Zeit ist eine Lücke, nicht null. Ältere Protokolle enthalten keine Taktdaten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mean clock while the GPU was awake. Time powered off is a gap, not zero. Older logs have no clock data."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fréquence moyenne pendant que le GPU était actif. Le temps hors tension est un vide, pas zéro. Les anciens journaux n'ont pas de données de fréquence."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU 唤醒期间的平均频率。断电时段显示为空缺，而不是零。较早的日志没有频率数据。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Средняя частота, пока GPU был активен. Время без питания показано пропуском, а не нулём. В старых журналах данных о частоте нет."
+          }
+        }
+      }
+    },
+    "GPU clock history" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU-Taktverlauf"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU clock history"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historique de la fréquence GPU"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU 频率历史"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "История частоты GPU"
+          }
+        }
+      }
+    },
+    "Where the chip publishes no frequency table, the bars keep the driver's state names, P1 upwards." : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veröffentlicht der Chip keine Frequenztabelle, tragen die Balken die Zustandsnamen des Treibers, ab P1."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where the chip publishes no frequency table, the bars keep the driver's state names, P1 upwards."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si la puce ne publie pas de table des fréquences, les barres gardent les noms d'état du pilote, à partir de P1."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果芯片未提供频率表，条形图将沿用驱动程序的状态名称，从 P1 开始。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Если чип не публикует таблицу частот, полосы сохраняют названия состояний драйвера, начиная с P1."
+          }
+        }
+      }
+    },
+    "CLOCK" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TAKT"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CLOCK"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FRÉQUENCE"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "频率"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ЧАСТОТА"
+          }
+        }
+      }
+    },
+    "LIMITED" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BEGRENZT"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LIMITED"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LIMITÉ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "受限"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ОГРАНИЧЕНО"
+          }
+        }
+      }
+    },
+    "Busy period" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktive Phase"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Busy period"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Période active"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "忙碌时段"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Период занятости"
+          }
+        }
+      }
+    },
+    "CONTEXT SWITCHES" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KONTEXTWECHSEL"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CONTEXT SWITCHES"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CHANGEMENTS DE CONTEXTE"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下文切换"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ПЕРЕКЛЮЧЕНИЯ КОНТЕКСТА"
+          }
+        }
+      }
+    },
+    "Clock" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Takt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clock"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fréquence"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "频率"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Частота"
+          }
+        }
+      }
+    },
+    "Clock source" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Taktquelle"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clock source"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source de la fréquence"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "频率来源"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Источник частоты"
+          }
+        }
+      }
+    },
+    "Failed render passes" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fehlgeschlagene Renderdurchläufe"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed render passes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passes de rendu échouées"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "失败的渲染过程"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неудачные проходы рендеринга"
+          }
+        }
+      }
+    },
+    "Fault counters since the Mac started. Every one should stay at zero. Recoveries and restarts mean the GPU hung and was reset; killed work is work the driver stopped, usually after a timeout." : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fehlerzähler seit dem Start des Mac. Jeder sollte bei null bleiben. Wiederherstellungen und Neustarts bedeuten, dass die GPU hing und zurückgesetzt wurde; abgebrochene Arbeit hat der Treiber gestoppt, meist nach einer Zeitüberschreitung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fault counters since the Mac started. Every one should stay at zero. Recoveries and restarts mean the GPU hung and was reset; killed work is work the driver stopped, usually after a timeout."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compteurs d'erreurs depuis le démarrage du Mac. Chacun devrait rester à zéro. Les récupérations et redémarrages signifient que le GPU s'est bloqué et a été réinitialisé ; le travail interrompu est du travail arrêté par le pilote, généralement après un délai dépassé."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自 Mac 启动以来的故障计数。每一项都应保持为零。恢复和重启表示 GPU 曾挂起并被重置；被终止的工作是驱动程序停止的工作，通常发生在超时之后。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Счётчики сбоев с момента запуска Mac. Все они должны оставаться нулевыми. Восстановления и перезапуски означают, что GPU завис и был сброшен; прерванная работа остановлена драйвером, обычно по тайм-ауту."
+          }
+        }
+      }
+    },
+    "Firmware restarts" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Firmware-Neustarts"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Firmware restarts"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redémarrages du micrologiciel"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "固件重启"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перезапуски прошивки"
+          }
+        }
+      }
+    },
+    "GPU limit" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU-Limit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU limit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limite GPU"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU 上限"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Предел GPU"
+          }
+        }
+      }
+    },
+    "GPU memory is ordinary RAM wired for the GPU. The limit is how much macOS lets the GPU wire, which caps the size of a model a GPU runtime can load. macOS sets a default; raising the iogpu.wired_limit_mb setting allows larger models, and the limit then reads as custom." : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU-Speicher ist normaler RAM, der für die GPU fest reserviert ist. Das Limit gibt an, wie viel macOS der GPU reservieren lässt, und begrenzt damit die Größe eines Modells, das eine GPU-Laufzeit laden kann. macOS legt einen Standard fest; eine höhere Einstellung iogpu.wired_limit_mb erlaubt größere Modelle, und das Limit gilt dann als benutzerdefiniert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU memory is ordinary RAM wired for the GPU. The limit is how much macOS lets the GPU wire, which caps the size of a model a GPU runtime can load. macOS sets a default; raising the iogpu.wired_limit_mb setting allows larger models, and the limit then reads as custom."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La mémoire GPU est de la RAM ordinaire réservée au GPU. La limite est la quantité que macOS laisse le GPU réserver, ce qui plafonne la taille d'un modèle qu'un moteur GPU peut charger. macOS fixe une valeur par défaut ; augmenter le réglage iogpu.wired_limit_mb permet des modèles plus grands, et la limite apparaît alors comme personnalisée."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU 内存是为 GPU 固定的普通 RAM。上限是 macOS 允许 GPU 固定的内存量，它限制了 GPU 运行时可以加载的模型大小。macOS 会设置默认值；提高 iogpu.wired_limit_mb 设置可以加载更大的模型，此时上限显示为自定义。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Память GPU это обычная RAM, закреплённая за GPU. Предел показывает, сколько памяти macOS позволяет GPU закрепить, и ограничивает размер модели, которую может загрузить среда выполнения на GPU. macOS задаёт значение по умолчанию; увеличение параметра iogpu.wired_limit_mb позволяет загружать более крупные модели, и тогда предел отображается как пользовательский."
+          }
+        }
+      }
+    },
+    "Headroom" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielraum"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Headroom"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marge"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剩余空间"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Запас"
+          }
+        }
+      }
+    },
+    "Idle gap" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leerlaufpause"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idle gap"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intervalle d'inactivité"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "空闲间隔"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Интервал простоя"
+          }
+        }
+      }
+    },
+    "Killed compute work" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abgebrochene Compute-Arbeit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Killed compute work"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Travail de calcul interrompu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "被终止的计算工作"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прерванные вычисления"
+          }
+        }
+      }
+    },
+    "Killed fragment work" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abgebrochene Fragment-Arbeit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Killed fragment work"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Travail de fragment interrompu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "被终止的片段工作"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прерванная работа с фрагментами"
+          }
+        }
+      }
+    },
+    "Killed geometry work" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abgebrochene Geometrie-Arbeit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Killed geometry work"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Travail de géométrie interrompu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "被终止的几何工作"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прерванная работа с геометрией"
+          }
+        }
+      }
+    },
+    "LOST PERFORMANCE" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LEISTUNGSVERLUST"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LOST PERFORMANCE"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PERFORMANCES PERDUES"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "性能损失"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ПОТЕРЯ ПРОИЗВОДИТЕЛЬНОСТИ"
+          }
+        }
+      }
+    },
+    "Limited time" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Begrenzte Zeit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limited time"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temps limité"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "受限时间"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Время ограничения"
+          }
+        }
+      }
+    },
+    "Limits" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grenzen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limits"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limites"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "限制"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ограничения"
+          }
+        }
+      }
+    },
+    "POWER CONTROLLER" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LEISTUNGSREGLER"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "POWER CONTROLLER"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CONTRÔLEUR D'ALIMENTATION"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电源控制器"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "КОНТРОЛЛЕР ПИТАНИЯ"
+          }
+        }
+      }
+    },
+    "SUBMISSIONS" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ÜBERMITTLUNGEN"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SUBMISSIONS"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SOUMISSIONS"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提交"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ОТПРАВКИ"
+          }
+        }
+      }
+    },
+    "The GPU's mean clock while awake. It weights each clock state's time by that state's frequency from the chip's own frequency table. On a chip without a table, the helper's powermetrics reading supplies the clock." : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der mittlere Takt der GPU, solange sie wach ist. Die Zeit in jedem Taktzustand wird mit dessen Frequenz aus der chipeigenen Frequenztabelle gewichtet. Hat ein Chip keine Tabelle, liefert der powermetrics-Wert des Helfers den Takt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The GPU's mean clock while awake. It weights each clock state's time by that state's frequency from the chip's own frequency table. On a chip without a table, the helper's powermetrics reading supplies the clock."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fréquence moyenne du GPU lorsqu'il est actif. Le temps passé dans chaque état est pondéré par la fréquence de cet état, tirée de la table des fréquences de la puce. Sur une puce sans table, la mesure powermetrics de l'assistant fournit la fréquence."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU 唤醒期间的平均频率。它按芯片自身频率表中各状态的频率，对每个频率状态的时间加权。如果芯片没有频率表，则由辅助程序的 powermetrics 读数提供频率。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Средняя частота GPU, пока он активен. Время в каждом состоянии взвешивается по частоте этого состояния из собственной таблицы частот чипа. Если у чипа нет таблицы, частоту сообщает powermetrics через помощника."
+          }
+        }
+      }
+    },
+    "Thermal activations" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thermische Auslösungen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thermal activations"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activations thermiques"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "热管理触发次数"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тепловые срабатывания"
+          }
+        }
+      }
+    },
+    "Under-voltage warnings" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unterspannungswarnungen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Under-voltage warnings"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alertes de sous-tension"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欠压警告"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Предупреждения о пониженном напряжении"
+          }
+        }
+      }
+    },
+    "Wake-ups" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aufwachvorgänge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wake-ups"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réveils"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "唤醒次数"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пробуждения"
+          }
+        }
+      }
+    },
+    "What set the clock. The power controller follows demand most of the time; its limit states mean heat or power, not the workload, held the GPU back. Lost performance is the firmware's own record of time a GPU block was limited." : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was den Takt bestimmt hat. Der Leistungsregler folgt meist dem Bedarf; seine Grenzzustände bedeuten, dass Wärme oder Leistung, nicht die Arbeitslast, die GPU gebremst hat. Leistungsverlust ist die firmwareeigene Aufzeichnung der Zeit, in der ein GPU-Block begrenzt war."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What set the clock. The power controller follows demand most of the time; its limit states mean heat or power, not the workload, held the GPU back. Lost performance is the firmware's own record of time a GPU block was limited."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce qui a fixé la fréquence. Le contrôleur d'alimentation suit la demande la plupart du temps ; ses états de limite signifient que la chaleur ou la puissance, et non la charge, a freiné le GPU. Les performances perdues sont l'enregistrement, par le micrologiciel, du temps pendant lequel un bloc du GPU était limité."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "是什么决定了频率。电源控制器大多数时候跟随负载；它的限制状态表示是温度或功耗而非工作负载拖慢了 GPU。性能损失是固件自身记录的 GPU 模块受限时间。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Что определило частоту. Контроллер питания большую часть времени следует нагрузке; его состояния ограничения означают, что GPU сдерживали нагрев или мощность, а не работа. Потеря производительности это собственная запись прошивки о времени, когда блок GPU был ограничен."
+          }
+        }
+      }
+    },
+    "Work" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arbeit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Work"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Travail"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工作"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Работа"
+          }
+        }
+      }
+    },
+    "Work the GPU firmware queued per second on each engine. AI runtimes such as MLX, llama.cpp and PyTorch run on Compute; drawing uses Fragment and Geometry. Context switches are the GPU moving between apps; slow ones show contention." : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arbeit, die die GPU-Firmware pro Sekunde auf jeder Engine einreiht. KI-Laufzeiten wie MLX, llama.cpp und PyTorch laufen auf Compute; Zeichnen nutzt Fragment und Geometrie. Kontextwechsel sind Wechsel der GPU zwischen Apps; langsame zeigen Konkurrenz an."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Work the GPU firmware queued per second on each engine. AI runtimes such as MLX, llama.cpp and PyTorch run on Compute; drawing uses Fragment and Geometry. Context switches are the GPU moving between apps; slow ones show contention."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Travail mis en file par seconde par le micrologiciel du GPU sur chaque moteur. Les moteurs d'IA comme MLX, llama.cpp et PyTorch tournent sur Calcul ; le dessin utilise Fragment et Géométrie. Les changements de contexte sont les passages du GPU d'une app à l'autre ; s'ils sont lents, il y a concurrence."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU 固件每秒在各引擎上排队的工作。MLX、llama.cpp 和 PyTorch 等 AI 运行时在“计算”上运行；绘图使用“片段”和“几何”。上下文切换是 GPU 在应用之间切换；切换缓慢说明存在争用。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Работа, которую прошивка GPU ставит в очередь на каждый движок за секунду. Среды ИИ, такие как MLX, llama.cpp и PyTorch, работают на «Вычислениях»; рисование использует «Фрагменты» и «Геометрию». Переключения контекста это переходы GPU между приложениями; медленные говорят о конкуренции."
+          }
+        }
+      }
+    },
+    "A level at 25% means the GPU spent one quarter of the latest sample at that clock. It does not mean 25% of GPU capacity." : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Stufe mit 25 % bedeutet, dass die GPU ein Viertel der letzten Messung in diesem Takt verbracht hat. Es bedeutet nicht 25 % der GPU-Kapazität."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A level at 25% means the GPU spent one quarter of the latest sample at that clock. It does not mean 25% of GPU capacity."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un niveau à 25 % signifie que le GPU a passé un quart du dernier échantillon à cette fréquence. Cela ne signifie pas 25 % de la capacité du GPU."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "某一级别为 25% 表示 GPU 在最新样本中有四分之一的时间处于该频率。这并不表示 GPU 容量的 25%。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уровень 25% означает, что GPU провёл четверть последнего замера на этой частоте. Это не 25% мощности GPU."
+          }
+        }
+      }
+    },
+    "Clock speeds" : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Taktstufen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clock speeds"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niveaux de fréquence"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "频率级别"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уровни частоты"
+          }
+        }
+      }
+    },
+    "Each bar is one speed level, slowest first, labelled with its clock from the chip's frequency table. Higher clocks finish work faster but use more power." : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeder Balken ist eine Taktstufe, die langsamste zuerst, beschriftet mit ihrem Takt aus der Frequenztabelle des Chips. Höhere Takte erledigen Arbeit schneller, verbrauchen aber mehr Leistung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each bar is one speed level, slowest first, labelled with its clock from the chip's frequency table. Higher clocks finish work faster but use more power."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaque barre est un niveau de vitesse, du plus lent au plus rapide, étiqueté avec sa fréquence tirée de la table des fréquences de la puce. Une fréquence plus élevée termine le travail plus vite mais consomme plus."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每个条形代表一个速度级别，从最慢开始，并标注芯片频率表中的频率。频率越高，完成工作越快，但功耗也越高。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Каждая полоса это уровень скорости, от самого медленного, с частотой из таблицы частот чипа. Более высокая частота выполняет работу быстрее, но потребляет больше энергии."
+          }
+        }
+      }
+    },
+    "The GPU's mean clock while awake, against the chip's top clock. A GPU that stays busy but drops below its usual clock is being held back by heat or power; the Device panel's Limits page shows which." : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der mittlere Takt der GPU im Wachzustand, verglichen mit dem Höchsttakt des Chips. Bleibt die GPU ausgelastet, fällt aber unter ihren üblichen Takt, bremsen sie Wärme oder Leistung; die Seite Grenzen im Gerätebereich zeigt, was davon."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The GPU's mean clock while awake, against the chip's top clock. A GPU that stays busy but drops below its usual clock is being held back by heat or power; the Device panel's Limits page shows which."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fréquence moyenne du GPU lorsqu'il est actif, comparée à la fréquence maximale de la puce. Un GPU qui reste occupé mais descend sous sa fréquence habituelle est freiné par la chaleur ou la puissance ; la page Limites du panneau Appareil indique laquelle."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU 唤醒期间的平均频率，与芯片最高频率对比。如果 GPU 持续忙碌但频率低于平时，说明受到温度或功耗限制；“设备”面板的“限制”页面会显示具体原因。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Средняя частота GPU в активном состоянии в сравнении с максимальной частотой чипа. Если GPU остаётся занятым, но опускается ниже обычной частоты, его сдерживает нагрев или мощность; страница «Ограничения» на панели «Устройство» показывает, что именно."
+          }
+        }
+      }
+    },
+    "macOS changes speed to balance work, power and heat. Low clocks alone do not mean the GPU is being throttled. The Limits page shows what set the clock." : {
+      "comment" : "GPU View",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS passt die Geschwindigkeit an, um Arbeit, Leistung und Wärme auszubalancieren. Niedrige Takte allein bedeuten nicht, dass die GPU gedrosselt wird. Die Seite Grenzen zeigt, was den Takt bestimmt hat."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS changes speed to balance work, power and heat. Low clocks alone do not mean the GPU is being throttled. The Limits page shows what set the clock."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS ajuste la vitesse pour équilibrer travail, puissance et chaleur. Une fréquence basse ne signifie pas à elle seule que le GPU est bridé. La page Limites indique ce qui a fixé la fréquence."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS 会调整速度以平衡工作、功耗和温度。仅凭低频率并不意味着 GPU 被降频。“限制”页面会显示频率由什么决定。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS меняет скорость, чтобы сбалансировать работу, мощность и нагрев. Сама по себе низкая частота не означает, что GPU замедлен. Страница «Ограничения» показывает, что определило частоту."
           }
         }
       }

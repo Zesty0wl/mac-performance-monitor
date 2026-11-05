@@ -270,6 +270,8 @@ extension Array where Element == SystemHistoryPoint {
                         \.gpuTotalBandwidthGBps, \.gpuTotalBandwidthSampleCount,
                         \.gpuTotalBandwidthGBps
                     ),
+                    // Not bandwidth, but the same count-weighted mean and min.
+                    (\.gpuClockMHz, \.gpuClockSampleCount, \.gpuClockMHz),
                 ]
             for (value, count, bound) in bandwidthColumns {
                 var weight = 0
