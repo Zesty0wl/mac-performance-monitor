@@ -128,6 +128,44 @@ final class GPUDevicePanelTests: XCTestCase {
         }
     }
 
+    /// The history panel's picker moves beside the title only when the whole
+    /// title row fits; at every width the visible picker stays inside the
+    /// panel. A fixed 640 pt threshold let six segments overflow between
+    /// about 640 and 712 pt.
+    func testHistoryPickerNeverOverflowsThePanel() async throws {
+        _ = NSApplication.shared
+        let timeline = GPUTimelineStore()
+        for width in stride(from: CGFloat(560), through: 900, by: 20) {
+            let host = NSHostingView(
+                rootView: GPUHistoryPanel(
+                    timeline: timeline, thermalPoints: [], range: .fiveMinutes
+                )
+                .frame(width: width))
+            let window = NSWindow(
+                contentRect: CGRect(x: 0, y: 0, width: width, height: 520),
+                styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = host
+            window.orderFront(nil)
+            defer { window.close() }
+            // The measurements land over a few layout passes.
+            for _ in 0..<5 {
+                host.layoutSubtreeIfNeeded()
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            let visible = descendants(of: host, type: NSSegmentedControl.self).filter {
+                !$0.isHiddenOrHasHiddenAncestor && $0.alphaValue > 0
+                    && $0.window != nil && !$0.frame.isEmpty
+            }
+            for control in visible {
+                let frame = control.convert(control.bounds, to: host)
+                guard frame.minY < host.bounds.maxY else { continue }
+                XCTAssertGreaterThanOrEqual(frame.minX, -0.5, "width \(width)")
+                XCTAssertLessThanOrEqual(frame.maxX, width + 0.5, "width \(width)")
+            }
+        }
+    }
+
     private func descendants<T: NSView>(of view: NSView, type: T.Type) -> [T] {
         view.subviews.flatMap { ($0 as? T).map { [$0] } ?? [] + descendants(of: $0, type: type) }
     }

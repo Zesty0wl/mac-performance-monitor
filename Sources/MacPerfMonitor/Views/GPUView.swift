@@ -353,9 +353,10 @@ struct GPUHistoryPanel: View {
     /// fill the row when the Device panel beside them is taller.
     static let chartHeight: CGFloat = 170
 
-    /// Narrowest panel that fits the title and the picker on one line; below
-    /// it (the minimum window width) the picker moves under the title.
-    static let headerPickerWidth: CGFloat = 640
+    /// The panel's horizontal padding plus the header's minimum spacer, added
+    /// to the measured header to decide whether the picker fits beside the
+    /// title.
+    static let headerChrome: CGFloat = 32 + 8
 
     @ObservedObject var timeline: GPUTimelineStore
     let thermalPoints: [SystemHistoryPoint]
@@ -364,8 +365,15 @@ struct GPUHistoryPanel: View {
     /// The panel's width from the layout pass, the same approach as
     /// `MetricCardsRow` (a `ViewThatFits` would measure the charts twice).
     @State private var width: CGFloat = 0
+    /// The natural width of the title row with the picker in it, measured from
+    /// a hidden copy. It was a fixed 640 pt, which fitted five English
+    /// segments; with six (the Clock page) the header needs about 712 pt, more
+    /// in German and Russian, and a panel between the two overflowed its row.
+    @State private var headerWidth: CGFloat = 0
 
-    private var pickerInHeader: Bool { width == 0 || width >= Self.headerPickerWidth }
+    private var pickerInHeader: Bool {
+        width == 0 || headerWidth == 0 || width >= headerWidth + Self.headerChrome
+    }
 
     var body: some View {
         GPUPanel("Over time", systemImage: "chart.xyaxis.line", info: info) {
@@ -380,6 +388,24 @@ struct GPUHistoryPanel: View {
             $0.size.width
         } action: {
             width = $0
+        }
+        // A background never affects the panel's size, so measuring here
+        // cannot feed back into the width it is compared with.
+        .background(alignment: .topLeading) {
+            HStack(spacing: 7) {
+                Image(systemName: "chart.xyaxis.line").font(.subheadline)
+                Text("Over time").font(.headline).lineLimit(1)
+                Image(systemName: "info.circle")
+                picker
+            }
+            .fixedSize()
+            .hidden()
+            .accessibilityHidden(true)
+            .onGeometryChange(for: CGFloat.self) {
+                $0.size.width
+            } action: {
+                headerWidth = $0
+            }
         }
     }
 
