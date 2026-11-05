@@ -541,6 +541,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         WindowOpenBridge.shared.onWindowRequested = { [presenceController] in
             presenceController.scheduleApply()
         }
+        WindowOpenBridge.shared.onWillOpenWindow = { [presenceController] in
+            presenceController.prepareForWindow()
+        }
 
         // Wire alerting: ask permission once, route fired alerts to notifications,
         // and keep the sampler's alert config in sync with the user's settings.
@@ -1045,6 +1048,10 @@ final class WindowOpenBridge {
     /// notifications alone are not enough to notice that one now exists.
     var onWindowRequested: (() -> Void)?
 
+    /// Called just before a window is opened, so `PresenceController` can make
+    /// the app regular first rather than under a window that is appearing.
+    var onWillOpenWindow: (() -> Void)?
+
     /// Called from `MenuBarWindowRouter.onAppear`; replays anything queued while
     /// no router was mounted. Last registration wins, which is fine: every
     /// router drives the same scene ids.
@@ -1052,13 +1059,13 @@ final class WindowOpenBridge {
         openAction = action
         let queued = pending
         pending = []
-        queued.forEach(action)
+        queued.forEach(perform)
     }
 
     /// Open a window scene by id now if a router is mounted, else queue it.
     func open(id: String) {
-        if let openAction {
-            openAction(id)
+        if openAction != nil {
+            perform(id)
         } else {
             AppLog.ui.notice("open window \(id, privacy: .public): queued until a router mounts")
             pending.append(id)
@@ -1070,6 +1077,55 @@ final class WindowOpenBridge {
     /// as Settings, so the policy is re-evaluated for it too.
     func noteWindowRequested() {
         onWindowRequested?()
+    }
+
+    /// For a window opened by some path other than `open(id:)`: get the
+    /// activation policy ready for it first.
+    func prepareForWindow() {
+        onWillOpenWindow?()
+    }
+
+    private func perform(_ id: String) {
+        onWillOpenWindow?()
+        openAction?(id)
+        confirmInFront(id)
+    }
+
+    /// Check that a window that was asked for really came up in front, and
+    /// bring it forward if not. Activation can be refused or lost, and the
+    /// window then opens behind whatever app is in front, which looks exactly
+    /// like a click that did nothing (#178). Checked twice, because a window
+    /// can take a moment to appear; each check logs what it saw, so a report
+    /// of a window that will not open says why.
+    private func confirmInFront(_ id: String, attempt: Int = 0) {
+        let delays: [TimeInterval] = [0.4, 1.2]
+        DispatchQueue.main.asyncAfter(deadline: .now() + delays[attempt]) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let window = NSApp.windows.first {
+                    $0.isRealAppWindow && $0.identifier?.rawValue.hasPrefix(id) == true
+                }
+                let isLast = attempt == delays.count - 1
+                guard let window else {
+                    if isLast {
+                        AppLog.ui.error(
+                            "open window \(id, privacy: .public): nothing on screen (\(PresenceController.diagnostics(), privacy: .public))"
+                        )
+                    } else {
+                        self.confirmInFront(id, attempt: attempt + 1)
+                    }
+                    return
+                }
+                if NSApp.isActive, NSApp.keyWindow != nil, !window.isMiniaturized { return }
+                AppLog.ui.notice(
+                    "open window \(id, privacy: .public): not in front (\(PresenceController.diagnostics(), privacy: .public)); bringing it forward"
+                )
+                if window.isMiniaturized { window.deminiaturize(nil) }
+                NSApp.activate(ignoringOtherApps: true)
+                window.makeKeyAndOrderFront(nil)
+                if !isLast { self.confirmInFront(id, attempt: attempt + 1) }
+            }
+        }
     }
 }
 
@@ -1102,6 +1158,7 @@ struct MenuBarWindowRouter: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .macperfmonitorShowSettings)) {
                 _ in
+                WindowOpenBridge.shared.prepareForWindow()
                 openSettings()
                 NSApp.activate(ignoringOtherApps: true)
                 WindowOpenBridge.shared.noteWindowRequested()

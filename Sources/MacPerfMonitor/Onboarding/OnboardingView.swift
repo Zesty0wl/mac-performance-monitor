@@ -10,7 +10,6 @@ import SwiftUI
 struct OnboardingView: View {
     @EnvironmentObject private var onboarding: OnboardingState
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openWindow) private var openWindow
 
     @State private var page = 0
 
@@ -124,8 +123,9 @@ struct OnboardingView: View {
         onboarding.autoConfigOnly = false
         dismiss()
         if openingDashboard {
-            openWindow(id: WindowID.main)
-            NSApp.activate(ignoringOtherApps: true)
+            // Through the bridge, so the app is made regular before the window
+            // opens rather than while this one is closing (#178).
+            WindowOpenBridge.shared.open(id: WindowID.main)
         }
     }
 
