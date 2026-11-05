@@ -152,7 +152,9 @@ struct CPUMenuBarContentView: View {
                 dismiss()
                 showStandardAboutPanel()
             }
-            MenuActionButton(title: updateController.menuTitle, systemImage: updateController.menuSymbol) {
+            MenuActionButton(
+                title: updateController.menuTitle, systemImage: updateController.menuSymbol
+            ) {
                 checkForUpdates()
             }
             .disabled(!updateController.canCheckForUpdates)

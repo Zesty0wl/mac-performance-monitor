@@ -156,7 +156,9 @@ struct MenuBarContentView: View {
                 showStandardAboutPanel()
             }
 
-            MenuActionButton(title: updateController.menuTitle, systemImage: updateController.menuSymbol) {
+            MenuActionButton(
+                title: updateController.menuTitle, systemImage: updateController.menuSymbol
+            ) {
                 updateController.checkForUpdates()
                 NSApp.activate(ignoringOtherApps: true)
             }
