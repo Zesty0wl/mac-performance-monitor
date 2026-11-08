@@ -6,8 +6,57 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-11-08
+
+### Added
+
+- **See what your GPU is doing, not just how busy it is.** The GPU tab's
+  Device panel now has five pages behind a selector, all read without
+  administrator rights:
+  - **Clock:** the GPU's average clock while awake against the chip's top
+    clock, time spent at each clock state in MHz, and the cores in each
+    cluster.
+  - **Limits:** what held the clock back (power controller states), how
+    long it was limited, and the performance lost per GPU block.
+  - **Work:** submissions per second for compute, fragment and geometry
+    work, wake-ups, busy and idle periods, and context switches with their
+    95th-percentile latency.
+  - **Memory:** the GPU's wired-memory limit (default or custom), headroom
+    and installed memory.
+  - **Health:** GPU recoveries, firmware restarts, killed work per engine,
+    failed render passes, under-voltage warnings and thermal activations.
+- **A Clock chart in Over time.** The GPU clock is recorded with the rest of
+  the history, so it can be viewed across every time range, and it updates
+  live.
+- **Update settings in Settings > General.** "Check for updates
+  automatically" and "Install updates automatically" now control Sparkle
+  directly.
+
+### Changed
+
+- **Updates no longer interrupt you**
+  ([#177](https://github.com/Zesty0wl/mac-performance-monitor/issues/177)).
+  A scheduled check never opens a window or takes focus. When an update is
+  found, an **Update** button appears in the main window and an "Update to
+  x.y" item in the menu bar menus; choose either to see the details. Checking
+  by hand works as before. Updating from 2.6.0 still shows the old prompt
+  once, since 2.6.0 is the copy that checks.
+- **Automatic updates install quietly.** With automatic install on, an
+  update is installed when no app window is open and the app is in the
+  background, instead of waiting for you to quit the app.
+
 ### Fixed
 
+- **"Check for updates automatically" was ignored.** The app ran its own
+  check after every wake, so an update you had dismissed came back after
+  each sleep.
+- **Windows could open behind other apps**
+  ([#178](https://github.com/Zesty0wl/mac-performance-monitor/issues/178)).
+  Reopening a window just after closing the last one could leave it hidden
+  behind the frontmost app, which looked like a click that did nothing. The
+  app now switches to a regular app before opening a window, waits a moment
+  before going back to menu bar only, and checks the window really came to
+  the front.
 - **Everyone on a shared Mac can run the app at the same time.** Only one
   copy could run across all logged-in users, so a second person who
   switched to their account was told the app was already running. Each
@@ -1385,7 +1434,8 @@ processes behind them.
 - A clean split between a headless, unit-tested data layer and the SwiftUI app. CI
   builds, tests, and lints on every push and pull request.
 
-[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.6.0.306...HEAD
+[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.7.0.312...HEAD
+[2.7.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.6.0.306...v2.7.0.312
 [2.6.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.5.0.297...v2.6.0.306
 [2.5.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.4.0.289...v2.5.0.297
 [2.4.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.3.1.280...v2.4.0.289
