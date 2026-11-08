@@ -172,7 +172,9 @@ the window, with a setting to keep it visible.
   large or old files. Reveal items in Finder or open Quick Look.
 
 - **GPU:** see device and per-process activity, power, memory, and thermal
-  limits. The bandwidth preview adds history beside separate ANE time and
+  limits. The Device panel shows the GPU's clock and what limits it, its work
+  mix, its wired-memory limit, and health counters such as recoveries and
+  firmware restarts, with clock history in Over time. The bandwidth preview adds history beside separate ANE time and
   power, and recorded GPU memory and awake time. Recognize AI runtimes such
   as Ollama, MLX, and LM Studio.
 

@@ -1,50 +1,43 @@
-# Mac Performance Monitor 2.6.0
+# Mac Performance Monitor 2.7.0
 
-Build 306, 1 November 2026. For Apple silicon Macs running macOS 15 or later.
-This update includes changes since 2.5.0, build 297.
+Build 312, 8 November 2026. For Apple silicon Macs running macOS 15 or later.
+This update includes changes since 2.6.0, build 306.
 
-[Download the signed installer](https://github.com/Zesty0wl/mac-performance-monitor/releases/download/v2.6.0.306/MacPerformanceMonitor.pkg).
+[Download the signed installer](https://github.com/Zesty0wl/mac-performance-monitor/releases/download/v2.7.0.312/MacPerformanceMonitor.pkg).
 Existing installs can use **Check for Updates** through Sparkle. Homebrew uses
 the same installer; its cask update may arrive after this release.
 
-## Memory Per App
+## Inside the GPU
 
-The Processes tab has a new **Apps** layout: one row per app, with its memory,
-CPU, threads and open files added up across every process working for it, and
-those processes listed beneath. That includes the helpers macOS starts on an
-app's behalf, such as Safari's and Mail's web content processes, which the
-Hierarchy view could not connect to their app. Select an app to see its totals
-and its processes, largest first.
+The GPU tab's Device panel now has five pages, all read without administrator
+rights:
 
-Right-click an app row to quit it, reveal it in Finder, or add its processes to
-the Explorer. Switch between Processes, Apps and Hierarchy with the new layout
-picker; your choice is remembered.
+- **Clock:** the average clock while the GPU is awake against its top clock,
+  and time spent at each clock state.
+- **Limits:** what held the clock back, for how long, and the performance lost.
+- **Work:** compute, fragment and geometry submissions, wake-ups and context
+  switch latency.
+- **Memory:** the GPU's wired-memory limit and how much headroom is left.
+- **Health:** recoveries, firmware restarts, killed work, under-voltage
+  warnings and thermal activations.
 
-## Security Hardening
+**Over time** gains a **Clock** chart, kept in history like the other GPU
+readings.
 
-An October security review led to these changes. None was known to be
-exploited.
+## Quieter Updates
 
-- The privileged helper now checks who is asking. On a shared Mac, a standard
-  user can force quit or inspect only their own processes; administrators can
-  still act on any process.
-- Force quit checks the process's start time, so it cannot stop a different
-  process that reused the same ID.
-- macOS only starts the helper if it carries our signature.
-- Process names and paths are always shown as plain text, odd app bundles can
-  no longer stall the window, and the uninstaller only runs a copy signed by us.
+Scheduled update checks no longer open a window or take focus. When an update
+is ready, an **Update** button appears in the main window and an "Update to"
+item in the menu bar menus. Settings > General has "Check for updates
+automatically" and "Install updates automatically", and both now work: with
+automatic install on, updates install while the app is in the background.
 
-## Russian
+This is the last update that 2.6.0 will announce with the old prompt.
 
-Mac Performance Monitor is now available in Russian, contributed by
-@coolswood. Choose Русский in Settings > General > Language. It is an AI
-translation that follows Apple's macOS Russian terminology and awaits review by
-native speakers. Corrections are welcome on
-[Crowdin](https://crowdin.com/project/mac-performance-monitor).
+## Fixes
 
-## Steadier Disk Page
-
-The drive cards on the Disk page no longer jump as readings change, and two
-drives in a wide window each take half of the Drives panel.
+- Windows no longer open behind other apps when reopened just after closing.
+- Everyone on a shared Mac can run the app at the same time, each in their own
+  account.
 
 See the [changelog](CHANGELOG.md) for the full list.
