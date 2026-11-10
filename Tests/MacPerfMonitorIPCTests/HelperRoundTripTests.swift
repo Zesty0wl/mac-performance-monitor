@@ -433,6 +433,98 @@ final class HelperRoundTripTests: XCTestCase {
             connection.terminateProcess(pid: myPID, startedAt: .now, signal: SIGHUP), EINVAL)
     }
 
+    // MARK: Suspend, resume and priority
+
+    private func runningChild() throws -> (task: Process, started: Date) {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        task.arguments = ["100"]
+        try task.run()
+        let started = try XCTUnwrap(ProcessReader().taskAllInfo(task.processIdentifier)?.startTime)
+        return (task, started)
+    }
+
+    private func waitForSuspended(_ expected: Bool, pid: Int32) -> Bool? {
+        var state = ProcessReader().taskAllInfo(pid)?.isSuspended
+        for _ in 0..<50 where state != expected {
+            usleep(20_000)
+            state = ProcessReader().taskAllInfo(pid)?.isSuspended
+        }
+        return state
+    }
+
+    func testSuspendsAndResumesOwnedChildOverXPC() throws {
+        let (task, started) = try runningChild()
+        let pid = task.processIdentifier
+        defer {
+            kill(pid, SIGKILL)
+            task.waitUntilExit()
+        }
+
+        XCTAssertEqual(
+            connection.terminateProcess(pid: pid, startedAt: started, signal: SIGSTOP), 0)
+        XCTAssertEqual(waitForSuspended(true, pid: pid), true)
+        XCTAssertTrue(task.isRunning, "A suspended process is still alive")
+
+        XCTAssertEqual(
+            connection.terminateProcess(pid: pid, startedAt: started, signal: SIGCONT), 0)
+        XCTAssertEqual(waitForSuspended(false, pid: pid), false)
+    }
+
+    func testSetsPriorityOfOwnedChildOverXPC() throws {
+        let (task, started) = try runningChild()
+        let pid = task.processIdentifier
+        defer {
+            kill(pid, SIGKILL)
+            task.waitUntilExit()
+        }
+
+        // A different start time means the pid was reused: nothing changes.
+        XCTAssertEqual(
+            connection.setProcessPriority(
+                pid: pid, startedAt: started.addingTimeInterval(-5), nice: 10), ESRCH)
+        XCTAssertEqual(ProcessReader().taskAllInfo(pid)?.nice, 0)
+
+        // The in-process service runs as the test user, who may lower a
+        // priority but not raise one; root in the real daemon may do both.
+        XCTAssertEqual(connection.setProcessPriority(pid: pid, startedAt: started, nice: 10), 0)
+        XCTAssertEqual(ProcessReader().taskAllInfo(pid)?.nice, 10)
+        if geteuid() != 0 {
+            XCTAssertEqual(
+                connection.setProcessPriority(pid: pid, startedAt: started, nice: -5), EACCES)
+        }
+    }
+
+    func testPriorityRejectsInvalidPIDAndRange() {
+        let myPID = Int32(ProcessInfo.processInfo.processIdentifier)
+        for pid: Int32 in [0, 1, -1] {
+            XCTAssertEqual(
+                connection.setProcessPriority(pid: pid, startedAt: .now, nice: 5), EINVAL)
+        }
+        for nice: Int32 in [-21, 21, 1000] {
+            XCTAssertEqual(
+                connection.setProcessPriority(pid: myPID, startedAt: .now, nice: nice), EINVAL)
+        }
+    }
+
+    func testStandardUserCannotReprioritiseSomeoneElsesProcess() throws {
+        let (task, started) = try runningChild()
+        let pid = task.processIdentifier
+        defer {
+            kill(pid, SIGKILL)
+            task.waitUntilExit()
+        }
+        let stranger = HelperCaller(uid: geteuid() &+ 1, isAdmin: false)
+        let service = HelperService(version: "1", power: PowerProviderStub(), caller: stranger)
+        var code: Int32 = -1
+        service.setProcessPriority(
+            NSNumber(value: pid), startedAt: NSNumber(value: started.timeIntervalSince1970),
+            nice: NSNumber(value: 10)
+        ) { code = $0 }
+        XCTAssertEqual(code, EPERM)
+        XCTAssertEqual(ProcessReader().taskAllInfo(pid)?.nice, 0)
+    }
+
     // MARK: Caller authorization
 
     func testCallerPolicy() {

@@ -789,7 +789,9 @@ public final class Sampler {
             gpuPercent: gpuPercent,
             gpuLastActive: gpuLastActive,
             coalitionID: staticInfo.coalitionID,
-            responsiblePID: staticInfo.responsiblePID
+            responsiblePID: staticInfo.responsiblePID,
+            isSuspended: info.isSuspended,
+            nice: info.nice
         )
     }
 

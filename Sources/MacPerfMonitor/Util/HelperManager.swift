@@ -313,21 +313,51 @@ final class HelperManager: ObservableObject {
     func forceQuit(
         _ identity: ProcessIdentity, completion: @escaping (ProcessActions.KillOutcome) -> Void
     ) {
+        send(SIGKILL, to: identity, completion: completion)
+    }
+
+    /// Send one of the helper's allowed signals (quit, force quit, suspend,
+    /// resume) to a process as root. Same threading and `.notPermitted`
+    /// behaviour as `forceQuit`.
+    func send(
+        _ signal: Int32, to identity: ProcessIdentity,
+        completion: @escaping (ProcessActions.KillOutcome) -> Void
+    ) {
         guard coverage == .enabled, let connection else {
             completion(.notPermitted)
             return
         }
         DispatchQueue.global(qos: .userInitiated).async {
             let code = connection.terminateProcess(
-                pid: identity.pid, startedAt: identity.startTime, signal: SIGKILL)
-            let outcome: ProcessActions.KillOutcome
-            switch code {
-            case 0: outcome = .success
-            case ESRCH: outcome = .alreadyGone
-            case EPERM: outcome = .notPermitted
-            default: outcome = .failed(code)
-            }
-            DispatchQueue.main.async { completion(outcome) }
+                pid: identity.pid, startedAt: identity.startTime, signal: signal)
+            DispatchQueue.main.async { completion(Self.outcome(forHelperCode: code)) }
+        }
+    }
+
+    /// Set a process's `nice` value as root, which is what raising a priority
+    /// or changing another user's process needs.
+    func setNice(
+        _ nice: Int32, for identity: ProcessIdentity,
+        completion: @escaping (ProcessActions.KillOutcome) -> Void
+    ) {
+        guard coverage == .enabled, let connection else {
+            completion(.notPermitted)
+            return
+        }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let code = connection.setProcessPriority(
+                pid: identity.pid, startedAt: identity.startTime, nice: nice)
+            DispatchQueue.main.async { completion(Self.outcome(forHelperCode: code)) }
+        }
+    }
+
+    private nonisolated static func outcome(forHelperCode code: Int32) -> ProcessActions.KillOutcome
+    {
+        switch code {
+        case 0: return .success
+        case ESRCH: return .alreadyGone
+        case EPERM, EACCES: return .notPermitted
+        default: return .failed(code)
         }
     }
 

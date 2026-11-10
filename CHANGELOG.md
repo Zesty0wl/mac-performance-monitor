@@ -6,6 +6,35 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Added
+
+- **More ways to control a process.** The right-click menu on a process now
+  has, alongside Force Quit:
+  - **Quit:** asks the process to shut down (SIGTERM), after a confirmation.
+  - **Suspend and Resume:** freeze a process where it is and let it run again
+    later. A suspended process shows a Suspended badge in the list.
+    Suspending a system or other-user process asks first, because freezing
+    the wrong one can leave the Mac unresponsive.
+  - **Priority:** five levels from Highest to Lowest (nice -20 to 20), with
+    the current one ticked. Lowering your own process's priority needs no
+    special rights. Raising one, or changing another user's process, goes
+    through the Full Coverage helper.
+  - **Force Quit Process Tree:** force quits a process and everything it
+    started, parent first so a supervisor cannot restart its workers. The
+    confirmation says how many processes are involved, and a notice follows
+    if any refused to stop.
+
+  When macOS refuses one of these for your account and Full Coverage is on,
+  the app retries through the helper, as Force Quit already did.
+
+### Security
+
+- The Full Coverage helper now accepts SIGSTOP and SIGCONT as well as SIGTERM
+  and SIGKILL, and has one new call that sets a process's nice value. Both
+  keep the existing checks: never process 0 or 1, one process at a time, only
+  the process you chose (matched by start time, so a reused process ID is
+  refused), and a standard account only on its own processes.
+
 ## [2.7.0] - 2026-11-08
 
 ### Added

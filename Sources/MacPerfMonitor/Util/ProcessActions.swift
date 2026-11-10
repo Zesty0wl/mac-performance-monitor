@@ -4,11 +4,45 @@ import MacPerfMonitorCore
 import SwiftUI
 import os.log
 
+/// A command the user can give a running process besides Force Quit, which
+/// keeps its own confirmation (`ForceQuitConfirmation`).
+enum ProcessControl: Equatable {
+    /// Ask the process to exit (`SIGTERM`).
+    case quit
+    /// Freeze the process where it is (`SIGSTOP`).
+    case suspend
+    /// Let a suspended process run again (`SIGCONT`).
+    case resume
+    /// Set the `nice` value, -20 (most favoured) to 20 (least).
+    case priority(Int32)
+    /// Force quit the process and everything it started.
+    case forceQuitTree
+}
+
+/// A `ProcessControl` aimed at one process, waiting for `ProcessControlHost`
+/// on the main window to confirm and run it.
+struct ProcessControlRequest: Equatable {
+    var identity: ProcessIdentity
+    var control: ProcessControl
+}
+
 /// Shared actions for any row that shows a process: reveal its executable in
-/// Finder and force quit it with `kill -9`. Killing is gated on a *live* sample
-/// match (pid plus start time) by the callers, so a recycled PID can never be
-/// the unintended target.
+/// Finder, signal it, and change its priority. Every action that touches the
+/// process checks a *live* match (pid plus start time) first, so a recycled PID
+/// can never be the unintended target.
 enum ProcessActions {
+    /// The priorities offered in the Priority menu, most favoured first.
+    /// Computed, so the titles follow a change of app language.
+    static var priorityChoices: [(nice: Int32, title: String)] {
+        [
+            (-20, t("Highest (nice -20)")),
+            (-10, t("High (nice -10)")),
+            (0, t("Normal (nice 0)")),
+            (10, t("Low (nice 10)")),
+            (20, t("Lowest (nice 20)")),
+        ]
+    }
+
     /// Reveal a process's executable in Finder. No-op when the path is missing
     /// (for example the kernel) or no longer on disk.
     @discardableResult
@@ -35,21 +69,43 @@ enum ProcessActions {
     /// works for the user's own processes; system or other-user processes return
     /// `notPermitted`.
     static func forceQuit(_ identity: ProcessIdentity) -> KillOutcome {
+        send(SIGKILL, to: identity)
+    }
+
+    /// Whether `identity` is no longer the process holding its pid. A pid is
+    /// reused once its process exits, and a menu or confirmation can sit open
+    /// for a while: never act on a different process that took the number.
+    /// Another user's process is unreadable here; the kernel refuses the
+    /// action too, and the helper repeats this check before it acts as root.
+    private static func isStale(_ identity: ProcessIdentity) -> Bool {
+        guard let info = ProcessReader().taskAllInfo(identity.pid) else { return false }
+        return abs(info.startTime.timeIntervalSince(identity.startTime)) >= 0.001
+    }
+
+    /// Send one signal to a pid as the user.
+    static func send(_ signal: Int32, to identity: ProcessIdentity) -> KillOutcome {
         let pid = identity.pid
         guard pid > 1 else { return .notPermitted }
-        // A pid is reused once its process exits, and the confirmation can sit
-        // open for a while: never signal a different process that took the
-        // number. Another user's process is unreadable here; kill(2) refuses
-        // it too, and the helper repeats this check before it acts as root.
-        if let info = ProcessReader().taskAllInfo(pid),
-            abs(info.startTime.timeIntervalSince(identity.startTime)) >= 0.001
-        {
-            return .alreadyGone
-        }
-        let result = kill(pid, SIGKILL)
+        if isStale(identity) { return .alreadyGone }
+        let result = kill(pid, signal)
         if result == 0 { return .success }
         switch errno {
         case EPERM: return .notPermitted
+        case ESRCH: return .alreadyGone
+        default: return .failed(errno)
+        }
+    }
+
+    /// Set a pid's `nice` value as the user. That works for lowering the
+    /// priority of the user's own processes; raising one (`EACCES`) or touching
+    /// someone else's (`EPERM`) returns `notPermitted`.
+    static func setNice(_ nice: Int32, for identity: ProcessIdentity) -> KillOutcome {
+        let pid = identity.pid
+        guard pid > 1 else { return .notPermitted }
+        if isStale(identity) { return .alreadyGone }
+        if setpriority(PRIO_PROCESS, id_t(pid), nice) == 0 { return .success }
+        switch errno {
+        case EPERM, EACCES: return .notPermitted
         case ESRCH: return .alreadyGone
         default: return .failed(errno)
         }
@@ -66,6 +122,9 @@ struct ProcessActionMenu: View {
     let live: ProcessSample?
     let showCodesign: () -> Void
     let requestKill: () -> Void
+    /// Quit, suspend, resume, reprioritise, or force quit the tree. When nil
+    /// those items are omitted.
+    var requestControl: ((ProcessControl) -> Void)? = nil
     /// Open the standalone Memory Inspector window for this process. Supplied
     /// only by the Processes list (which has the `openWindow` action and the live
     /// uid/name to seed the inspector); when nil the item is omitted so other
@@ -180,10 +239,53 @@ struct ProcessActionMenu: View {
 
         Divider()
 
+        if let requestControl {
+            let suspended = live?.isSuspended == true
+            Button {
+                requestControl(suspended ? .resume : .suspend)
+            } label: {
+                Label(
+                    suspended ? "Resume" : "Suspend",
+                    systemImage: suspended ? "play.circle" : "pause.circle")
+            }
+            .disabled(live == nil)
+
+            Menu {
+                ForEach(ProcessActions.priorityChoices, id: \.nice) { choice in
+                    Toggle(
+                        choice.title,
+                        isOn: Binding(
+                            get: { (live?.nice ?? 0) == choice.nice },
+                            set: { _ in requestControl(.priority(choice.nice)) }))
+                }
+            } label: {
+                Label("Priority", systemImage: "gauge.with.dots.needle.33percent")
+            }
+            .disabled(live == nil)
+
+            Divider()
+
+            Button {
+                requestControl(.quit)
+            } label: {
+                Label("Quit (SIGTERM)", systemImage: "xmark.circle")
+            }
+            .disabled(live == nil)
+        }
+
         Button(role: .destructive, action: requestKill) {
             Label("Force Quit (kill -9)", systemImage: "xmark.octagon")
         }
         .disabled(live == nil)
+
+        if let requestControl {
+            Button(role: .destructive) {
+                requestControl(.forceQuitTree)
+            } label: {
+                Label("Force Quit Process Tree\u{2026}", systemImage: "xmark.octagon.fill")
+            }
+            .disabled(live == nil)
+        }
     }
 }
 
@@ -214,9 +316,16 @@ struct ProcessRowActions: ViewModifier {
                 ProcessActionMenu(
                     live: model.currentSample(for: identity),
                     showCodesign: showCodesign,
-                    requestKill: requestKill
+                    requestKill: requestKill,
+                    requestControl: requestControl
                 )
             }
+    }
+
+    private func requestControl(_ control: ProcessControl) {
+        ProcessRowIntent.requestControl(
+            control, identity: identity, appState: appState,
+            bringWindowForward: bringWindowForward)
     }
 
     private func openDetail() {
@@ -290,6 +399,26 @@ enum ProcessRowIntent {
     }
 }
 
+extension ProcessRowIntent {
+    /// Hand a quit, suspend, resume, priority or tree request to the host on
+    /// the main window, surfacing that window first when asked from the menubar.
+    static func requestControl(
+        _ control: ProcessControl, identity: ProcessIdentity, appState: AppState,
+        bringWindowForward: Bool
+    ) {
+        let request = ProcessControlRequest(identity: identity, control: control)
+        guard bringWindowForward else {
+            appState.pendingProcessControl = request
+            return
+        }
+        NotificationCenter.default.post(name: .macperfmonitorShowMainWindow, object: nil)
+        NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            appState.pendingProcessControl = request
+        }
+    }
+}
+
 /// A compact, always-visible per-row menu (an ellipsis button) carrying the
 /// same actions as the right-click menu. The menubar dropdown is a
 /// non-activating panel where SwiftUI's `.contextMenu` is unreliable, so this
@@ -314,6 +443,11 @@ struct ProcessRowMenuButton: View {
                 requestKill: {
                     ProcessRowIntent.requestKill(
                         identity: identity, appState: appState,
+                        bringWindowForward: bringWindowForward)
+                },
+                requestControl: { control in
+                    ProcessRowIntent.requestControl(
+                        control, identity: identity, appState: appState,
                         bringWindowForward: bringWindowForward)
                 }
             )
@@ -455,5 +589,238 @@ extension View {
     /// Host the app's single force-quit confirmation, driven by `target`.
     func forceQuitConfirmation(target: Binding<ProcessIdentity?>) -> some View {
         modifier(ForceQuitConfirmation(target: target))
+    }
+}
+
+/// Hosts quit, suspend, resume, priority and force-quit-tree for the whole app,
+/// driven by a pending request. Like `ForceQuitConfirmation` it lives on the
+/// main window so every surface shares one path: confirm where the action can
+/// lose work or freeze the Mac, try it as the user, retry through the root
+/// helper when macOS refuses, and say plainly when it did not happen.
+struct ProcessControlHost: ViewModifier {
+    @Binding var request: ProcessControlRequest?
+    @EnvironmentObject private var model: SamplerModel
+    @EnvironmentObject private var helper: HelperManager
+    @EnvironmentObject private var appState: AppState
+    /// The request a confirmation is showing for, with what it would act on
+    /// captured when it was raised.
+    @State private var confirming: Confirmation?
+    @State private var failureMessage: String?
+
+    private struct Confirmation {
+        var request: ProcessControlRequest
+        var name: String
+        /// The root's descendants, for a tree force quit.
+        var descendants: [ProcessSample] = []
+    }
+
+    /// One thing to do to one process.
+    private enum Operation {
+        case signal(Int32)
+        case nice(Int32)
+    }
+
+    private var showingConfirmation: Binding<Bool> {
+        Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } })
+    }
+
+    private var showingFailure: Binding<Bool> {
+        Binding(get: { failureMessage != nil }, set: { if !$0 { failureMessage = nil } })
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: request) { _, new in
+                guard let new else { return }
+                request = nil
+                receive(new)
+            }
+            .confirmationDialog(
+                confirmationTitle, isPresented: showingConfirmation, titleVisibility: .visible
+            ) {
+                Button(confirmationButton, role: .destructive) {
+                    guard let confirmed = confirming else { return }
+                    confirming = nil
+                    // Next runloop tick, so the dialog has gone before a
+                    // failure alert may need to appear (see ForceQuitConfirmation).
+                    DispatchQueue.main.async { run(confirmed) }
+                }
+                Button("Cancel", role: .cancel) { confirming = nil }
+            } message: {
+                Text(confirmationMessage)
+            }
+            .alert("Couldn\u{2019}t change the process", isPresented: showingFailure) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(failureMessage ?? "")
+            }
+    }
+
+    // MARK: Confirmation
+
+    private func name(of identity: ProcessIdentity) -> String {
+        model.currentSample(for: identity)?.displayName ?? "PID \(identity.pid)"
+    }
+
+    private func receive(_ request: ProcessControlRequest) {
+        let live = model.currentSample(for: request.identity)
+        var pending = Confirmation(request: request, name: name(of: request.identity))
+        switch request.control {
+        case .resume, .priority:
+            run(pending)
+        case .suspend:
+            // Suspending your own app is harmless and undone with Resume. A
+            // system process is another matter: freeze the wrong one and there
+            // may be no screen left to resume it from.
+            if let live, live.uid == getuid() { run(pending) } else { confirming = pending }
+        case .quit:
+            confirming = pending
+        case .forceQuitTree:
+            pending.descendants = ProcessTree.descendants(
+                of: request.identity, in: model.latest?.processes ?? [])
+            // Nothing below it: this is an ordinary force quit.
+            if pending.descendants.isEmpty {
+                appState.pendingForceQuit = request.identity
+            } else {
+                confirming = pending
+            }
+        }
+    }
+
+    private var confirmationTitle: String {
+        guard let confirming else { return "" }
+        switch confirming.request.control {
+        case .quit: return t("Quit %@?", confirming.name)
+        case .suspend: return t("Suspend %@?", confirming.name)
+        case .forceQuitTree:
+            return t(
+                "Force quit %1$@ and everything it started (%2$d more)?", confirming.name,
+                confirming.descendants.count)
+        case .resume, .priority: return ""
+        }
+    }
+
+    private var confirmationButton: String {
+        switch confirming?.request.control {
+        case .quit: return t("Quit")
+        case .suspend: return t("Suspend")
+        case .forceQuitTree: return t("Force Quit All")
+        default: return t("OK")
+        }
+    }
+
+    private var confirmationMessage: String {
+        switch confirming?.request.control {
+        case .quit:
+            return t(
+                "This sends SIGTERM, which asks the process to shut down. Most exit "
+                    + "cleanly, but unsaved work can be lost.")
+        case .suspend:
+            return t(
+                "This process belongs to the system or another user. Suspending "
+                    + "freezes it until you resume it, and freezing a system process can "
+                    + "make your Mac stop responding.")
+        case .forceQuitTree:
+            return t(
+                "This sends SIGKILL (kill -9) to each one. They stop at once without "
+                    + "saving, so any unsaved work is lost.")
+        default: return ""
+        }
+    }
+
+    // MARK: Running
+
+    private func run(_ confirmed: Confirmation) {
+        let identity = confirmed.request.identity
+        let name = confirmed.name
+        switch confirmed.request.control {
+        case .quit:
+            perform(.signal(SIGTERM), on: identity) { report($0, escalated: $1, name: name) }
+        case .suspend:
+            perform(.signal(SIGSTOP), on: identity) { report($0, escalated: $1, name: name) }
+        case .resume:
+            perform(.signal(SIGCONT), on: identity) { report($0, escalated: $1, name: name) }
+        case .priority(let nice):
+            perform(.nice(nice), on: identity) { report($0, escalated: $1, name: name) }
+        case .forceQuitTree:
+            let root = model.currentSample(for: identity)
+            // Parent first, then each generation below it (see ProcessTree).
+            let targets = (root.map { [$0] } ?? []) + confirmed.descendants
+            forceQuit(targets[...], failed: 0, total: targets.count)
+        }
+    }
+
+    /// Try as the user; when macOS refuses and Full Coverage is on, retry as
+    /// root. `completion` runs on the main thread with the final outcome and
+    /// whether the helper was used.
+    private func perform(
+        _ operation: Operation, on identity: ProcessIdentity,
+        completion: @escaping (_ outcome: ProcessActions.KillOutcome, _ escalated: Bool) -> Void
+    ) {
+        let outcome: ProcessActions.KillOutcome
+        switch operation {
+        case .signal(let signal): outcome = ProcessActions.send(signal, to: identity)
+        case .nice(let nice): outcome = ProcessActions.setNice(nice, for: identity)
+        }
+        guard outcome == .notPermitted, helper.canEscalate else {
+            completion(outcome, false)
+            return
+        }
+        switch operation {
+        case .signal(let signal):
+            helper.send(signal, to: identity) { completion($0, true) }
+        case .nice(let nice):
+            helper.setNice(nice, for: identity) { completion($0, true) }
+        }
+    }
+
+    private func report(_ outcome: ProcessActions.KillOutcome, escalated: Bool, name: String) {
+        switch outcome {
+        case .success:
+            // Nothing to say: the next sample shows the new state on the row.
+            break
+        case .alreadyGone:
+            failureMessage = t("\u{201C}%@\u{201D} is no longer running.", name)
+        case .notPermitted:
+            failureMessage =
+                escalated
+                ? t(
+                    "Even with Full Coverage, macOS would not allow this for "
+                        + "\u{201C}%@\u{201D}.", name)
+                : t(
+                    "macOS would not let %1$@ do this to \u{201C}%2$@\u{201D}. It is likely a "
+                        + "system process or owned by another user, or the change needs "
+                        + "root. Turn on Full Coverage in Settings to do this as root.",
+                    AppInfo.displayName, name)
+        case .failed(let code):
+            failureMessage =
+                t("The request for \u{201C}%1$@\u{201D} failed (error %2$d).", name, code)
+        }
+    }
+
+    /// Force quit `remaining` one at a time, then say how many refused.
+    private func forceQuit(_ remaining: ArraySlice<ProcessSample>, failed: Int, total: Int) {
+        guard let next = remaining.first else {
+            if failed > 0 {
+                failureMessage = t("%1$d of %2$d processes could not be stopped.", failed, total)
+            }
+            return
+        }
+        perform(.signal(SIGKILL), on: next.id) { outcome, _ in
+            var failed = failed
+            switch outcome {
+            case .success, .alreadyGone: model.markTerminated(next.id, lastSample: next)
+            case .notPermitted, .failed: failed += 1
+            }
+            forceQuit(remaining.dropFirst(), failed: failed, total: total)
+        }
+    }
+}
+
+extension View {
+    /// Host the app's quit, suspend, resume, priority and force-quit-tree
+    /// actions, driven by `request`.
+    func processControlHost(request: Binding<ProcessControlRequest?>) -> some View {
+        modifier(ProcessControlHost(request: request))
     }
 }

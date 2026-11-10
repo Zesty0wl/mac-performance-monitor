@@ -1621,7 +1621,11 @@ private struct ProcessPickerList: View {
                     ProcessRowIntent.showCodesign(
                         sample: process, appState: appState, bringWindowForward: false)
                 },
-                requestKill: { appState.pendingForceQuit = process.id }
+                requestKill: { appState.pendingForceQuit = process.id },
+                requestControl: { control in
+                    appState.pendingProcessControl = ProcessControlRequest(
+                        identity: process.id, control: control)
+                }
             )
         }
     }

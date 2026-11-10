@@ -84,8 +84,12 @@ build. Older releases may not receive the same fixes.
   saves no raw tool output and makes no network requests. ANE Time does not
   need root. See [ANE power](docs/gpu-tab-design.md#ane-power-18-september-2026).
 
-- Actions you choose can make changes. These include force-quitting a process,
-  installing the helper, or applying an update. Routine monitoring is separate
+- Actions you choose can make changes. These include quitting, force-quitting,
+  suspending or resuming a process, changing its priority, installing the
+  helper, or applying an update. With Full Coverage on, the helper performs
+  those process actions as root when macOS refuses them to your account. It
+  sends only those four signals, to one process at a time, and never to
+  process 1. Routine monitoring is separate
   from those actions. Read prompts and check permissions before proceeding.
 
 ## Release Integrity

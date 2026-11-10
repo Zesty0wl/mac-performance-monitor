@@ -16,6 +16,14 @@ public enum HelperConstants {
     /// connecting client.
     public static let appBundleIdentifier = "uk.co.bzwrd.macperfmonitor"
 
+    /// The only signals the root helper will deliver: quit, force quit,
+    /// suspend and resume.
+    public static let allowedSignals: Set<Int32> = [SIGTERM, SIGKILL, SIGSTOP, SIGCONT]
+
+    /// The `nice` values the root helper will set, the full range
+    /// `setpriority` accepts.
+    public static let niceRange: ClosedRange<Int32> = -20...20
+
     /// Build the code-signing requirement used to pin the *peer* of an XPC
     /// connection. The peer must carry the given code `identifier`, be anchored
     /// to Apple (`anchor apple generic`), and belong to the **same Apple
@@ -54,12 +62,14 @@ public enum HelperConstants {
 /// (`peerRequirement(forIdentifier:)`) before any request is served, so no other
 /// process can drive the root daemon.
 ///
-/// Most methods only *read* process data. The one mutating method,
-/// `terminateProcess`, is tightly constrained: it accepts only `SIGTERM` and
-/// `SIGKILL`, refuses pid <= 1, signals exactly one process (never a process
-/// group), and only the process the user chose (checked by start time), so even
-/// though it runs as root it cannot be turned into a general-purpose
-/// signal-injection tool.
+/// Most methods only *read* process data. The two mutating methods are tightly
+/// constrained. `terminateProcess` accepts only the four signals behind the
+/// app's Quit, Force Quit, Suspend and Resume commands
+/// (`HelperConstants.allowedSignals`), refuses pid <= 1, signals exactly one
+/// process (never a process group), and only the process the user chose
+/// (checked by start time), so even though it runs as root it cannot be turned
+/// into a general-purpose signal-injection tool. `setProcessPriority` applies
+/// the same pid and start-time checks and only changes a `nice` value.
 ///
 /// The pin proves which app is calling, not which user is running it, and the
 /// daemon serves every account on the Mac. So terminating, memory tools and
@@ -89,15 +99,25 @@ public enum HelperConstants {
     /// other-user processes the unprivileged reader cannot see.
     func listFileDescriptors(_ pid: NSNumber, reply: @escaping (Data?) -> Void)
 
-    /// Send a termination signal to a process as root. `signal` must be
-    /// `SIGTERM` or `SIGKILL`; any other value, or pid <= 1, is rejected.
+    /// Send a signal to a process as root. `signal` must be one of
+    /// `HelperConstants.allowedSignals` (`SIGTERM`, `SIGKILL`, `SIGSTOP`,
+    /// `SIGCONT`); any other value, or pid <= 1, is rejected.
     /// `startedAt` is the process's start time (seconds since 1970) when the
     /// user chose it: if the pid now belongs to a different process, nothing is
     /// signalled and the reply is `ESRCH`. The reply is `0` on success or the
-    /// POSIX `errno`. Lets the app force-quit system and other-user processes
-    /// the user cannot signal directly.
+    /// POSIX `errno`. Lets the app quit, force-quit, suspend and resume system
+    /// and other-user processes the user cannot signal directly. A helper from
+    /// before suspend and resume existed replies `EINVAL` to those two.
     func terminateProcess(
         _ pid: NSNumber, startedAt: NSNumber, signal: NSNumber, reply: @escaping (Int32) -> Void)
+
+    /// Set a process's `nice` value as root. `nice` must lie within
+    /// `HelperConstants.niceRange`; pid <= 1 is rejected, and `startedAt` is
+    /// checked exactly as in `terminateProcess`. The reply is `0` on success or
+    /// the POSIX `errno`. Only root may raise a priority (lower a nice value),
+    /// or change the priority of another user's process.
+    func setProcessPriority(
+        _ pid: NSNumber, startedAt: NSNumber, nice: NSNumber, reply: @escaping (Int32) -> Void)
 
     /// Run one of the allow-listed Apple memory tools (`footprint`, `heap`,
     /// `leaks`) against a PID as root, replying with its combined stdout/stderr

@@ -284,6 +284,44 @@ public final class HelperConnection: PrivilegedReader, @unchecked Sendable {
         return code
     }
 
+    /// Set a process's `nice` value via the root daemon. Returns 0 on success
+    /// or a POSIX errno from the daemon, and `EHOSTDOWN` when the daemon is
+    /// unreachable, timed out, or predates this call.
+    public func setProcessPriority(pid: Int32, startedAt: Date, nice: Int32) -> Int32 {
+        guard let connection = currentConnection() else { return EHOSTDOWN }
+
+        let resultLock = NSLock()
+        var code: Int32 = EHOSTDOWN
+        let done = DispatchSemaphore(value: 0)
+
+        let proxy = connection.remoteObjectProxyWithErrorHandler { [log] error in
+            log.error("helper unreachable: \(error.localizedDescription, privacy: .public)")
+            done.signal()
+        }
+        guard let helper = proxy as? MacPerfMonitorHelperProtocol else {
+            log.error("helper proxy did not conform to the expected interface")
+            return EHOSTDOWN
+        }
+
+        helper.setProcessPriority(
+            NSNumber(value: pid), startedAt: NSNumber(value: startedAt.timeIntervalSince1970),
+            nice: NSNumber(value: nice)
+        ) { result in
+            resultLock.lock()
+            code = result
+            resultLock.unlock()
+            done.signal()
+        }
+
+        if done.wait(timeout: .now() + timeout) == .timedOut {
+            log.error("helper priority timed out after \(self.timeout, privacy: .public)s")
+            return EHOSTDOWN
+        }
+        resultLock.lock()
+        defer { resultLock.unlock() }
+        return code
+    }
+
     /// Run an allow-listed Apple memory tool (`footprint`/`heap`/`leaks`) against
     /// a process via the root daemon, returning its combined stdout/stderr text,
     /// or nil when the daemon is unreachable or the tool failed. Unlike the other

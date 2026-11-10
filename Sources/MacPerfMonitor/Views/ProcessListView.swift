@@ -480,6 +480,34 @@ private struct ProcessTable: View, Equatable {
         menu.addItem(groupItem)
 
         menu.addItem(.separator())
+        let control: (ProcessControl) -> Void = { control in
+            appState.pendingProcessControl = ProcessControlRequest(identity: id, control: control)
+        }
+        let suspended = live?.isSuspended == true
+        menu.addItem(
+            ClosureMenuItem(
+                suspended ? String(localized: "Resume") : String(localized: "Suspend"),
+                symbol: suspended ? "play.circle" : "pause.circle", enabled: live != nil
+            ) { control(suspended ? .resume : .suspend) })
+        let priorityItem = NSMenuItem(
+            title: String(localized: "Priority"), action: nil, keyEquivalent: "")
+        priorityItem.image = NSImage(
+            systemSymbolName: "gauge.with.dots.needle.33percent", accessibilityDescription: nil)
+        priorityItem.isEnabled = live != nil
+        let priorityMenu = NSMenu()
+        for choice in ProcessActions.priorityChoices {
+            let item = ClosureMenuItem(choice.title) { control(.priority(choice.nice)) }
+            item.state = (live?.nice ?? 0) == choice.nice ? .on : .off
+            priorityMenu.addItem(item)
+        }
+        priorityItem.submenu = priorityMenu
+        menu.addItem(priorityItem)
+
+        menu.addItem(.separator())
+        menu.addItem(
+            ClosureMenuItem(
+                String(localized: "Quit (SIGTERM)"), symbol: "xmark.circle", enabled: live != nil
+            ) { control(.quit) })
         menu.addItem(
             ClosureMenuItem(
                 String(localized: "Force Quit (kill -9)"), symbol: "xmark.octagon",
@@ -487,6 +515,19 @@ private struct ProcessTable: View, Equatable {
             ) {
                 appState.pendingForceQuit = id
             })
+        // Offered only when the process has started others; without any it
+        // would be the same as Force Quit.
+        let hasChildren =
+            live.map { root in
+                (model.latest?.processes ?? []).contains {
+                    $0.ppid == root.pid && $0.pid != root.pid && $0.startTime >= root.startTime
+                }
+            } ?? false
+        menu.addItem(
+            ClosureMenuItem(
+                String(localized: "Force Quit Process Tree\u{2026}"),
+                symbol: "xmark.octagon.fill", enabled: hasChildren
+            ) { control(.forceQuitTree) })
         return menu
     }
 

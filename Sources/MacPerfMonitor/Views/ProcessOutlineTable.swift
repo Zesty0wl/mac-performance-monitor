@@ -713,7 +713,8 @@ final class ProcessCellView: NSTableCellView {
     private var shownPath: String??
     private var shownName: String?
     private var shownCount: Int?
-    private var shownStyle: (leaking: Bool, warning: Bool, terminated: Bool, translated: Bool)?
+    private var shownStyle:
+        (leaking: Bool, warning: Bool, terminated: Bool, translated: Bool, suspended: Bool)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -775,12 +776,14 @@ final class ProcessCellView: NSTableCellView {
         }
         let style = (
             leaking: isLeaking, warning: !isTerminated && (isLeaking || descendantLeaking),
-            terminated: isTerminated, translated: process.isTranslated
+            terminated: isTerminated, translated: process.isTranslated,
+            suspended: !isTerminated && process.isSuspended == true
         )
         let styleChanged =
             shownStyle.map {
                 $0.leaking != style.leaking || $0.warning != style.warning
                     || $0.terminated != style.terminated || $0.translated != style.translated
+                    || $0.suspended != style.suspended
             } ?? true
         if styleChanged || shownName != process.displayName || shownCount != memberCount {
             shownName = process.displayName
@@ -816,6 +819,13 @@ final class ProcessCellView: NSTableCellView {
             badge.layer?.backgroundColor =
                 NSColor.secondaryLabelColor.withAlphaComponent(0.18)
                 .cgColor
+        } else if style.suspended {
+            // Takes the badge over Rosetta: a frozen process is the more urgent
+            // thing to know, and the Arch column still says it is translated.
+            badge.isHidden = false
+            badge.stringValue = " \(t("Suspended")) "
+            badge.textColor = .systemBlue
+            badge.layer?.backgroundColor = NSColor.systemBlue.withAlphaComponent(0.2).cgColor
         } else if process.isTranslated {
             badge.isHidden = false
             badge.stringValue = " \(t("Rosetta")) "

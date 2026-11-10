@@ -111532,6 +111532,906 @@
           }
         }
       }
+    },
+    "Suspend" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anhalten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suspend"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suspendre"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂停"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Приостановить"
+          }
+        }
+      }
+    },
+    "Resume" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fortsetzen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprendre"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Возобновить"
+          }
+        }
+      }
+    },
+    "Suspended" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angehalten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suspended"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suspendu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已暂停"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Приостановлен"
+          }
+        }
+      }
+    },
+    "Priority" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Priorität"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Priority"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Priorité"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "优先级"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Приоритет"
+          }
+        }
+      }
+    },
+    "Highest (nice -20)" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Höchste (nice -20)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Highest (nice -20)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La plus haute (nice -20)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高 (nice -20)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Наивысший (nice -20)"
+          }
+        }
+      }
+    },
+    "High (nice -10)" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hoch (nice -10)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "High (nice -10)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haute (nice -10)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高 (nice -10)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Высокий (nice -10)"
+          }
+        }
+      }
+    },
+    "Normal (nice 0)" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Normal (nice 0)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Normal (nice 0)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Normale (nice 0)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正常 (nice 0)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Обычный (nice 0)"
+          }
+        }
+      }
+    },
+    "Low (nice 10)" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niedrig (nice 10)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low (nice 10)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basse (nice 10)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低 (nice 10)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Низкий (nice 10)"
+          }
+        }
+      }
+    },
+    "Lowest (nice 20)" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niedrigste (nice 20)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lowest (nice 20)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La plus basse (nice 20)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最低 (nice 20)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Наинизший (nice 20)"
+          }
+        }
+      }
+    },
+    "Quit (SIGTERM)" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beenden (SIGTERM)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit (SIGTERM)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitter (SIGTERM)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退出 (SIGTERM)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Завершить (SIGTERM)"
+          }
+        }
+      }
+    },
+    "Force Quit Process Tree…" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prozessbaum sofort beenden …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Force Quit Process Tree…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forcer l'arborescence de processus à quitter…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "强制退出进程树…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Завершить дерево процессов принудительно…"
+          }
+        }
+      }
+    },
+    "Quit" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退出"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Завершить"
+          }
+        }
+      }
+    },
+    "Force Quit All" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle sofort beenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Force Quit All"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout forcer à quitter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部强制退出"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Завершить все принудительно"
+          }
+        }
+      }
+    },
+    "Quit %@?" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ beenden?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit %@?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitter %@ ?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退出 %@ 吗？"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Завершить %@?"
+          }
+        }
+      }
+    },
+    "Suspend %@?" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ anhalten?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suspend %@?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suspendre %@ ?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂停 %@ 吗？"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Приостановить %@?"
+          }
+        }
+      }
+    },
+    "Force quit %1$@ and everything it started (%2$d more)?" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ und alles, was es gestartet hat (%2$d weitere), sofort beenden?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Force quit %1$@ and everything it started (%2$d more)?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forcer %1$@ et tout ce qu'il a lancé (%2$d de plus) à quitter ?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "强制退出 %1$@ 及其启动的所有进程（另外 %2$d 个）吗？"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Принудительно завершить %1$@ и все, что он запустил (еще %2$d)?"
+          }
+        }
+      }
+    },
+    "This sends SIGTERM, which asks the process to shut down. Most exit cleanly, but unsaved work can be lost." : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dies sendet SIGTERM und bittet den Prozess, sich zu beenden. Die meisten beenden sich sauber, ungesicherte Arbeit kann aber verloren gehen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This sends SIGTERM, which asks the process to shut down. Most exit cleanly, but unsaved work can be lost."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ceci envoie SIGTERM, qui demande au processus de s'arrêter. La plupart se ferment proprement, mais le travail non enregistré peut être perdu."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这会发送 SIGTERM，请求进程自行关闭。大多数进程会正常退出，但未保存的工作可能丢失。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Отправляет сигнал SIGTERM, который просит процесс завершить работу. Большинство завершается корректно, но несохраненные данные могут быть потеряны."
+          }
+        }
+      }
+    },
+    "This process belongs to the system or another user. Suspending freezes it until you resume it, and freezing a system process can make your Mac stop responding." : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Prozess gehört dem System oder einem anderen Benutzer. Anhalten friert ihn ein, bis du ihn fortsetzt, und ein eingefrorener Systemprozess kann dazu führen, dass dein Mac nicht mehr reagiert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This process belongs to the system or another user. Suspending freezes it until you resume it, and freezing a system process can make your Mac stop responding."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce processus appartient au système ou à un autre utilisateur. La suspension le fige jusqu'à ce que vous le repreniez, et figer un processus système peut empêcher votre Mac de répondre."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此进程属于系统或其他用户。暂停会将其冻结，直到你让它继续；冻结系统进程可能导致 Mac 停止响应。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Этот процесс принадлежит системе или другому пользователю. Приостановка замораживает его, пока вы его не возобновите, а заморозка системного процесса может привести к тому, что Mac перестанет отвечать."
+          }
+        }
+      }
+    },
+    "This sends SIGKILL (kill -9) to each one. They stop at once without saving, so any unsaved work is lost." : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dies sendet SIGKILL (kill -9) an jeden davon. Sie stoppen sofort, ohne zu sichern, ungesicherte Arbeit geht also verloren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This sends SIGKILL (kill -9) to each one. They stop at once without saving, so any unsaved work is lost."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ceci envoie SIGKILL (kill -9) à chacun. Ils s'arrêtent immédiatement sans enregistrer, donc tout travail non enregistré est perdu."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这会向每个进程发送 SIGKILL（kill -9）。它们立即停止，不会保存，任何未保存的工作都会丢失。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Отправляет сигнал SIGKILL (kill -9) каждому из них. Они немедленно завершают работу без сохранения, поэтому все несохраненные данные будут потеряны."
+          }
+        }
+      }
+    },
+    "Couldn’t change the process" : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prozess konnte nicht geändert werden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t change the process"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de modifier le processus"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法更改进程"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Не удалось изменить процесс"
+          }
+        }
+      }
+    },
+    "“%@” is no longer running." : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ läuft nicht mehr."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” is no longer running."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "« %@ » n'est plus en cours d'exécution."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”已不在运行。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "«%@» больше не выполняется."
+          }
+        }
+      }
+    },
+    "Even with Full Coverage, macOS would not allow this for “%@”." : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selbst mit vollständiger Abdeckung hat macOS dies für „%@“ nicht erlaubt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Even with Full Coverage, macOS would not allow this for “%@”."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Même avec la couverture complète, macOS n'a pas autorisé cette action pour « %@ »."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即使开启了完整覆盖，macOS 仍不允许对“%@”执行此操作。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Даже с функцией «Полный охват» macOS не разрешила это действие для «%@»."
+          }
+        }
+      }
+    },
+    "macOS would not let %1$@ do this to “%2$@”. It is likely a system process or owned by another user, or the change needs root. Turn on Full Coverage in Settings to do this as root." : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS hat %1$@ dies für „%2$@“ nicht erlaubt. Es handelt sich wahrscheinlich um einen Systemprozess, er gehört einem anderen Benutzer, oder die Änderung erfordert root. Aktiviere „Vollständige Abdeckung“ in den Einstellungen, um dies als root zu tun."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS would not let %1$@ do this to “%2$@”. It is likely a system process or owned by another user, or the change needs root. Turn on Full Coverage in Settings to do this as root."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS n'a pas laissé %1$@ faire cela à « %2$@ ». Il s'agit probablement d'un processus système ou appartenant à un autre utilisateur, ou la modification nécessite root. Activez « Couverture complète » dans les Réglages pour le faire en tant que root."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS 不允许 %1$@ 对“%2$@”执行此操作。它多半是系统进程，或者属于其他用户，或者此更改需要 root 权限。在「设置」中开启完整覆盖，即可以 root 身份执行。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "macOS не позволила %1$@ сделать это с «%2$@». Скорее всего, это системный процесс или процесс другого пользователя, либо для изменения нужны права root. Включите функцию «Полный охват» в Настройках, чтобы сделать это от имени root."
+          }
+        }
+      }
+    },
+    "The request for “%1$@” failed (error %2$d)." : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Anfrage für „%1$@“ ist fehlgeschlagen (Fehler %2$d)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The request for “%1$@” failed (error %2$d)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La demande pour « %1$@ » a échoué (erreur %2$d)."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对“%1$@”的请求失败（错误 %2$d）。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Запрос для «%1$@» не выполнен (ошибка %2$d)."
+          }
+        }
+      }
+    },
+    "%1$d of %2$d processes could not be stopped." : {
+      "comment" : "Process controls: quit, suspend, resume, priority, force quit tree. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d von %2$d Prozessen konnten nicht gestoppt werden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d of %2$d processes could not be stopped."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d processus sur %2$d n'ont pas pu être arrêtés."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$d 个进程中有 %1$d 个无法结束。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Не удалось остановить процессы: %1$d из %2$d."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

@@ -104,6 +104,12 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
     /// The process macOS holds responsible for this one (an app for its
     /// helpers); used to pick which member names an app group.
     public var responsiblePID: Int32?
+    // Scheduling state. Optional so traces recorded before these fields
+    // existed still decode; nil reads as "not suspended, default priority".
+    /// Whether the process is stopped (`SIGSTOP`) and so not running at all.
+    public var isSuspended: Bool?
+    /// The `nice` value: -20 (most favoured) to 20 (least), normally 0.
+    public var nice: Int32?
 
     public var id: ProcessIdentity { ProcessIdentity(pid: pid, startTime: startTime) }
 
@@ -177,7 +183,9 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
         gpuPercent: Double? = nil,
         gpuLastActive: Date? = nil,
         coalitionID: UInt64? = nil,
-        responsiblePID: Int32? = nil
+        responsiblePID: Int32? = nil,
+        isSuspended: Bool? = nil,
+        nice: Int32? = nil
     ) {
         self.timestamp = timestamp
         self.pid = pid
@@ -217,5 +225,7 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
         self.gpuLastActive = gpuLastActive
         self.coalitionID = coalitionID
         self.responsiblePID = responsiblePID
+        self.isSuspended = isSuspended
+        self.nice = nice
     }
 }

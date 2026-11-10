@@ -92,13 +92,13 @@ public final class HelperService: NSObject, MacPerfMonitorHelperProtocol {
         let sig = signal.int32Value
         // Guard rails on a root-privileged signal sender: never touch pid 0/1
         // (the kernel and launchd) and never signal a process group (a negative
-        // pid), and only ever deliver the two termination signals the app uses.
+        // pid), and only ever deliver the four signals the app uses.
         guard target > 1 else {
             log.error("terminate refused: invalid pid \(target, privacy: .public)")
             reply(EINVAL)
             return
         }
-        guard sig == SIGTERM || sig == SIGKILL else {
+        guard HelperConstants.allowedSignals.contains(sig) else {
             log.error("terminate refused: disallowed signal \(sig, privacy: .public)")
             reply(EINVAL)
             return
@@ -121,12 +121,58 @@ public final class HelperService: NSObject, MacPerfMonitorHelperProtocol {
         }
         if kill(target, sig) == 0 {
             log.notice(
-                "terminated pid \(target, privacy: .public) with signal \(sig, privacy: .public)")
+                "sent signal \(sig, privacy: .public) to pid \(target, privacy: .public)")
             reply(0)
         } else {
             let code = errno
             log.error(
                 "terminate pid \(target, privacy: .public) failed: errno \(code, privacy: .public)")
+            reply(code)
+        }
+    }
+
+    public func setProcessPriority(
+        _ pid: NSNumber, startedAt: NSNumber, nice: NSNumber, reply: @escaping (Int32) -> Void
+    ) {
+        let target = pid.int32Value
+        let value = nice.int32Value
+        // The same guard rails as `terminateProcess`: never pid 0/1, never a
+        // negative pid, and only a value `setpriority` itself would accept.
+        guard target > 1 else {
+            log.error("priority refused: invalid pid \(target, privacy: .public)")
+            reply(EINVAL)
+            return
+        }
+        guard HelperConstants.niceRange.contains(value) else {
+            log.error("priority refused: nice \(value, privacy: .public) is out of range")
+            reply(EINVAL)
+            return
+        }
+        guard let info = reader.taskAllInfo(target),
+            abs(info.startTime.timeIntervalSince1970 - startedAt.doubleValue) < 0.001
+        else {
+            log.error("priority refused: pid \(target, privacy: .public) is gone or reused")
+            reply(ESRCH)
+            return
+        }
+        guard caller.mayAct(onProcessOwnedBy: info.uid) else {
+            log.error(
+                "priority refused: uid \(self.caller.uid, privacy: .public) is not an administrator and does not own pid \(target, privacy: .public)"
+            )
+            reply(EPERM)
+            return
+        }
+        // setpriority returns -1 on failure, which is also a legal priority for
+        // getpriority but not for this call, so the return value is enough.
+        if setpriority(PRIO_PROCESS, id_t(target), value) == 0 {
+            log.notice(
+                "set nice \(value, privacy: .public) on pid \(target, privacy: .public)")
+            reply(0)
+        } else {
+            let code = errno
+            log.error(
+                "priority for pid \(target, privacy: .public) failed: errno \(code, privacy: .public)"
+            )
             reply(code)
         }
     }

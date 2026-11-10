@@ -164,6 +164,7 @@ struct ContentView: View {
         .onChange(of: temperatureUnit) { _, _ in HardwareExplorerModel.shared.refreshIfCaptured() }
         .frame(minWidth: MainWindowSize.minimumWidth, minHeight: MainWindowSize.minimumHeight)
         .forceQuitConfirmation(target: $appState.pendingForceQuit)
+        .processControlHost(request: $appState.pendingProcessControl)
         .sheet(item: $appState.codesignTarget) { target in
             CodesignSheet(target: target)
         }

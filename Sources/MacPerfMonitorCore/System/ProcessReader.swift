@@ -107,10 +107,17 @@ public struct TaskAllInfo: Codable, Sendable {
     public var cpuTimeUser: UInt64  // nanoseconds
     public var cpuTimeSystem: UInt64  // nanoseconds
     public var threadCount: Int32
+    /// Whether the process is stopped (`SIGSTOP`, or a debugger holding it).
+    /// Optional, like `nice`, so a reply from an older helper still decodes.
+    public var isSuspended: Bool?
+    /// The scheduling priority set with `setpriority`: -20 (most favoured) to
+    /// 20 (least), 0 unless someone changed it.
+    public var nice: Int32?
 
     public init(
         name: String, ppid: Int32, uid: uid_t, startTime: Date, residentSize: UInt64,
-        virtualSize: UInt64, cpuTimeUser: UInt64, cpuTimeSystem: UInt64, threadCount: Int32
+        virtualSize: UInt64, cpuTimeUser: UInt64, cpuTimeSystem: UInt64, threadCount: Int32,
+        isSuspended: Bool? = nil, nice: Int32? = nil
     ) {
         self.name = name
         self.ppid = ppid
@@ -121,6 +128,8 @@ public struct TaskAllInfo: Codable, Sendable {
         self.cpuTimeUser = cpuTimeUser
         self.cpuTimeSystem = cpuTimeSystem
         self.threadCount = threadCount
+        self.isSuspended = isSuspended
+        self.nice = nice
     }
 }
 
@@ -210,7 +219,10 @@ public struct ProcessReader: Sendable {
             virtualSize: info.ptinfo.pti_virtual_size,
             cpuTimeUser: Self.machToNanos(info.ptinfo.pti_total_user),
             cpuTimeSystem: Self.machToNanos(info.ptinfo.pti_total_system),
-            threadCount: info.ptinfo.pti_threadnum
+            threadCount: info.ptinfo.pti_threadnum,
+            // `SSTOP` from <sys/proc.h>: stopped by a signal or a debugger.
+            isSuspended: info.pbsd.pbi_status == UInt32(SSTOP),
+            nice: info.pbsd.pbi_nice
         )
     }
 

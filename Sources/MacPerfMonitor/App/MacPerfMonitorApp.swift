@@ -355,6 +355,10 @@ final class AppState: ObservableObject {
     /// resolves it, so every surface shares one safe confirm-then-kill path.
     @Published var pendingForceQuit: ProcessIdentity?
 
+    /// A quit, suspend, resume, priority or force-quit-tree request awaiting
+    /// `ProcessControlHost` on the main window, for the same reason.
+    @Published var pendingProcessControl: ProcessControlRequest?
+
     /// A binary the user asked to inspect the code signature of (from a process
     /// row's "Codesign…" menu). Captured with its path/name at click time so the
     /// sheet survives the process exiting; the sheet hosted on the main window
