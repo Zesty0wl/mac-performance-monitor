@@ -262,6 +262,20 @@ struct MacPerfMonitorApp: App {
         }
         .defaultSize(width: 600, height: 560)
 
+        // Threads: one resizable window per process, keyed on a self-contained
+        // `ThreadsTarget`. It polls its one process on its own two-second
+        // clock while visible and, like the windows above, never touches the
+        // sampler model.
+        WindowGroup(id: WindowID.threads, for: ThreadsTarget.self) { $target in
+            if let target {
+                LocaleRootView(languageManager: appDelegate.languageManager) {
+                    ThreadsView(target: target)
+                        .environmentObject(appDelegate.helperManager)
+                }
+            }
+        }
+        .defaultSize(width: 640, height: 520)
+
         WindowGroup(id: WindowID.usageTimeline, for: UsageTimelineTarget.self) { $target in
             if let target {
                 LocaleRootView(languageManager: appDelegate.languageManager) {
@@ -318,6 +332,7 @@ enum WindowID {
     static let onboarding = "onboarding"
     static let inspector = "inspector"
     static let openFiles = "open-files"
+    static let threads = "threads"
     static let usageTimeline = "usage-timeline"
     static let deepDive = "deep-dive"
 }

@@ -430,6 +430,17 @@ private struct ProcessTable: View, Equatable {
                     String(localized: "Open Files & Sockets\u{2026}"), symbol: "doc.on.doc",
                     handler: openFiles))
         }
+        if let live {
+            let target = ThreadsTarget(
+                pid: live.pid, startTime: live.startTime, name: live.displayName,
+                uid: UInt32(live.uid))
+            menu.addItem(
+                ClosureMenuItem(String(localized: "Threads\u{2026}"), symbol: "list.bullet.indent")
+                {
+                    openWindow(value: target)
+                    NSApp.activate(ignoringOtherApps: true)
+                })
+        }
         if let sample = live ?? flatten(rows).first(where: { $0.id == id }) {
             let target = UsageTimelineTarget(sample: sample)
             menu.addItem(

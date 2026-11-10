@@ -391,6 +391,24 @@ final class HelperRoundTripTests: XCTestCase {
         XCTAssertFalse(fds?.isEmpty ?? true, "Own process should report open descriptors")
     }
 
+    func testListsOwnThreadsOverXPC() throws {
+        let myPID = Int32(ProcessInfo.processInfo.processIdentifier)
+        let threads = try XCTUnwrap(connection.listThreads(pid: myPID))
+        XCTAssertFalse(threads.isEmpty, "The test runner has at least its main thread")
+        XCTAssertEqual(Set(threads.map(\.id)).count, threads.count)
+    }
+
+    func testThreadListRefusesInvalidPIDAndStrangers() {
+        XCTAssertNil(connection.listThreads(pid: 0))
+        XCTAssertNil(connection.listThreads(pid: -1))
+
+        let stranger = HelperCaller(uid: geteuid() &+ 1, isAdmin: false)
+        let service = HelperService(version: "1", power: PowerProviderStub(), caller: stranger)
+        var reply: Data? = Data()
+        service.listThreads(NSNumber(value: getpid())) { reply = $0 }
+        XCTAssertNil(reply)
+    }
+
     // MARK: Termination
 
     func testTerminatesOwnedChildOverXPC() throws {

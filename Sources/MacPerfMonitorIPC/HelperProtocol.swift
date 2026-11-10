@@ -99,6 +99,12 @@ public enum HelperConstants {
     /// other-user processes the unprivileged reader cannot see.
     func listFileDescriptors(_ pid: NSNumber, reply: @escaping (Data?) -> Void)
 
+    /// List a process's threads as root, replying with JSON-encoded
+    /// `[ThreadSnapshot]`, or `nil` when the process is gone, the caller may
+    /// not inspect it, or encoding failed. Read with libproc, so no task port
+    /// is taken. Lets the app show threads for system and other-user processes.
+    func listThreads(_ pid: NSNumber, reply: @escaping (Data?) -> Void)
+
     /// Send a signal to a process as root. `signal` must be one of
     /// `HelperConstants.allowedSignals` (`SIGTERM`, `SIGKILL`, `SIGSTOP`,
     /// `SIGCONT`); any other value, or pid <= 1, is rejected.

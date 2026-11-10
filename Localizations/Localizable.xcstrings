@@ -112432,6 +112432,762 @@
           }
         }
       }
+    },
+    "Threads…" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Threads …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Threads…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Threads…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "线程…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Потоки…"
+          }
+        }
+      }
+    },
+    "Threads · %@" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Threads · %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Threads · %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Threads · %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "线程 · %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Потоки · %@"
+          }
+        }
+      }
+    },
+    "List this process's threads with the CPU each one is using." : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listet die Threads dieses Prozesses mit der CPU-Nutzung jedes einzelnen auf."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "List this process's threads with the CPU each one is using."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche les threads de ce processus avec le processeur utilisé par chacun."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "列出此进程的线程以及每个线程占用的 CPU。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Показать потоки этого процесса и загрузку ЦП каждым из них."
+          }
+        }
+      }
+    },
+    "Main thread" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haupt-Thread"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Main thread"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thread principal"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主线程"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Главный поток"
+          }
+        }
+      }
+    },
+    "Thread %d" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thread %d"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thread %d"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thread %d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "线程 %d"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Поток %d"
+          }
+        }
+      }
+    },
+    "Thread" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thread"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thread"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thread"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "线程"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Поток"
+          }
+        }
+      }
+    },
+    "CPU %" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU %"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU %"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU %"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU %"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ЦП %"
+          }
+        }
+      }
+    },
+    "CPU Time" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU-Zeit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU Time"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temps CPU"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU 时间"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Время ЦП"
+          }
+        }
+      }
+    },
+    "Waiting" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wartend"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待中"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ожидание"
+          }
+        }
+      }
+    },
+    "Uninterruptible" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht unterbrechbar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uninterruptible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non interruptible"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不可中断"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Непрерываемый"
+          }
+        }
+      }
+    },
+    "Halted" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angehalten (Halt)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halted"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interrompu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已中止"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Остановлен (halt)"
+          }
+        }
+      }
+    },
+    "Reading threads…" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Threads werden gelesen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading threads…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture des threads…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在读取线程…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Чтение потоков…"
+          }
+        }
+      }
+    },
+    "macOS would not list this process's threads, even as root." : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS hat die Threads dieses Prozesses nicht aufgelistet, auch nicht als root."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS would not list this process's threads, even as root."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS n'a pas voulu lister les threads de ce processus, même en tant que root."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即使以 root 身份，macOS 也不允许列出此进程的线程。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "macOS не показала потоки этого процесса даже от имени root."
+          }
+        }
+      }
+    },
+    "Threads can only be listed for processes you own. Turn on Full Coverage in Settings to inspect system and other-user processes as root." : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Threads können nur für deine eigenen Prozesse aufgelistet werden. Aktiviere „Vollständige Abdeckung“ in den Einstellungen, um System- und fremde Prozesse als root zu untersuchen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Threads can only be listed for processes you own. Turn on Full Coverage in Settings to inspect system and other-user processes as root."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les threads ne peuvent être listés que pour vos propres processus. Activez « Couverture complète » dans les Réglages pour inspecter les processus système et ceux d'autres utilisateurs en tant que root."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只能列出你自己的进程的线程。在「设置」中开启完整覆盖，即可以 root 身份检查系统进程和其他用户的进程。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Потоки можно показать только для ваших процессов. Включите функцию «Полный охват» в Настройках, чтобы просматривать системные процессы и процессы других пользователей от имени root."
+          }
+        }
+      }
+    },
+    "Process exited" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prozess beendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Process exited"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processus terminé"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "进程已退出"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Процесс завершен"
+          }
+        }
+      }
+    },
+    "This process is no longer running." : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Prozess läuft nicht mehr."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This process is no longer running."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce processus n'est plus en cours d'exécution."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此进程已不在运行。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Этот процесс больше не выполняется."
+          }
+        }
+      }
+    },
+    "Base priority %d" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basispriorität %d"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Base priority %d"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Priorité de base %d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基础优先级 %d"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Базовый приоритет %d"
+          }
+        }
+      }
+    },
+    "Pause" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂停刷新"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Пауза"
+          }
+        }
+      }
+    },
+    "CPU is measured between refreshes, every 2 seconds." : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die CPU-Nutzung wird zwischen den Aktualisierungen gemessen, alle 2 Sekunden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU is measured between refreshes, every 2 seconds."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'utilisation du processeur est mesurée entre les actualisations, toutes les 2 secondes."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU 占用按两次刷新之间计算，每 2 秒刷新一次。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Загрузка ЦП измеряется между обновлениями, каждые 2 секунды."
+          }
+        }
+      }
+    },
+    "The process has exited. Showing its last reading." : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Prozess wurde beendet. Angezeigt wird die letzte Messung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The process has exited. Showing its last reading."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le processus s'est terminé. Affichage de son dernier relevé."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "进程已退出。显示的是最后一次读数。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Процесс завершен. Показаны последние данные."
+          }
+        }
+      }
+    },
+    "%1$d threads · %2$d running · %3$@%% CPU" : {
+      "comment" : "Threads window: per-thread CPU, state and priority for one process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d Threads · %2$d aktiv · %3$@ %% CPU"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d threads · %2$d running · %3$@%% CPU"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d threads · %2$d actifs · %3$@ %% CPU"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d 个线程 · %2$d 个运行中 · CPU %3$@%%"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Потоков: %1$d · выполняется: %2$d · ЦП %3$@%%"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

@@ -27,6 +27,14 @@ Notable changes to Mac Performance Monitor. This project follows
   When macOS refuses one of these for your account and Full Coverage is on,
   the app retries through the helper, as Force Quit already did.
 
+- **See which thread is busy.** Right-click a process and choose Threads for
+  a window listing every thread: its name, the CPU it is using now, its total
+  CPU time, whether it is running or waiting, and its priority. The list
+  sorts by CPU, refreshes every two seconds, and can be paused or filtered by
+  name. It stops reading while the window is hidden or minimised. Your own
+  processes need no special rights; system and other-user processes are read
+  through the Full Coverage helper.
+
 ### Security
 
 - The Full Coverage helper now accepts SIGSTOP and SIGCONT as well as SIGTERM
@@ -34,6 +42,9 @@ Notable changes to Mac Performance Monitor. This project follows
   keep the existing checks: never process 0 or 1, one process at a time, only
   the process you chose (matched by start time, so a reused process ID is
   refused), and a standard account only on its own processes.
+- The helper has one new read-only call that lists a process's threads. It
+  follows the same rule as the open-files list: a standard account can use it
+  only on its own processes.
 
 ## [2.7.0] - 2026-11-08
 
