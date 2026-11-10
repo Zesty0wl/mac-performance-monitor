@@ -22,13 +22,22 @@ public struct DescriptorMatch: Sendable, Equatable, Identifiable {
     public var pid: Int32
     public var processName: String
     public var descriptor: OpenFileDescriptor
+    /// True when the match is a file mapped into the process's memory (a
+    /// loaded library, say) and not an open descriptor. `descriptor` then
+    /// carries the path with no meaningful descriptor number.
+    public var isMapped: Bool
 
-    public var id: String { "\(pid):\(descriptor.fd)" }
+    public var id: String {
+        isMapped ? "\(pid):mapped:\(descriptor.detail)" : "\(pid):\(descriptor.fd)"
+    }
 
-    public init(pid: Int32, processName: String, descriptor: OpenFileDescriptor) {
+    public init(
+        pid: Int32, processName: String, descriptor: OpenFileDescriptor, isMapped: Bool = false
+    ) {
         self.pid = pid
         self.processName = processName
         self.descriptor = descriptor
+        self.isMapped = isMapped
     }
 }
 
@@ -80,6 +89,23 @@ public enum DescriptorSearch {
     ) -> [DescriptorMatch] {
         descriptors.filter { matches($0, term: term) }.map {
             DescriptorMatch(pid: target.pid, processName: target.name, descriptor: $0)
+        }
+    }
+}
+
+extension DescriptorSearch {
+    /// The mapped files of one process whose path contains `term`, ignoring
+    /// case. A number is plain text here: a mapped file has no port.
+    public static func matches(
+        inMapped files: [MappedFile], of target: DescriptorSearchTarget, term: String
+    ) -> [DescriptorMatch] {
+        let term = term.trimmingCharacters(in: .whitespaces)
+        guard !term.isEmpty else { return [] }
+        return files.filter { $0.path.range(of: term, options: [.caseInsensitive]) != nil }.map {
+            DescriptorMatch(
+                pid: target.pid, processName: target.name,
+                descriptor: OpenFileDescriptor(fd: -1, kind: .file, detail: $0.path),
+                isMapped: true)
         }
     }
 }

@@ -42,6 +42,20 @@ final class FindViewTests: XCTestCase {
         }
     }
 
+    /// Every process maps dyld, but no process holds it as an open file, so
+    /// it is found only when loaded libraries are included.
+    func testLoadedLibrariesAreFoundOnlyWhenAskedFor() async throws {
+        let model = FindModel()
+        model.search("/usr/lib/dyld", helper: HelperManager())
+        _ = try await waitUntilFinished(model)
+        XCTAssertFalse(model.results.contains { $0.pid == getpid() })
+
+        model.search("/usr/lib/dyld", includeMapped: true, helper: HelperManager())
+        _ = try await waitUntilFinished(model)
+        let mine = try XCTUnwrap(model.results.first { $0.pid == getpid() })
+        XCTAssertTrue(mine.isMapped)
+    }
+
     func testABroadTermStopsAtTheLimitAndSaysSo() async throws {
         let model = FindModel()
         model.search("/", helper: HelperManager())

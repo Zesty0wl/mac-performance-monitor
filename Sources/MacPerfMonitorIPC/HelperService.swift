@@ -100,6 +100,21 @@ public final class HelperService: NSObject, MacPerfMonitorHelperProtocol {
         }
     }
 
+    public func listMappedFiles(_ pid: NSNumber, reply: @escaping (Data?) -> Void) {
+        guard pid.int32Value > 0, callerMayAct(on: pid.int32Value, "listMappedFiles"),
+            let files = MappedFileReader().mappedFiles(pid.int32Value)
+        else {
+            reply(nil)
+            return
+        }
+        do {
+            reply(try JSONEncoder().encode(files))
+        } catch {
+            log.error("mapped encode failed: \(error.localizedDescription, privacy: .public)")
+            reply(nil)
+        }
+    }
+
     public func terminateProcess(
         _ pid: NSNumber, startedAt: NSNumber, signal: NSNumber, reply: @escaping (Int32) -> Void
     ) {

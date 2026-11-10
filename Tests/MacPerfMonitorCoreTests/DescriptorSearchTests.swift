@@ -77,4 +77,28 @@ final class DescriptorSearchTests: XCTestCase {
         XCTAssertEqual(found.count, 1)
         XCTAssertEqual(found.first?.descriptor.kind, .file)
     }
+
+    func testMappedFilesMatchOnPathAndAreMarked() {
+        let target = DescriptorSearchTarget(pid: 9, name: "app", uid: 501)
+        let files = [
+            MappedFile(path: "/usr/lib/libz.1.dylib", mappedBytes: 1),
+            MappedFile(path: "/Library/Fonts/8080.ttf", mappedBytes: 1),
+        ]
+        let found = DescriptorSearch.matches(inMapped: files, of: target, term: "LIBZ")
+        XCTAssertEqual(found.map(\.descriptor.detail), ["/usr/lib/libz.1.dylib"])
+        XCTAssertEqual(found.first?.isMapped, true)
+        XCTAssertEqual(found.first?.id, "9:mapped:/usr/lib/libz.1.dylib")
+        // Digits are plain text for a mapped file.
+        XCTAssertEqual(DescriptorSearch.matches(inMapped: files, of: target, term: "80").count, 1)
+        XCTAssertTrue(DescriptorSearch.matches(inMapped: files, of: target, term: " ").isEmpty)
+    }
+
+    /// The same file open and mapped gives two results with different IDs.
+    func testOpenAndMappedMatchesOfOneFileAreDistinct() {
+        let target = DescriptorSearchTarget(pid: 9, name: "app", uid: 501)
+        let open = DescriptorSearch.matches(in: [file("/tmp/a.db")], of: target, term: "a.db")
+        let mapped = DescriptorSearch.matches(
+            inMapped: [MappedFile(path: "/tmp/a.db", mappedBytes: 1)], of: target, term: "a.db")
+        XCTAssertEqual(Set((open + mapped).map(\.id)).count, 2)
+    }
 }

@@ -113944,6 +113944,330 @@
           }
         }
       }
+    },
+    "Mapped" : {
+      "comment" : "Mapped files and loaded libraries, in Open Files and Find. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eingeblendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mapped"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mappés"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已映射"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Отображенные"
+          }
+        }
+      }
+    },
+    "Include loaded libraries" : {
+      "comment" : "Mapped files and loaded libraries, in Open Files and Find. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geladene Bibliotheken einbeziehen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include loaded libraries"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inclure les bibliothèques chargées"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "包括已加载的库"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Включать загруженные библиотеки"
+          }
+        }
+      }
+    },
+    "Also search the files mapped into each process's memory, such as loaded libraries. Slower." : {
+      "comment" : "Mapped files and loaded libraries, in Open Files and Find. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durchsucht auch die Dateien, die in den Speicher jedes Prozesses eingeblendet sind, etwa geladene Bibliotheken. Langsamer."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Also search the files mapped into each process's memory, such as loaded libraries. Slower."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche aussi dans les fichiers mappés dans la mémoire de chaque processus, comme les bibliothèques chargées. Plus lent."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同时查找映射到每个进程内存中的文件，例如已加载的库。速度较慢。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Искать также среди файлов, отображенных в память каждого процесса, например загруженных библиотек. Медленнее."
+          }
+        }
+      }
+    },
+    "mapped into memory" : {
+      "comment" : "Mapped files and loaded libraries, in Open Files and Find. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "in den Speicher eingeblendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mapped into memory"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mappé en mémoire"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已映射到内存"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "отображен в память"
+          }
+        }
+      }
+    },
+    "Mapped files can only be listed for processes you own. Turn on Full Coverage in Settings to inspect system and other-user processes as root." : {
+      "comment" : "Mapped files and loaded libraries, in Open Files and Find. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eingeblendete Dateien können nur für deine eigenen Prozesse aufgelistet werden. Aktiviere „Vollständige Abdeckung“ in den Einstellungen, um System- und fremde Prozesse als root zu untersuchen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mapped files can only be listed for processes you own. Turn on Full Coverage in Settings to inspect system and other-user processes as root."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les fichiers mappés ne peuvent être listés que pour vos propres processus. Activez « Couverture complète » dans les Réglages pour inspecter les processus système et ceux d'autres utilisateurs en tant que root."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只能列出你自己的进程的映射文件。在「设置」中开启完整覆盖，即可以 root 身份检查系统进程和其他用户的进程。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Отображенные файлы можно показать только для ваших процессов. Включите функцию «Полный охват» в Настройках, чтобы просматривать системные процессы и процессы других пользователей от имени root."
+          }
+        }
+      }
+    },
+    "No mapped files match the current filter." : {
+      "comment" : "Mapped files and loaded libraries, in Open Files and Find. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine eingeblendeten Dateien entsprechen dem aktuellen Filter."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No mapped files match the current filter."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun fichier mappé ne correspond au filtre actuel."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有与当前筛选条件匹配的映射文件。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Нет отображенных файлов, соответствующих текущему фильтру."
+          }
+        }
+      }
+    },
+    "%1$d mapped files, %2$d of them libraries. Apple's own frameworks share one cache and are not listed one by one." : {
+      "comment" : "Mapped files and loaded libraries, in Open Files and Find. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d eingeblendete Dateien, davon %2$d Bibliotheken. Apples eigene Frameworks liegen in einem gemeinsamen Cache und werden nicht einzeln aufgeführt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d mapped files, %2$d of them libraries. Apple's own frameworks share one cache and are not listed one by one."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d fichiers mappés, dont %2$d bibliothèques. Les frameworks d'Apple partagent un même cache et ne sont pas listés un par un."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d 个映射文件，其中 %2$d 个是库。Apple 自带的框架位于同一个共享缓存中，不会逐个列出。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Отображенных файлов: %1$d, из них библиотек: %2$d. Собственные фреймворки Apple находятся в общем кэше и не перечисляются по отдельности."
+          }
+        }
+      }
+    },
+    "library · %@ mapped" : {
+      "comment" : "Mapped files and loaded libraries, in Open Files and Find. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibliothek · %@ eingeblendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "library · %@ mapped"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "bibliothèque · %@ mappés"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "库 · 已映射 %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "библиотека · отображено %@"
+          }
+        }
+      }
+    },
+    "file · %@ mapped" : {
+      "comment" : "Mapped files and loaded libraries, in Open Files and Find. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datei · %@ eingeblendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "file · %@ mapped"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "fichier · %@ mappés"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文件 · 已映射 %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "файл · отображено %@"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

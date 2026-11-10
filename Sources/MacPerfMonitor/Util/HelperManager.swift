@@ -390,6 +390,19 @@ final class HelperManager: ObservableObject {
         }
     }
 
+    /// List the files mapped into a process through the root helper. Same
+    /// threading and nil behaviour as `listOpenFiles`.
+    func listMappedFiles(pid: Int32, completion: @escaping ([MappedFile]?) -> Void) {
+        guard coverage == .enabled, let connection else {
+            completion(nil)
+            return
+        }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let files = connection.listMappedFiles(pid: pid)
+            DispatchQueue.main.async { completion(files) }
+        }
+    }
+
     /// Run an allow-listed Apple memory tool (`footprint`/`heap`/`leaks`) against
     /// a process through the root helper, so the memory inspector can examine
     /// system and other-user processes the app cannot read unprivileged. The XPC

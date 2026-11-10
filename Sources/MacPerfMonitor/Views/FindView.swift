@@ -45,7 +45,7 @@ final class FindModel: ObservableObject {
     /// Results appear as each process is read. The user's own processes are
     /// read directly, four at a time; the rest go through the helper when Full
     /// Coverage is on, and are counted as skipped when it is not.
-    func search(_ term: String, helper: HelperManager) {
+    func search(_ term: String, includeMapped: Bool = false, helper: HelperManager) {
         let term = term.trimmingCharacters(in: .whitespaces)
         guard !term.isEmpty else { return }
         task?.cancel()
@@ -74,8 +74,15 @@ final class FindModel: ObservableObject {
                             guard !Task.isCancelled,
                                 let descriptors = ProcessReader().openFileDescriptors(target.pid)
                             else { return [] }
-                            return DescriptorSearch.matches(
+                            var found = DescriptorSearch.matches(
                                 in: descriptors, of: target, term: term)
+                            if includeMapped, !Task.isCancelled,
+                                let mapped = MappedFileReader().mappedFiles(target.pid)
+                            {
+                                found += DescriptorSearch.matches(
+                                    inMapped: mapped, of: target, term: term)
+                            }
+                            return found
                         }
                         running += 1
                     }
@@ -94,8 +101,17 @@ final class FindModel: ObservableObject {
                     let descriptors = await withCheckedContinuation { continuation in
                         helper.listOpenFiles(pid: target.pid) { continuation.resume(returning: $0) }
                     }
-                    let matches = DescriptorSearch.matches(
+                    var matches = DescriptorSearch.matches(
                         in: descriptors ?? [], of: target, term: term)
+                    if includeMapped, !Task.isCancelled {
+                        let mapped = await withCheckedContinuation { continuation in
+                            helper.listMappedFiles(pid: target.pid) {
+                                continuation.resume(returning: $0)
+                            }
+                        }
+                        matches += DescriptorSearch.matches(
+                            inMapped: mapped ?? [], of: target, term: term)
+                    }
                     if self?.absorb(matches, total: total) != true { break }
                 }
             }
@@ -140,7 +156,10 @@ struct FindView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var model = FindModel()
     @State private var term = ""
+    @AppStorage("find.includeMappedFiles") private var includeMapped = false
     @FocusState private var fieldFocused: Bool
+
+    private func search() { model.search(term, includeMapped: includeMapped, helper: helper) }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -162,12 +181,12 @@ struct FindView: View {
             TextField("File path, address or port", text: $term)
                 .textFieldStyle(.plain)
                 .focused($fieldFocused)
-                .onSubmit { model.search(term, helper: helper) }
+                .onSubmit { search() }
             if model.isSearching {
                 ProgressView().controlSize(.small)
                 Button("Stop") { model.cancel() }
             } else {
-                Button("Find") { model.search(term, helper: helper) }
+                Button("Find") { search() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(term.trimmingCharacters(in: .whitespaces).isEmpty)
             }
@@ -257,6 +276,12 @@ struct FindView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer()
+            Toggle("Include loaded libraries", isOn: $includeMapped)
+                .toggleStyle(.checkbox)
+                .controlSize(.small)
+                .help(
+                    "Also search the files mapped into each process's memory, such as loaded libraries. Slower."
+                )
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -294,7 +319,7 @@ private struct FindResultRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: match.descriptor.kind == .socket ? "network" : "doc")
+            Image(systemName: symbol)
                 .foregroundStyle(match.descriptor.kind == .socket ? Color.green : Color.blue)
                 .frame(width: 18)
             VStack(alignment: .leading, spacing: 1) {
@@ -314,8 +339,14 @@ private struct FindResultRow: View {
         .contentShape(Rectangle())
     }
 
+    private var symbol: String {
+        if match.isMapped { return "shippingbox" }
+        return match.descriptor.kind == .socket ? "network" : "doc"
+    }
+
     private var subtitle: String {
-        var parts = [match.processName, "PID \(match.pid)", "fd \(match.descriptor.fd)"]
+        var parts = [match.processName, "PID \(match.pid)"]
+        parts.append(match.isMapped ? t("mapped into memory") : "fd \(match.descriptor.fd)")
         if let state = match.descriptor.tcpState { parts.append(state.label) }
         return parts.joined(separator: " · ")
     }

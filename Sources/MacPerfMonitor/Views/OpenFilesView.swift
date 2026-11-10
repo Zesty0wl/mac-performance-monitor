@@ -52,15 +52,28 @@ struct OpenFilesView: View {
         case loaded([OpenFileDescriptor])
     }
 
+    /// The files mapped into the process's memory, read the first time the
+    /// Mapped filter is chosen: they are a different list from the open
+    /// descriptors, and cost a syscall per memory region to gather.
+    private enum MappedState {
+        case notLoaded
+        case loading
+        case failed
+        case loaded([MappedFile])
+    }
+
+    @State private var mapped: MappedState = .notLoaded
+
     private enum Filter: String, CaseIterable, Identifiable {
-        case all, files, sockets, other
+        case all, files, sockets, other, mapped
         var id: String { rawValue }
         var label: String {
             switch self {
-            case .all: return "All"
-            case .files: return "Files"
-            case .sockets: return "Sockets"
-            case .other: return "Other"
+            case .all: return t("All")
+            case .files: return t("Files")
+            case .sockets: return t("Sockets")
+            case .other: return t("Other")
+            case .mapped: return t("Mapped")
             }
         }
 
@@ -70,8 +83,71 @@ struct OpenFilesView: View {
             case .files: return kind == .file
             case .sockets: return kind == .socket
             case .other: return kind == .pipe || kind == .kqueue || kind == .other
+            case .mapped: return false
             }
         }
+    }
+
+    /// Read the mapped files, through the helper when it is on (so system and
+    /// other-user processes work), else directly.
+    private func loadMapped() {
+        mapped = .loading
+        let pid = target.pid
+        let direct = {
+            DispatchQueue.global(qos: .userInitiated).async {
+                let files = MappedFileReader().mappedFiles(pid)
+                DispatchQueue.main.async { mapped = files.map { .loaded($0) } ?? .failed }
+            }
+        }
+        if helper.canEscalate, !ownedByCurrentUser {
+            helper.listMappedFiles(pid: pid) { files in
+                if let files { mapped = .loaded(files) } else { direct() }
+            }
+        } else {
+            direct()
+        }
+    }
+
+    private var mappedRows: [MappedFile] {
+        guard case .loaded(let files) = mapped else { return [] }
+        let term = search.trimmingCharacters(in: .whitespaces).lowercased()
+        return term.isEmpty ? files : files.filter { $0.path.lowercased().contains(term) }
+    }
+
+    @ViewBuilder
+    private var mappedContent: some View {
+        switch mapped {
+        case .notLoaded, .loading:
+            loadingState
+        case .failed:
+            messageState(
+                icon: "lock", title: t("Not readable"),
+                message: t(
+                    "Mapped files can only be listed for processes you own. Turn on Full "
+                        + "Coverage in Settings to inspect system and other-user processes "
+                        + "as root."))
+        case .loaded:
+            let rows = mappedRows
+            if rows.isEmpty {
+                messageState(
+                    icon: "magnifyingglass", title: t("No matches"),
+                    message: t("No mapped files match the current filter."))
+            } else {
+                List(rows) { file in
+                    MappedFileRow(file: file)
+                        .listRowInsets(EdgeInsets(top: 5, leading: 12, bottom: 5, trailing: 12))
+                }
+                .listStyle(.inset(alternatesRowBackgrounds: true))
+            }
+        }
+    }
+
+    private var mappedSummary: String {
+        guard case .loaded(let files) = mapped else { return "" }
+        return t(
+            "%1$d mapped files, %2$d of them libraries. Apple's own frameworks share one "
+                + "cache and are not listed one by one.", files.count,
+            files.filter(\.isLibrary).count)
     }
 
     var body: some View {
@@ -80,13 +156,16 @@ struct OpenFilesView: View {
             Divider()
             controls
             Divider()
-            content
+            if filter == .mapped { mappedContent } else { content }
             Divider()
             footer
         }
         .frame(minWidth: 480, minHeight: 380)
         .navigationTitle(t("Open Files · %@", target.name))
         .onAppear(perform: load)
+        .onChange(of: filter) { _, new in
+            if new == .mapped, case .notLoaded = mapped { loadMapped() }
+        }
     }
 
     private func load() {
@@ -271,21 +350,30 @@ struct OpenFilesView: View {
 
     private var footer: some View {
         HStack {
-            if let list = loadedList, !list.isEmpty {
+            if filter == .mapped {
+                Text(verbatim: mappedSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if let list = loadedList, !list.isEmpty {
                 Text(countSummary(list))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
             if isResolving { ProgressView().controlSize(.small) }
-            Button(action: resolveNames) {
-                Label("Resolve Names", systemImage: "globe")
+            if filter != .mapped {
+                Button(action: resolveNames) {
+                    Label("Resolve Names", systemImage: "globe")
+                }
+                .disabled(isResolving || unresolvedAddresses.isEmpty)
+                .help(
+                    "Look up the host name for each remote address. This sends the addresses to your DNS server."
+                )
             }
-            .disabled(isResolving || unresolvedAddresses.isEmpty)
-            .help(
-                "Look up the host name for each remote address. This sends the addresses to your DNS server."
-            )
-            Button(action: load) {
+            Button {
+                if filter == .mapped { loadMapped() } else { load() }
+            } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }
             .disabled(isLoading)
@@ -452,6 +540,44 @@ private struct FileDescriptorRow: View {
         case .pipe: return "pipe"
         case .kqueue: return "kqueue"
         case .other: return "other"
+        }
+    }
+}
+
+/// One file mapped into the process: its path, and how much address space the
+/// mappings cover.
+private struct MappedFileRow: View {
+    let file: MappedFile
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: file.isLibrary ? "shippingbox" : "doc")
+                .foregroundStyle(file.isLibrary ? Color.purple : Color.blue)
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(verbatim: file.path)
+                    .font(.callout.monospaced())
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+                Text(
+                    verbatim: t(
+                        file.isLibrary ? "library · %@ mapped" : "file · %@ mapped",
+                        ByteFormat.string(file.mappedBytes))
+                )
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 1)
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button {
+                ProcessActions.revealInFinder(path: file.path)
+            } label: {
+                Label("Reveal in Finder", systemImage: "folder")
+            }
         }
     }
 }

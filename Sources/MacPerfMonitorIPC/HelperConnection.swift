@@ -283,6 +283,45 @@ public final class HelperConnection: PrivilegedReader, @unchecked Sendable {
         return result
     }
 
+    /// List the files mapped into a process via the root daemon. Returns nil when the
+    /// daemon is unreachable, predates this call, or could not read the process
+    /// (so callers can fall back to a user-level read). Synchronous with the
+    /// same hard timeout as `readProcesses`.
+    public func listMappedFiles(pid: Int32) -> [MappedFile]? {
+        guard let connection = currentConnection() else { return nil }
+
+        let resultLock = NSLock()
+        var result: [MappedFile]?
+        let done = DispatchSemaphore(value: 0)
+
+        let proxy = connection.remoteObjectProxyWithErrorHandler { [log] error in
+            log.error("helper unreachable: \(error.localizedDescription, privacy: .public)")
+            done.signal()
+        }
+        guard let helper = proxy as? MacPerfMonitorHelperProtocol else {
+            log.error("helper proxy did not conform to the expected interface")
+            return nil
+        }
+
+        helper.listMappedFiles(NSNumber(value: pid)) { data in
+            if let data,
+                let decoded = try? JSONDecoder().decode([MappedFile].self, from: data)
+            {
+                resultLock.lock()
+                result = decoded
+                resultLock.unlock()
+            }
+            done.signal()
+        }
+
+        if done.wait(timeout: .now() + timeout) == .timedOut {
+            log.error("helper mapped-file list timed out after \(self.timeout, privacy: .public)s")
+        }
+        resultLock.lock()
+        defer { resultLock.unlock() }
+        return result
+    }
+
     /// Force-terminate a process via the root daemon. Returns 0 on success or a
     /// POSIX errno from the daemon (for example `ESRCH` if the process had
     /// already exited, `EPERM` if even root was refused). Returns `EHOSTDOWN`

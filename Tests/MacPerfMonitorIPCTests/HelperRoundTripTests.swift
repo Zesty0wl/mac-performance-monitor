@@ -409,6 +409,24 @@ final class HelperRoundTripTests: XCTestCase {
         XCTAssertNil(reply)
     }
 
+    func testListsOwnMappedFilesOverXPC() throws {
+        let myPID = Int32(ProcessInfo.processInfo.processIdentifier)
+        let files = try XCTUnwrap(connection.listMappedFiles(pid: myPID))
+        XCTAssertTrue(files.contains { $0.path == "/usr/lib/dyld" }, "Every process maps dyld")
+        XCTAssertEqual(Set(files.map(\.path)).count, files.count)
+    }
+
+    func testMappedFileListRefusesInvalidPIDAndStrangers() {
+        XCTAssertNil(connection.listMappedFiles(pid: 0))
+        XCTAssertNil(connection.listMappedFiles(pid: -1))
+
+        let stranger = HelperCaller(uid: geteuid() &+ 1, isAdmin: false)
+        let service = HelperService(version: "1", power: PowerProviderStub(), caller: stranger)
+        var reply: Data? = Data()
+        service.listMappedFiles(NSNumber(value: getpid())) { reply = $0 }
+        XCTAssertNil(reply)
+    }
+
     // MARK: Termination
 
     func testTerminatesOwnedChildOverXPC() throws {

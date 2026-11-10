@@ -50,6 +50,13 @@ Notable changes to Mac Performance Monitor. This project follows
   processes are searched when Full Coverage is on; otherwise the window says
   how many were left out.
 
+- **See what a process has loaded.** Open Files & Sockets has a new Mapped
+  filter listing the files mapped into the process's memory: its executable,
+  the libraries and plug-ins it loaded, fonts and data files, each with the
+  size mapped. Find can include these too (tick Include loaded libraries),
+  to answer "which processes have this library loaded?". Apple's own
+  frameworks live in one shared cache, so they are not listed one by one.
+
 - **More in a process's details.**
   - The Details panel shows the working directory, and the priority and
     Suspended state when they are not the defaults.
@@ -72,9 +79,10 @@ Notable changes to Mac Performance Monitor. This project follows
   keep the existing checks: never process 0 or 1, one process at a time, only
   the process you chose (matched by start time, so a reused process ID is
   refused), and a standard account only on its own processes.
-- The helper has one new read-only call that lists a process's threads. It
-  follows the same rule as the open-files list: a standard account can use it
-  only on its own processes.
+- The helper has two new read-only calls, listing a process's threads and
+  the files mapped into its memory. Both follow the same rule as the
+  open-files list: a standard account can use them only on its own
+  processes.
 
 ## [2.7.0] - 2026-11-08
 
