@@ -113440,6 +113440,510 @@
           }
         }
       }
+    },
+    "Find Open File or Port…" : {
+      "comment" : "Find window: search every process's open files and sockets. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geöffnete Datei oder Port suchen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find Open File or Port…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher un fichier ouvert ou un port…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找打开的文件或端口…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Найти открытый файл или порт…"
+          }
+        }
+      }
+    },
+    "Find Open File or Port" : {
+      "comment" : "Find window: search every process's open files and sockets. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geöffnete Datei oder Port suchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find Open File or Port"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher un fichier ouvert ou un port"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找打开的文件或端口"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Поиск открытого файла или порта"
+          }
+        }
+      }
+    },
+    "File path, address or port" : {
+      "comment" : "Find window: search every process's open files and sockets. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dateipfad, Adresse oder Port"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File path, address or port"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chemin de fichier, adresse ou port"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文件路径、地址或端口"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Путь к файлу, адрес или порт"
+          }
+        }
+      }
+    },
+    "Find" : {
+      "comment" : "Find window: search every process's open files and sockets. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Найти"
+          }
+        }
+      }
+    },
+    "Find what has something open" : {
+      "comment" : "Find window: search every process's open files and sockets. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Herausfinden, wer etwas geöffnet hat"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find what has something open"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trouver ce qui garde un élément ouvert"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找是谁打开了某个文件或端口"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Узнать, кто держит файл или порт открытым"
+          }
+        }
+      }
+    },
+    "Type part of a file or folder path, a host address, or a port number such as 8080, to list every process with a matching file or socket open." : {
+      "comment" : "Find window: search every process's open files and sockets. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib einen Teil eines Datei- oder Ordnerpfads, eine Hostadresse oder eine Portnummer wie 8080 ein, um alle Prozesse aufzulisten, die eine passende Datei oder einen passenden Socket geöffnet haben."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type part of a file or folder path, a host address, or a port number such as 8080, to list every process with a matching file or socket open."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez une partie d'un chemin de fichier ou de dossier, une adresse d'hôte ou un numéro de port comme 8080 pour lister tous les processus qui ont un fichier ou un socket correspondant ouvert."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入文件或文件夹路径的一部分、主机地址，或 8080 这样的端口号，即可列出所有打开了匹配文件或套接字的进程。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Введите часть пути к файлу или папке, адрес узла или номер порта, например 8080, чтобы увидеть все процессы, у которых открыт подходящий файл или сокет."
+          }
+        }
+      }
+    },
+    "Searching…" : {
+      "comment" : "Find window: search every process's open files and sockets. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suche läuft …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Searching…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在查找…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Поиск…"
+          }
+        }
+      }
+    },
+    "No process has an open file or socket matching “%@”." : {
+      "comment" : "Find window: search every process's open files and sockets. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein Prozess hat eine geöffnete Datei oder einen Socket passend zu „%@“."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No process has an open file or socket matching “%@”."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun processus n'a de fichier ou de socket ouvert correspondant à « %@ »."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有进程打开了与“%@”匹配的文件或套接字。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ни у одного процесса нет открытого файла или сокета, соответствующего «%@»."
+          }
+        }
+      }
+    },
+    "Show in Processes" : {
+      "comment" : "Find window: search every process's open files and sockets. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Prozessen anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show in Processes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher dans Processus"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在进程列表中显示"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Показать в процессах"
+          }
+        }
+      }
+    },
+    "Read %1$d of %2$d processes" : {
+      "comment" : "Find window: search every process's open files and sockets. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d von %2$d Prozessen gelesen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read %1$d of %2$d processes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d processus lus sur %2$d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已读取 %1$d / %2$d 个进程"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Прочитано процессов: %1$d из %2$d"
+          }
+        }
+      }
+    },
+    "%1$d matches in %2$d processes" : {
+      "comment" : "Find window: search every process's open files and sockets. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d Treffer in %2$d Prozessen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d matches in %2$d processes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d résultats dans %2$d processus"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %2$d 个进程中找到 %1$d 个匹配项"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Совпадений: %1$d, процессов проверено: %2$d"
+          }
+        }
+      }
+    },
+    "Showing the first %d. Use a longer term to narrow it." : {
+      "comment" : "Find window: search every process's open files and sockets. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es werden die ersten %d angezeigt. Verwende einen längeren Suchbegriff, um einzugrenzen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Showing the first %d. Use a longer term to narrow it."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affichage des %d premiers. Utilisez un terme plus long pour affiner."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅显示前 %d 个。请使用更长的关键词缩小范围。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Показаны первые %d. Уточните запрос, чтобы сузить список."
+          }
+        }
+      }
+    },
+    "%d system and other-user processes were not searched. Turn on Full Coverage in Settings to include them." : {
+      "comment" : "Find window: search every process's open files and sockets. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d System- und fremde Prozesse wurden nicht durchsucht. Aktiviere „Vollständige Abdeckung“ in den Einstellungen, um sie einzubeziehen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d system and other-user processes were not searched. Turn on Full Coverage in Settings to include them."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d processus système ou d'autres utilisateurs n'ont pas été examinés. Activez « Couverture complète » dans les Réglages pour les inclure."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有 %d 个系统进程和其他用户的进程未被查找。在「设置」中开启完整覆盖即可包含它们。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Системные процессы и процессы других пользователей (%d) не проверялись. Включите функцию «Полный охват» в Настройках, чтобы включить их в поиск."
+          }
+        }
+      }
+    },
+    "Find which process has a file, address or port open" : {
+      "comment" : "Find window: search every process's open files and sockets. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Herausfinden, welcher Prozess eine Datei, eine Adresse oder einen Port geöffnet hat"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find which process has a file, address or port open"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trouver quel processus garde un fichier, une adresse ou un port ouvert"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找哪个进程打开了某个文件、地址或端口"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Узнать, какой процесс держит открытым файл, адрес или порт"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

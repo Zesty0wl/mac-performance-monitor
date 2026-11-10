@@ -40,6 +40,16 @@ Notable changes to Mac Performance Monitor. This project follows
   for a few seconds after it exits, so a short-lived process no longer
   vanishes between refreshes. Turn it off in Settings > General > Processes.
 
+- **Find which process has something open.** Choose Processes > Find Open
+  File or Port (Shift-Command-F), or the magnifier beside the Processes
+  filter, and type part of a file path, a host address or a port number. The
+  window lists every matching open file and socket with the process holding
+  it, which answers "why can't I eject this disk?" and "what is listening on
+  8080?". A number is matched as a whole port, so 80 does not match 8080.
+  Double-click a result to select its process. System and other-user
+  processes are searched when Full Coverage is on; otherwise the window says
+  how many were left out.
+
 - **More in a process's details.**
   - The Details panel shows the working directory, and the priority and
     Suspended state when they are not the defaults.

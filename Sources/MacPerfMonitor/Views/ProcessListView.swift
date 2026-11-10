@@ -96,6 +96,14 @@ struct ProcessListView: View {
                 .foregroundStyle(.secondary)
                 .help("Clear filter")
             }
+            Button {
+                WindowOpenBridge.shared.open(id: WindowID.find)
+            } label: {
+                Image(systemName: "doc.text.magnifyingglass")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Find which process has a file, address or port open")
             Divider()
                 .frame(height: 16)
             Picker("Layout", selection: $layout) {

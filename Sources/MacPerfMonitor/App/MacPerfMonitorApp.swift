@@ -163,6 +163,12 @@ struct MacPerfMonitorApp: App {
                 }
                 .disabled(!AskAvailability.systemSupports)
             }
+            CommandMenu("Processes") {
+                Button("Find Open File or Port\u{2026}") {
+                    WindowOpenBridge.shared.open(id: WindowID.find)
+                }
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+            }
             CommandMenu("Network") {
                 Button("Network Scan") {
                     AppLog.ui.notice("Network Scan command invoked")
@@ -262,6 +268,20 @@ struct MacPerfMonitorApp: App {
         }
         .defaultSize(width: 600, height: 560)
 
+        // Find: one window that searches every process's open files and
+        // sockets on request. It is handed the sampler as a plain reference,
+        // to select a result's process, and never observes it.
+        Window("Find Open File or Port", id: WindowID.find) {
+            LocaleRootView(languageManager: appDelegate.languageManager) {
+                FindView(sampler: appDelegate.model)
+                    .environmentObject(appDelegate.helperManager)
+                    .environmentObject(appDelegate.appState)
+            }
+        }
+        .defaultSize(width: 680, height: 520)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
+
         // Threads: one resizable window per process, keyed on a self-contained
         // `ThreadsTarget`. It polls its one process on its own two-second
         // clock while visible and, like the windows above, never touches the
@@ -333,6 +353,7 @@ enum WindowID {
     static let inspector = "inspector"
     static let openFiles = "open-files"
     static let threads = "threads"
+    static let find = "find"
     static let usageTimeline = "usage-timeline"
     static let deepDive = "deep-dive"
 }
