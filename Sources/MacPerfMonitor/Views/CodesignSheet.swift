@@ -191,6 +191,12 @@ struct CodesignSheet: View {
                     }
                 }
 
+                if info.sha256 != nil {
+                    section("File hash") {
+                        CopyableRow(label: "SHA-256", value: info.sha256)
+                    }
+                }
+
                 if !info.authorities.isEmpty {
                     section("Authority") {
                         ForEach(Array(info.authorities.enumerated()), id: \.offset) { idx, name in
@@ -211,6 +217,23 @@ struct CodesignSheet: View {
                     section("All code-directory hashes") {
                         ForEach(info.cdHashes) { hash in
                             CopyableRow(label: hash.label, value: hash.hex, mono: true)
+                        }
+                    }
+                }
+
+                if !info.entitlements.isEmpty {
+                    section("Entitlements") {
+                        ForEach(info.entitlements) { entitlement in
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(verbatim: entitlement.key)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .textSelection(.enabled)
+                                Text(verbatim: entitlement.value)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
                 }

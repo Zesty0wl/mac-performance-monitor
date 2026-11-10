@@ -159,6 +159,7 @@ int cmacperfmonitor_list_fds(pid_t pid, cmacperfmonitor_fd_t *out, int capacity)
     for (int i = 0; i < limit; i++) {
         int32_t fd = fds[i].proc_fd;
         int32_t type_code = 5;
+        int32_t tcp_state = -1;
         char detail[1024];
         detail[0] = '\0';
 
@@ -180,6 +181,9 @@ int cmacperfmonitor_list_fds(pid_t pid, cmacperfmonitor_fd_t *out, int capacity)
                 int r = proc_pidfdinfo(pid, fd, PROC_PIDFDSOCKETINFO, &si, sizeof(si));
                 if (r == (int)sizeof(si)) {
                     cmacperfmonitor_format_socket(&si.psi, detail, sizeof(detail));
+                    if (si.psi.soi_kind == SOCKINFO_TCP) {
+                        tcp_state = si.psi.soi_proto.pri_tcp.tcpsi_state;
+                    }
                 }
                 break;
             }
@@ -198,6 +202,7 @@ int cmacperfmonitor_list_fds(pid_t pid, cmacperfmonitor_fd_t *out, int capacity)
 
         out[written].fd = fd;
         out[written].type = type_code;
+        out[written].tcp_state = tcp_state;
         strlcpy(out[written].detail, detail, sizeof(out[written].detail));
         written++;
     }

@@ -83,16 +83,69 @@ public struct OpenFileDescriptor: Identifiable, Sendable, Equatable, Codable {
         }
     }
 
+    /// Where a TCP connection is in its life, the kernel's `TSI_S_*` states.
+    public enum TCPState: Int, Sendable, Equatable, Codable {
+        case closed = 0
+        case listening = 1
+        case synSent = 2
+        case synReceived = 3
+        case established = 4
+        case closeWait = 5
+        case finWait1 = 6
+        case closing = 7
+        case lastAck = 8
+        case finWait2 = 9
+        case timeWait = 10
+
+        /// The name `netstat` prints for the state.
+        public var label: String {
+            switch self {
+            case .closed: return "CLOSED"
+            case .listening: return "LISTEN"
+            case .synSent: return "SYN_SENT"
+            case .synReceived: return "SYN_RECEIVED"
+            case .established: return "ESTABLISHED"
+            case .closeWait: return "CLOSE_WAIT"
+            case .finWait1: return "FIN_WAIT_1"
+            case .closing: return "CLOSING"
+            case .lastAck: return "LAST_ACK"
+            case .finWait2: return "FIN_WAIT_2"
+            case .timeWait: return "TIME_WAIT"
+            }
+        }
+    }
+
     public let fd: Int32
     public let kind: Kind
     public let detail: String
+    /// Set for a TCP socket. Optional so a list from a helper built before
+    /// this field existed still decodes.
+    public let tcpState: TCPState?
 
     public var id: Int32 { fd }
 
-    public init(fd: Int32, kind: Kind, detail: String) {
+    public init(fd: Int32, kind: Kind, detail: String, tcpState: TCPState? = nil) {
         self.fd = fd
         self.kind = kind
         self.detail = detail
+        self.tcpState = tcpState
+    }
+
+    /// The remote address of a connected TCP or UDP socket, without its port,
+    /// read back out of `detail` ("tcp 10.0.0.2:51234 -> 17.253.144.10:443"
+    /// or "tcp [fe80::1]:51234 -> [2620:149::1]:443"). Nil for a listening
+    /// socket, a unix socket, and anything that is not a socket.
+    public var remoteAddress: String? {
+        guard kind == .socket, let arrow = detail.range(of: " -> ") else { return nil }
+        let endpoint = detail[arrow.upperBound...]
+        if endpoint.hasPrefix("[") {
+            guard let close = endpoint.firstIndex(of: "]") else { return nil }
+            let address = endpoint[endpoint.index(after: endpoint.startIndex)..<close]
+            return address.isEmpty ? nil : String(address)
+        }
+        guard let colon = endpoint.lastIndex(of: ":") else { return nil }
+        let address = endpoint[..<colon]
+        return address.isEmpty ? nil : String(address)
     }
 }
 
@@ -392,9 +445,25 @@ public struct ProcessReader: Sendable {
             }
             result.append(
                 OpenFileDescriptor(
-                    fd: entry.fd, kind: OpenFileDescriptor.Kind(code: entry.type), detail: detail))
+                    fd: entry.fd, kind: OpenFileDescriptor.Kind(code: entry.type), detail: detail,
+                    tcpState: OpenFileDescriptor.TCPState(rawValue: Int(entry.tcp_state))))
         }
         return result
+    }
+
+    /// The process's current working directory, or nil when it is gone or not
+    /// readable by this user. One syscall; for the detail view, not sampling.
+    public func workingDirectory(_ pid: pid_t) -> String? {
+        var info = proc_vnodepathinfo()
+        let size = Int32(MemoryLayout<proc_vnodepathinfo>.size)
+        let ret = withUnsafeMutablePointer(to: &info) {
+            proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, 0, $0, size)
+        }
+        guard ret == size else { return nil }
+        let path = withUnsafeBytes(of: info.pvi_cdir.vip_path) { raw in
+            String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
+        }
+        return path.isEmpty ? nil : path
     }
 
     /// Whether the process runs translated under Rosetta. nil on error.

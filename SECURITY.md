@@ -69,7 +69,9 @@ build. Older releases may not receive the same fixes.
 
 - Sparkle checks for and downloads updates. The app also downloads signed
   checks and glossary content. Network tools contact the hosts or networks you
-  choose. These features do not upload your recorded performance history.
+  choose. Resolve Names in Open Files & Sockets asks your DNS server for the
+  names of the remote addresses a process is connected to, and only when you
+  press it. These features do not upload your recorded performance history.
 
 - The app is not sandboxed. You can enable a privileged helper to read more
   processes. The app and helper check each other's code signatures.

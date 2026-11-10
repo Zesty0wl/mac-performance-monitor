@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Security
 
@@ -37,6 +38,19 @@ struct CodeSignInfo: Sendable, Equatable {
     var signedTimestamp: Date?
     var flagsDescription: String?
     var designatedRequirement: String?
+    /// The entitlements the signature grants, sorted by key. Empty when the
+    /// binary is unsigned or claims none.
+    var entitlements: [Entitlement] = []
+    /// SHA-256 of the executable file itself, the hash other tools and
+    /// vendors publish. Unlike the CDHash it covers the whole file.
+    var sha256: String?
+
+    /// One entitlement, with its value flattened to text for display.
+    struct Entitlement: Sendable, Equatable, Identifiable {
+        var id: String { key }
+        var key: String
+        var value: String
+    }
 
     struct LabelledHash: Sendable, Equatable, Identifiable {
         var id: String { label + hex }
@@ -163,10 +177,56 @@ extension CodeSignInfo {
             }
         }
 
+        if let granted = dict[kSecCodeInfoEntitlementsDict as String] as? [String: Any] {
+            result.entitlements = granted.keys.sorted().map {
+                Entitlement(key: $0, value: Self.entitlementText(granted[$0] as Any))
+            }
+        }
+        result.sha256 = Self.sha256(ofExecutableAt: path)
+
         result.signingState = Self.deriveSigningState(
             staticCode: staticCode, authorities: result.authorities,
             isAdHoc: result.isAdHoc, isSigned: result.isSigned)
         return result
+    }
+
+    /// An entitlement's value as short text: booleans as true or false, a list
+    /// as its items separated by commas, anything nested as its description.
+    static func entitlementText(_ value: Any) -> String {
+        switch value {
+        case let number as NSNumber where CFGetTypeID(number) == CFBooleanGetTypeID():
+            return number.boolValue ? "true" : "false"
+        case let text as String:
+            return text
+        case let number as NSNumber:
+            return number.stringValue
+        case let list as [Any]:
+            return list.map { entitlementText($0) }.joined(separator: ", ")
+        default:
+            return String(describing: value)
+        }
+    }
+
+    /// SHA-256 of the file at `path`, read in chunks so a large binary is never
+    /// held in memory. For an app or other bundle, hashes its main executable.
+    /// Nil when there is no readable file to hash.
+    static func sha256(ofExecutableAt path: String) -> String? {
+        var url = URL(fileURLWithPath: path)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) else {
+            return nil
+        }
+        if isDirectory.boolValue {
+            guard let executable = Bundle(url: url)?.executableURL else { return nil }
+            url = executable
+        }
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        var hasher = SHA256()
+        while let chunk = try? handle.read(upToCount: 1 << 20), !chunk.isEmpty {
+            hasher.update(data: chunk)
+        }
+        return Data(hasher.finalize()).hexEncoded
     }
 
     /// Map the signature to the closest app.settings `SigningState`. A common

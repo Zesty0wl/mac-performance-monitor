@@ -576,6 +576,9 @@ private struct ProcessDetailMetadata: View {
 private struct MetadataSection: View {
     let identity: ProcessIdentity
     let live: ProcessSample?
+    /// The working directory, read once per process shown. A syscall per
+    /// render would run on every table tick, and it rarely changes.
+    @State private var workingDirectory: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -585,6 +588,7 @@ private struct MetadataSection: View {
             VStack(alignment: .leading, spacing: 6) {
                 if let live {
                     row("Path", live.executablePath ?? "—")
+                    if let workingDirectory { row("Working directory", workingDirectory) }
                     row("Bundle ID", live.bundleID ?? "—")
                     row("PID", "\(live.pid)")
                     if live.ppid > 0 { row("Parent PID", "\(live.ppid)") }
@@ -592,6 +596,10 @@ private struct MetadataSection: View {
                         "Architecture",
                         live.isTranslated
                             ? "\(live.architecture.label) (Rosetta)" : live.architecture.label)
+                    if live.isSuspended == true { row("State", String(localized: "Suspended")) }
+                    if let nice = live.nice, nice != 0 {
+                        row("Priority", String(format: String(localized: "nice %d"), Int(nice)))
+                    }
                     row("Threads", "\(live.threadCount)")
                     row("CPU now", cpuNowDescription(live))
                     row("CPU split", cpuSplitDescription(live))
@@ -618,6 +626,13 @@ private struct MetadataSection: View {
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+        }
+        .task(id: identity) {
+            let pid = identity.pid
+            workingDirectory = nil
+            workingDirectory = await Task.detached(priority: .utility) {
+                ProcessReader().workingDirectory(pid)
+            }.value
         }
     }
 

@@ -40,6 +40,18 @@ Notable changes to Mac Performance Monitor. This project follows
   for a few seconds after it exits, so a short-lived process no longer
   vanishes between refreshes. Turn it off in Settings > General > Processes.
 
+- **More in a process's details.**
+  - The Details panel shows the working directory, and the priority and
+    Suspended state when they are not the defaults.
+  - Open Files & Sockets shows each TCP connection's state (ESTABLISHED,
+    LISTEN, CLOSE_WAIT and so on, as netstat names them).
+  - A new Resolve Names button there looks up the host name behind each
+    remote address, and the filter then matches names too. Nothing is looked
+    up until you press it, because a lookup sends the address to your DNS
+    server. Loopback and link-local addresses are never sent.
+  - The Codesign sheet lists the binary's entitlements and the SHA-256 of
+    the executable file, the hash other tools and vendors publish.
+
 - **Type to find a process.** Click the Processes list and type the first
   letters of a name to jump to it, as in Finder.
 

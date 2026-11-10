@@ -39,6 +39,10 @@ struct OpenFilesView: View {
     @State private var state: LoadState = .loading
     @State private var search = ""
     @State private var filter: Filter = .all
+    /// Host names found by "Resolve Names", keyed by remote address. Empty
+    /// until the user asks: a lookup sends the address to the DNS resolver.
+    @State private var hostNames: [String: String] = [:]
+    @State private var isResolving = false
 
     private var ownedByCurrentUser: Bool { target.uid == UInt32(getuid()) }
 
@@ -255,8 +259,10 @@ struct OpenFilesView: View {
                 )
             } else {
                 List(rows) { fd in
-                    FileDescriptorRow(descriptor: fd)
-                        .listRowInsets(EdgeInsets(top: 5, leading: 12, bottom: 5, trailing: 12))
+                    FileDescriptorRow(
+                        descriptor: fd, hostName: fd.remoteAddress.flatMap { hostNames[$0] }
+                    )
+                    .listRowInsets(EdgeInsets(top: 5, leading: 12, bottom: 5, trailing: 12))
                 }
                 .listStyle(.inset(alternatesRowBackgrounds: true))
             }
@@ -271,12 +277,56 @@ struct OpenFilesView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            if isResolving { ProgressView().controlSize(.small) }
+            Button(action: resolveNames) {
+                Label("Resolve Names", systemImage: "globe")
+            }
+            .disabled(isResolving || unresolvedAddresses.isEmpty)
+            .help(
+                "Look up the host name for each remote address. This sends the addresses to your DNS server."
+            )
             Button(action: load) {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }
             .disabled(isLoading)
         }
         .padding(16)
+    }
+
+    /// Remote addresses in the list that are worth a lookup and have no name yet.
+    private var unresolvedAddresses: [String] {
+        let addresses = Set((loadedList ?? []).compactMap(\.remoteAddress))
+        return addresses.filter { hostNames[$0] == nil && ReverseDNS.isWorthLookingUp($0) }
+            .sorted()
+    }
+
+    /// Look up every unresolved remote address, a few at a time and off the
+    /// main thread. An address with no name is remembered as itself so it is
+    /// not asked for again.
+    private func resolveNames() {
+        let addresses = unresolvedAddresses
+        guard !addresses.isEmpty, !isResolving else { return }
+        isResolving = true
+        Task {
+            let found = await withTaskGroup(of: (String, String?).self) { group in
+                var results: [String: String] = [:]
+                var pending = addresses[...]
+                var running = 0
+                while !pending.isEmpty || running > 0 {
+                    while running < 8, let address = pending.popFirst() {
+                        group.addTask { (address, ReverseDNS.hostName(for: address)) }
+                        running += 1
+                    }
+                    if let (address, name) = await group.next() {
+                        running -= 1
+                        results[address] = name ?? address
+                    }
+                }
+                return results
+            }
+            hostNames.merge(found) { _, new in new }
+            isResolving = false
+        }
     }
 
     // MARK: Derived
@@ -296,6 +346,11 @@ struct OpenFilesView: View {
         return list.filter { fd in
             guard filter.matches(fd.kind) else { return false }
             guard !term.isEmpty else { return true }
+            if let name = fd.remoteAddress.flatMap({ hostNames[$0] }),
+                name.lowercased().contains(term)
+            {
+                return true
+            }
             return fd.detail.lowercased().contains(term) || "\(fd.fd)".contains(term)
         }
     }
@@ -313,6 +368,16 @@ struct OpenFilesView: View {
 /// action; sockets, pipes, and kqueues have no on-disk location to reveal.
 private struct FileDescriptorRow: View {
     let descriptor: OpenFileDescriptor
+    /// The remote end's host name, once the user has asked for names.
+    var hostName: String?
+
+    /// "fd 12 · socket", then the TCP state and the remote host name when known.
+    private var subtitle: String {
+        var parts = ["fd \(descriptor.fd)", kindLabel]
+        if let state = descriptor.tcpState { parts.append(state.label) }
+        if let hostName, hostName != descriptor.remoteAddress { parts.append(hostName) }
+        return parts.joined(separator: " · ")
+    }
 
     var body: some View {
         // Only file (vnode) descriptors have a real filesystem path, so only
@@ -345,9 +410,11 @@ private struct FileDescriptorRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .textSelection(.enabled)
-                Text("fd \(descriptor.fd) · \(kindLabel)")
+                Text(verbatim: subtitle)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
             Spacer(minLength: 0)
         }

@@ -57,9 +57,12 @@ int cmacperfmonitor_rusage(pid_t pid,
 ///   1 = file (vnode)   2 = socket   3 = pipe   4 = kqueue   5 = other
 /// `detail` holds the resolved file path (vnode), a formatted socket endpoint
 /// description, or a short type word; it is always NUL-terminated.
+/// `tcp_state` is the kernel's `TSI_S_*` connection state for a TCP socket
+/// (0 closed, 1 listen, ... 10 time-wait) and -1 for everything else.
 typedef struct {
     int32_t fd;
     int32_t type;
+    int32_t tcp_state;
     char detail[1024];
 } cmacperfmonitor_fd_t;
 
