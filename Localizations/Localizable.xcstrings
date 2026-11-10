@@ -114268,6 +114268,366 @@
           }
         }
       }
+    },
+    "Started by" : {
+      "comment" : "Process details: what started the process (launchd job, XPC service or parent). AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestartet von"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started by"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lancé par"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启动来源"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Кем запущен"
+          }
+        }
+      }
+    },
+    "Job" : {
+      "comment" : "Process details: what started the process (launchd job, XPC service or parent). AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Job"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Job"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tâche"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "任务"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Задание"
+          }
+        }
+      }
+    },
+    "launchd, as a system daemon" : {
+      "comment" : "Process details: what started the process (launchd job, XPC service or parent). AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, als Systemdienst"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, as a system daemon"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, comme démon système"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd，作为系统守护进程"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "launchd, как системная служба"
+          }
+        }
+      }
+    },
+    "launchd, as a login agent for every user" : {
+      "comment" : "Process details: what started the process (launchd job, XPC service or parent). AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, als Anmelde-Agent für alle Benutzer"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, as a login agent for every user"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, comme agent de session pour tous les utilisateurs"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd，作为所有用户的登录代理"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "launchd, как агент входа для всех пользователей"
+          }
+        }
+      }
+    },
+    "launchd, as a login agent for your account" : {
+      "comment" : "Process details: what started the process (launchd job, XPC service or parent). AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, als Anmelde-Agent für deinen Account"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, as a login agent for your account"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, comme agent de session pour votre compte"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd，作为你账户的登录代理"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "launchd, как агент входа для вашей учетной записи"
+          }
+        }
+      }
+    },
+    "launchd, as a system daemon its app installed" : {
+      "comment" : "Process details: what started the process (launchd job, XPC service or parent). AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, als Systemdienst, den die zugehörige App installiert hat"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, as a system daemon its app installed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, comme démon système installé par son app"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd，作为其所属 App 安装的系统守护进程"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "launchd, как системная служба, установленная его приложением"
+          }
+        }
+      }
+    },
+    "launchd, as a login agent its app installed" : {
+      "comment" : "Process details: what started the process (launchd job, XPC service or parent). AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, als Anmelde-Agent, den die zugehörige App installiert hat"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, as a login agent its app installed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, comme agent de session installé par son app"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd，作为其所属 App 安装的登录代理"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "launchd, как агент входа, установленный его приложением"
+          }
+        }
+      }
+    },
+    "launchd, as an XPC service of %@" : {
+      "comment" : "Process details: what started the process (launchd job, XPC service or parent). AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, als XPC-Dienst von %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, as an XPC service of %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd, comme service XPC de %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "launchd，作为 %@ 的 XPC 服务"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "launchd, как XPC-служба %@"
+          }
+        }
+      }
+    },
+    "%1$@ (PID %2$d)" : {
+      "comment" : "Process details: what started the process (launchd job, XPC service or parent). AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ (PID %2$d)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ (PID %2$d)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ (PID %2$d)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ (PID %2$d)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$@ (PID %2$d)"
+          }
+        }
+      }
+    },
+    "Show the job file in Finder: %@" : {
+      "comment" : "Process details: what started the process (launchd job, XPC service or parent). AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Job-Datei im Finder zeigen: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show the job file in Finder: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher le fichier de tâche dans le Finder : %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在访达中显示任务文件：%@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Показать файл задания в Finder: %@"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

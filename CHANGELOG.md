@@ -57,6 +57,15 @@ Notable changes to Mac Performance Monitor. This project follows
   to answer "which processes have this library loaded?". Apple's own
   frameworks live in one shared cache, so they are not listed one by one.
 
+- **See what started a process.** The Details panel has a Started by line.
+  For something launchd runs it says which kind of job (a system daemon, a
+  login agent for every user or for your account, or one an app installed
+  for itself) with the job's name and a button that shows its file in
+  Finder. An XPC service names the app or framework it belongs to, and
+  anything else names its parent process. Jobs are matched on the exact
+  program file, never on a similar name. An app you opened by hand shows no
+  line, because nothing on disk says how it was opened.
+
 - **More in a process's details.**
   - The Details panel shows the working directory, and the priority and
     Suspended state when they are not the defaults.

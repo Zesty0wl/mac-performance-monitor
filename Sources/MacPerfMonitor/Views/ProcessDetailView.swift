@@ -579,6 +579,8 @@ private struct MetadataSection: View {
     /// The working directory, read once per process shown. A syscall per
     /// render would run on every table tick, and it rarely changes.
     @State private var workingDirectory: String?
+    /// What started the process, worked out once per process shown.
+    @State private var origin: LaunchOrigin?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -592,6 +594,8 @@ private struct MetadataSection: View {
                     row("Bundle ID", live.bundleID ?? "—")
                     row("PID", "\(live.pid)")
                     if live.ppid > 0 { row("Parent PID", "\(live.ppid)") }
+                    if let text = Self.startedByText(origin) { row("Started by", text) }
+                    if case .job(let job) = origin { jobRow(job) }
                     row(
                         "Architecture",
                         live.isTranslated
@@ -630,9 +634,69 @@ private struct MetadataSection: View {
         .task(id: identity) {
             let pid = identity.pid
             workingDirectory = nil
+            origin = nil
             workingDirectory = await Task.detached(priority: .utility) {
                 ProcessReader().workingDirectory(pid)
             }.value
+            guard let live else { return }
+            let path = live.executablePath
+            let parent = live.ppid
+            origin = await Task.detached(priority: .utility) {
+                let parentName =
+                    parent > 1
+                    ? ProcessReader().path(parent).map { ($0 as NSString).lastPathComponent }
+                    : nil
+                return LaunchOrigin.resolve(
+                    executablePath: path, parentPID: parent, parentName: parentName,
+                    index: await LaunchJobIndexCache.shared.current())
+            }.value
+        }
+    }
+
+    /// One line saying what started the process, or nil when all that is
+    /// known is that launchd is its parent (true of any app opened by hand).
+    static func startedByText(_ origin: LaunchOrigin?) -> String? {
+        switch origin {
+        case .job(let job):
+            switch job.domain {
+            case .daemon: return t("launchd, as a system daemon")
+            case .agent: return t("launchd, as a login agent for every user")
+            case .userAgent: return t("launchd, as a login agent for your account")
+            case .appDaemon: return t("launchd, as a system daemon its app installed")
+            case .appAgent: return t("launchd, as a login agent its app installed")
+            }
+        case .xpcService(let owner):
+            return t(
+                "launchd, as an XPC service of %@",
+                ((owner as NSString).lastPathComponent as NSString).deletingPathExtension)
+        case .parent(let pid, let name):
+            return t("%1$@ (PID %2$d)", name, Int(pid))
+        case .unknown, nil:
+            return nil
+        }
+    }
+
+    /// The job's label, with a button that shows its file in Finder.
+    private func jobRow(_ job: LaunchJob) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("Job")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 110, alignment: .leading)
+            Text(verbatim: job.label ?? (job.plistPath as NSString).lastPathComponent)
+                .font(.caption.monospacedDigit())
+                .textSelection(.enabled)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Button {
+                ProcessActions.revealInFinder(path: job.plistPath)
+            } label: {
+                Image(systemName: "magnifyingglass.circle")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help(t("Show the job file in Finder: %@", job.plistPath))
+            Spacer(minLength: 0)
         }
     }
 
@@ -703,4 +767,9 @@ private struct MetadataSection: View {
         guard let entry = getpwuid(uid), let name = entry.pointee.pw_name else { return nil }
         return String(cString: name)
     }
+}
+
+/// The Details panel's "Started by" line, reachable by tests.
+enum ProcessDetailStartedBy {
+    static func text(_ origin: LaunchOrigin?) -> String? { MetadataSection.startedByText(origin) }
 }
