@@ -114628,6 +114628,78 @@
           }
         }
       }
+    },
+    "Click a window to find its process. Press Esc to cancel." : {
+      "comment" : "Window picker: click a window to select its process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klicke auf ein Fenster, um seinen Prozess zu finden. Drücke Esc zum Abbrechen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click a window to find its process. Press Esc to cancel."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cliquez sur une fenêtre pour trouver son processus. Appuyez sur Échap pour annuler."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按一个窗口以查找其所属进程。按 Esc 取消。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Щелкните окно, чтобы найти его процесс. Нажмите Esc для отмены."
+          }
+        }
+      }
+    },
+    "Click a window on screen to select the process it belongs to" : {
+      "comment" : "Window picker: click a window to select its process. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klicke auf ein Fenster auf dem Bildschirm, um den zugehörigen Prozess auszuwählen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click a window on screen to select the process it belongs to"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cliquez sur une fenêtre à l'écran pour sélectionner le processus auquel elle appartient"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按屏幕上的窗口以选中它所属的进程"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Щелкните окно на экране, чтобы выбрать процесс, которому оно принадлежит"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

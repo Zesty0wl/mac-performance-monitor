@@ -50,6 +50,13 @@ Notable changes to Mac Performance Monitor. This project follows
   processes are searched when Full Coverage is on; otherwise the window says
   how many were left out.
 
+- **Click a window to find its process.** The target button beside the
+  Processes filter turns the pointer into a crosshair. Click any window, the
+  menu bar or the Dock, and the process that owns it is selected in the
+  list. Press Esc to cancel. It needs no Screen Recording or Accessibility
+  permission: it asks macOS only who owns the window, never for its title or
+  contents.
+
 - **See what a process has loaded.** Open Files & Sockets has a new Mapped
   filter listing the files mapped into the process's memory: its executable,
   the libraries and plug-ins it loaded, fonts and data files, each with the

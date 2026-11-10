@@ -30,6 +30,7 @@ struct ProcessListView: View {
     /// hierarchy toggle.
     @AppStorage(ProcessListLayout.storageKey) private var layout = ProcessListLayout.initial
     @AppStorage(SamplerModel.highlightProcessChangesKey) private var highlightChanges = true
+    @EnvironmentObject private var appState: AppState
 
     /// `launchd`, the ancestor of nearly every process. Hidden as a node in the
     /// hierarchy view since its parentage is implied.
@@ -104,6 +105,12 @@ struct ProcessListView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .help("Find which process has a file, address or port open")
+            Button(action: pickWindow) {
+                Image(systemName: "target")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Click a window on screen to select the process it belongs to")
             Divider()
                 .frame(height: 16)
             Picker("Layout", selection: $layout) {
@@ -121,6 +128,22 @@ struct ProcessListView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    /// Let the user click any window on screen, then select the process that
+    /// owns it. The filter is cleared first if it would hide that process.
+    private func pickWindow() {
+        WindowPickerController.shared.begin { pid in
+            NSApp.activate(ignoringOtherApps: true)
+            guard let pid else { return }
+            guard let process = processes.first(where: { $0.pid == pid }) else {
+                NSSound.beep()
+                return
+            }
+            if !search.isEmpty, !Self.matches(process, search) { search = "" }
+            ProcessRowIntent.openDetail(
+                identity: process.id, appState: appState, bringWindowForward: true)
+        }
     }
 
     /// The visible processes after the search filter, before sorting or nesting.
