@@ -35,6 +35,14 @@ Notable changes to Mac Performance Monitor. This project follows
   processes need no special rights; system and other-user processes are read
   through the Full Coverage helper.
 
+- **Watch processes come and go.** In the Processes list a process is tinted
+  green for a few seconds after it starts, and stays in the list greyed out
+  for a few seconds after it exits, so a short-lived process no longer
+  vanishes between refreshes. Turn it off in Settings > General > Processes.
+
+- **Type to find a process.** Click the Processes list and type the first
+  letters of a name to jump to it, as in Finder.
+
 ### Security
 
 - The Full Coverage helper now accepts SIGSTOP and SIGCONT as well as SIGTERM

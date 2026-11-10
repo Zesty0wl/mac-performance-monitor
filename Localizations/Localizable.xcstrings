@@ -113188,6 +113188,78 @@
           }
         }
       }
+    },
+    "Highlight new and exited processes" : {
+      "comment" : "Settings > General > Processes: highlight new and exited rows. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neue und beendete Prozesse hervorheben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Highlight new and exited processes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mettre en évidence les processus nouveaux et terminés"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高亮显示新启动和已退出的进程"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Выделять новые и завершенные процессы"
+          }
+        }
+      }
+    },
+    "In the Processes list, a process is tinted green for a few seconds after it starts and stays greyed out for a few seconds after it exits, so short-lived ones can be seen coming and going." : {
+      "comment" : "Settings > General > Processes: highlight new and exited rows. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In der Prozessliste wird ein Prozess nach dem Start einige Sekunden lang grün hinterlegt und bleibt nach dem Beenden einige Sekunden lang ausgegraut sichtbar, sodass auch kurzlebige Prozesse beim Kommen und Gehen zu sehen sind."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In the Processes list, a process is tinted green for a few seconds after it starts and stays greyed out for a few seconds after it exits, so short-lived ones can be seen coming and going."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans la liste des processus, un processus est teinté en vert pendant quelques secondes après son lancement et reste grisé quelques secondes après sa fin, ce qui permet de voir passer ceux qui ne durent pas."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在进程列表中，进程启动后的几秒内会以绿色标示，退出后的几秒内会保持灰色显示，这样就能看到短暂运行的进程出现和消失。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "В списке процессов процесс подсвечивается зеленым несколько секунд после запуска и остается серым несколько секунд после завершения, поэтому можно заметить появление и исчезновение короткоживущих процессов."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

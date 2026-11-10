@@ -44,6 +44,8 @@ private struct GeneralSettingsView: View {
         SamplerModel.defaultTableInterval
     @AppStorage(TemperatureFormat.defaultsKey) private var temperatureUnit =
         TemperatureUnitChoice.system.rawValue
+    @AppStorage(SamplerModel.highlightProcessChangesKey) private var highlightProcessChanges =
+        true
 
     /// The unit macOS is set to, for the Match System label.
     private var systemTemperatureSymbol: String {
@@ -118,6 +120,15 @@ private struct GeneralSettingsView: View {
                 )
             } header: {
                 Text("Language")
+            }
+
+            Section {
+                Toggle("Highlight new and exited processes", isOn: $highlightProcessChanges)
+                caption(
+                    "In the Processes list, a process is tinted green for a few seconds after it starts and stays greyed out for a few seconds after it exits, so short-lived ones can be seen coming and going."
+                )
+            } header: {
+                Text("Processes")
             }
 
             Section {

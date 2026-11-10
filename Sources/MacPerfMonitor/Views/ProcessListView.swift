@@ -29,6 +29,7 @@ struct ProcessListView: View {
     /// the choice survives relaunches; the default carries over the older
     /// hierarchy toggle.
     @AppStorage(ProcessListLayout.storageKey) private var layout = ProcessListLayout.initial
+    @AppStorage(SamplerModel.highlightProcessChangesKey) private var highlightChanges = true
 
     /// `launchd`, the ancestor of nearly every process. Hidden as a node in the
     /// hierarchy view since its parentage is implied.
@@ -65,6 +66,7 @@ struct ProcessListView: View {
                 selection: $selection,
                 multiSelection: $multiSelection,
                 sortOrder: $sortOrder,
+                highlightsNewProcesses: highlightChanges,
                 model: model
             )
             .equatable()
@@ -313,6 +315,7 @@ private struct ProcessTable: View, Equatable {
     @Binding var selection: ProcessIdentity?
     @Binding var multiSelection: Set<ProcessIdentity>
     @Binding var sortOrder: [KeyPathComparator<ProcessNode>]
+    let highlightsNewProcesses: Bool
     let model: SamplerModel
 
     @EnvironmentObject private var appState: AppState
@@ -330,6 +333,7 @@ private struct ProcessTable: View, Equatable {
             && lhs.multiSelection == rhs.multiSelection
             && lhs.leakingIDs == rhs.leakingIDs
             && lhs.terminatedIDs == rhs.terminatedIDs
+            && lhs.highlightsNewProcesses == rhs.highlightsNewProcesses
     }
 
     var body: some View {
@@ -343,7 +347,8 @@ private struct ProcessTable: View, Equatable {
             sortOrder: $sortOrder,
             menu: { ids in contextMenu(for: ids) },
             values: model.processValuesTick.eraseToAnyPublisher(),
-            onVisibleRowsChange: { pids in model.setVisibleProcesses(pids) }
+            onVisibleRowsChange: { pids in model.setVisibleProcesses(pids) },
+            highlightsNewProcesses: highlightsNewProcesses
         )
         .onChange(of: multiSelection) { _, ids in
             // Drive the single-row inspector from the table selection. An

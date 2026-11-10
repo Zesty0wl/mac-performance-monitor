@@ -182,15 +182,46 @@ final class SamplerModel: ObservableObject {
     private struct TerminatedProcess {
         var sample: ProcessSample
         var terminatedAt: Date
+        /// When the row is dropped: minutes after a force quit, seconds after
+        /// a process exits by itself.
+        var expiresAt: Date
     }
 
-    /// Recently force-quit processes, keyed by identity. Drives the greyed-out
-    /// "stopped" rows; pruned to `terminatedRetention` each tick.
+    /// Recently force-quit processes, and ones that just exited by themselves,
+    /// keyed by identity. Drives the greyed-out "stopped" rows; pruned each tick.
     private var terminatedProcesses: [ProcessIdentity: TerminatedProcess] = [:]
 
     /// How long a force-quit process stays visible (greyed out) in the list
     /// before its row is dropped.
     private let terminatedRetention: TimeInterval = 5 * 60
+
+    /// UserDefaults key for "highlight new and exited processes" (default on).
+    /// Shared with Settings and the process table, which tints new rows.
+    static let highlightProcessChangesKey = "processList.highlightChanges"
+
+    /// How long a process that exited by itself stays in the list, greyed out,
+    /// so a short-lived process can be seen going. Two refreshes at the default
+    /// table interval.
+    private let exitedRetention: TimeInterval = 4
+
+    /// Compares each table rebuild's live list with the one before.
+    private var exitTracker = ProcessExitTracker()
+
+    /// Keep the rows of processes that have exited since the previous table
+    /// rebuild, for `exitedRetention`.
+    private func noteExits(live: [ProcessSample], now: Date) {
+        let exited = exitTracker.exits(in: live, now: now)
+        let enabled =
+            UserDefaults.standard.object(forKey: Self.highlightProcessChangesKey) as? Bool ?? true
+        guard enabled, !exited.isEmpty else { return }
+        var changed = false
+        for old in exited where terminatedProcesses[old.id] == nil {
+            terminatedProcesses[old.id] = TerminatedProcess(
+                sample: old, terminatedAt: now, expiresAt: now.addingTimeInterval(exitedRetention))
+            changed = true
+        }
+        if changed { terminatedProcessIDs = Set(terminatedProcesses.keys) }
+    }
 
     private(set) var interval: TimeInterval
 
@@ -753,6 +784,7 @@ final class SamplerModel: ObservableObject {
                 for kind in MenuListKind.allCases { self.menuLists.clear(kind) }
                 self.terminatedProcesses.removeAll()
                 self.terminatedProcessIDs.removeAll()
+                self.exitTracker.reset()
                 MemoryReclaim.runNow()
             }
         }
@@ -1509,6 +1541,7 @@ final class SamplerModel: ObservableObject {
                 self.latest = snapshot
                 self.pruneTerminated()
                 if tableConsumer {
+                    self.noteExits(live: processes, now: Date())
                     self.rebuildDisplayProcesses(live: processes, smoothed: smoothed)
                 }
             } else if tableConsumer, job.publishUI, !self.displayProcesses.isEmpty {
@@ -1631,6 +1664,7 @@ final class SamplerModel: ObservableObject {
         updateTrails(with: snapshot.processes)
         let smoothed = smoothedCPUMap(for: snapshot.processes)
         latest = snapshot
+        noteExits(live: snapshot.processes, now: Date())
         rebuildDisplayProcesses(live: snapshot.processes, smoothed: smoothed)
     }
 
@@ -2078,9 +2112,8 @@ final class SamplerModel: ObservableObject {
     /// the main thread alongside the `latest` publish.
     private func pruneTerminated(now: Date = Date()) {
         guard !terminatedProcesses.isEmpty else { return }
-        let cutoff = now.addingTimeInterval(-terminatedRetention)
         let countBefore = terminatedProcesses.count
-        terminatedProcesses = terminatedProcesses.filter { $0.value.terminatedAt >= cutoff }
+        terminatedProcesses = terminatedProcesses.filter { $0.value.expiresAt >= now }
         if terminatedProcesses.count != countBefore {
             terminatedProcessIDs = Set(terminatedProcesses.keys)
         }
@@ -2214,7 +2247,10 @@ final class SamplerModel: ObservableObject {
     /// process drops out of subsequent snapshots. Call on the main thread.
     func markTerminated(_ identity: ProcessIdentity, lastSample: ProcessSample? = nil) {
         guard let sample = lastSample ?? currentSample(for: identity) else { return }
-        terminatedProcesses[identity] = TerminatedProcess(sample: sample, terminatedAt: Date())
+        let now = Date()
+        terminatedProcesses[identity] = TerminatedProcess(
+            sample: sample, terminatedAt: now,
+            expiresAt: now.addingTimeInterval(terminatedRetention))
         terminatedProcessIDs = Set(terminatedProcesses.keys)
         // Refresh the table at once so the killed row greys immediately rather
         // than waiting for the next heavy tick.

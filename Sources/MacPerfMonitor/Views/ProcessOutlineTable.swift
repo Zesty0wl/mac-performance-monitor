@@ -42,6 +42,12 @@ struct ProcessOutlineTable: NSViewRepresentable {
     /// The columns to show, in order. The Processes tab uses `ColumnSpec.all`,
     /// the GPU tab `ColumnSpec.gpu`.
     var columns: [ColumnSpec] = ColumnSpec.all
+    /// Tint the rows of processes that started in the last few seconds.
+    var highlightsNewProcesses = false
+
+    /// How long a process counts as new. Three refreshes at the default
+    /// two-second table interval, long enough to catch the eye.
+    static let newProcessWindow: TimeInterval = 6
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -127,6 +133,7 @@ struct ProcessOutlineTable: NSViewRepresentable {
             }
         }
         coordinator.onVisibleRowsChange = onVisibleRowsChange
+        coordinator.highlightsNewProcesses = highlightsNewProcesses
         coordinator.apply(
             rows: rows, revision: revision, layout: layout,
             leakingIDs: leakingIDs, terminatedIDs: terminatedIDs)
@@ -298,6 +305,13 @@ struct ProcessOutlineTable: NSViewRepresentable {
         var onSortChange: (([KeyPathComparator<ProcessNode>]) -> Void)?
         var onVisibleRowsChange: (([pid_t]) -> Void)?
         var valuesCancellable: AnyCancellable?
+        var highlightsNewProcesses = false {
+            didSet {
+                if highlightsNewProcesses != oldValue, let outlineView {
+                    refreshRowTints(outlineView)
+                }
+            }
+        }
         private var lastVisiblePIDs: [pid_t] = []
         private var boundsObserver: NSObjectProtocol?
 
@@ -509,7 +523,37 @@ struct ProcessOutlineTable: NSViewRepresentable {
                     configure(view, column: column, item: item)
                 }
             }
-            if only == nil { reportVisibleRows() }
+            if only == nil {
+                refreshRowTints(outlineView)
+                reportVisibleRows()
+            }
+        }
+
+        /// The tint for a row: green while its process is new. A stopped row is
+        /// already greyed and struck through, and an app row stands for many
+        /// processes, so neither is tinted.
+        private func tint(for item: Item, now: Date) -> NSColor? {
+            guard highlightsNewProcesses, item.node.appID == nil,
+                !terminatedIDs.contains(item.id)
+            else { return nil }
+            let age = now.timeIntervalSince(item.node.process.startTime)
+            return age >= 0 && age < ProcessOutlineTable.newProcessWindow ? .systemGreen : nil
+        }
+
+        /// Re-tint the rows on screen. Rows are reused as slots, so a tint
+        /// belongs to whichever process is in the row now; it clears on the
+        /// first refresh after the process stops being new.
+        private func refreshRowTints(_ outlineView: NSOutlineView) {
+            let visible = outlineView.rows(in: outlineView.visibleRect)
+            guard visible.length > 0 else { return }
+            let now = Date()
+            for row in visible.location..<(visible.location + visible.length) {
+                guard let item = outlineView.item(atRow: row) as? Item,
+                    let view = outlineView.rowView(atRow: row, makeIfNecessary: false)
+                        as? ProcessRowView
+                else { continue }
+                view.tint = tint(for: item, now: now)
+            }
         }
 
         private func configure(_ view: NSView, column: NSTableColumn, item: Item) {
@@ -637,6 +681,27 @@ struct ProcessOutlineTable: NSViewRepresentable {
             return view
         }
 
+        func outlineView(
+            _ outlineView: NSOutlineView, rowViewForItem item: Any
+        )
+            -> NSTableRowView?
+        {
+            let view =
+                outlineView.makeView(withIdentifier: ProcessRowView.identifier, owner: nil)
+                as? ProcessRowView ?? ProcessRowView()
+            view.tint = (item as? Item).flatMap { tint(for: $0, now: Date()) }
+            return view
+        }
+
+        /// Typing a few letters selects the first process whose name starts
+        /// with them, as in Finder.
+        func outlineView(
+            _ outlineView: NSOutlineView, typeSelectStringFor tableColumn: NSTableColumn?,
+            item: Any
+        ) -> String? {
+            (item as? Item)?.node.process.displayName
+        }
+
         func outlineViewSelectionDidChange(_ notification: Notification) {
             guard !isApplyingSelection else { return }
             onSelectionChange?(selectedIDs())
@@ -685,6 +750,35 @@ final class ContextMenuOutlineView: NSOutlineView {
     override func menu(for event: NSEvent) -> NSMenu? {
         let point = convert(event.locationInWindow, from: nil)
         return menuProvider?(row(at: point))
+    }
+}
+
+/// A row that can carry a faint tint behind its cells, drawn over the
+/// alternating background and under the selection.
+final class ProcessRowView: NSTableRowView {
+    static let identifier = NSUserInterfaceItemIdentifier("ProcessRowView")
+
+    var tint: NSColor? {
+        didSet { if tint != oldValue { needsDisplay = true } }
+    }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        identifier = Self.identifier
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        tint = nil
+    }
+
+    override func drawBackground(in dirtyRect: NSRect) {
+        super.drawBackground(in: dirtyRect)
+        guard let tint, !isSelected else { return }
+        tint.withAlphaComponent(0.2).setFill()
+        NSBezierPath(roundedRect: bounds.insetBy(dx: 0, dy: 0.5), xRadius: 5, yRadius: 5).fill()
     }
 }
 
