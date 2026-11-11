@@ -54,7 +54,7 @@ struct BatteryView: View {
             if appState.mainWindowVisible { accessories.start() }
             // Keep the GPU/SMC read path live while the tab is visible so the
             // thermal panel tracks in real time even when recording is off.
-            // Balanced by onDisappear; TabGate unmounts the tab when hidden.
+            // Balanced by onDisappear; the main window unmounts the tab when hidden.
             model.addGPUConsumer()
         }
         .onDisappear {

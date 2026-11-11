@@ -4,7 +4,7 @@ import MacPerfMonitorCore
 
 /// The Disk tab's slow-moving data: mounted volumes with capacities, per-disk
 /// hardware identity, and SMART health. All of it is view-pulled: the tab's
-/// `TabGate` unmounts this model's owner when the tab is inactive, `stop()`
+/// the main window unmounts this model's owner when the tab is inactive, `stop()`
 /// cancels the poll, and nothing here ever touches the 1 Hz sampler. Reads run
 /// on a background queue; published state flips on the main actor.
 @MainActor

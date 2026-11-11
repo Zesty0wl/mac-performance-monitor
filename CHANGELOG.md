@@ -90,6 +90,15 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Fixed
 
+- **The main window fits smaller screens in every language**
+  ([#188](https://github.com/Zesty0wl/mac-performance-monitor/issues/188)).
+  The tab strip gave every tab the width of the longest title, so the window
+  could not be narrower than about 1,100 pt in English, 1,420 pt in French
+  and 2,070 pt in Russian, wider than many displays. Each tab now takes the
+  width of its own title, and when the window is too narrow for the titles
+  the tabs show their icons instead, with the title as a tooltip and for
+  VoiceOver. The window's minimum width is now 1,020 pt in every language,
+  set by the GPU page's layout.
 - **The main window stays on the tab you chose**
   ([#189](https://github.com/Zesty0wl/mac-performance-monitor/issues/189)).
   Switching to another Space and back, minimizing the window, or covering it

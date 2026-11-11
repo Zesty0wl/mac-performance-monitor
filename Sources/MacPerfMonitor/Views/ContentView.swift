@@ -2,32 +2,40 @@ import AppKit
 import MacPerfMonitorCore
 import SwiftUI
 
-/// The main window's size limits. The window's only drag handle is the empty
-/// toolbar beside the tab strip. On macOS 26 and later the strip gives every tab
-/// the width of the widest title and never shrinks: about 820 pt in English but
-/// about 1,135 pt in French, where "Tableau de bord" sets every segment. When the
-/// window is too narrow for the strip, the traffic lights and the trailing
-/// buttons, nothing is left to grab and the window cannot be dragged at all,
-/// which is how it always opened at the old 980 pt default. So the minimum is
-/// measured from the localized titles. A language change relaunches the app, so
-/// measuring once is enough.
+/// The main window's size limits. The tabs are a segmented control centred in
+/// the toolbar (`MainWindowTabPicker`), and the window's only drag handle is
+/// the empty toolbar on either side of it. macOS 26's own TabView strip made
+/// every tab as wide as the longest title and never shrank, so the window's
+/// minimum grew with the language: about 1,100 pt in English, 1,420 pt in
+/// French and 2,070 pt in Russian, wider than many screens (#188). The picker
+/// shows titles while they fit with room to grab the window on either side,
+/// and icons alone below that, so one minimum works in every language.
 enum MainWindowSize {
     static let minimumHeight: CGFloat = 520
     static let defaultHeight: CGFloat = 720
+    /// The narrowest width every page is designed for, set by the GPU page:
+    /// its six headline cards stay on one row (6 x 150 pt cards, 5 x 12 pt
+    /// gaps, 20 pt padding each side, and a scroll bar where scroll bars are
+    /// always shown), which keeps its process table on the first screenful. The icon picker, traffic lights and trailing buttons
+    /// need far less.
+    static let minimumWidth: CGFloat = 1020
 
-    static let minimumWidth: CGFloat = {
-        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
-        let widest =
-            MainWindowTab.allCases.map {
-                ($0.title as NSString).size(withAttributes: [.font: font]).width
-            }.max() ?? 0
-        // Each segment is its title plus about 16 pt; the strip is centred, so
-        // each side needs the trailing buttons' ~100 pt plus room to grab.
-        let strip = CGFloat(MainWindowTab.allCases.count) * (widest + 16) + 4
-        return max(860, (strip + 2 * (100 + 40)).rounded(.up))
-    }()
+    /// Room each side of the centred picker: the trailing buttons' ~100 pt
+    /// (the traffic lights need less) plus about 40 pt to grab the window.
+    static let sideReserve: CGFloat = 100 + 40
 
-    static var defaultWidth: CGFloat { max(1280, minimumWidth + 100) }
+    /// The narrowest window that shows the tab titles. A language change
+    /// relaunches the app, so measuring once is enough.
+    static var labelledWidth: CGFloat {
+        (MainWindowTabPicker.labelledWidth + 2 * sideReserve).rounded(.up)
+    }
+
+    static func showsTabTitles(windowWidth: CGFloat) -> Bool {
+        windowWidth >= labelledWidth
+    }
+
+    /// Opens with titles in every shipped language.
+    static var defaultWidth: CGFloat { max(1280, labelledWidth + 40) }
 }
 
 enum MainWindowTab: Hashable, CaseIterable {
@@ -46,6 +54,98 @@ enum MainWindowTab: Hashable, CaseIterable {
         case .analytics: return t("Explorer")
         case .insights: return t("Insights")
         case .groups: return t("Groups")
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .dashboard: return "gauge.with.dots.needle.50percent"
+        case .processes: return "list.bullet.rectangle"
+        case .gpu: return "display"
+        case .battery: return "bolt.fill"
+        case .network: return "network"
+        case .diskUsage: return "internaldrive"
+        case .hardware: return "macbook"
+        case .analytics: return "waveform.path.ecg.rectangle"
+        case .insights: return "lightbulb"
+        case .groups: return "square.stack.3d.up"
+        }
+    }
+}
+
+/// The main window's tabs, as a segmented control in the toolbar. Titles show
+/// while the window is wide enough (`MainWindowSize.showsTabTitles`); below
+/// that each segment is its icon, with the title as its tooltip and its
+/// VoiceOver label. AppKit's control, because SwiftUI's segmented picker gives
+/// every segment the width of the widest title, which is what made the old
+/// strip so wide in French and Russian; this one fits each segment to its own.
+struct MainWindowTabPicker: NSViewRepresentable {
+    @Binding var selection: MainWindowTab
+    let showsTitles: Bool
+
+    /// The control's width with titles, measured from the real control.
+    static let labelledWidth: CGFloat = {
+        let control = NSSegmentedControl()
+        configure(control, showsTitles: true)
+        return control.fittingSize.width.rounded(.up)
+    }()
+
+    func makeCoordinator() -> Coordinator { Coordinator(selection: $selection) }
+
+    func makeNSView(context: Context) -> NSSegmentedControl {
+        let control = NSSegmentedControl()
+        control.target = context.coordinator
+        control.action = #selector(Coordinator.changed(_:))
+        control.setAccessibilityLabel(t("Page"))
+        return control
+    }
+
+    func updateNSView(_ control: NSSegmentedControl, context: Context) {
+        context.coordinator.selection = $selection
+        if context.coordinator.showsTitles != showsTitles {
+            context.coordinator.showsTitles = showsTitles
+            Self.configure(control, showsTitles: showsTitles)
+            control.invalidateIntrinsicContentSize()
+        }
+        control.selectedSegment = MainWindowTab.allCases.firstIndex(of: selection) ?? 0
+    }
+
+    func sizeThatFits(
+        _ proposal: ProposedViewSize, nsView: NSSegmentedControl, context: Context
+    ) -> CGSize? {
+        nsView.fittingSize
+    }
+
+    private static func configure(_ control: NSSegmentedControl, showsTitles: Bool) {
+        let tabs = MainWindowTab.allCases
+        control.segmentCount = tabs.count
+        control.trackingMode = .selectOne
+        control.segmentDistribution = .fit
+        for (index, tab) in tabs.enumerated() {
+            if showsTitles {
+                control.setImage(nil, forSegment: index)
+                control.setLabel(tab.title, forSegment: index)
+            } else {
+                control.setLabel("", forSegment: index)
+                control.setImage(
+                    NSImage(systemSymbolName: tab.systemImage, accessibilityDescription: tab.title),
+                    forSegment: index)
+            }
+            control.setToolTip(tab.title, forSegment: index)
+            control.setWidth(0, forSegment: index)
+        }
+    }
+
+    final class Coordinator: NSObject {
+        var selection: Binding<MainWindowTab>
+        var showsTitles: Bool?
+
+        init(selection: Binding<MainWindowTab>) { self.selection = selection }
+
+        @objc func changed(_ sender: NSSegmentedControl) {
+            let tabs = MainWindowTab.allCases
+            guard tabs.indices.contains(sender.selectedSegment) else { return }
+            selection.wrappedValue = tabs[sender.selectedSegment]
         }
     }
 }
@@ -73,12 +173,9 @@ struct ContentView: View {
     /// would reset to the Dashboard each time it came back (#189).
     @ObservedObject var session: MainWindowSession
 
-    private var navigation: TabNavigation { session.navigation }
-    /// The selected tab. Every assignment bumps `navigation.generation`, which
-    /// `TabGate` needs to tell a re-selected tab from one it has just hidden.
     private var tab: MainWindowTab {
-        get { session.navigation.tab }
-        nonmutating set { session.navigation.tab = newValue }
+        get { session.tab }
+        nonmutating set { session.tab = newValue }
     }
     private var explorer: DataExplorerModel { session.explorer }
     /// The temperature unit, so the pages rebuild in the new unit when it
@@ -90,156 +187,123 @@ struct ContentView: View {
     @State private var localeRevision = 0
 
     var body: some View {
-        TabView(selection: $session.navigation.tab) {
-            TabGate(isActive: tab == .dashboard, generation: navigation.generation) {
-                DashboardView()
+        page
+            .id("\(temperatureUnit)-\(localeRevision)")
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: NSLocale.currentLocaleDidChangeNotification)
+            ) { _ in
+                localeRevision &+= 1
+                HardwareExplorerModel.shared.refreshIfCaptured()
             }
-            .tabItem {
-                Label(
-                    MainWindowTab.dashboard.title,
-                    systemImage: "gauge.with.dots.needle.50percent")
+            .onChange(of: temperatureUnit) { _, _ in
+                HardwareExplorerModel.shared.refreshIfCaptured()
             }
-            .tag(MainWindowTab.dashboard)
+            .frame(minWidth: MainWindowSize.minimumWidth, minHeight: MainWindowSize.minimumHeight)
+            .forceQuitConfirmation(target: $appState.pendingForceQuit)
+            .processControlHost(request: $appState.pendingProcessControl)
+            .sheet(item: $appState.codesignTarget) { target in
+                CodesignSheet(target: target)
+            }
+            .alert("See every process?", isPresented: $appState.helperPromptPending) {
+                Button("Enable Full Coverage") { helper.enable() }
+                Button("Not Now", role: .cancel) { helper.declineFirstRunPrompt() }
+            } message: {
+                Text(
+                    t(
+                        "%@ can install a small privileged helper so it can read the memory of system and other-user processes, such as WindowServer, that it otherwise cannot see. The helper runs only to read memory statistics and sends nothing off your Mac. You can change this any time in Settings.",
+                        AppInfo.displayName)
+                )
+            }
+            .alert("Open at login?", isPresented: $appState.loginItemPromptPending) {
+                Button("Open at Login") { loginItem.enable() }
+                Button("Not Now", role: .cancel) { loginItem.declineFirstRunPrompt() }
+            } message: {
+                Text(
+                    t(
+                        "%@ lives in the menu bar and keeps a running history of your Mac's memory, CPU and battery. Opening it at login keeps that history unbroken, watching from the moment you sign in. You can change this any time in Settings.",
+                        AppInfo.displayName)
+                )
+            }
+            .onChange(of: appState.helperPromptPending) { _, pending in
+                // The helper and login prompts are both armed on first run; show them
+                // one at a time. Once the helper prompt is dismissed, offer login.
+                if !pending && loginItem.shouldOfferFirstRunPrompt {
+                    appState.loginItemPromptPending = true
+                }
+            }
+            .onAppear {
+                AppLog.ui.notice("ContentView appeared")
+                if let requested = appState.requestedMainTab {
+                    tab = requested
+                    appState.requestedMainTab = nil
+                }
+                // A notification click may have set a target before this mounted.
+                if appState.navigationTarget != nil { tab = .processes }
+                // A Finder-opened trace routes to the Analytics tab.
+                if appState.pendingTraceURL != nil { tab = .analytics }
+                if appState.showBatteryTab {
+                    tab = .battery
+                    appState.showBatteryTab = false
+                }
+                if appState.showNetworkTab {
+                    tab = .network
+                    appState.showNetworkTab = false
+                }
+                consumeAlertInvestigation()
+                consumeExplorerFocus()
+            }
+            .onChange(of: appState.explorerFocus) { _, _ in consumeExplorerFocus() }
+            .onChange(of: appState.navigationTarget) { _, newValue in
+                if newValue != nil { tab = .processes }
+            }
+            .onChange(of: appState.requestedMainTab) { _, requested in
+                if let requested {
+                    tab = requested
+                    appState.requestedMainTab = nil
+                }
+            }
+            .onChange(of: appState.showBatteryTab) { _, requested in
+                if requested {
+                    tab = .battery
+                    appState.showBatteryTab = false
+                }
+            }
+            .onChange(of: appState.showNetworkTab) { _, requested in
+                if requested {
+                    tab = .network
+                    appState.showNetworkTab = false
+                }
+            }
+            .onChange(of: appState.pendingTraceURL) { _, url in
+                if url != nil { tab = .analytics }
+            }
+            .onChange(of: appState.alertInvestigation) { _, _ in consumeAlertInvestigation() }
+    }
 
-            TabGate(isActive: tab == .processes, generation: navigation.generation) {
-                ProcessesTab(
-                    selection: $session.processSelection,
-                    didAutoSelect: $session.didAutoSelectProcess)
-            }
-            .tabItem { Label(MainWindowTab.processes.title, systemImage: "list.bullet.rectangle") }
-            .tag(MainWindowTab.processes)
-
-            TabGate(isActive: tab == .gpu, generation: navigation.generation) { GPUView() }
-                .tabItem { Label(MainWindowTab.gpu.title, systemImage: "display") }
-                .tag(MainWindowTab.gpu)
-
-            TabGate(isActive: tab == .battery, generation: navigation.generation) { BatteryView() }
-                .tabItem { Label(MainWindowTab.battery.title, systemImage: "bolt.fill") }
-                .tag(MainWindowTab.battery)
-
-            TabGate(isActive: tab == .network, generation: navigation.generation) { NetworkView() }
-                .tabItem { Label(MainWindowTab.network.title, systemImage: "network") }
-                .tag(MainWindowTab.network)
-
-            TabGate(isActive: tab == .diskUsage, generation: navigation.generation) {
-                DiskUsageView()
-            }
-            .tabItem { Label(MainWindowTab.diskUsage.title, systemImage: "internaldrive") }
-            .tag(MainWindowTab.diskUsage)
-
-            TabGate(isActive: tab == .hardware, generation: navigation.generation) {
-                HardwareView()
-            }
-            .tabItem { Label(MainWindowTab.hardware.title, systemImage: "macbook") }
-            .tag(MainWindowTab.hardware)
-
-            TabGate(isActive: tab == .analytics, generation: navigation.generation) {
-                AnalyticsView(explorer: explorer, imported: $session.importedTrace)
-                    .id(session.investigationRevision)
-            }
-            .tabItem {
-                Label(MainWindowTab.analytics.title, systemImage: "waveform.path.ecg.rectangle")
-            }
-            .tag(MainWindowTab.analytics)
-
-            TabGate(isActive: tab == .insights, generation: navigation.generation) {
-                InsightsView()
-            }
-            .tabItem { Label(MainWindowTab.insights.title, systemImage: "lightbulb") }
-            .tag(MainWindowTab.insights)
-
-            TabGate(isActive: tab == .groups, generation: navigation.generation) { GroupsView() }
-                .tabItem { Label(MainWindowTab.groups.title, systemImage: "square.stack.3d.up") }
-                .tag(MainWindowTab.groups)
+    /// Only the selected page is mounted. A page that is not showing would
+    /// otherwise keep observing the model and re-render its charts on every
+    /// sample, which was once the largest part of the app's own CPU and memory
+    /// use. Each page keeps what must outlive a visit in a model or in
+    /// `session`.
+    @ViewBuilder private var page: some View {
+        switch tab {
+        case .dashboard: DashboardView()
+        case .processes:
+            ProcessesTab(
+                selection: $session.processSelection,
+                didAutoSelect: $session.didAutoSelectProcess)
+        case .gpu: GPUView()
+        case .battery: BatteryView()
+        case .network: NetworkView()
+        case .diskUsage: DiskUsageView()
+        case .hardware: HardwareView()
+        case .analytics:
+            AnalyticsView(explorer: explorer, imported: $session.importedTrace)
+                .id(session.investigationRevision)
+        case .insights: InsightsView()
+        case .groups: GroupsView()
         }
-        .id("\(temperatureUnit)-\(localeRevision)")
-        .onReceive(
-            NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)
-        ) { _ in
-            localeRevision &+= 1
-            HardwareExplorerModel.shared.refreshIfCaptured()
-        }
-        .onChange(of: temperatureUnit) { _, _ in HardwareExplorerModel.shared.refreshIfCaptured() }
-        .frame(minWidth: MainWindowSize.minimumWidth, minHeight: MainWindowSize.minimumHeight)
-        .forceQuitConfirmation(target: $appState.pendingForceQuit)
-        .processControlHost(request: $appState.pendingProcessControl)
-        .sheet(item: $appState.codesignTarget) { target in
-            CodesignSheet(target: target)
-        }
-        .alert("See every process?", isPresented: $appState.helperPromptPending) {
-            Button("Enable Full Coverage") { helper.enable() }
-            Button("Not Now", role: .cancel) { helper.declineFirstRunPrompt() }
-        } message: {
-            Text(
-                t(
-                    "%@ can install a small privileged helper so it can read the memory of system and other-user processes, such as WindowServer, that it otherwise cannot see. The helper runs only to read memory statistics and sends nothing off your Mac. You can change this any time in Settings.",
-                    AppInfo.displayName)
-            )
-        }
-        .alert("Open at login?", isPresented: $appState.loginItemPromptPending) {
-            Button("Open at Login") { loginItem.enable() }
-            Button("Not Now", role: .cancel) { loginItem.declineFirstRunPrompt() }
-        } message: {
-            Text(
-                t(
-                    "%@ lives in the menu bar and keeps a running history of your Mac's memory, CPU and battery. Opening it at login keeps that history unbroken, watching from the moment you sign in. You can change this any time in Settings.",
-                    AppInfo.displayName)
-            )
-        }
-        .onChange(of: appState.helperPromptPending) { _, pending in
-            // The helper and login prompts are both armed on first run; show them
-            // one at a time. Once the helper prompt is dismissed, offer login.
-            if !pending && loginItem.shouldOfferFirstRunPrompt {
-                appState.loginItemPromptPending = true
-            }
-        }
-        .onAppear {
-            AppLog.ui.notice("ContentView appeared")
-            if let requested = appState.requestedMainTab {
-                tab = requested
-                appState.requestedMainTab = nil
-            }
-            // A notification click may have set a target before this mounted.
-            if appState.navigationTarget != nil { tab = .processes }
-            // A Finder-opened trace routes to the Analytics tab.
-            if appState.pendingTraceURL != nil { tab = .analytics }
-            if appState.showBatteryTab {
-                tab = .battery
-                appState.showBatteryTab = false
-            }
-            if appState.showNetworkTab {
-                tab = .network
-                appState.showNetworkTab = false
-            }
-            consumeAlertInvestigation()
-            consumeExplorerFocus()
-        }
-        .onChange(of: appState.explorerFocus) { _, _ in consumeExplorerFocus() }
-        .onChange(of: appState.navigationTarget) { _, newValue in
-            if newValue != nil { tab = .processes }
-        }
-        .onChange(of: appState.requestedMainTab) { _, requested in
-            if let requested {
-                tab = requested
-                appState.requestedMainTab = nil
-            }
-        }
-        .onChange(of: appState.showBatteryTab) { _, requested in
-            if requested {
-                tab = .battery
-                appState.showBatteryTab = false
-            }
-        }
-        .onChange(of: appState.showNetworkTab) { _, requested in
-            if requested {
-                tab = .network
-                appState.showNetworkTab = false
-            }
-        }
-        .onChange(of: appState.pendingTraceURL) { _, url in
-            if url != nil { tab = .analytics }
-        }
-        .onChange(of: appState.alertInvestigation) { _, _ in consumeAlertInvestigation() }
     }
 
     private func consumeExplorerFocus() {
@@ -273,60 +337,15 @@ struct ContentView: View {
 /// the next window starts fresh on the Dashboard.
 @MainActor
 final class MainWindowSession: ObservableObject {
-    @Published var navigation = TabNavigation()
-    /// The Processes tab's selection, kept above `TabGate` so it survives tab
-    /// switches: `TabGate` unmounts an inactive tab's content entirely, which
-    /// would reset any @State held inside the tab.
+    @Published var tab: MainWindowTab = .dashboard
+    /// The Processes tab's selection, kept here so it survives tab switches:
+    /// only the selected page is mounted, so @State inside a page resets.
     @Published var processSelection: ProcessIdentity?
     @Published var didAutoSelectProcess = false
-    /// Kept above `TabGate`, so switching tabs does not discard an open trace.
+    /// Kept here, so switching tabs does not discard an open trace.
     @Published var importedTrace: ImportedTrace?
     let explorer = DataExplorerModel(preferences: .standard)
     @Published var investigationRevision = 0
-}
-
-/// The main window's tab selection, plus a counter bumped on every change.
-struct TabNavigation {
-    var tab: MainWindowTab = .dashboard {
-        didSet { if tab != oldValue { generation &+= 1 } }
-    }
-    private(set) var generation = 0
-}
-
-/// Mounts a tab's content only while that tab is selected. macOS's TabView
-/// builds every tab's view tree up front and keeps it alive, so without this
-/// gate all four tabs' charts re-render — and their reload timers keep firing —
-/// on every 2-second sample even while invisible, which was the largest single
-/// contributor to the app's own memory footprint (chart layer backing) and CPU.
-///
-/// `isActive` alone is not enough on macOS 26 and later: TabView stops
-/// applying updates to a tab once it is hidden, so the tab being left never
-/// receives `isActive == false` and its page stayed mounted and live (observing
-/// the model, feeding its charts, re-evaluating its body every sample) for as
-/// long as the window was open. Every visited tab added its cost; a session
-/// that had opened Processes, Dashboard and Insights spent about a fifth of the
-/// main thread on those pages while another tab was showing. `onDisappear`
-/// still reaches the hidden tab and its state change is applied, so the gate
-/// also hides its content there. It records the generation it was hidden at,
-/// so a later selection (always a newer generation, delivered because the tab
-/// is then visible) mounts the content on its first frame with no blank flash.
-private struct TabGate<Content: View>: View {
-    let isActive: Bool
-    let generation: Int
-    @ViewBuilder let content: () -> Content
-    @State private var hiddenAtGeneration: Int?
-
-    var body: some View {
-        ZStack {
-            if isActive && hiddenAtGeneration != generation {
-                content()
-            } else {
-                Color(nsColor: .windowBackgroundColor)
-            }
-        }
-        .onAppear { hiddenAtGeneration = nil }
-        .onDisappear { hiddenAtGeneration = generation }
-    }
 }
 
 /// The Processes tab: the M2/M3 system header above the live process list, with

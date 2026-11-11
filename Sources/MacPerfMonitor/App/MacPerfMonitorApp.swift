@@ -1021,6 +1021,7 @@ struct MainWindowGate: View {
     /// Outlives the `ContentView` unmounted below while the window is hidden,
     /// so the window comes back on the tab it was showing (#189).
     @StateObject private var session = MainWindowSession()
+    @State private var showsTabTitles = true
     @AppStorage(AskAvailability.enabledKey) private var askEnabled = true
 
     var body: some View {
@@ -1040,7 +1041,19 @@ struct MainWindowGate: View {
                         minHeight: MainWindowSize.minimumHeight)
             }
         }
+        // The tabs sit where the title would; hiding it leaves them the room.
+        .toolbar(removing: .title)
+        .onGeometryChange(for: Bool.self) {
+            MainWindowSize.showsTabTitles(windowWidth: $0.size.width)
+        } action: {
+            showsTabTitles = $0
+        }
         .toolbar {
+            ToolbarItem(id: "main.tabs", placement: .principal) {
+                MainWindowTabPicker(selection: $session.tab, showsTitles: showsTabTitles)
+                    // A new control per mode, so the toolbar measures it afresh.
+                    .id(showsTabTitles)
+            }
             if AskAvailability.isOffered(enabled: askEnabled) {
                 ToolbarItem(id: "main.ask", placement: .automatic) {
                     Button {

@@ -213,7 +213,7 @@ final class MainWindowNavigationTests: XCTestCase {
     }
 
     func testFirstOpenNavigationMatchesReturningToDashboard() async throws {
-        try await verifyNavigation(width: 980, appearance: .darkAqua)
+        try await verifyNavigation(width: MainWindowSize.minimumWidth, appearance: .darkAqua)
         try await verifyNavigation(width: 1800, appearance: .aqua)
     }
 
@@ -244,9 +244,10 @@ final class MainWindowNavigationTests: XCTestCase {
         await settle(window)
 
         let initialToolbar = try XCTUnwrap(window.toolbar)
-        // The refresh interval, plus the Ask button where Ask is offered
-        // (macOS 27 and later).
-        let expectedItems = AskAvailability.systemSupports ? 2 : 1
+        // The tabs (with the flexible space SwiftUI adds after a centred
+        // item) and the refresh interval, plus the Ask button where Ask is
+        // offered (macOS 27 and later).
+        let expectedItems = AskAvailability.systemSupports ? 4 : 3
         XCTAssertEqual(initialToolbar.items.count, expectedItems)
         let toolbarIDs = initialToolbar.items.map(\.itemIdentifier)
         state.mainWindowOpen = true
@@ -273,7 +274,6 @@ final class MainWindowNavigationTests: XCTestCase {
         XCTAssertTrue(window.toolbar === initialToolbar)
         XCTAssertEqual(window.toolbar?.items.count, expectedItems)
         XCTAssertEqual(window.toolbar?.items.map(\.itemIdentifier), toolbarIDs)
-        XCTAssertNil(navigationControl(in: try XCTUnwrap(window.contentView?.superview)))
 
         state.mainWindowOpen = true
         await settle(window)
@@ -282,14 +282,20 @@ final class MainWindowNavigationTests: XCTestCase {
         XCTAssertEqual(first.labels, reopened.labels)
         XCTAssertTrue(window.toolbar === initialToolbar)
 
+        // Hiding the window (another Space, minimized, covered) unmounts its
+        // pages but keeps the tab it was on (#189).
+        state.requestedMainTab = .diskUsage
+        await settle(window)
+        let diskIndex = try XCTUnwrap(MainWindowTab.allCases.firstIndex(of: .diskUsage))
+        XCTAssertEqual(try navigation(in: window).selected, diskIndex)
         state.mainWindowVisible = false
         await settle(window)
         XCTAssertTrue(window.toolbar === initialToolbar)
-        XCTAssertNil(navigationControl(in: try XCTUnwrap(window.contentView?.superview)))
 
         state.mainWindowVisible = true
         await settle(window)
         let visible = try navigation(in: window)
+        XCTAssertEqual(visible.selected, diskIndex)
         XCTAssertEqual(first.frame, visible.frame)
         XCTAssertEqual(first.labels, visible.labels)
         XCTAssertEqual(window.toolbar?.items.map(\.itemIdentifier), toolbarIDs)

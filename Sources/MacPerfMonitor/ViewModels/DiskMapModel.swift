@@ -33,7 +33,7 @@ struct DiskMapFoldEntry: Identifiable, Hashable, Sendable {
 /// State for the Disk Map page: the scope, the last scan (restored from disk
 /// on open), the scan in flight, the selection, the map's zoom, the advisor's
 /// analysis and the memoised rows of the active slice. One shared instance,
-/// like `HardwareExplorerModel`, because `TabGate` unmounts the page on every
+/// like `HardwareExplorerModel`, because the main window unmounts the page on every
 /// tab switch and a multi-minute scan must survive that. What it must not
 /// survive is the window closing: the arena is dropped then (memory budget)
 /// and comes back from the snapshot file on the next open. Nothing here runs

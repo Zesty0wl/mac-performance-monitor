@@ -69,7 +69,7 @@ struct DashboardView: View {
             reload()
             // Keep the GPU/SMC read path live while the dashboard is visible
             // so the thermal panel tracks in real time even when recording is
-            // off. Balanced by onDisappear; TabGate unmounts hidden tabs.
+            // off. Balanced by onDisappear; the main window unmounts hidden tabs.
             model?.addGPUConsumer()
         }
         .onDisappear { model?.removeGPUConsumer() }
