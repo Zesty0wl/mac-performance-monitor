@@ -515,11 +515,15 @@ final class HelperRoundTripTests: XCTestCase {
             task.waitUntilExit()
         }
 
+        // The child inherits the runner's priority, which is not always 0
+        // (GitHub's macOS runners start at -10).
+        let initial = try XCTUnwrap(ProcessReader().taskAllInfo(pid)?.nice)
+
         // A different start time means the pid was reused: nothing changes.
         XCTAssertEqual(
             connection.setProcessPriority(
                 pid: pid, startedAt: started.addingTimeInterval(-5), nice: 10), ESRCH)
-        XCTAssertEqual(ProcessReader().taskAllInfo(pid)?.nice, 0)
+        XCTAssertEqual(ProcessReader().taskAllInfo(pid)?.nice, initial)
 
         // The in-process service runs as the test user, who may lower a
         // priority but not raise one; root in the real daemon may do both.
@@ -550,6 +554,7 @@ final class HelperRoundTripTests: XCTestCase {
             kill(pid, SIGKILL)
             task.waitUntilExit()
         }
+        let initial = try XCTUnwrap(ProcessReader().taskAllInfo(pid)?.nice)
         let stranger = HelperCaller(uid: geteuid() &+ 1, isAdmin: false)
         let service = HelperService(version: "1", power: PowerProviderStub(), caller: stranger)
         var code: Int32 = -1
@@ -558,7 +563,7 @@ final class HelperRoundTripTests: XCTestCase {
             nice: NSNumber(value: 10)
         ) { code = $0 }
         XCTAssertEqual(code, EPERM)
-        XCTAssertEqual(ProcessReader().taskAllInfo(pid)?.nice, 0)
+        XCTAssertEqual(ProcessReader().taskAllInfo(pid)?.nice, initial)
     }
 
     // MARK: Caller authorization
