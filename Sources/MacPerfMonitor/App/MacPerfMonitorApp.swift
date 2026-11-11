@@ -1018,6 +1018,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
 /// the window has been opened and closed again.
 struct MainWindowGate: View {
     @EnvironmentObject private var appState: AppState
+    /// Outlives the `ContentView` unmounted below while the window is hidden,
+    /// so the window comes back on the tab it was showing (#189).
+    @StateObject private var session = MainWindowSession()
     @AppStorage(AskAvailability.enabledKey) private var askEnabled = true
 
     var body: some View {
@@ -1029,7 +1032,7 @@ struct MainWindowGate: View {
                 // on every sample (the dominant background CPU cost) and any
                 // animations (the energy-flow Canvas) stop — the menu bar is a
                 // separate scene and stays live regardless.
-                ContentView()
+                ContentView(session: session)
             } else {
                 Color(nsColor: .windowBackgroundColor)
                     .frame(

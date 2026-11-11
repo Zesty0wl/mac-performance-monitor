@@ -67,24 +67,20 @@ struct ContentView: View {
     @EnvironmentObject private var loginItem: LoginItemManager
     @EnvironmentObject private var monitor: MonitorSelection
 
-    @State private var navigation = TabNavigation()
+    /// The window's tab, selection and Explorer workspace. Owned by
+    /// `MainWindowGate`, which unmounts this view whenever the window is hidden
+    /// (another Space, minimized, fully covered), so state kept here as @State
+    /// would reset to the Dashboard each time it came back (#189).
+    @ObservedObject var session: MainWindowSession
+
+    private var navigation: TabNavigation { session.navigation }
     /// The selected tab. Every assignment bumps `navigation.generation`, which
     /// `TabGate` needs to tell a re-selected tab from one it has just hidden.
     private var tab: MainWindowTab {
-        get { navigation.tab }
-        nonmutating set { navigation.tab = newValue }
+        get { session.navigation.tab }
+        nonmutating set { session.navigation.tab = newValue }
     }
-
-    /// The Processes tab's selection, hoisted here so it survives tab switches:
-    /// `TabGate` unmounts an inactive tab's content entirely, which would reset
-    /// any @State held inside the tab.
-    @State private var processSelection: ProcessIdentity?
-    @State private var didAutoSelectProcess = false
-    /// Lives above `TabGate`, so switching tabs does not discard an open trace.
-    /// Closing the main window still unmounts `ContentView` and releases it.
-    @State private var importedTrace: ImportedTrace?
-    @State private var explorer = DataExplorerModel(preferences: .standard)
-    @State private var investigationRevision = 0
+    private var explorer: DataExplorerModel { session.explorer }
     /// The temperature unit, so the pages rebuild in the new unit when it
     /// changes: in Settings, or in System Settings while the app runs. Charts
     /// convert their points as they are built and the Hardware inventory is
@@ -94,7 +90,7 @@ struct ContentView: View {
     @State private var localeRevision = 0
 
     var body: some View {
-        TabView(selection: $navigation.tab) {
+        TabView(selection: $session.navigation.tab) {
             TabGate(isActive: tab == .dashboard, generation: navigation.generation) {
                 DashboardView()
             }
@@ -106,7 +102,9 @@ struct ContentView: View {
             .tag(MainWindowTab.dashboard)
 
             TabGate(isActive: tab == .processes, generation: navigation.generation) {
-                ProcessesTab(selection: $processSelection, didAutoSelect: $didAutoSelectProcess)
+                ProcessesTab(
+                    selection: $session.processSelection,
+                    didAutoSelect: $session.didAutoSelectProcess)
             }
             .tabItem { Label(MainWindowTab.processes.title, systemImage: "list.bullet.rectangle") }
             .tag(MainWindowTab.processes)
@@ -136,8 +134,8 @@ struct ContentView: View {
             .tag(MainWindowTab.hardware)
 
             TabGate(isActive: tab == .analytics, generation: navigation.generation) {
-                AnalyticsView(explorer: explorer, imported: $importedTrace)
-                    .id(investigationRevision)
+                AnalyticsView(explorer: explorer, imported: $session.importedTrace)
+                    .id(session.investigationRevision)
             }
             .tabItem {
                 Label(MainWindowTab.analytics.title, systemImage: "waveform.path.ecg.rectangle")
@@ -247,8 +245,8 @@ struct ContentView: View {
     private func consumeExplorerFocus() {
         guard let link = appState.explorerFocus else { return }
         appState.explorerFocus = nil
-        importedTrace = nil
-        investigationRevision &+= 1
+        session.importedTrace = nil
+        session.investigationRevision &+= 1
         for identity in monitor.identities { monitor.remove(identity) }
         for identity in link.processes { monitor.add(identity) }
         explorer.focus(link)
@@ -259,8 +257,8 @@ struct ContentView: View {
         guard let request = appState.alertInvestigation else { return }
         appState.alertInvestigation = nil
         appState.navigationTarget = nil
-        importedTrace = nil
-        investigationRevision &+= 1
+        session.importedTrace = nil
+        session.investigationRevision &+= 1
         for identity in monitor.identities { monitor.remove(identity) }
         for identity in request.identities { monitor.add(identity) }
         explorer.investigate(request)
@@ -268,8 +266,27 @@ struct ContentView: View {
     }
 }
 
+/// What the main window remembers while it stays open. `MainWindowGate` owns
+/// it, above the content it unmounts while the window is hidden, so switching
+/// Spaces, minimizing or covering the window keeps the tab, the Processes
+/// selection and the Explorer workspace. Closing the window releases it, and
+/// the next window starts fresh on the Dashboard.
+@MainActor
+final class MainWindowSession: ObservableObject {
+    @Published var navigation = TabNavigation()
+    /// The Processes tab's selection, kept above `TabGate` so it survives tab
+    /// switches: `TabGate` unmounts an inactive tab's content entirely, which
+    /// would reset any @State held inside the tab.
+    @Published var processSelection: ProcessIdentity?
+    @Published var didAutoSelectProcess = false
+    /// Kept above `TabGate`, so switching tabs does not discard an open trace.
+    @Published var importedTrace: ImportedTrace?
+    let explorer = DataExplorerModel(preferences: .standard)
+    @Published var investigationRevision = 0
+}
+
 /// The main window's tab selection, plus a counter bumped on every change.
-private struct TabNavigation {
+struct TabNavigation {
     var tab: MainWindowTab = .dashboard {
         didSet { if tab != oldValue { generation &+= 1 } }
     }

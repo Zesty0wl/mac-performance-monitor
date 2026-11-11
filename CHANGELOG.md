@@ -88,6 +88,16 @@ Notable changes to Mac Performance Monitor. This project follows
 - **Type to find a process.** Click the Processes list and type the first
   letters of a name to jump to it, as in Finder.
 
+### Fixed
+
+- **The main window stays on the tab you chose**
+  ([#189](https://github.com/Zesty0wl/mac-performance-monitor/issues/189)).
+  Switching to another Space and back, minimizing the window, or covering it
+  completely sent it back to the Dashboard, and also dropped the Processes
+  selection and any investigation open in Explorer. The window frees its pages while
+  hidden to save power, and that state went with them. It now lasts until
+  the window is closed.
+
 ### Security
 
 - The Full Coverage helper now accepts SIGSTOP and SIGCONT as well as SIGTERM
