@@ -1,5 +1,40 @@
 # Release Checklist
 
+## Screenshot Refresh (11 November 2026)
+
+Every README and website screenshot was retaken from build 314 (2.7.0 plus
+unreleased process controls, which do not appear in any image) on a
+MacBook Pro with Apple M3 Pro, macOS 27.2. All readings are real recorded
+data from that Mac. No sample data, fixtures, or generated load were used.
+
+Windows were captured at 1280 by 778 points (2560 by 1556 pixels) with
+`screencapture -l`, without shadows. A text-recognition pass then covered
+identifying text with solid grey boxes: the computer and host name, owner and
+household names (including in device names such as AirPods), IPv4, IPv6 and
+MAC addresses, the router address, the Mac's serial number and hardware UUID,
+and the external volume name. Values beside Serial, UUID, MAC, IP and SSID
+labels are covered even when recognition misreads them. Each image was then
+checked by eye, and a second recognition pass over the finished files found
+no remaining identifiers.
+
+| Image | Content |
+| --- | --- |
+| [Dashboard](images/dashboard.png) | 1 hour range. |
+| [Explorer](images/explorer.png) | A real memory pressure spike, 18:45 to 19:15, opened with an `mpm link` style URL and four processes. |
+| [Processes](images/processes.png) | Apps layout with Safari selected. |
+| [Usage Timeline](images/usage-timeline.png) | One process, 24 hours. Apple app and media activity left off, so no personal activity records were read. |
+| [Ask](images/ask-preview.png) | Overview tiles only. A real Memory answer was not used: its first sentence contradicted itself. |
+| [Energy](images/energy.png) | Owner's name covered in the AirPods name. |
+| [GPU](images/gpu.png), [GPU Device](images/gpu-device.png), [Neural Engine](images/gpu-neural-engine.png) | 1 hour range; Device panel on Clock. |
+| [Network](images/network.png) | Hostname, router, IP and MAC addresses covered. |
+| [Disk](images/disk.png) | External volume name covered. |
+| [Hardware](images/hardware.png), [Ports](images/ports.png) | Serial number covered; Ports shows USB-C 1 with a hub. |
+| [Insights](images/insights.png) | Not in the README gallery; refreshed for existing links. |
+
+Not refreshed: `analytics.png` (the Analytics screen no longer exists),
+`disk-map.png` (a scan shows file and folder names), and
+`display-capture-load.png` (documents one specific screen-capture event).
+
 ## 2.2.1 Release
 
 The maintainer approved publishing 2.2.1 on 23 September 2026 to fix

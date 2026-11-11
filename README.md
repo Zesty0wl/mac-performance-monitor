@@ -14,6 +14,7 @@
 [![No telemetry](https://img.shields.io/badge/telemetry-none-2ea44f)](#privacy)
 [![Crowdin](https://img.shields.io/badge/Crowdin-translate-2E3340?logo=crowdin&logoColor=white)](https://crowdin.com/project/mac-performance-monitor)
 [![License](https://img.shields.io/github/license/Zesty0wl/mac-performance-monitor?label=license)](LICENSE)
+[![Listed on OpenMacApps](https://openmacapps.com/badge.svg)](https://openmacapps.com/apps/mac-performance-monitor/)
 
 A native macOS **performance monitor and recorder**. See what your Mac is doing
 now, then go back to the moment a slowdown or spike began. Compare CPU, memory,
@@ -24,83 +25,67 @@ open when needed. The menu bar and history recorder have separate switches.
 
 Free and open source. No usage telemetry. Recorded samples stay on your Mac.
 
-[2.2 release notes](RELEASE_NOTES.md) · [Changelog](CHANGELOG.md) ·
+[2.7 release notes](RELEASE_NOTES.md) · [Changelog](CHANGELOG.md) ·
 [Documentation](docs/README.md)
 
-[![Explorer showing linked machine and process charts with a value inspector](docs/images/explorer.png)](docs/images/explorer.png)
+[![Explorer lining up memory pressure with the CPU and memory of the processes behind it](docs/images/explorer.png)](docs/images/explorer.png)
 
-## New In 2.2
+## New In 2.7
 
-This update adds more GPU history, an opt-in Ask preview, process usage timelines,
-and saved time ranges. The app still supports Apple silicon Macs on macOS 15 or later.
+The GPU tab now shows what the GPU is doing, not just how busy it is, and
+update checks no longer interrupt you.
 
-- **GPU and Neural Engine:** Total, Reads, and Writes share a historical
-  bandwidth chart, marked Preview because the values are estimates from macOS
-  buckets. ANE Time and ANE Power are separate readings and charts. ANE Time
-  needs macOS 27; ANE Power needs the approved Full Coverage helper. GPU Memory
-  and GPU awake now have recorded detail charts.
+- **Inside the GPU:** the Device panel has five pages, all read without
+  administrator rights. **Clock** compares the average clock while awake with
+  the chip's top clock. **Limits** shows what held the clock back and the
+  performance lost. **Work** breaks down compute, fragment and geometry
+  submissions. **Memory** shows the GPU's wired-memory limit and headroom.
+  **Health** counts recoveries, firmware restarts, killed work and thermal
+  activations. Over time gains a recorded Clock chart.
 
-- **Ask About This Mac:** on macOS 27, ask a plain question such as "Why is my
-  Mac slow?" or tap an area like Memory or Battery. The app checks its own
-  readings and history, then Apple's on-device model explains them in everyday
-  language, with links to the matching charts. Nothing leaves your Mac, and the
-  area summaries work even when Apple Intelligence is off. Answers can still be
-  wrong, so the facts behind each one are a click away.
+- **Quieter updates:** scheduled checks never open a window or take focus.
+  When an update is ready, an **Update** button appears in the main window and
+  the menu bar menus. "Check for updates automatically" and "Install updates
+  automatically" in Settings > General now work.
 
-- **AI agents:** hand a harder question to Claude Code, Codex or another agent.
-  Ask copies a prompt that explains the recorded history, or the one-line setup
-  for the bundled read-only MCP server:
+- **Shared Macs:** everyone signed in can run the app at the same time, each
+  in their own account. The privileged helper still limits standard users to
+  their own processes.
 
-  ```sh
-  claude mcp add --scope user mac-performance-monitor -- "/Applications/Mac Performance Monitor.app/Contents/MacOS/mpm" mcp
-  ```
+See the [release notes](RELEASE_NOTES.md) for requirements and the
+[changelog](CHANGELOG.md) for every change.
 
-  Run `mpm help` for the command-line tool. The [AI agents guide](docs/ai-agents.md)
-  covers Claude Code, Codex, Claude Desktop, Cursor and VS Code, what agents
-  can ask, and what leaves your Mac.
+## Recent Releases
 
-- **Usage Timeline:** right-click a process to see when the recorder observed
-  it running. Optional Apple app and media activity needs Full Disk Access and
-  a per-window opt-in. It is not verified foreground-use history.
+- **2.6:** the Processes tab's **Apps** layout adds up each app's memory and
+  CPU across all of its processes, including the helpers macOS starts for it.
+  Russian joins the languages. A security review tightened the privileged
+  helper, force quit and the uninstaller.
+  [Details](CHANGELOG.md#260---2026-11-01)
 
-- **Saved ranges:** history views start at 30 minutes and remember their own
-  range. Explorer also keeps your chosen zoom span.
+- **2.5:** Hardware > **Ports** checks every USB-C, MagSafe, HDMI and SD port,
+  including cable ratings and slow chargers. The Disk page leads with a card
+  for each drive, the energy menu shows where the power comes from, and
+  Explorer charts fill the window. [Details](CHANGELOG.md#250---2026-10-25)
 
-New history grows from new recordings; older logs stay gaps for fields they
-never stored. See the [release notes](RELEASE_NOTES.md) for requirements and
-limits, and the [release checklist](docs/release-checklist.md) for verification details.
+- **2.4:** in menu-only tests, idle memory fell from about 160 MiB to about
+  70 MiB. The GPU tab is about half as tall.
+  [Details](CHANGELOG.md#240---2026-10-17)
 
-## New In 2.1
+- **2.3:** Ask About This Mac opens with a plain status for each part of the
+  Mac. The app ships `mpm`, a read-only command-line tool and MCP server for
+  AI agents. Temperatures follow your Mac's unit, and alerts flag a program
+  that keeps a core busy for an hour. [Details](CHANGELOG.md#230---2026-10-04)
 
-All six Energy cards open larger charts and explanations. Charge, runtime,
-Mac power draw, and battery temperature have their own detail ranges. Health
-and Cycles show daily history over months and years, kept separate for each
-battery pack. Long-term history grows from new readings with recording on.
+## Explorer: Investigate A Moment
 
-Runtime uses macOS estimates or recent steady use. A dashed forecast stays
-separate from real charge data. It assumes the same workload, not a fixed
-promise of how long the battery will last.
-
-The Accessories panel shows the battery levels macOS reports for mice,
-keyboards, AirPods, and other devices. Optional low-battery alerts live in
-Settings > Alerts. Checks run at most once a minute; unknown values stay unknown.
-
-Process detail and Explorer can show earlier, non-overlapping runs of the same
-program, with gaps at restarts. The Dashboard also shows uptime and the boot date.
-
-[Energy guide](docs/energy-design.md)
-
-## New In 2.0
-
-### Explorer: Investigate A Moment
-
-Explorer replaces the Analytics start screen with a workspace for live and
-recorded data. Pick a time, add the signals you need, and compare up to eight
-processes, including ones that have exited.
+Explorer is a workspace for live and recorded data. Pick a time, add the
+signals you need, and compare up to eight processes, including ones that have
+exited.
 
 Hover to move a shared cursor across the charts. Click to pin a time. Hold
 **Command and scroll** to zoom around the pointer; ordinary scrolling still
-moves the page. Use a grid, a list, or an expanded chart for a closer look.
+moves the page. Charts fill the window, or choose how many fit on screen.
 
 The inspector shows source values, timestamps, known bounds, and stored machine
 rows. Export the visible data as CSV, or share process history in a trace file.
@@ -109,15 +94,16 @@ Hardware inventory is a current snapshot, separate from history.
 
 [Explorer guide](docs/explorer-design.md)
 
-### Alerts Based On Change
+## Alerts Based On Change
 
-High swap usage alone is not a reason to warn you. The new rules look for
+High swap usage alone is not a reason to warn you. The rules look for
 continued growth or paging strain. They can report further worsening without
 first waiting for usage to fall below an old fixed limit.
 
 Process-growth checks reject stale readings and growth that has settled.
 Modest findings stay as quiet observations, not a diagnosis of a memory leak.
-A separate fast-growth check can catch runaway use without waiting 20 minutes.
+A separate fast-growth check can catch runaway use without waiting 20 minutes,
+and a program that keeps about a core busy for an hour is flagged too.
 
 Click the menu bar alert badge for active issues and their evidence. Snooze an
 ordinary alert for an hour, or open it in Explorer at the relevant time.
@@ -125,26 +111,54 @@ Related memory alerts share a notice, and only critical notices request sound.
 
 [Adaptive alert rules and limits](docs/adaptive-alerts.md)
 
-### Upgrading From 1.x
+## Ask And AI Agents
+
+On macOS 27, **Ask About This Mac** opens with a one-line verdict and a status
+for each part of the Mac. Tap one, or ask a plain question such as "Why is my
+Mac slow?". The app checks its own readings and history, then Apple's on-device
+model explains them in everyday language, with links to the matching charts.
+Nothing leaves your Mac, and the area summaries work even when Apple
+Intelligence is off. Answers can still be wrong, so the facts behind each one
+are a click away.
+
+Hand a harder question to Claude Code, Codex or another agent. Ask copies a
+prompt that explains the recorded history, or the one-line setup for the
+bundled read-only MCP server:
+
+```sh
+claude mcp add --scope user mac-performance-monitor -- "/Applications/Mac Performance Monitor.app/Contents/MacOS/mpm" mcp
+```
+
+Run `mpm help` for the command-line tool. The [AI agents guide](docs/ai-agents.md)
+covers Claude Code, Codex, Claude Desktop, Cursor and VS Code, what agents
+can ask, and what leaves your Mac.
+
+## Battery History
+
+All six Energy cards open larger charts and explanations. Health and Cycles
+show daily history over months and years, kept separate for each battery pack.
+Long-term history grows from new readings with recording on.
+
+Runtime uses macOS estimates or recent steady use. A dashed forecast stays
+separate from real charge data. It assumes the same workload, not a fixed
+promise of how long the battery will last.
+
+The Accessories panel shows the battery levels macOS reports for mice,
+keyboards, AirPods, and other devices. Optional low-battery alerts live in
+Settings > Alerts.
+
+[Energy guide](docs/energy-design.md)
+
+## Upgrading From 1.x
 
 Existing alert choices and history carry forward. The old swap threshold is
-no longer used, but explicit process-memory budgets remain available. Alert
-state is local and separate from full history recording. New database fields
-preserve detail from new samples; they cannot restore missing older readings.
+no longer used, but explicit process-memory budgets remain available. New
+database fields preserve detail from new samples; they cannot restore missing
+older readings.
 
 Back up the app's data before testing a downgrade. Review the
 [upgrade notes](CHANGELOG.md#upgrade-notes) and [privacy policy](SECURITY.md)
 before sharing trace files, reports, or screenshots.
-
-### Clearer Charts And Details
-
-Dashboard and Explorer charts show a clear average over the translucent recorded
-range. Short bursts stay visible, missing readings stay missing, and historical
-shapes remain stable as new data arrives.
-
-Dashboard cards open larger detail views with values and explanations. The
-menu bar panels keep stable layouts as readings change. The Dock icon follows
-the window, with a setting to keep it visible.
 
 ## Monitor Your Mac
 
@@ -191,55 +205,76 @@ the window, with a setting to keep it visible.
 
 ## Screenshots
 
-GPU, Ask, and Usage Timeline examples use the real native views with sample
-data. They illustrate the interface, not a benchmark or a verified AI diagnosis.
-Capture details are in the [release checklist](docs/release-checklist.md).
+Every screenshot shows real readings from one MacBook Pro (M3 Pro) running
+the app, with no sample data. Hostnames, network and hardware addresses,
+serial numbers, and personal device and volume names are covered with grey
+boxes. Capture details are in the [release checklist](docs/release-checklist.md).
 
 ### Dashboard
 
 The current overview: pressure, memory, CPU, network, disk, and thermal trends.
 
-[![Dashboard with metric cards, memory breakdown, and recorded activity charts](docs/images/dashboard.png)](docs/images/dashboard.png)
+[![Dashboard with memory cards, a memory pressure chart, CPU cores and memory composition](docs/images/dashboard.png)](docs/images/dashboard.png)
 
 ### Processes
 
-A live process table with a detailed inspector for the selected process.
+The Apps layout adds up each app's memory and CPU across all of its processes.
+Selecting an app lists the processes working for it.
 
-![Processes](docs/images/processes.png)
+![Processes in the Apps layout with Safari's 15 processes in the inspector](docs/images/processes.png)
 
 ### Process Usage Timeline
 
-Sampled running history and optional Apple activity occupy separate lanes.
-This example uses sample data, not a person's activity records.
+Sampled running history for one process over 24 hours. Apple app and media
+activity are optional lanes, left off here.
 
-![Usage Timeline showing sampled running, app activity, and media activity separately](docs/images/usage-timeline.png)
+![Usage Timeline showing a process's sampled running history over 24 hours](docs/images/usage-timeline.png)
 
-### Ask Preview
+### Ask About This Mac
 
-Current measured reports remain available with AI off. This example uses
-sample readings. Questions, explanations, and Siri sharing have separate controls.
+On macOS 27, Ask opens with a plain status for each part of the Mac, based on
+the last hour.
 
-![Ask Preview showing a current memory report with on-device AI off](docs/images/ask-preview.png)
+![Ask About This Mac with a status tile for each part of the Mac](docs/images/ask-preview.png)
 
 ### Energy
 
-Battery health, power flow, and accessory batteries. This overview is cropped
-to leave the battery serial number out of the image.
+Charge, power draw, battery health and cycles, accessory batteries, and the
+processes drawing the most power.
 
-![Energy](docs/images/energy.png)
+![Energy with battery cards, accessory batteries, battery health and energy flow](docs/images/energy.png)
 
 ### GPU
 
-GPU memory and awake-time history, separate ANE cards, and the bandwidth
-Preview chart. The approximation caveat appears once beneath the chart.
-This current-source capture uses sample readings.
+Live GPU, power, memory, awake time and Neural Engine readings, with the
+processes using the GPU and what kind of work they do.
 
-![GPU preview showing recorded bandwidth for total, reads, and writes alongside utilization and clock states](docs/images/gpu.png)
+![GPU tab with headline cards, the processes using the GPU, and work by category](docs/images/gpu.png)
 
-ANE Time and ANE Power have independent units and history. These are sample
-readings, not evidence that an app used a particular processor.
+The Device panel shows the GPU's clock against its top clock and time at each
+clock state, with the clock recorded in Over time.
 
-![Separate Neural Engine activity and power charts with ms/s and watt axes](docs/images/gpu-neural-engine.png)
+![GPU clock history beside the Device panel's clock states](docs/images/gpu-device.png)
+
+### Network
+
+Throughput history and each network adapter.
+
+![Network throughput chart and adapters](docs/images/network.png)
+
+### Disk
+
+A card for each drive with free space, connection, and live reads and writes,
+beside the internal drive's health.
+
+![Disk page with drive cards, read and write charts, and drive health](docs/images/disk.png)
+
+### Hardware Ports
+
+Each port shows what is plugged in, the negotiated data links, and plain
+diagnostics.
+
+![Hardware Ports detail for a USB-C port with a hub connected](docs/images/ports.png)
 
 ## Install
 
@@ -282,9 +317,9 @@ signing. Ad-hoc builds cannot use the privileged helper. See
 No usage telemetry or analytics. Recorded performance data and alert evidence
 stay on your Mac. Exports leave it only when you choose to share them.
 
-Update checks, model downloads, signed content downloads, and network tools
-make network requests. They do not upload your recorded performance history.
-Ask uses local models and clears its conversation when closed. If you hand an
+Update checks, signed check and glossary downloads, and network tools make
+network requests. They do not upload your recorded performance history.
+Ask uses Apple's on-device model and clears its conversation when closed. If you hand an
 investigation to an AI agent such as Claude Code, the agent sends what it reads
 to its provider. Optional Siri
 and Shortcuts sharing follows Apple's processing rules and can pass results
@@ -308,7 +343,4 @@ and review process.
 
 Released under the [MIT License](LICENSE). Bundles
 [GRDB.swift](https://github.com/groue/GRDB.swift) (MIT) and
-[Sparkle](https://sparkle-project.org) (MIT). Local inference also uses
-[MLX](https://github.com/ml-explore/mlx-swift) and
-[llama.cpp](https://github.com/ggml-org/llama.cpp), with their dependency licences
-in the app bundle. Model downloads include their own licence and attribution files.
+[Sparkle](https://sparkle-project.org) (MIT).
