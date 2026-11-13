@@ -9,6 +9,7 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
     case de = "de"
     case fr = "fr"
     case zhHans = "zh-Hans"
+    case zhHant = "zh-Hant"
     case ru = "ru"
 
     var id: String { rawValue }
@@ -20,6 +21,7 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
         case .de: return "Deutsch"
         case .fr: return "Français"
         case .zhHans: return "简体中文"
+        case .zhHant: return "繁體中文"
         case .ru: return "Русский"
         }
     }
@@ -36,6 +38,8 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
             return Locale(identifier: "fr")
         case .zhHans:
             return Locale(identifier: "zh-Hans")
+        case .zhHant:
+            return Locale(identifier: "zh-Hant")
         case .ru:
             return Locale(identifier: "ru")
         }
@@ -46,7 +50,7 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
     /// Settings shows a notice for these so nobody mistakes them for reviewed
     /// work, and so people know where to send corrections. Remove a language
     /// from this set once a native speaker has been through it.
-    static let machineTranslated: Set<AppLanguage> = [.de, .fr, .ru]
+    static let machineTranslated: Set<AppLanguage> = [.de, .fr, .zhHant, .ru]
 
     /// The model that produced this language's machine translation, named in
     /// the notice, or nil when the contributor did not record which model
@@ -54,6 +58,7 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
     var machineTranslationModel: String? {
         switch effective {
         case .de, .fr: return "Claude Fable 5.1"
+        case .zhHant: return "OpenAI GPT-6.1"
         default: return nil
         }
     }
@@ -62,8 +67,14 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
     /// Follow System the language macOS resolved, if the app ships it.
     var effective: AppLanguage {
         guard self == .system else { return self }
-        let code = Locale.autoupdatingCurrent.language.languageCode?.identifier ?? ""
-        return AppLanguage(rawValue: code) ?? .en
+        return Self.resolvedSystemLanguage(
+            preferredLocalizations: Bundle.main.preferredLocalizations)
+    }
+
+    /// Uses the bundle's negotiated language without discarding the Chinese script.
+    static func resolvedSystemLanguage(preferredLocalizations: [String]) -> AppLanguage {
+        preferredLocalizations.lazy.compactMap { AppLanguage(rawValue: $0) }
+            .first { $0 != .system } ?? .en
     }
 
     var isMachineTranslated: Bool { AppLanguage.machineTranslated.contains(effective) }
