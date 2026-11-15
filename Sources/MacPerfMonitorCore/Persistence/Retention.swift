@@ -66,7 +66,7 @@ public enum Retention {
         // trimmed would stay large. Bounded per pass so the write stays short.
         try pool.write { db in try db.execute(sql: "PRAGMA incremental_vacuum(2000)") }
         if let maxBytes = policy.maxBytes {
-            try enforceSizeLimit(pool, maxBytes: maxBytes)
+            try enforceSizeLimit(pool, maxBytes: maxBytes, nowTS: nowTS)
         }
         // Keep the planner's statistics fresh with a bounded incremental
         // ANALYZE. Without statistics the windowed leaderboards fall back to
@@ -83,7 +83,7 @@ public enum Retention {
     /// deletion batch commits its own transaction, so even a large cap
     /// reduction (up to `maxDeletePerPass` rows per pass) never holds the
     /// writer lock for more than one batch while the sampler's persist waits.
-    static func enforceSizeLimit(_ pool: DatabasePool, maxBytes: Int) throws {
+    static func enforceSizeLimit(_ pool: DatabasePool, maxBytes: Int, nowTS: Double) throws {
         // Cheap early-out without taking the writer at all.
         let overCap = try pool.read { db in
             try usedBytes(db) > maxBytes
@@ -94,7 +94,7 @@ public enum Retention {
         while !converged, safety > 0 {
             safety -= 1
             converged = try pool.write { db in
-                try enforceSizeLimitStep(db, maxBytes: maxBytes)
+                try enforceSizeLimitStep(db, maxBytes: maxBytes, nowTS: nowTS)
             }
         }
     }
@@ -108,10 +108,12 @@ public enum Retention {
     }
 
     /// One bounded deletion step for the pool-level path. Deletes up to one
-    /// batch from the finest non-empty tier that is still over cap. Returns
-    /// true when the database is within `maxBytes` (or nothing is left to
-    /// delete), i.e. the caller can stop.
-    private static func enforceSizeLimitStep(_ db: Database, maxBytes: Int) throws -> Bool {
+    /// batch at the first of `sizeCapSteps` that still has rows to give.
+    /// Returns true when the database is within `maxBytes` (or nothing is left
+    /// to delete), i.e. the caller can stop.
+    private static func enforceSizeLimitStep(
+        _ db: Database, maxBytes: Int, nowTS: Double
+    ) throws -> Bool {
         // Bounded vacuum, like run()'s per-pass reclaim: the argless form
         // relocates the ENTIRE freelist in this write transaction — after a
         // big trim that is seconds of writer-lock hold, exactly what the
@@ -121,22 +123,8 @@ public enum Retention {
             try db.execute(sql: "PRAGMA incremental_vacuum(2000)")
             return true
         }
-        let tiers: [(table: String, column: String)] = [
-            ("process_samples", "timestamp"),
-            ("system_samples", "timestamp"),
-            ("process_minute", "bucket"),
-            ("system_minute", "bucket"),
-            ("process_hour", "bucket"),
-            ("system_hour", "bucket"),
-            ("battery_daily", "day"),
-        ]
-        for tier in tiers {
-            try db.execute(
-                sql: """
-                    DELETE FROM \(tier.table) WHERE rowid IN (
-                        SELECT rowid FROM \(tier.table) ORDER BY \(tier.column) ASC LIMIT ?
-                    )
-                    """, arguments: [10_000])
+        for step in sizeCapSteps(nowTS: nowTS) {
+            try deleteOldest(db, step, limit: 10_000)
             if db.changesCount > 0 {
                 try db.execute(sql: "PRAGMA incremental_vacuum(2000)")
                 return try usedBytes(db) <= maxBytes
@@ -145,12 +133,67 @@ public enum Retention {
         return true  // every tier empty; nothing more to delete
     }
 
+    /// How far back each tier must reach for the history ranges it serves
+    /// (`HistoryWindow.granularity`): raw rows back 5 minutes to 1 hour, the
+    /// minute tier 6 and 24 hours, the hour tier 7 days.
+    static let sizeCapRawSpan: TimeInterval = 3600
+    static let sizeCapMinuteSpan: TimeInterval = 86_400
+    static let sizeCapHourSpan: TimeInterval = 7 * 86_400
+
+    /// The order the size cap deletes in, oldest rows first within each step.
+    ///
+    /// First, rows older than the span their own ranges show, finest tier
+    /// first, so size pressure costs resolution rather than the long trend.
+    /// Only if that is not enough, the spans themselves, coarsest tier first,
+    /// so the newest detail is the last thing to go.
+    ///
+    /// The cap used to empty the finest tier outright. A database sitting at
+    /// its cap goes over it again every minute, so every pass deleted the whole
+    /// raw table: the 5 minute, 30 minute and 1 hour ranges only ever showed
+    /// the minute since the last pass, while the minute tier behind 6 hours,
+    /// which was what had actually grown, was left alone.
+    static func sizeCapSteps(nowTS: Double) -> [(table: String, column: String, before: Double)] {
+        let raw = nowTS - sizeCapRawSpan
+        let minute = nowTS - sizeCapMinuteSpan
+        let hour = nowTS - sizeCapHourSpan
+        let everything = Double.greatestFiniteMagnitude
+        return [
+            ("process_samples", "timestamp", raw),
+            ("system_samples", "timestamp", raw),
+            ("process_minute", "bucket", minute),
+            ("system_minute", "bucket", minute),
+            ("process_hour", "bucket", hour),
+            ("system_hour", "bucket", hour),
+            ("process_hour", "bucket", everything),
+            ("system_hour", "bucket", everything),
+            ("process_minute", "bucket", everything),
+            ("system_minute", "bucket", everything),
+            ("process_samples", "timestamp", everything),
+            ("system_samples", "timestamp", everything),
+            ("battery_daily", "day", everything),
+        ]
+    }
+
+    /// Delete up to `limit` of a step's oldest rows.
+    private static func deleteOldest(
+        _ db: Database, _ step: (table: String, column: String, before: Double), limit: Int
+    ) throws {
+        try db.execute(
+            sql: """
+                DELETE FROM \(step.table) WHERE rowid IN (
+                    SELECT rowid FROM \(step.table) WHERE \(step.column) < ?
+                    ORDER BY \(step.column) ASC LIMIT ?
+                )
+                """, arguments: [step.before, limit])
+    }
+
     /// Trim the oldest samples until the database's used size is within
-    /// `maxBytes`, finest tier first (raw → minute → hour), then reclaim the
-    /// freed pages. Each pass deletes at most `maxDeletePerPass` rows so one run
-    /// can never lock the writer for long after a big cap reduction; the next
-    /// scheduled pass continues until the database has converged.
-    static func enforceSizeLimit(_ db: Database, maxBytes: Int) throws {
+    /// `maxBytes`, in `sizeCapSteps` order (older than each tier's own ranges
+    /// first, finest tier first), then reclaim the freed pages. Each pass
+    /// deletes at most `maxDeletePerPass` rows so one run can never lock the
+    /// writer for long after a big cap reduction; the next scheduled pass
+    /// continues until the database has converged.
+    static func enforceSizeLimit(_ db: Database, maxBytes: Int, now: Date = Date()) throws {
         let pageSize = try Int.fetchOne(db, sql: "PRAGMA page_size") ?? 4096
         func usedBytes() throws -> Int {
             let pageCount = try Int.fetchOne(db, sql: "PRAGMA page_count") ?? 0
@@ -159,34 +202,19 @@ public enum Retention {
         }
         guard try usedBytes() > maxBytes else { return }
 
-        // Oldest first within each tier; the finest tier is sacrificed first.
-        let tiers: [(table: String, column: String)] = [
-            ("process_samples", "timestamp"),
-            ("system_samples", "timestamp"),
-            ("process_minute", "bucket"),
-            ("system_minute", "bucket"),
-            ("process_hour", "bucket"),
-            ("system_hour", "bucket"),
-            ("battery_daily", "day"),
-        ]
         let batch = 10_000
         let maxDeletePerPass = 500_000
         var deletedThisPass = 0
 
-        tierLoop: for tier in tiers {
+        stepLoop: for step in sizeCapSteps(nowTS: now.timeIntervalSince1970) {
             while try usedBytes() > maxBytes, deletedThisPass < maxDeletePerPass {
-                try db.execute(
-                    sql: """
-                        DELETE FROM \(tier.table) WHERE rowid IN (
-                            SELECT rowid FROM \(tier.table) ORDER BY \(tier.column) ASC LIMIT ?
-                        )
-                        """, arguments: [batch])
+                try deleteOldest(db, step, limit: batch)
                 let deleted = db.changesCount
                 deletedThisPass += deleted
-                if deleted == 0 { break }  // this tier is empty; fall through to next
+                if deleted == 0 { break }  // this step has nothing left; go to the next
             }
             if try usedBytes() <= maxBytes || deletedThisPass >= maxDeletePerPass {
-                break tierLoop
+                break stepLoop
             }
         }
 

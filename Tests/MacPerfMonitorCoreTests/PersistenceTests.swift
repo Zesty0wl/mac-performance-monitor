@@ -356,4 +356,102 @@ final class PersistenceTests: XCTestCase {
         XCTAssertEqual(try count("process_samples"), 0)
         XCTAssertEqual(try count("system_samples"), 0)
     }
+
+    private func usedBytes() throws -> Int {
+        try store.databasePool.read { db in
+            let size = try Int.fetchOne(db, sql: "PRAGMA page_size") ?? 4096
+            let pages = try Int.fetchOne(db, sql: "PRAGMA page_count") ?? 0
+            let free = try Int.fetchOne(db, sql: "PRAGMA freelist_count") ?? 0
+            return (pages - free) * size
+        }
+    }
+
+    /// Minute rows, as the minute tier stores them, enough to fill pages.
+    private func insertMinuteRows(from start: Date, count rows: Int) throws {
+        try store.databasePool.write { db in
+            for i in 0..<rows {
+                try db.execute(
+                    sql: """
+                        INSERT INTO system_minute (bucket, pressure_avg, pressure_max, app_avg,
+                            wired_avg, compressed_avg, cached_avg, swap_used_avg, samples)
+                        VALUES (?, 10, 10, 1, 1, 1, 1, 1, 30)
+                        """, arguments: [start.timeIntervalSince1970 + Double(i) * 60])
+            }
+        }
+    }
+
+    private func rawCount(since date: Date) throws -> Int {
+        try store.databasePool.read { db in
+            try Int.fetchOne(
+                db, sql: "SELECT COUNT(*) FROM system_samples WHERE timestamp >= ?",
+                arguments: [date.timeIntervalSince1970]) ?? 0
+        }
+    }
+
+    /// A database at its cap goes over it again every minute. The cap used to
+    /// empty the raw tier first on every pass, so the 5 minute to 1 hour
+    /// ranges only ever had the last minute while the minute tier, the part
+    /// that had grown, was untouched.
+    func testSizeCapKeepsTheLastHourOfRawWhileOlderMinuteRowsCanGo() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        for i in 0..<120 {
+            try insertTick(
+                now.addingTimeInterval(Double(-i) * 30), footprint: 100 * 1024 * 1024,
+                pid: Int32(1000 + i))
+        }
+        let rawOnly = try usedBytes()
+        // Five days of minute rows, all older than the day the 24 hour range shows.
+        try insertMinuteRows(from: now.addingTimeInterval(-6 * 86_400), count: 5 * 1440)
+        XCTAssertGreaterThan(try usedBytes(), rawOnly + 64 * 1024)
+
+        try store.databasePool.write { db in
+            try Retention.enforceSizeLimit(db, maxBytes: rawOnly + 16 * 1024, now: now)
+        }
+        XCTAssertEqual(
+            try rawCount(since: now.addingTimeInterval(-3600)), 120,
+            "the last hour of raw samples is kept")
+        XCTAssertLessThan(try count("system_minute"), 5 * 1440, "older minute rows went first")
+    }
+
+    func testSizeCapTrimsRawOlderThanAnHourBeforeAnythingRecent() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        for i in 0..<60 {
+            try insertTick(
+                now.addingTimeInterval(Double(-i) * 30), footprint: 100 * 1024 * 1024,
+                pid: Int32(1000 + i))
+        }
+        try insertMinuteRows(from: now.addingTimeInterval(-12 * 3600), count: 600)
+        let budget = try usedBytes()
+        for i in 0..<400 {
+            try insertTick(
+                now.addingTimeInterval(-7200 + Double(i)), footprint: 100 * 1024 * 1024,
+                pid: Int32(5000 + i))
+        }
+        // Halfway: trimming the old raw rows alone is enough to get under, even
+        // with the part-filled pages a delete leaves behind.
+        let grown = try usedBytes()
+        XCTAssertGreaterThan(grown, budget)
+        try store.databasePool.write { db in
+            try Retention.enforceSizeLimit(db, maxBytes: (budget + grown) / 2, now: now)
+        }
+        XCTAssertEqual(try rawCount(since: now.addingTimeInterval(-3600)), 60)
+        XCTAssertEqual(
+            try count("system_minute"), 600, "the minute rows inside the last day are kept")
+        XCTAssertLessThan(try count("system_samples"), 460, "old raw rows were trimmed")
+    }
+
+    func testSizeCapStepsProtectEachTiersOwnRange() {
+        let now = 1_800_000_000.0
+        let steps = Retention.sizeCapSteps(nowTS: now)
+        let first = Dictionary(
+            steps.map { ($0.table, $0.before) }, uniquingKeysWith: { first, _ in first })
+        XCTAssertEqual(first["system_samples"], now - 3600)
+        XCTAssertEqual(first["system_minute"], now - 86_400)
+        XCTAssertEqual(first["system_hour"], now - 7 * 86_400)
+        // Past the protected spans, the newest raw rows are the last to go.
+        let unprotected = steps.filter { $0.before == .greatestFiniteMagnitude }.map(\.table)
+        XCTAssertLessThan(
+            unprotected.firstIndex(of: "system_hour")!,
+            unprotected.firstIndex(of: "system_samples")!)
+    }
 }

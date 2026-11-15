@@ -696,7 +696,7 @@ private struct AdvancedSettingsView: View {
                     )
                 }
                 caption(
-                    "When the database reaches this size, the oldest high-resolution samples are dropped first, keeping the long low-resolution trend."
+                    "When the database reaches this size, the oldest samples are dropped first, detailed ones before the long trend. The last hour, day and week that the history ranges show are kept."
                 )
             } header: {
                 Text("Storage")

@@ -98683,42 +98683,6 @@
         }
       }
     },
-    "When the database reaches this size, the oldest high-resolution samples are dropped first, keeping the long low-resolution trend." : {
-      "comment" : "SettingsView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Erreicht die Datenbank diese Größe, werden zuerst die ältesten hochauflösenden Samples verworfen, damit der lange, niedrig aufgelöste Trend erhalten bleibt."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "When the database reaches this size, the oldest high-resolution samples are dropped first, keeping the long low-resolution trend."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quand la base de données atteint cette taille, les échantillons haute résolution les plus anciens sont supprimés en premier, en conservant la longue tendance basse résolution."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "当数据库达到此大小时,最旧的高分辨率样本将首先被丢弃,保留长期的低分辨率趋势。"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Когда база данных достигает этого размера, сначала удаляются самые старые данные с высоким разрешением, сохраняя долгосрочный тренд с более низким разрешением."
-          }
-        }
-      }
-    },
     "Who is using the GPU" : {
       "comment" : "GPU View",
       "extractionState" : "manual",
@@ -115597,6 +115561,42 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Процесс запущен только со своей программой, указанной выше в поле «Путь»."
+          }
+        }
+      }
+    },
+    "When the database reaches this size, the oldest samples are dropped first, detailed ones before the long trend. The last hour, day and week that the history ranges show are kept." : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erreicht die Datenbank diese Größe, werden zuerst die ältesten Samples verworfen, detaillierte vor dem langen Trend. Die letzte Stunde, der letzte Tag und die letzte Woche, die die Verlaufsbereiche zeigen, bleiben erhalten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When the database reaches this size, the oldest samples are dropped first, detailed ones before the long trend. The last hour, day and week that the history ranges show are kept."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quand la base de données atteint cette taille, les échantillons les plus anciens sont supprimés en premier, les plus détaillés avant la longue tendance. La dernière heure, le dernier jour et la dernière semaine affichés par les plages d'historique sont conservés."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当数据库达到此大小时，最旧的样本将首先被丢弃，详细样本先于长期趋势。历史范围所显示的最近一小时、一天和一周的数据会被保留。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Когда база данных достигает этого размера, сначала удаляются самые старые данные, подробные раньше долгосрочного тренда. Последний час, день и неделя, которые показывают диапазоны истории, сохраняются."
           }
         }
       }

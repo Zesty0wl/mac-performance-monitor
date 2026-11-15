@@ -6,6 +6,19 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **The 5 minute, 30 minute and 1 hour ranges keep their history once the
+  database reaches its size limit.** Each minute, the samples written since
+  the last trim pushed a database sitting at its limit back over it, and the
+  limit was enforced by deleting the finest tier first: every high-resolution
+  sample, including the last hour's. Those ranges then only ever showed the
+  minute since the last trim, while 6 hours and longer looked complete. The
+  limit now drops the oldest data first: high-resolution samples older than
+  an hour, then minute averages older than a day, then hourly ones older than
+  a week. Only if that is not enough does it cut into that recent history,
+  coarsest first, so the newest detail is the last to go.
+
 ### Changed
 
 - **The Command line row says "No arguments" when there are none.** Most
