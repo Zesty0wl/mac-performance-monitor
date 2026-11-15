@@ -25,37 +25,40 @@ open when needed. The menu bar and history recorder have separate switches.
 
 Free and open source. No usage telemetry. Recorded samples stay on your Mac.
 
-[2.7 release notes](RELEASE_NOTES.md) · [Changelog](CHANGELOG.md) ·
+[2.8 release notes](RELEASE_NOTES.md) · [Changelog](CHANGELOG.md) ·
 [Documentation](docs/README.md)
 
 [![Explorer lining up memory pressure with the CPU and memory of the processes behind it](docs/images/explorer.png)](docs/images/explorer.png)
 
-## New In 2.7
+## New In 2.8
 
-The GPU tab now shows what the GPU is doing, not just how busy it is, and
-update checks no longer interrupt you.
+The Processes tab can now control and look inside a process, interpreters say
+what they are running, and the app warns you before the startup disk fills up.
 
-- **Inside the GPU:** the Device panel has five pages, all read without
-  administrator rights. **Clock** compares the average clock while awake with
-  the chip's top clock. **Limits** shows what held the clock back and the
-  performance lost. **Work** breaks down compute, fragment and geometry
-  submissions. **Memory** shows the GPU's wired-memory limit and headroom.
-  **Health** counts recoveries, firmware restarts, killed work and thermal
-  activations. Over time gains a recorded Clock chart.
+- **Tell one Python from another:** interpreters show what they are running,
+  such as `python3 · train.py`, `node · tsc` or `uv · train.py`, wherever a
+  process is named. Groups can match it with a **Script or tool** rule.
+  Contributed by @georgeharker.
 
-- **Quieter updates:** scheduled checks never open a window or take focus.
-  When an update is ready, an **Update** button appears in the main window and
-  the menu bar menus. "Check for updates automatically" and "Install updates
-  automatically" in Settings > General now work.
+- **Control a process:** right-click to Quit, Suspend and Resume, change its
+  Priority, or Force Quit it with everything it started. **Threads** shows
+  which thread is busy.
 
-- **Shared Macs:** everyone signed in can run the app at the same time, each
-  in their own account. The privileged helper still limits standard users to
-  their own processes.
+- **Find who has it open:** Processes > Find Open File or Port shows which
+  process holds a file, a disk or a port. Click any window to select the
+  process that owns it, and see what started each process.
+
+- **Low disk space:** an alert when the startup disk has less than 10% left
+  (adjustable), and an optional **Free Space** read-out in the menu bar.
 
 See the [release notes](RELEASE_NOTES.md) for requirements and the
 [changelog](CHANGELOG.md) for every change.
 
 ## Recent Releases
+
+- **2.7:** the GPU tab's Device panel shows the GPU's clock and what limits
+  it, its work mix, memory limit and health. Update checks no longer open a
+  window or take focus. [Details](CHANGELOG.md#270---2026-11-08)
 
 - **2.6:** the Processes tab's **Apps** layout adds up each app's memory and
   CPU across all of its processes, including the helpers macOS starts for it.
@@ -71,11 +74,6 @@ See the [release notes](RELEASE_NOTES.md) for requirements and the
 - **2.4:** in menu-only tests, idle memory fell from about 160 MiB to about
   70 MiB. The GPU tab is about half as tall.
   [Details](CHANGELOG.md#240---2026-10-17)
-
-- **2.3:** Ask About This Mac opens with a plain status for each part of the
-  Mac. The app ships `mpm`, a read-only command-line tool and MCP server for
-  AI agents. Temperatures follow your Mac's unit, and alerts flag a program
-  that keeps a core busy for an hour. [Details](CHANGELOG.md#230---2026-10-04)
 
 ## Explorer: Investigate A Moment
 
@@ -167,7 +165,11 @@ before sharing trace files, reports, or screenshots.
 - **Processes:** sort and filter the process table, inspect memory and CPU
   history, and check file descriptors, disk I/O, and Rosetta status.
   The **Apps** layout adds up each app's memory and CPU across all of its
-  processes, including the helpers macOS starts for it. Right-click a row and choose **Usage Timeline** for sampled running history.
+  processes, including the helpers macOS starts for it. Interpreters show the
+  script or tool they are running. Right-click a row to quit, suspend or
+  reprioritize it, see its threads, or choose **Usage Timeline** for sampled
+  running history. Find which process has a file or port open, or click a
+  window to select its owner.
   Optional Apple app and media activity appears separately, with unverified
   device and foreground status. It requires Full Disk Access and a per-window
   opt-in; the app keeps these activity records in memory only.
