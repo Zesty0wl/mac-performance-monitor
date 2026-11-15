@@ -1,6 +1,6 @@
 cask "mac-performance-monitor" do
-  version "2.7.0.312"
-  sha256 "6e3ead8926fed6bf8af25f55ecfbae72186361e794fa609751b98b94d4afb263"
+  version "2.8.0.315"
+  sha256 "f7bfca2a529b3a0779482164f7199d597802e07642931e842ee860fb2e783363"
 
   url "https://github.com/Zesty0wl/mac-performance-monitor/releases/download/v#{version}/MacPerformanceMonitor.pkg"
   name "Mac Performance Monitor"
