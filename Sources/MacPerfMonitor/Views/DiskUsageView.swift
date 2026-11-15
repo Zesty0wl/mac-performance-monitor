@@ -179,6 +179,7 @@ struct DiskUsageView: View {
                     samples: points.map {
                         MetricSample(date: $0.date, value: $0.diskReadBytesPerSec)
                     },
+                    unit: .byteRate,
                     help: t("Physical read throughput, smoothed over about 5 seconds.")),
                 MetricCardData(
                     label: t("Write"),
@@ -187,6 +188,7 @@ struct DiskUsageView: View {
                     samples: points.map {
                         MetricSample(date: $0.date, value: $0.diskWriteBytesPerSec)
                     },
+                    unit: .byteRate,
                     help: t("Physical write throughput, smoothed over about 5 seconds.")),
                 MetricCardData(
                     label: t("IOPS"),
@@ -198,7 +200,7 @@ struct DiskUsageView: View {
                             date: $0.date,
                             value: $0.diskReadOperationsPerSec + $0.diskWriteOperationsPerSec)
                     },
-                    unit: .percent,
+                    unit: .count,
                     help: t("Read plus write operations per second across all disks.")),
                 busyCard,
             ],

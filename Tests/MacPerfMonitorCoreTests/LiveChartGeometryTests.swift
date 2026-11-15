@@ -106,4 +106,27 @@ final class LiveChartGeometryTests: XCTestCase {
         XCTAssertEqual(before, 0.4, accuracy: 1e-12)
         XCTAssertEqual(after, before, accuracy: 1e-12)
     }
+
+    func testBinaryNiceCeilingLandsOnRoundStepsInTheLabelledUnit() {
+        let mb = 1024.0 * 1024
+        let gb = mb * 1024
+        // 85 MB/s with 10% headroom tops out at 100; a little more at 160,
+        // whose quarters read 40, 80 and 120.
+        XCTAssertEqual(LiveChartGeometry.binaryNiceCeiling(93.5 * mb), 100 * mb)
+        XCTAssertEqual(LiveChartGeometry.binaryNiceCeiling(130 * mb), 160 * mb)
+        XCTAssertEqual(LiveChartGeometry.binaryNiceCeiling(350 * mb), 400 * mb)
+        // Just past a gigabyte the steps stay in megabytes: 1200, not 1.2 GB.
+        XCTAssertEqual(LiveChartGeometry.binaryNiceCeiling(1.1 * gb), 1200 * mb)
+        XCTAssertEqual(LiveChartGeometry.binaryNiceCeiling(5 * gb), 5 * gb)
+        XCTAssertEqual(LiveChartGeometry.binaryNiceCeiling(700), 800)
+        XCTAssertEqual(LiveChartGeometry.binaryNiceCeiling(0), 1)
+        // Always clears the value, never by more than the widest rung gap.
+        var value = 1.0
+        while value < 1e13 {
+            let top = LiveChartGeometry.binaryNiceCeiling(value)
+            XCTAssertGreaterThanOrEqual(top, value * (1 - 1e-9), "\(value)")
+            XCTAssertLessThanOrEqual(top, value * 1.34, "\(value)")
+            value *= 1.37
+        }
+    }
 }

@@ -134,6 +134,15 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Fixed
 
+- **The Disk page's Throughput chart scales to what the disk is doing.**
+  Its axis was sized to the tallest single sample, so one brief burst could
+  leave a steady copy squashed along the bottom. It now fits the average
+  line, as the other charts do, and the short bursts show in the soft band
+  behind it. The axis steps are round numbers (100, 200, 300 MB/s rather than
+  95.4, 190.7, 286.1 MB/s). The IOPS card no longer shows its peak as a
+  percentage or cuts its trend off at 100, and the Read and Write cards show
+  their peaks as rates.
+
 - **The main window fits smaller screens in every language**
   ([#188](https://github.com/Zesty0wl/mac-performance-monitor/issues/188)).
   The tab strip gave every tab the width of the longest title, so the window

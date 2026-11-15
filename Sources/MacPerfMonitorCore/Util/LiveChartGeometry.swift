@@ -52,6 +52,27 @@ public enum LiveChartGeometry {
         return rung * base
     }
 
+    /// `niceCeiling` for a byte axis, in the 1024-based units `ByteFormat`
+    /// labels with, so the quarter gridlines read 100, 200, 300, 400 MB/s
+    /// rather than the 95.4, 190.7, 286.1, 381.5 MB/s a decimal ceiling of
+    /// 400,000,000 gives. Just past a unit boundary the steps are taken in
+    /// the smaller unit, so 1.1 GB rounds to 1200 MB (300, 600, 900 MB) and
+    /// not to 1.2 GB, whose quarters read 307.2, 614.4 and 921.6 MB.
+    public static func binaryNiceCeiling(_ bytes: Double) -> Double {
+        guard bytes > 0, bytes.isFinite else { return 1 }
+        var unit = 1.0
+        while bytes / unit >= 1024 { unit *= 1024 }
+        if unit > 1, bytes / unit < 4 { unit /= 1024 }
+        let value = bytes / unit
+        let base = pow(10, floor(log10(value)))
+        let rung = binaryLadder.first { $0 >= value / base - 1e-9 } ?? 10
+        return rung * base * unit
+    }
+
+    /// Axis tops whose quarters are all round (1.6 gives 0.4, 0.8, 1.2), with
+    /// rungs close enough together that a steady 85 MB/s fills half the plot.
+    private static let binaryLadder: [Double] = [1, 1.2, 1.6, 2, 2.4, 3, 4, 5, 6, 8, 10]
+
     /// An auto-scaled axis top that a few isolated spikes cannot own.
     public struct OutlierFit: Equatable {
         /// The axis top to draw with.

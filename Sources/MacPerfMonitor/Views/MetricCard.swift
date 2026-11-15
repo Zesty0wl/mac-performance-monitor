@@ -2,9 +2,11 @@ import MacPerfMonitorCore
 import SwiftUI
 
 /// How a metric's values read on the detail chart's Y axis and in read-outs:
-/// as a byte size, or as a 0...100 percentage/index.
+/// as a byte size or rate, or as a 0...100 percentage/index.
 enum MetricUnit {
     case bytes
+    /// Bytes per second, read as "85.5 MB/s".
+    case byteRate
     case percent
     case watts
     case celsius
@@ -16,6 +18,7 @@ enum MetricUnit {
     func format(_ value: Double) -> String {
         switch self {
         case .bytes: return ByteFormat.string(UInt64(max(0, value.rounded())))
+        case .byteRate: return ByteFormat.rate(max(0, value))
         case .percent: return "\(Int(value.rounded()))%"
         case .watts: return String(format: "%.2f W", value)
         case .celsius: return TemperatureFormat.string(value)
@@ -701,7 +704,8 @@ struct MetricDetailChart: View {
     private var reduction: TrendSurfaceSeries.Reduction {
         switch unit {
         case .celsius, .rpm: return .maximum
-        case .percent, .bytes, .watts, .minutes, .count, .millisecondsPerSecond: return .mean
+        case .percent, .bytes, .byteRate, .watts, .minutes, .count, .millisecondsPerSecond:
+            return .mean
         }
     }
 
@@ -755,6 +759,7 @@ struct MetricDetailChart: View {
         switch unit {
         case .percent: return 0...100
         case .bytes: return 0...LiveChartGeometry.niceCeiling(max(peak * 1.12, 1))
+        case .byteRate: return 0...LiveChartGeometry.binaryNiceCeiling(max(peak * 1.12, 1))
         case .watts, .rpm, .minutes, .count, .millisecondsPerSecond:
             return 0...LiveChartGeometry.niceCeiling(max(peak * 1.2, 1))
         case .celsius:
