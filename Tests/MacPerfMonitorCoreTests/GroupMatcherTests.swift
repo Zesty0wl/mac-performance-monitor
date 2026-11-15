@@ -51,6 +51,25 @@ final class GroupMatcherTests: XCTestCase {
         XCTAssertFalse(matches(candidate(name: "weird-daemon", teamID: nil), rule))
     }
 
+    /// Every python3 shares a name and a path, so the command label is the
+    /// only field that can pick one out by the script it runs.
+    func testCommandLabelSinglesOutOneInterpreter() {
+        var train = candidate(name: "python3", path: "/usr/bin/python3")
+        train.commandLabel = "train.py"
+        var serve = candidate(name: "python3", path: "/usr/bin/python3")
+        serve.commandLabel = "http.server"
+        let plain = candidate(name: "python3", path: "/usr/bin/python3")
+
+        XCTAssertTrue(matches(train, cond(.commandLabel, "TRAIN.PY")))
+        XCTAssertFalse(matches(serve, cond(.commandLabel, "train.py")))
+        XCTAssertFalse(matches(plain, cond(.commandLabel, "train.py")), "no label, no match")
+        XCTAssertTrue(matches(serve, cond(.commandLabel, .startsWith, "http.")))
+        // Combined with the name, as a "python3 running train" group would be.
+        let rule = GroupRule.all([cond(.name, "python3"), cond(.commandLabel, .contains, "train")])
+        XCTAssertTrue(matches(train, rule))
+        XCTAssertFalse(matches(serve, rule))
+    }
+
     func testClassificationEqualsViaGlossaryIsCaseInsensitive() {
         XCTAssertTrue(matches(candidate(name: "falcond"), cond(.classification, "security")))
         XCTAssertTrue(matches(candidate(name: "falcond"), cond(.classification, "SECURITY")))

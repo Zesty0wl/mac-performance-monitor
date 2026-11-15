@@ -79,6 +79,7 @@ public struct GroupCondition: Codable, Sendable, Equatable, Hashable {
         case teamID
         case classification  // glossary category, e.g. "security"
         case vendor  // glossary vendor, e.g. "Microsoft"
+        case commandLabel  // what an interpreter runs (`CommandLabel`), e.g. "train.py"
     }
 
     /// How `value` is compared to the field. All comparisons are case-insensitive.
@@ -119,18 +120,26 @@ public enum GroupMatcher {
         public var bundleID: String?
         public var executablePath: String?
         public var teamID: String?
+        /// What an interpreter is running (`CommandLabel`), so a rule can pick
+        /// out one python3 by its script. Nil for everything else.
+        public var commandLabel: String?
 
-        public init(name: String, bundleID: String?, executablePath: String?, teamID: String?) {
+        public init(
+            name: String, bundleID: String?, executablePath: String?, teamID: String?,
+            commandLabel: String? = nil
+        ) {
             self.name = name
             self.bundleID = bundleID
             self.executablePath = executablePath
             self.teamID = teamID
+            self.commandLabel = commandLabel
         }
 
         public init(sample: ProcessSample) {
             self.init(
                 name: sample.name, bundleID: sample.bundleID,
-                executablePath: sample.executablePath, teamID: sample.teamID)
+                executablePath: sample.executablePath, teamID: sample.teamID,
+                commandLabel: sample.commandLabel)
         }
     }
 
@@ -182,6 +191,7 @@ public enum GroupMatcher {
         case .teamID: targets = [c.teamID].compactMap { $0 }
         case .classification: targets = [entry()?.category].compactMap { $0 }
         case .vendor: targets = [entry()?.vendor].compactMap { $0 }
+        case .commandLabel: targets = [c.commandLabel].compactMap { $0 }
         }
         guard !targets.isEmpty else { return false }
         return targets.contains { satisfies($0, cond.op, value) }
