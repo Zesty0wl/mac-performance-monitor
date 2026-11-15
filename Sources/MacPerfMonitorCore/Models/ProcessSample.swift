@@ -127,11 +127,6 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
         Self.resolvedDisplayName(name: name, executablePath: executablePath)
     }
 
-    /// Recover a fuller display name from a kernel `p_comm` (which is capped at a
-    /// short fixed length) by preferring the executable's filename when it
-    /// extends the truncated name. Shared so the persisted leaderboards (top
-    /// consumers, leak board) resolve names exactly as the live process list
-    /// does, rather than showing the pre-truncated `p_comm`.
     /// `displayName` with the interpreter's script appended, "python3 · train.py",
     /// so a list of Pythons can be told apart. Just `displayName` otherwise.
     public var labeledName: String {
@@ -144,6 +139,11 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
         return "\(name) · \(commandLabel)"
     }
 
+    /// Recover a fuller display name from a kernel `p_comm` (which is capped at a
+    /// short fixed length) by preferring the executable's filename when it
+    /// extends the truncated name. Shared so the persisted leaderboards (top
+    /// consumers, leak board) resolve names exactly as the live process list
+    /// does, rather than showing the pre-truncated `p_comm`.
     public static func resolvedDisplayName(name: String, executablePath: String?) -> String {
         guard let path = executablePath, !path.isEmpty else { return name }
         let base = (path as NSString).lastPathComponent

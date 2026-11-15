@@ -331,19 +331,25 @@ public enum CommandLabel {
         "exec", "env", "command", "builtin", "nohup", "nice", "sudo", "cd", "pushd", "popd",
         "export", "unset", "set", "shopt", "source", ".", "eval", "trap", "local", "declare",
         "typeset", "readonly", "read", "test", "true", "false", ":", "echo", "printf", "exit",
-        "return", "wait", "umask", "ulimit", "shift", "alias", "hash", "type",
+        "return", "wait", "umask", "ulimit", "shift", "alias", "hash", "type", "pwd", "let",
+        "getopts", "unalias", "disown",
+        // zsh's own builtins and precommand modifiers.
+        "setopt", "unsetopt", "emulate", "autoload", "zmodload", "zstyle", "bindkey", "compdef",
+        "print", "whence", "rehash", "unfunction", "integer", "float", "noglob", "nocorrect",
     ]
 
     /// The program a `-c` command string runs. The string is split into
     /// commands at `;`, `&&`, `||`, `|` and newlines; in each, keywords,
     /// builtins, `NAME=value` assignments and flags are passed over, so
-    /// `cd /app && exec node server.js` names `node`, not `cd`.
+    /// `cd /app && exec node server.js` names `node`, not `cd`. A leading
+    /// backslash (`\builtin`, which skips any alias) is not part of the name.
     private static func commandWord(_ command: String) -> String? {
         let separators = CharacterSet(charactersIn: ";&|\n")
         for segment in command.components(separatedBy: separators) {
             let words = segment.split(whereSeparator: { $0 == " " || $0 == "\t" })
             for word in words {
-                let text = String(word).trimmingCharacters(in: CharacterSet(charactersIn: "\"'()"))
+                var text = String(word).trimmingCharacters(in: CharacterSet(charactersIn: "\"'()"))
+                if text.hasPrefix("\\") { text.removeFirst() }
                 if text.isEmpty || text.contains("=") || text.hasPrefix("-")
                     || (text.hasPrefix("$") && !text.contains("/"))
                 {
@@ -365,7 +371,7 @@ public enum CommandLabel {
     /// such as `if` and `then` also precede a command.
     private static let prefixWords: Set<String> = [
         "if", "then", "else", "elif", "while", "until", "do", "time", "!", "{", "exec", "env",
-        "command", "builtin", "nohup", "nice", "sudo",
+        "command", "builtin", "nohup", "nice", "sudo", "noglob", "nocorrect",
     ]
 
     /// Trim, drop control characters, and cut an overlong label in the middle.

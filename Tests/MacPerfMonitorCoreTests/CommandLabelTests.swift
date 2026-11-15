@@ -90,6 +90,24 @@ final class CommandLabelTests: XCTestCase {
         XCTAssertNil(label(["/bin/sh", "-c", "cd /tmp; exit 0"]))
     }
 
+    func testShellCommandsSeeThroughBackslashedBuiltinsAndZshSetup() {
+        // `\builtin` and `\command` skip aliases; the backslash is not a name.
+        XCTAssertEqual(label(["/bin/zsh", "-c", "\\command node server.js"]), "node")
+        XCTAssertEqual(label(["/bin/zsh", "-c", "\\builtin exec python3 job.py"]), "python3")
+        // A wrapper that only sets the shell up and evals a string names nothing,
+        // rather than "\builtin", "setopt" or "pwd".
+        XCTAssertNil(
+            label([
+                "/bin/zsh", "-c",
+                "source /Users/me/.cache/snapshot-zsh.sh 2>/dev/null || true && "
+                    + "\\builtin setopt NO_EXTENDED_GLOB 2>/dev/null || true && "
+                    + "\\builtin unsetopt AUTO_CD && eval 'ls -la' < /dev/null && pwd -P",
+            ]))
+        XCTAssertEqual(
+            label(["/bin/zsh", "-c", "emulate -L zsh; noglob nocorrect rsync -a src/ dst/"]),
+            "rsync")
+    }
+
     func testPythonLaunchers() {
         XCTAssertEqual(label(["uv", "run", "train.py"]), "train.py")
         XCTAssertEqual(label(["uv", "run", "--with", "rich", "-m", "http.server"]), "http.server")

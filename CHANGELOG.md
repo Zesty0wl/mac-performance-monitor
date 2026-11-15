@@ -11,26 +11,29 @@ Notable changes to Mac Performance Monitor. This project follows
 - **Tell one Python from another.** Interpreters such as `python3`, `node`,
   `java`, `ruby` and shell scripts now show what they are running next to
   their name, for example `python3 · train.py`, `python3 · http.server` for
-  `python -m http.server`, or `node · tsc`. Launchers are named by what they
-  were asked to run: `uv · train.py`, `npm · dev` for `npm run dev`,
-  `cargo · server` for `cargo run --bin server`, and likewise for `uvx`,
-  `npx`, `pnpm`, `yarn`, `poetry`, `pipenv` and `go run`. The label appears
-  wherever a process is named: the process list and details, Energy,
-  Dashboard, Insights, Disk, Network, GPU, the Performance Monitor, the menu
-  bar lists and the Quit and Force Quit confirmations. History keeps it, so
-  exited runs are labelled too, and search and the name sort use it. Groups
-  can match it too: a **Script or tool** rule such as "contains jupyter"
-  collects every Jupyter kernel, however many Pythons are running. A worker
-  with no command line of its own, such as a `multiprocessing` pool worker, is
-  named after the script that started it: `Python · train.py (worker)`. A
-  process that renamed itself (`setproctitle` in gunicorn or celery, `$0` in
-  puma) shows the name it chose. It is read once per process, only for
-  interpreters you own. The process details also gain a **Command line** row
-  with the full arguments and a Copy button. Only the short label is kept in
-  history, never the full command line, since arguments can carry tokens. AI
-  agents see it as a new `command` column in `agent_processes`, and
-  `find_process` matches it, so asking about `train.py` finds the right run.
-  (#191)
+  `python -m http.server`, or `node · tsc`. Contributed by @georgeharker in
+  #192 (#191).
+  - **Launchers** are named by what they were asked to run: `uv · train.py`,
+    `npm · dev` for `npm run dev`, `cargo · server` for
+    `cargo run --bin server`, and likewise for `uvx`, `npx`, `pnpm`, `yarn`,
+    `poetry`, `pipenv` and `go run`.
+  - **Workers** with no command line of their own, such as a `multiprocessing`
+    pool worker, are named after the script that started them:
+    `Python · train.py (worker)`. A process that renamed itself (`setproctitle`
+    in gunicorn or celery, `$0` in puma) shows the name it chose.
+  - **Everywhere a process is named:** the process list and details, Energy,
+    Dashboard, Insights, Disk, Network, GPU, the Performance Monitor, the menu
+    bar lists and the Quit and Force Quit confirmations. History keeps it, so
+    exited runs are labelled too, and search and the name sort use it.
+  - **Groups** can match it with a new **Script or tool** rule: "contains
+    jupyter" collects every Jupyter kernel, however many Pythons are running.
+  - **Command line:** the process details gain a row with the full arguments
+    and a Copy button.
+  - **Privacy:** the label is read once per process, only for interpreters you
+    own. Only the short label is kept in history, never the full command line,
+    since arguments can carry tokens. AI agents see it as a new `command`
+    column in `agent_processes`, and `find_process` matches it, so asking about
+    `train.py` finds the right run.
 
 - **More ways to control a process.** The right-click menu on a process now
   has, alongside Force Quit:
