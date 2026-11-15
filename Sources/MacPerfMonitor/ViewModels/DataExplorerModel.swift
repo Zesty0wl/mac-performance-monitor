@@ -396,7 +396,7 @@ final class DataExplorerModel: ObservableObject {
                     if self.followsLive {
                         let live = sampler.displayProcesses.filter { sample in
                             self.processQuery.isEmpty
-                                || sample.displayName.localizedCaseInsensitiveContains(
+                                || sample.labeledName.localizedCaseInsensitiveContains(
                                     self.processQuery)
                                 || String(sample.pid).contains(self.processQuery)
                         }

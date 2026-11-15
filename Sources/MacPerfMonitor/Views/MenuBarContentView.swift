@@ -194,7 +194,7 @@ struct MenuProcessRow: View {
             // the executable path. The trailing sparkline/value/menu keep their
             // intrinsic widths and stay aligned on the right edge.
             HStack(spacing: 4) {
-                Text(process.displayName)
+                Text(process.labeledName)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 if isLeaking {
@@ -231,7 +231,7 @@ struct MenuProcessRow: View {
     }
 
     private var accessibilityLabel: String {
-        let base = "\(process.displayName), \(ByteFormat.string(process.physFootprint))"
+        let base = "\(process.labeledName), \(ByteFormat.string(process.physFootprint))"
         return isLeaking ? "\(base), possible memory leak" : base
     }
 }

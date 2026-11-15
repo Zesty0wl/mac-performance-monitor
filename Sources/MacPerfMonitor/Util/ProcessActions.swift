@@ -509,7 +509,7 @@ struct ForceQuitConfirmation: ViewModifier {
 
     private var targetName: String {
         guard let target else { return t("this process") }
-        return model.currentSample(for: target)?.displayName ?? "PID \(target.pid)"
+        return model.currentSample(for: target)?.labeledName ?? "PID \(target.pid)"
     }
 
     func body(content: Content) -> some View {
@@ -669,7 +669,7 @@ struct ProcessControlHost: ViewModifier {
     // MARK: Confirmation
 
     private func name(of identity: ProcessIdentity) -> String {
-        model.currentSample(for: identity)?.displayName ?? "PID \(identity.pid)"
+        model.currentSample(for: identity)?.labeledName ?? "PID \(identity.pid)"
     }
 
     private func receive(_ request: ProcessControlRequest) {

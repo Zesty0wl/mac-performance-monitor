@@ -428,7 +428,7 @@ struct DashboardDetailSheet: View {
                         .resizable()
                         .frame(width: 24, height: 24)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(process.displayName).font(.headline)
+                            Text(process.labeledName).font(.headline)
                             Text(t("PID %@", String(process.identity.pid)))
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
@@ -478,7 +478,7 @@ struct DashboardDetailSheet: View {
         let exact =
             value.isFinite
             ? (snapshot.kind == .topCPU ? "\(value)%" : "\(value) B/s") : t("Unavailable")
-        let readout = t("%1$@: %2$@ (%3$@)", process.displayName, exact, unit)
+        let readout = t("%1$@: %2$@ (%3$@)", process.labeledName, exact, unit)
         return GeometryReader { geometry in
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 3).fill(Color.secondary.opacity(0.12))

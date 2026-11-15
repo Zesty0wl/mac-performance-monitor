@@ -154,7 +154,7 @@ extension SampleStore {
             let rows = try Row.fetchAll(
                 db,
                 sql: """
-                    SELECT id, name, bundle_id, executable_path, team_id
+                    SELECT id, name, bundle_id, executable_path, team_id, command_label
                     FROM processes
                     WHERE last_seen >= ?
                     """, arguments: [since])
@@ -166,7 +166,8 @@ extension SampleStore {
                 let path: String? = row["executable_path"]
                 let team: String? = row["team_id"]
                 let candidate = GroupMatcher.Candidate(
-                    name: name, bundleID: bundle, executablePath: path, teamID: team)
+                    name: name, bundleID: bundle, executablePath: path, teamID: team,
+                    commandLabel: row["command_label"])
                 if GroupMatcher.matches(candidate, rule: rule, glossary: glossary) {
                     ids.append(id)
                 }

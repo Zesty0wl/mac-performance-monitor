@@ -344,7 +344,7 @@ struct GPUMenuProcessRow: View {
                 .resizable()
                 .frame(width: 16, height: 16)
             HStack(spacing: 5) {
-                Text(process.displayName)
+                Text(process.labeledName)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 if let runtime = workload?.runtime {
@@ -383,7 +383,7 @@ struct GPUMenuProcessRow: View {
     }
 
     private var accessibilityLabel: String {
-        let base = "\(process.displayName), \(CPUFormat.percent(process.gpuPercentValue)) GPU"
+        let base = "\(process.labeledName), \(CPUFormat.percent(process.gpuPercentValue)) GPU"
         guard let runtime = workload?.runtime else { return base }
         return "\(base), \(runtime)"
     }

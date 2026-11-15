@@ -168,7 +168,7 @@ time, with the busiest apps selected.
 | `describe_data` | This Mac (chip, cores, memory, macOS), what history exists, the rules for reading it, every view and column with units, and example queries. Agents should call it first. | none |
 | `query` | The result of one read-only SQL statement against the `agent_*` views. | `sql` (required), `limit` (default 200, at most 2,000), `format` (`table`, `csv` or `json`) |
 | `summarize` | The app's own judged summary of one part of the Mac: a status (calm, busy, worth a look, needs attention), what is normal for this Mac, the apps responsible, notable events, what isn't known, safe next steps, and a chart link. The same facts Ask uses. | `part` (required), `app`, and a time |
-| `find_process` | Recorded runs of an app or process, matched by name, app, bundle ID or path, with the `process_key` used in `agent_process_usage`. | `name` (required) |
+| `find_process` | Recorded runs of an app or process, matched by name, app, bundle ID, path or the script an interpreter ran (`train.py` finds the `python3` running it), with the `process_key` used in `agent_process_usage`. | `name` (required) |
 | `chart_link` | A `macperfmonitor://` link that opens Explorer on the charts for one part of the Mac over a period. | `part` (required), and a time |
 
 **Parts:** `overall`, `processor`, `memory`, `graphics`, `neural-engine`,
@@ -211,7 +211,7 @@ plain units (percent, MB, GB, KB/s, degrees Celsius, local times):
 | --- | --- |
 | `agent_system` | The whole Mac over time: CPU, memory pressure, swap, network, disk, GPU, Neural Engine, temperatures, fans, battery. The finest detail available for each period. |
 | `agent_system_by_minute` | The same at no finer than one minute, for anything longer than a couple of hours. |
-| `agent_processes` | Every recorded process: name, app, kind (`app`, `macos` or `background`), when it ran. |
+| `agent_processes` | Every recorded process: name, app, kind (`app`, `macos` or `background`), when it ran, and `command`: the script or module an interpreter such as `python3` or `node` was running. |
 | `agent_process_usage` | Each process's CPU, memory, GPU, network, energy and disk use per minute (per hour further back). |
 | `agent_coverage` | How far back each tier of history goes. |
 | `agent_mac` | This Mac's core counts and memory. |

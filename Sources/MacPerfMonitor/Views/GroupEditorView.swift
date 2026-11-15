@@ -157,7 +157,7 @@ struct GroupEditorView: View {
                                             forPath: s.executablePath)
                                     )
                                     .resizable().frame(width: 16, height: 16)
-                                    Text(s.displayName).font(.callout).lineLimit(1)
+                                    Text(s.labeledName).font(.callout).lineLimit(1)
                                         .truncationMode(.middle)
                                     Spacer(minLength: 8)
                                     Text(matchLabel(for: s))
@@ -185,7 +185,7 @@ struct GroupEditorView: View {
         }
         var seen = Set<String>()
         return live.sorted { $0.physFootprint > $1.physFootprint }
-            .filter { seen.insert($0.displayName).inserted }
+            .filter { seen.insert($0.labeledName).inserted }
     }
 
     /// A short trailing label for a matched row — vendor if known, else Team ID.
@@ -527,6 +527,7 @@ private struct RuleNodeEditor: View {
         case .teamID: return "Team ID"
         case .classification: return "Classification"
         case .vendor: return "Vendor"
+        case .commandLabel: return "Script or tool"
         }
     }
 
@@ -561,6 +562,7 @@ private struct RuleNodeEditor: View {
         case .teamID: return "ABCDE12345"
         case .vendor: return "Microsoft"
         case .classification: return "security"
+        case .commandLabel: return "train.py"
         }
     }
 }

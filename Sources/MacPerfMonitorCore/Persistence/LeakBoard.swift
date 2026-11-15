@@ -12,6 +12,8 @@ public struct LeakBoardEntry: Sendable, Identifiable, Equatable {
     public var latestFootprint: UInt64
     /// The growth finding that flagged this process.
     public var finding: LeakDetector.Finding
+    /// What an interpreter was running (`CommandLabel`), as recorded.
+    public var commandLabel: String?
 
     public var id: ProcessIdentity { identity }
 
@@ -21,13 +23,19 @@ public struct LeakBoardEntry: Sendable, Identifiable, Equatable {
         ProcessSample.resolvedDisplayName(name: name, executablePath: executablePath)
     }
 
+    /// `displayName` with the script an interpreter ran: "python3 · train.py".
+    public var labeledName: String {
+        ProcessSample.labeledName(displayName, commandLabel: commandLabel)
+    }
+
     public init(
         identity: ProcessIdentity,
         name: String,
         executablePath: String? = nil,
         isTranslated: Bool,
         latestFootprint: UInt64,
-        finding: LeakDetector.Finding
+        finding: LeakDetector.Finding,
+        commandLabel: String? = nil
     ) {
         self.identity = identity
         self.name = name
@@ -35,6 +43,7 @@ public struct LeakBoardEntry: Sendable, Identifiable, Equatable {
         self.isTranslated = isTranslated
         self.latestFootprint = latestFootprint
         self.finding = finding
+        self.commandLabel = commandLabel
     }
 }
 
@@ -142,7 +151,7 @@ extension SampleStore {
                         name: process["name"], executablePath: process["executable_path"],
                         isTranslated: (process["is_translated"] as Int) != 0,
                         latestFootprint: footprint.map(SQLInt.read) ?? last.1,
-                        finding: finding))
+                        finding: finding, commandLabel: process["command_label"]))
             }
             if let liveIdentities {
                 // Indexed identity lookups avoid reading exited processes' series at all.

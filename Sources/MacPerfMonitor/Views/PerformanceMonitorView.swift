@@ -1446,7 +1446,7 @@ struct PerformanceMonitorView: View {
         for id in monitor.identities where colorSlots[id] == nil {
             assignColor(id)
             if let sample = model.currentSample(for: id) {
-                names[id] = sample.displayName
+                names[id] = sample.labeledName
                 if let path = sample.executablePath { paths[id] = path }
             }
             rawSeries[id] = trimmed(model.trailSamples(for: id))
@@ -1479,7 +1479,7 @@ struct PerformanceMonitorView: View {
     }
 
     private func name(for id: ProcessIdentity) -> String {
-        model.currentSample(for: id)?.displayName ?? names[id] ?? "PID \(id.pid)"
+        model.currentSample(for: id)?.labeledName ?? names[id] ?? "PID \(id.pid)"
     }
 
     /// The legend's trailing read-out: the process's current memory footprint
@@ -1527,7 +1527,7 @@ private struct ProcessPickerList: View {
     private var filteredLive: [ProcessSample] {
         guard !search.isEmpty else { return live }
         return live.filter {
-            $0.displayName.localizedCaseInsensitiveContains(search)
+            $0.labeledName.localizedCaseInsensitiveContains(search)
                 || $0.name.localizedCaseInsensitiveContains(search)
         }
     }
@@ -1609,7 +1609,7 @@ private struct ProcessPickerList: View {
 
     private func liveRow(for process: ProcessSample) -> some View {
         row(
-            identity: process.id, name: process.displayName,
+            identity: process.id, name: process.labeledName,
             executablePath: process.executablePath,
             subtitle: "PID \(process.pid)",
             trailing: metric.weightString(process), dimmed: false
@@ -1632,7 +1632,7 @@ private struct ProcessPickerList: View {
 
     private func recordedRow(for process: RecordedProcess) -> some View {
         row(
-            identity: process.identity, name: process.displayName,
+            identity: process.identity, name: process.labeledName,
             executablePath: process.executablePath,
             subtitle: "PID \(process.identity.pid) · exited",
             trailing: Self.lastSeenLabel(process.lastSeen), dimmed: true)

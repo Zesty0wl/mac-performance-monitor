@@ -44,6 +44,38 @@ final class AgentStoreTests: XCTestCase {
         XCTAssertTrue(try agent.render(agent.coverage(), "table").contains("live"))
     }
 
+    func testFindsAnInterpreterByTheScriptItRuns() throws {
+        let writer = try SampleStore(url: url)
+        let now = Date()
+        for (pid, script) in [(Int32(4001), "train.py"), (4002, "serve.py")] {
+            var sample = Make.process(timestamp: now, pid: pid, name: "python3")
+            sample.commandLabel = script
+            try writer.insert(Make.system(timestamp: now, pressurePercent: 20), processes: [sample])
+        }
+        let agent = try AgentStore(url: url)
+        let found = try agent.findProcesses("train.py")
+        XCTAssertEqual(found.rows.count, 1)
+        let column = try XCTUnwrap(found.columns.firstIndex(of: "command"))
+        XCTAssertEqual(found.rows.first?[column], "train.py")
+        XCTAssertEqual(found.rows.first?[1], "4001")
+        let viewed = try agent.query(
+            "SELECT command FROM agent_processes WHERE name = 'python3' ORDER BY pid")
+        XCTAssertEqual(viewed.rows.map { $0.first ?? nil }, ["train.py", "serve.py"])
+    }
+
+    func testViewsInstallOnADatabaseWithoutTheCommandLabelColumn() throws {
+        // mpm can open a database the app has not migrated yet.
+        let pool = try SampleStore(url: url).databasePool
+        try pool.write { db in
+            try db.execute(sql: "DROP VIEW IF EXISTS agent_processes")
+            try db.execute(sql: "DROP VIEW IF EXISTS agent_process_usage")
+            try db.execute(sql: "ALTER TABLE processes DROP COLUMN command_label")
+        }
+        let agent = try AgentStore(url: url)
+        let table = try agent.query("SELECT command FROM agent_processes LIMIT 1")
+        XCTAssertEqual(table.rows.first?.first, .some(nil))
+    }
+
     func testRefusesEveryWayToWrite() throws {
         let agent = try AgentStore(url: url)
         for sql in [

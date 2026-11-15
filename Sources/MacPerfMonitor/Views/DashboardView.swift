@@ -320,7 +320,7 @@ struct DashboardView: View {
             )
             .resizable()
             .frame(width: 16, height: 16)
-            Text(process.displayName)
+            Text(process.labeledName)
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer()
@@ -329,7 +329,7 @@ struct DashboardView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
-        .help(t("%1$@: %2$@", process.displayName, value))
+        .help(t("%1$@: %2$@", process.labeledName, value))
     }
 
     /// Die temperature over the selected range with the current read-outs, the

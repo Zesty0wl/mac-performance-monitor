@@ -152,7 +152,7 @@ struct ProcessListView: View {
     }
 
     private static func matches(_ sample: ProcessSample, _ search: String) -> Bool {
-        sample.displayName.localizedCaseInsensitiveContains(search)
+        sample.labeledName.localizedCaseInsensitiveContains(search)
             || sample.name.localizedCaseInsensitiveContains(search)
     }
 
@@ -236,7 +236,8 @@ struct ProcessListView: View {
             }
             let keyPath = comparator.keyPath
             if keyPath == \ProcessNode.process.displayName {
-                return { text($0.displayName, $1.displayName) }
+                // The label sorts each python3 by what it runs.
+                return { text($0.labeledName, $1.labeledName) }
             }
             if keyPath == \ProcessNode.process.physFootprint {
                 return { ordered($0.physFootprint, $1.physFootprint) }

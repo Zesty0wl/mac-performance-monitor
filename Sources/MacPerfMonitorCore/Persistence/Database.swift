@@ -348,6 +348,12 @@ public enum MacPerfMonitorDatabase {
                 }
             }
         }
+        migrator.registerMigration("v27-process-command-label") { db in
+            // The script an interpreter runs (`CommandLabel`), so history and
+            // the agent views can tell one python3 from another. Only the
+            // label is stored, never the full command line.
+            try db.execute(sql: "ALTER TABLE processes ADD COLUMN command_label TEXT")
+        }
         return migrator
     }
 }

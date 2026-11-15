@@ -499,7 +499,7 @@ private struct LeakCard: View {
                 )
                 .resizable()
                 .frame(width: 18, height: 18)
-                Text(entry.displayName)
+                Text(entry.labeledName)
                     .font(.body.weight(.semibold))
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -653,7 +653,7 @@ private struct ConsumerRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(consumer.displayName)
+                    Text(consumer.labeledName)
                         .font(.body.weight(.medium))
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -752,7 +752,7 @@ private struct RosettaSection: View {
                             .frame(width: 18, height: 18)
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 8) {
-                                    Text(process.displayName)
+                                    Text(process.labeledName)
                                         .font(.callout)
                                         .lineLimit(1)
                                         .truncationMode(.middle)

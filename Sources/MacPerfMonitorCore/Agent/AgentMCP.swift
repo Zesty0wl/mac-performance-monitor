@@ -204,7 +204,10 @@ public final class AgentMCPServer {
         [
             "name": "find_process",
             "description":
-                "Find recorded runs of an app or process by name, app, bundle ID or path. Returns process_key values for agent_process_usage.",
+                "Find recorded runs of an app or process by name, app, bundle ID, path, or the script "
+                + "an interpreter ran (train.py finds the python3 running it). Returns process_key "
+                + "values for agent_process_usage, and a command column naming what each python3, "
+                + "node or java run was doing.",
             "inputSchema": [
                 "type": "object",
                 "properties": ["name": ["type": "string"]],

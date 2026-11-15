@@ -77,7 +77,7 @@ struct TraceExportSheet: View {
     private var filteredCandidates: [ProcessSample] {
         guard !search.isEmpty else { return candidates }
         return candidates.filter {
-            $0.displayName.localizedCaseInsensitiveContains(search)
+            $0.labeledName.localizedCaseInsensitiveContains(search)
                 || $0.name.localizedCaseInsensitiveContains(search)
                 || "\($0.pid)".contains(search)
         }
@@ -181,7 +181,7 @@ struct TraceExportSheet: View {
                     .resizable()
                     .frame(width: 18, height: 18)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(process.displayName)
+                    Text(process.labeledName)
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Text("PID \(process.pid)")

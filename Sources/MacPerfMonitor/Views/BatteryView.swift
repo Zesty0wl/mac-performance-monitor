@@ -420,7 +420,7 @@ struct BatteryView: View {
             Image(nsImage: ProcessIconProvider.shared.icon(forPath: consumer.executablePath))
                 .resizable()
                 .frame(width: 18, height: 18)
-            Text(consumer.displayName)
+            Text(consumer.labeledName)
                 .font(.callout)
                 .lineLimit(1)
             Spacer(minLength: 8)
@@ -622,7 +622,7 @@ struct BatteryView: View {
             withAnimation(.easeInOut(duration: 0.6)) {
                 self.flowEnergy = rows.map {
                     EnergyFlowProcess(
-                        id: $0.identity, name: $0.displayName,
+                        id: $0.identity, name: $0.labeledName,
                         executablePath: $0.executablePath, energy: max(0, $0.averageEnergy))
                 }
             }

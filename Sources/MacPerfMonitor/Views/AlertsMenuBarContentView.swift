@@ -25,7 +25,7 @@ struct MenuBarAlertGroup: Identifiable {
             let recorded = identity == nil ? nil : alerts.first(where: { $0.processName != nil })
             return MenuBarAlertGroup(
                 identity: identity,
-                name: process?.displayName ?? recorded?.processName ?? identity.map {
+                name: process?.labeledName ?? recorded?.processName ?? identity.map {
                     t("PID %@", String($0.pid))
                 } ?? t("This Mac"),
                 executablePath: process?.executablePath ?? recorded?.executablePath,

@@ -548,7 +548,7 @@ struct DiskUsageView: View {
                         )
                         .resizable()
                         .frame(width: 16, height: 16)
-                        Text(process.displayName)
+                        Text(process.labeledName)
                             .lineLimit(1)
                             .truncationMode(.middle)
                         Spacer()

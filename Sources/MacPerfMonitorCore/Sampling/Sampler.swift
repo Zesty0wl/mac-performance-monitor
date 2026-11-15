@@ -178,6 +178,8 @@ public final class Sampler {
         /// `teamIDResolvePerTick`) and should be retried on a later tick — as
         /// distinct from a genuine nil (an unsigned binary), where it is true.
         var teamIDResolved: Bool = false
+        /// What an interpreter is running (`CommandLabel.State`).
+        var label = CommandLabel.State()
     }
     private var staticCache: [ProcessIdentity: StaticInfo] = [:]
 
@@ -708,7 +710,7 @@ public final class Sampler {
         // code-sign lookup is the one expensive resolution, so it is throttled to
         // `teamIDBudget` new resolutions per scan and retried on later ticks —
         // the rest of the facts are always resolved on first sight.
-        let staticInfo: StaticInfo
+        var staticInfo: StaticInfo
         if let cached = staticCache[identity], cached.teamIDResolved {
             // Fully resolved on an earlier tick — reuse verbatim.
             staticInfo = cached
@@ -717,15 +719,11 @@ public final class Sampler {
             // Keep the cheap facts already known; retry only the code-sign lookup.
             if teamIDBudget > 0 {
                 teamIDBudget -= 1
-                staticInfo = StaticInfo(
-                    executablePath: partial.executablePath,
-                    bundleID: partial.bundleID,
-                    teamID: codeSigningResolver.teamID(forExecutablePath: partial.executablePath),
-                    isTranslated: partial.isTranslated,
-                    architecture: partial.architecture,
-                    coalitionID: partial.coalitionID,
-                    responsiblePID: partial.responsiblePID,
-                    teamIDResolved: true)
+                var resolved = partial
+                resolved.teamID = codeSigningResolver.teamID(
+                    forExecutablePath: partial.executablePath)
+                resolved.teamIDResolved = true
+                staticInfo = resolved
             } else {
                 staticInfo = partial
             }
@@ -746,6 +744,14 @@ public final class Sampler {
                 responsiblePID: processReader.responsiblePID(pid),
                 teamIDResolved: resolveTeam)
         }
+        let ppid = info.ppid
+        staticInfo.label.update(
+            name: info.name, executablePath: staticInfo.executablePath, uid: info.uid,
+            arguments: { ProcessArguments.read(pid: pid) },
+            parent: {
+                (newStaticCache.first { $0.key.pid == ppid }
+                    ?? staticCache.first { $0.key.pid == ppid })?.value.label
+            })
         newStaticCache[identity] = staticInfo
 
         return ProcessSample(
@@ -791,7 +797,8 @@ public final class Sampler {
             coalitionID: staticInfo.coalitionID,
             responsiblePID: staticInfo.responsiblePID,
             isSuspended: info.isSuspended,
-            nice: info.nice
+            nice: info.nice,
+            commandLabel: staticInfo.label.label
         )
     }
 

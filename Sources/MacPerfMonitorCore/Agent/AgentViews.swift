@@ -39,12 +39,20 @@ public enum AgentViews {
     /// live only in that connection and never touch the file.
     public static func install(_ db: Database, temporary: Bool = false) throws {
         let kind = temporary ? "TEMP VIEW" : "VIEW"
+        // `mpm` can open a database the app has not migrated yet (just after
+        // an update, before the app relaunches); stand in NULL for columns a
+        // later migration adds so the views still install.
+        let processColumns = Set(try db.columns(in: "processes").map(\.name))
         for view in all {
             try db.execute(
                 sql:
                     "DROP \(temporary ? "VIEW IF EXISTS temp." : "VIEW IF EXISTS main.")\(view.name)"
             )
-            try db.execute(sql: "CREATE \(kind) \(view.name) AS \(view.sql)")
+            var sql = view.sql
+            if !processColumns.contains("command_label") {
+                sql = sql.replacingOccurrences(of: "command_label AS", with: "NULL AS")
+            }
+            try db.execute(sql: "CREATE \(kind) \(view.name) AS \(sql)")
         }
     }
 
@@ -263,6 +271,14 @@ public enum AgentViews {
                     "The app it belongs to, from its bundle path (\"Google Chrome\" for Chrome's helpers). NULL outside an app."
             ),
             Column(name: "kind", detail: "app, macos or background."),
+            Column(
+                name: "command",
+                detail:
+                    "What an interpreter was running, from its command line: train.py for python3 "
+                    + "train.py, http.server for python -m http.server, tsc for node's TypeScript "
+                    + "compiler. Tells one python3 or node from another. NULL for other processes, "
+                    + "other users' processes, and runs recorded before this was kept."
+            ),
             Column(name: "bundle_id", detail: "Bundle identifier, when it has one."),
             Column(name: "executable_path", detail: "Full path to the executable."),
             Column(name: "started_local", detail: "When this run started, local time."),
@@ -277,7 +293,7 @@ public enum AgentViews {
         ],
         sql: """
             SELECT id AS process_key, pid, name, \(appName("executable_path")) AS app,
-                \(kind("executable_path")) AS kind, bundle_id, executable_path,
+                \(kind("executable_path")) AS kind, command_label AS command, bundle_id, executable_path,
                 \(local("start_time")) AS started_local, \(local("first_seen")) AS first_seen_local,
                 \(local("last_seen")) AS last_seen_local, start_time AS started_ts, last_seen AS last_seen_ts,
                 is_translated AS runs_under_rosetta, architecture
