@@ -114,6 +114,11 @@ final class ProcessOutlineTableTests: XCTestCase {
         let rowViews = find(ProcessRowView.self, in: content)
         XCTAssertEqual(rowViews.count, 4)
         XCTAssertEqual(rowViews.filter { $0.tint == .systemGreen }.count, 1)
+        let badges = find(NSTextField.self, in: content).filter { !$0.isHidden }
+            .map { $0.stringValue.trimmingCharacters(in: .whitespaces) }
+        XCTAssertTrue(badges.contains("Exited"), "badges: \(badges)")
+        XCTAssertTrue(badges.contains("Suspended"), "badges: \(badges)")
+        XCTAssertFalse(badges.contains("Stopped"), "badges: \(badges)")
 
         if let path = ProcessInfo.processInfo.environment["MACPERF_PROCESS_TABLE_ARTIFACTS"] {
             let bitmap = try XCTUnwrap(content.bitmapImageRepForCachingDisplay(in: content.bounds))

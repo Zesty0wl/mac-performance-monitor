@@ -188,7 +188,7 @@ final class SamplerModel: ObservableObject {
     }
 
     /// Recently force-quit processes, and ones that just exited by themselves,
-    /// keyed by identity. Drives the greyed-out "stopped" rows; pruned each tick.
+    /// keyed by identity. Drives the greyed-out "Exited" rows; pruned each tick.
     private var terminatedProcesses: [ProcessIdentity: TerminatedProcess] = [:]
 
     /// How long a force-quit process stays visible (greyed out) in the list
@@ -204,8 +204,9 @@ final class SamplerModel: ObservableObject {
     /// table interval.
     private let exitedRetention: TimeInterval = 4
 
-    /// Compares each table rebuild's live list with the one before.
-    private var exitTracker = ProcessExitTracker()
+    /// Compares each table rebuild's live list with the one before. Skips the
+    /// app's own child processes, so its nettop runs don't linger as exited rows.
+    private var exitTracker = ProcessExitTracker(ignoringChildrenOf: getpid())
 
     /// Keep the rows of processes that have exited since the previous table
     /// rebuild, for `exitedRetention`.

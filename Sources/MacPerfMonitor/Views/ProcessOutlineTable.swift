@@ -529,7 +529,7 @@ struct ProcessOutlineTable: NSViewRepresentable {
             }
         }
 
-        /// The tint for a row: green while its process is new. A stopped row is
+        /// The tint for a row: green while its process is new. An exited row is
         /// already greyed and struck through, and an app row stands for many
         /// processes, so neither is tinted.
         private func tint(for item: Item, now: Date) -> NSColor? {
@@ -784,8 +784,8 @@ final class ProcessRowView: NSTableRowView {
 
 // MARK: - Cells
 
-/// The Process column: icon, leak warning, name, and a Rosetta or Stopped
-/// badge. Laid out by hand (no Auto Layout, no stack view) and re-styled only
+/// The Process column: icon, leak warning, name, and a Rosetta, Suspended or
+/// Exited badge. Laid out by hand (no Auto Layout, no stack view) and re-styled only
 /// when something it shows actually changed: with ~300 visible cells updated
 /// every second, constraint solving and needless redraws were most of the cost.
 final class ProcessCellView: NSTableCellView {
@@ -917,7 +917,9 @@ final class ProcessCellView: NSTableCellView {
         warning.isHidden = !style.warning
         if isTerminated {
             badge.isHidden = false
-            badge.stringValue = " \(t("Stopped")) "
+            // "Exited", not "Stopped": a suspended process is the one that is
+            // stopped (SIGSTOP), and this row's process is gone.
+            badge.stringValue = " \(t("Exited")) "
             badge.textColor = .secondaryLabelColor
             badge.layer?.backgroundColor =
                 NSColor.secondaryLabelColor.withAlphaComponent(0.18)

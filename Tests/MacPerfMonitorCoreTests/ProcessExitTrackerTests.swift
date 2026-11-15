@@ -5,9 +5,13 @@ import XCTest
 final class ProcessExitTrackerTests: XCTestCase {
     private let epoch = Date(timeIntervalSince1970: 1_800_000_000)
 
-    private func sample(_ pid: Int32, started: TimeInterval = 0) -> ProcessSample {
+    private func sample(
+        _ pid: Int32, started: TimeInterval = 0, parent: Int32 = 1
+    )
+        -> ProcessSample
+    {
         ProcessSample(
-            timestamp: epoch, pid: pid, ppid: 1, name: "p\(pid)", physFootprint: 0,
+            timestamp: epoch, pid: pid, ppid: parent, name: "p\(pid)", physFootprint: 0,
             residentSize: 0, virtualSize: 0, lifetimeMaxFootprint: 0, cpuPercent: 0,
             cpuTimeUser: 0, cpuTimeSystem: 0, threadCount: 1, fdTotal: 0, fdVnode: 0,
             fdSocket: 0, fdPipe: 0, fdOther: 0, diskBytesRead: 0, diskBytesWritten: 0,
@@ -32,6 +36,17 @@ final class ProcessExitTrackerTests: XCTestCase {
         _ = tracker.exits(in: [sample(7, started: 0)], now: epoch)
         let gone = tracker.exits(in: [sample(7, started: 1)], now: epoch.addingTimeInterval(2))
         XCTAssertEqual(gone.map(\.startTime), [epoch])
+    }
+
+    /// The app's own short-lived tools (nettop) are not reported; other
+    /// processes, including the app's grandchildren, still are.
+    func testChildrenOfTheIgnoredParentAreNotReported() {
+        var tracker = ProcessExitTracker(ignoringChildrenOf: 500)
+        _ = tracker.exits(
+            in: [sample(500), sample(501, parent: 500), sample(502, parent: 501), sample(503)],
+            now: epoch)
+        let gone = tracker.exits(in: [sample(500)], now: epoch.addingTimeInterval(2))
+        XCTAssertEqual(gone.map(\.pid).sorted(), [502, 503])
     }
 
     func testListsTooFarApartAreNotCompared() {

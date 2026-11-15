@@ -66,6 +66,8 @@ Notable changes to Mac Performance Monitor. This project follows
   green for a few seconds after it starts, and stays in the list greyed out
   for a few seconds after it exits, so a short-lived process no longer
   vanishes between refreshes. Turn it off in Settings > General > Processes.
+  Exited and force-quit rows are now labelled "Exited" rather than "Stopped",
+  which could be mistaken for a suspended process.
 
 - **Find which process has something open.** Choose Processes > Find Open
   File or Port (Shift-Command-F), or the magnifier beside the Processes
