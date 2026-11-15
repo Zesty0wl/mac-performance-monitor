@@ -6,6 +6,8 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+## [2.8.1] - 2026-11-15
+
 ### Fixed
 
 - **The 5 minute, 30 minute and 1 hour ranges keep their history once the
@@ -1623,7 +1625,8 @@ processes behind them.
 - A clean split between a headless, unit-tested data layer and the SwiftUI app. CI
   builds, tests, and lints on every push and pull request.
 
-[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.8.0.315...HEAD
+[Unreleased]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.8.1.316...HEAD
+[2.8.1]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.8.0.315...v2.8.1.316
 [2.8.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.7.0.312...v2.8.0.315
 [2.7.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.6.0.306...v2.7.0.312
 [2.6.0]: https://github.com/Zesty0wl/mac-performance-monitor/compare/v2.5.0.297...v2.6.0.306
