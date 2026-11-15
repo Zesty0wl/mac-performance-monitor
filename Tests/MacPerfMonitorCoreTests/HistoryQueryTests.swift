@@ -63,6 +63,29 @@ final class HistoryQueryTests: XCTestCase {
         XCTAssertEqual(top.last?.averageFootprint, 50 * mb)
     }
 
+    /// The Energy tab and the other top-consumer lists read history, not
+    /// live samples, so the recorded label has to come back through the query.
+    func testTopConsumersCarryTheCommandLabel() throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_400)
+        for offset in [0.0, 1.0] {
+            var python = Make.process(
+                timestamp: base.addingTimeInterval(offset), pid: 1000, startTime: startTime,
+                name: "python3", footprint: 100 * mb)
+            python.commandLabel = "train.py"
+            let other = Make.process(
+                timestamp: base.addingTimeInterval(offset), pid: 2000, startTime: startTime,
+                name: "Other", footprint: 50 * mb)
+            try store.insert(
+                Make.system(timestamp: base.addingTimeInterval(offset)), processes: [python, other])
+        }
+        let top = try store.topConsumers(
+            window: .oneHour, metric: .averageFootprint, limit: 10, now: base.addingTimeInterval(1))
+        let python = try XCTUnwrap(top.first { $0.identity.pid == 1000 })
+        XCTAssertEqual(python.commandLabel, "train.py")
+        XCTAssertEqual(python.labeledName, "python3 · train.py")
+        XCTAssertEqual(top.first { $0.identity.pid == 2000 }?.labeledName, "Other")
+    }
+
     func testTopConsumersMetricChangesOrdering() throws {
         let base = Date(timeIntervalSince1970: 1_700_000_400)
         // P1: 100/100/400 MB -> avg 200, peak 400. P2: flat 250 -> avg 250, peak 250.

@@ -699,7 +699,7 @@ struct ProcessOutlineTable: NSViewRepresentable {
             _ outlineView: NSOutlineView, typeSelectStringFor tableColumn: NSTableColumn?,
             item: Any
         ) -> String? {
-            (item as? Item)?.node.process.displayName
+            (item as? Item)?.node.process.labeledName
         }
 
         func outlineViewSelectionDidChange(_ notification: Notification) {
@@ -721,7 +721,7 @@ struct ProcessOutlineTable: NSViewRepresentable {
                         ? t("One of this app's processes looks like it's leaking memory.")
                         : t("A process started by this one looks like it's leaking memory.")
                 }
-                return item.node.process.displayName
+                return item.node.process.labeledName
             case .memory:
                 return item.node.process.footprintReadable
                     ? "" : t("Footprint not readable at the user level for this process.")
@@ -879,8 +879,8 @@ final class ProcessCellView: NSTableCellView {
                     || $0.terminated != style.terminated || $0.translated != style.translated
                     || $0.suspended != style.suspended
             } ?? true
-        if styleChanged || shownName != process.displayName || shownCount != memberCount {
-            shownName = process.displayName
+        if styleChanged || shownName != process.labeledName || shownCount != memberCount {
+            shownName = process.labeledName
             shownCount = memberCount
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: Self.nameFont,
@@ -892,6 +892,15 @@ final class ProcessCellView: NSTableCellView {
             ]
             let text = NSMutableAttributedString(
                 string: process.displayName, attributes: attributes)
+            // What an interpreter runs ("train.py"), quieter than the name.
+            if let label = process.commandLabel {
+                text.append(
+                    NSAttributedString(
+                        string: " · \(label)",
+                        attributes: [
+                            .font: Self.nameFont, .foregroundColor: NSColor.secondaryLabelColor,
+                        ]))
+            }
             if let memberCount {
                 text.append(
                     NSAttributedString(
@@ -1010,7 +1019,7 @@ final class ValueCellView: NSTableCellView {
         case .pid:
             text = "\(process.pid)"
             secondary = true
-        case .process: text = process.displayName
+        case .process: text = process.labeledName
         }
         if shownColumn != column {
             shownColumn = column

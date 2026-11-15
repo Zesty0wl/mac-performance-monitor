@@ -110,6 +110,11 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
     public var isSuspended: Bool?
     /// The `nice` value: -20 (most favoured) to 20 (least), normally 0.
     public var nice: Int32?
+    /// What an interpreter is running, from its command line: `train.py` for
+    /// `python3 train.py` (see `CommandLabel`). Read once per process, only
+    /// for interpreters this user owns; nil for everything else, and in
+    /// traces recorded before this field existed.
+    public var commandLabel: String?
 
     public var id: ProcessIdentity { ProcessIdentity(pid: pid, startTime: startTime) }
 
@@ -127,6 +132,18 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
     /// extends the truncated name. Shared so the persisted leaderboards (top
     /// consumers, leak board) resolve names exactly as the live process list
     /// does, rather than showing the pre-truncated `p_comm`.
+    /// `displayName` with the interpreter's script appended, "python3 · train.py",
+    /// so a list of Pythons can be told apart. Just `displayName` otherwise.
+    public var labeledName: String {
+        Self.labeledName(displayName, commandLabel: commandLabel)
+    }
+
+    /// Join a display name and a command label the one way the app shows them.
+    public static func labeledName(_ name: String, commandLabel: String?) -> String {
+        guard let commandLabel, !commandLabel.isEmpty else { return name }
+        return "\(name) · \(commandLabel)"
+    }
+
     public static func resolvedDisplayName(name: String, executablePath: String?) -> String {
         guard let path = executablePath, !path.isEmpty else { return name }
         let base = (path as NSString).lastPathComponent
@@ -185,7 +202,8 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
         coalitionID: UInt64? = nil,
         responsiblePID: Int32? = nil,
         isSuspended: Bool? = nil,
-        nice: Int32? = nil
+        nice: Int32? = nil,
+        commandLabel: String? = nil
     ) {
         self.timestamp = timestamp
         self.pid = pid
@@ -227,5 +245,6 @@ public struct ProcessSample: Sendable, Codable, Identifiable, Equatable {
         self.responsiblePID = responsiblePID
         self.isSuspended = isSuspended
         self.nice = nice
+        self.commandLabel = commandLabel
     }
 }

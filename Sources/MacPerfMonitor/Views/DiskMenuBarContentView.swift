@@ -121,7 +121,7 @@ struct DiskMenuBarContentView: View {
             Image(nsImage: ProcessIconProvider.shared.rowIcon(forPath: process.executablePath))
                 .resizable()
                 .frame(width: 16, height: 16)
-            Text(process.displayName)
+            Text(process.labeledName)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .frame(maxWidth: .infinity, alignment: .leading)

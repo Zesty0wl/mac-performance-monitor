@@ -142,7 +142,8 @@ public final class AgentStore {
 
     public func earliestRecord() throws -> Date? { try store.askEarliestRecord() }
 
-    /// Recorded runs whose name, app, bundle or path contains `text`.
+    /// Recorded runs whose name, app, command label, bundle or path contains
+    /// `text`, so "train.py" finds the python3 running it.
     public func findProcesses(_ text: String, limit: Int = 20) throws -> Table {
         let escaped = text.replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "%", with: "\\%").replacingOccurrences(of: "_", with: "\\_")
@@ -150,14 +151,16 @@ public final class AgentStore {
             let rows = try Row.fetchAll(
                 db,
                 sql: """
-                    SELECT process_key, pid, name, app, kind, started_local, last_seen_local
+                    SELECT process_key, pid, name, command, app, kind, started_local, last_seen_local
                     FROM agent_processes
                     WHERE name LIKE ?1 ESCAPE '\\' OR app LIKE ?1 ESCAPE '\\'
+                        OR command LIKE ?1 ESCAPE '\\'
                         OR bundle_id LIKE ?1 ESCAPE '\\' OR executable_path LIKE ?1 ESCAPE '\\'
                     ORDER BY last_seen_ts DESC LIMIT ?2
                     """, arguments: ["%\(escaped)%", min(max(1, limit), 200)])
             let columns = [
-                "process_key", "pid", "name", "app", "kind", "started_local", "last_seen_local",
+                "process_key", "pid", "name", "command", "app", "kind", "started_local",
+                "last_seen_local",
             ]
             return Table(
                 columns: columns,

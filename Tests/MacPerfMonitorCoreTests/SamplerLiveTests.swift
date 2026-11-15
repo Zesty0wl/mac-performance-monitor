@@ -103,6 +103,28 @@ final class SamplerLiveTests: XCTestCase {
         XCTAssertLessThan(after, baseline + 50)
     }
 
+    func testLabelsAnInterpreterByWhatItRuns() throws {
+        let script = FileManager.default.temporaryDirectory
+            .appendingPathComponent("label-probe-\(UUID().uuidString.prefix(8)).sh")
+        try "sleep 30\n".write(to: script, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: script) }
+        let child = Process()
+        child.executableURL = URL(fileURLWithPath: "/bin/sh")
+        child.arguments = [script.path]
+        try child.run()
+        defer { child.terminate() }
+        Thread.sleep(forTimeInterval: 0.2)
+
+        let snapshot = Sampler().tick()
+        let row = snapshot.processes.first { $0.pid == child.processIdentifier }
+        XCTAssertEqual(row?.commandLabel, script.lastPathComponent)
+        // /bin/sh runs as bash on macOS, so check only the label half.
+        XCTAssertEqual(row?.labeledName.hasSuffix(" · \(script.lastPathComponent)"), true)
+        let own = snapshot.processes.first { $0.pid == getpid() }
+        XCTAssertNotNil(own)
+        XCTAssertNil(own?.commandLabel, "not an interpreter, so its arguments are never read")
+    }
+
     func testHasBaselineOnlyAfterAFirstTick() {
         let sampler = Sampler()
         XCTAssertFalse(sampler.hasBaseline, "nothing to difference against before the first tick")

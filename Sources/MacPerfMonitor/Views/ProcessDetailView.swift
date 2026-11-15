@@ -224,7 +224,7 @@ private struct ProcessDetailHeader: View {
 
     var body: some View {
         let live = model.currentSample(for: identity)
-        let displayName = live?.displayName ?? "PID \(identity.pid)"
+        let displayName = live?.labeledName ?? "PID \(identity.pid)"
         HStack(spacing: 10) {
             Image(nsImage: ProcessIconProvider.shared.icon(forPath: live?.executablePath))
                 .resizable()
@@ -581,6 +581,10 @@ private struct MetadataSection: View {
     @State private var workingDirectory: String?
     /// What started the process, worked out once per process shown.
     @State private var origin: LaunchOrigin?
+    /// The command line, read once per process shown (nil until read, or
+    /// when unreadable).
+    @State private var arguments: [String]?
+    @State private var argumentsRead = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -591,6 +595,10 @@ private struct MetadataSection: View {
                 if let live {
                     row("Path", live.executablePath ?? "—")
                     if let workingDirectory { row("Working directory", workingDirectory) }
+                    if argumentsRead {
+                        ProcessCommandLineRow(
+                            arguments: arguments, ownedByAnotherUser: live.uid != getuid())
+                    }
                     row("Bundle ID", live.bundleID ?? "—")
                     row("PID", "\(live.pid)")
                     if live.ppid > 0 { row("Parent PID", "\(live.ppid)") }
@@ -635,9 +643,15 @@ private struct MetadataSection: View {
             let pid = identity.pid
             workingDirectory = nil
             origin = nil
+            arguments = nil
+            argumentsRead = false
             workingDirectory = await Task.detached(priority: .utility) {
                 ProcessReader().workingDirectory(pid)
             }.value
+            arguments = await Task.detached(priority: .utility) {
+                ProcessArguments.read(pid: pid)
+            }.value
+            argumentsRead = true
             guard let live else { return }
             let path = live.executablePath
             let parent = live.ppid
@@ -766,6 +780,77 @@ private struct MetadataSection: View {
     private static func username(for uid: uid_t) -> String? {
         guard let entry = getpwuid(uid), let name = entry.pointee.pw_name else { return nil }
         return String(cString: name)
+    }
+}
+
+/// The Details panel's command line: the arguments a process was started with,
+/// as `ps` shows them, so one `python3` can be told from another. Long command
+/// lines fold to a few lines with a toggle; Copy puts the shell-quoted line on
+/// the pasteboard. Shown only here, on demand: arguments can carry tokens, so
+/// they are never logged or exported.
+private struct ProcessCommandLineRow: View {
+    let arguments: [String]?
+    let ownedByAnotherUser: Bool
+    @State private var expanded = false
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("Command line")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 110, alignment: .leading)
+            if let arguments {
+                let line = ProcessCommandLine.quoted(arguments)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: line)
+                        .font(.caption.monospaced())
+                        .textSelection(.enabled)
+                        .lineLimit(expanded ? nil : 3)
+                        .truncationMode(.tail)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if line.count > 160 {
+                        Button(expanded ? t("Show less") : t("Show all")) {
+                            expanded.toggle()
+                        }
+                        .buttonStyle(.link)
+                        .font(.caption)
+                    }
+                }
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(line, forType: .string)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help(t("Copy the command line"))
+            } else {
+                Text(
+                    ownedByAnotherUser
+                        ? t("Not readable: another user's process")
+                        : t("Not readable")
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+}
+
+/// Joining arguments into one line a shell would split back the same way.
+enum ProcessCommandLine {
+    static func quoted(_ arguments: [String]) -> String {
+        arguments.map(quote).joined(separator: " ")
+    }
+
+    static func quote(_ argument: String) -> String {
+        guard !argument.isEmpty else { return "''" }
+        let safe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_./:=@%+,"))
+        if argument.unicodeScalars.allSatisfy({ safe.contains($0) }) { return argument }
+        return "'" + argument.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 }
 

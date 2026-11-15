@@ -160,7 +160,7 @@ struct GPUView: View {
                 return nil
             }
             return AIWorkloadRow(
-                id: process.id, name: process.displayName, runtime: info.runtime,
+                id: process.id, name: process.labeledName, runtime: info.runtime,
                 model: info.model, gpuPercent: process.gpuPercentValue,
                 footprint: process.physFootprint, lastActive: process.gpuLastActive,
                 active: Self.isRecentlyActive(process))

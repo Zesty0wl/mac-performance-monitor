@@ -210,7 +210,7 @@ struct CPUMenuProcessRow: View {
             Image(nsImage: ProcessIconProvider.shared.rowIcon(forPath: process.executablePath))
                 .resizable()
                 .frame(width: 16, height: 16)
-            Text(process.displayName)
+            Text(process.labeledName)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -237,7 +237,7 @@ struct CPUMenuProcessRow: View {
         .onHover { hovering = $0 }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
-        .accessibilityLabel("\(process.displayName), \(CPUFormat.percent(process.cpuPercent)) CPU")
+        .accessibilityLabel("\(process.labeledName), \(CPUFormat.percent(process.cpuPercent)) CPU")
         .accessibilityHint("Opens this process in the main window")
         .processRowActions(identity: process.id, bringWindowForward: true, openOnSingleTap: true)
     }

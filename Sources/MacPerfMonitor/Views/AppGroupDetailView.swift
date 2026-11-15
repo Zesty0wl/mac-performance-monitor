@@ -125,7 +125,7 @@ struct AppGroupDetailView: View {
                         Image(
                             nsImage: ProcessIconProvider.shared.rowIcon(
                                 forPath: member.executablePath))
-                        Text(member.displayName)
+                        Text(member.labeledName)
                             .lineLimit(1)
                             .truncationMode(.middle)
                         Spacer(minLength: 8)

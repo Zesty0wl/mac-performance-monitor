@@ -342,7 +342,7 @@ struct NetworkView: View {
         HStack(spacing: 10) {
             Image(nsImage: ProcessIconProvider.shared.icon(forPath: process.executablePath))
                 .resizable().frame(width: 18, height: 18)
-            Text(process.displayName)
+            Text(process.labeledName)
                 .lineLimit(1).truncationMode(.middle)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Capsule()

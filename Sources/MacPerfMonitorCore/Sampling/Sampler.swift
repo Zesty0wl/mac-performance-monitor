@@ -178,6 +178,10 @@ public final class Sampler {
         /// `teamIDResolvePerTick`) and should be retried on a later tick — as
         /// distinct from a genuine nil (an unsigned binary), where it is true.
         var teamIDResolved: Bool = false
+        /// `CommandLabel`, read under kernel name `commandLabelName`: an exec
+        /// keeps pid and start time, so a new name means a fresh read.
+        var commandLabel: String? = nil
+        var commandLabelName: String? = nil
     }
     private var staticCache: [ProcessIdentity: StaticInfo] = [:]
 
@@ -708,7 +712,7 @@ public final class Sampler {
         // code-sign lookup is the one expensive resolution, so it is throttled to
         // `teamIDBudget` new resolutions per scan and retried on later ticks —
         // the rest of the facts are always resolved on first sight.
-        let staticInfo: StaticInfo
+        var staticInfo: StaticInfo
         if let cached = staticCache[identity], cached.teamIDResolved {
             // Fully resolved on an earlier tick — reuse verbatim.
             staticInfo = cached
@@ -717,15 +721,11 @@ public final class Sampler {
             // Keep the cheap facts already known; retry only the code-sign lookup.
             if teamIDBudget > 0 {
                 teamIDBudget -= 1
-                staticInfo = StaticInfo(
-                    executablePath: partial.executablePath,
-                    bundleID: partial.bundleID,
-                    teamID: codeSigningResolver.teamID(forExecutablePath: partial.executablePath),
-                    isTranslated: partial.isTranslated,
-                    architecture: partial.architecture,
-                    coalitionID: partial.coalitionID,
-                    responsiblePID: partial.responsiblePID,
-                    teamIDResolved: true)
+                var resolved = partial
+                resolved.teamID = codeSigningResolver.teamID(
+                    forExecutablePath: partial.executablePath)
+                resolved.teamIDResolved = true
+                staticInfo = resolved
             } else {
                 staticInfo = partial
             }
@@ -745,6 +745,12 @@ public final class Sampler {
                 coalitionID: processReader.coalitionID(pid),
                 responsiblePID: processReader.responsiblePID(pid),
                 teamIDResolved: resolveTeam)
+        }
+        if staticInfo.commandLabelName != info.name {
+            staticInfo.commandLabelName = info.name
+            staticInfo.commandLabel = CommandLabel.read(
+                pid: pid, name: info.name, executablePath: staticInfo.executablePath,
+                uid: info.uid)
         }
         newStaticCache[identity] = staticInfo
 
@@ -791,7 +797,8 @@ public final class Sampler {
             coalitionID: staticInfo.coalitionID,
             responsiblePID: staticInfo.responsiblePID,
             isSuspended: info.isSuspended,
-            nice: info.nice
+            nice: info.nice,
+            commandLabel: staticInfo.commandLabel
         )
     }
 

@@ -29,6 +29,7 @@ public final class SampleStore {
         var executablePath: String?
         var bundleID: String?
         var teamID: String?
+        var commandLabel: String?
     }
     private var processIDCache: [ProcessIdentity: CachedProcessRow] = [:]
 
@@ -352,21 +353,23 @@ public final class SampleStore {
             cached.name == s.name,
             cached.executablePath == s.executablePath,
             cached.bundleID == s.bundleID,
-            cached.teamID == s.teamID
+            cached.teamID == s.teamID,
+            cached.commandLabel == s.commandLabel
         {
             return cached.id
         }
         let statement = try db.cachedStatement(
             sql: """
                 INSERT INTO processes
-                (pid, start_time, name, executable_path, bundle_id, team_id, uid, architecture, is_translated, first_seen, last_seen)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                (pid, start_time, name, executable_path, bundle_id, team_id, uid, architecture, is_translated, first_seen, last_seen, command_label)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(pid, start_time) DO UPDATE SET
                   last_seen = excluded.last_seen,
                   name = excluded.name,
                   executable_path = excluded.executable_path,
                   bundle_id = excluded.bundle_id,
                   team_id = COALESCE(excluded.team_id, processes.team_id),
+                  command_label = COALESCE(excluded.command_label, processes.command_label),
                   architecture = excluded.architecture,
                   is_translated = excluded.is_translated
                 RETURNING id
@@ -377,11 +380,12 @@ public final class SampleStore {
                 s.pid, s.startTime.timeIntervalSince1970, s.name, s.executablePath, s.bundleID,
                 s.teamID, Int64(s.uid), s.architecture.rawValue, s.isTranslated,
                 s.timestamp.timeIntervalSince1970, s.timestamp.timeIntervalSince1970,
+                s.commandLabel,
             ])
         guard let id else { throw DatabaseError(message: "failed to upsert process row") }
         processIDCache[s.id] = CachedProcessRow(
             id: id, name: s.name, executablePath: s.executablePath, bundleID: s.bundleID,
-            teamID: s.teamID)
+            teamID: s.teamID, commandLabel: s.commandLabel)
         return id
     }
 

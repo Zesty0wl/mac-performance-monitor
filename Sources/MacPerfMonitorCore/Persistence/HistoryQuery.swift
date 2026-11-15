@@ -139,6 +139,8 @@ public struct ProcessConsumer: Sendable, Identifiable, Equatable {
     public var averageDisk: Double
     /// Number of underlying samples contributing to the aggregate.
     public var sampleCount: Int
+    /// What an interpreter was running (`CommandLabel`), as recorded.
+    public var commandLabel: String?
 
     public var id: ProcessIdentity { identity }
 
@@ -146,6 +148,11 @@ public struct ProcessConsumer: Sendable, Identifiable, Equatable {
     /// executable path just as the live process list does.
     public var displayName: String {
         ProcessSample.resolvedDisplayName(name: name, executablePath: executablePath)
+    }
+
+    /// `displayName` with the script an interpreter ran: "python3 · train.py".
+    public var labeledName: String {
+        ProcessSample.labeledName(displayName, commandLabel: commandLabel)
     }
 
     public init(
@@ -161,7 +168,8 @@ public struct ProcessConsumer: Sendable, Identifiable, Equatable {
         averageEnergy: Double = 0,
         averageNetwork: Double = 0,
         averageDisk: Double = 0,
-        sampleCount: Int
+        sampleCount: Int,
+        commandLabel: String? = nil
     ) {
         self.identity = identity
         self.name = name
@@ -176,6 +184,7 @@ public struct ProcessConsumer: Sendable, Identifiable, Equatable {
         self.averageNetwork = averageNetwork
         self.averageDisk = averageDisk
         self.sampleCount = sampleCount
+        self.commandLabel = commandLabel
     }
 }
 
@@ -195,6 +204,8 @@ public struct RecordedProcess: Sendable, Hashable, Identifiable {
     /// the picker and dates an exited process for the user.
     public var firstSeen: Date
     public var lastSeen: Date
+    /// What an interpreter was running (`CommandLabel`), as recorded.
+    public var commandLabel: String?
 
     public var id: ProcessIdentity { identity }
 
@@ -204,13 +215,19 @@ public struct RecordedProcess: Sendable, Hashable, Identifiable {
         ProcessSample.resolvedDisplayName(name: name, executablePath: executablePath)
     }
 
+    /// `displayName` with the script an interpreter ran: "python3 · train.py".
+    public var labeledName: String {
+        ProcessSample.labeledName(displayName, commandLabel: commandLabel)
+    }
+
     public init(
         identity: ProcessIdentity,
         name: String,
         executablePath: String?,
         bundleID: String?,
         firstSeen: Date,
-        lastSeen: Date
+        lastSeen: Date,
+        commandLabel: String? = nil
     ) {
         self.identity = identity
         self.name = name
@@ -218,6 +235,7 @@ public struct RecordedProcess: Sendable, Hashable, Identifiable {
         self.bundleID = bundleID
         self.firstSeen = firstSeen
         self.lastSeen = lastSeen
+        self.commandLabel = commandLabel
     }
 }
 
@@ -265,8 +283,10 @@ extension SampleStore {
                 .replacingOccurrences(of: "_", with: "\\_")
             searchClause = """
                  AND (p.name LIKE ? ESCAPE '\\'
-                      OR p.executable_path LIKE ? ESCAPE '\\')
+                      OR p.executable_path LIKE ? ESCAPE '\\'
+                      OR p.command_label LIKE ? ESCAPE '\\')
                 """
+            arguments.append("%\(escaped)%")
             arguments.append("%\(escaped)%")
             arguments.append("%\(escaped)%")
         }
@@ -277,7 +297,7 @@ extension SampleStore {
                 db,
                 sql: """
                     SELECT p.pid, p.start_time, p.name, p.bundle_id, p.executable_path,
-                           p.first_seen, p.last_seen
+                           p.first_seen, p.last_seen, p.command_label
                     FROM processes p
                     WHERE p.last_seen >= ?
                       AND p.last_seen < (SELECT MAX(last_seen) FROM processes) - ?\(searchClause)
@@ -296,7 +316,8 @@ extension SampleStore {
                     executablePath: row[4],
                     bundleID: row[3],
                     firstSeen: Date(timeIntervalSince1970: firstSeen),
-                    lastSeen: Date(timeIntervalSince1970: lastSeen))
+                    lastSeen: Date(timeIntervalSince1970: lastSeen),
+                    commandLabel: row[7])
             }
         }
     }
@@ -380,7 +401,7 @@ extension SampleStore {
                                     + (MAX(s.disk_written) - MIN(s.disk_written)))
                                     / (MAX(s.timestamp) - MIN(s.timestamp))
                                 ELSE 0 END AS avg_disk,
-                           COUNT(*) AS n
+                           COUNT(*) AS n, p.command_label AS command
                     FROM (
                         SELECT process_id, timestamp, phys_footprint, cpu_percent, energy_impact,
                                net_total, disk_read, disk_written,
@@ -424,7 +445,7 @@ extension SampleStore {
                                     + (MAX(t.disk_written_max) - MIN(t.disk_written_max)))
                                     / (MAX(t.bucket) - MIN(t.bucket))
                                 ELSE 0 END AS avg_disk,
-                           SUM(t.samples) AS n
+                           SUM(t.samples) AS n, p.command_label AS command
                     FROM \(table) t
                     JOIN processes p ON p.id = t.process_id
                     WHERE t.bucket >= ?\(Self.inClause("t.process_id", count: processIDs.count))
@@ -436,7 +457,7 @@ extension SampleStore {
         }
     }
 
-    /// Positional decode (raw and aggregate SELECTs list the same 14 columns in
+    /// Positional decode (raw and aggregate SELECTs list the same 15 columns in
     /// the same order), avoiding a name lookup per field per row.
     private static func decodeConsumer(_ row: Row) -> ProcessConsumer {
         let pid: Int32 = row[0]
@@ -459,7 +480,8 @@ extension SampleStore {
             averageEnergy: row[10],
             averageNetwork: row[11],
             averageDisk: row[12],
-            sampleCount: row[13]
+            sampleCount: row[13],
+            commandLabel: row[14]
         )
     }
 }

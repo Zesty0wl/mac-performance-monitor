@@ -8,6 +8,23 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ### Added
 
+- **Tell one Python from another.** Interpreters such as `python3`, `node`,
+  `java`, `ruby` and shell scripts now show what they are running next to
+  their name, for example `python3 · train.py`, `python3 · http.server` for
+  `python -m http.server`, or `node · tsc`. Launchers are named by what they
+  were asked to run: `uv · train.py`, `npm · dev` for `npm run dev`,
+  `cargo · server` for `cargo run --bin server`, and likewise for `uvx`,
+  `npx`, `pnpm`, `yarn`, `poetry`, `pipenv` and `go run`. The label appears wherever a process is
+  named: the process list and details, Energy, Dashboard, Insights, Disk,
+  Network, GPU, the Performance Monitor, the menu bar lists and the Quit and
+  Force Quit confirmations. History keeps it, so exited runs are labelled too,
+  and search and the name sort use it. It is read once per process, only for interpreters you
+  own. The process details also gain a **Command line** row with the full
+  arguments and a Copy button. Only the short label is kept in history, never
+  the full command line, since arguments can carry tokens. AI agents see it
+  as a new `command` column in `agent_processes`, and `find_process` matches
+  it, so asking about `train.py` finds the right run. (#191)
+
 - **More ways to control a process.** The right-click menu on a process now
   has, alongside Force Quit:
   - **Quit:** asks the process to shut down (SIGTERM), after a confirmation.
