@@ -799,8 +799,7 @@ private struct ProcessCommandLineRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(width: 110, alignment: .leading)
-            if let arguments {
-                let line = ProcessCommandLine.quoted(arguments)
+            if let arguments, let line = ProcessCommandLine.displayed(arguments) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: line)
                         .font(.caption.monospaced())
@@ -826,6 +825,12 @@ private struct ProcessCommandLineRow: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .help(t("Copy the command line"))
+            } else if arguments != nil {
+                Text(t("No arguments"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .help(t("The process was started with only its program, shown in Path above."))
             } else {
                 Text(
                     ownedByAnotherUser
@@ -842,6 +847,16 @@ private struct ProcessCommandLineRow: View {
 
 /// Joining arguments into one line a shell would split back the same way.
 enum ProcessCommandLine {
+    /// The line the Command line row shows, or nil for a process started with
+    /// no arguments. Most background services (an XPC service such as
+    /// MTLCompilerService, a launchd daemon) are started that way: their argv
+    /// is only the program, which would just repeat the Path row. The first
+    /// word stays when there are arguments, because it can differ from the
+    /// executable's path (`python3` for python3.12, `-zsh` for a login shell).
+    static func displayed(_ arguments: [String]) -> String? {
+        arguments.count > 1 ? quoted(arguments) : nil
+    }
+
     static func quoted(_ arguments: [String]) -> String {
         arguments.map(quote).joined(separator: " ")
     }

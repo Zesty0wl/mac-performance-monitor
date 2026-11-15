@@ -115528,6 +115528,78 @@
           }
         }
       }
+    },
+    "No arguments" : {
+      "comment" : "Process details: Command line row for a process started with no arguments",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Argumente"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No arguments"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun argument"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无参数"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Нет аргументов"
+          }
+        }
+      }
+    },
+    "The process was started with only its program, shown in Path above." : {
+      "comment" : "Process details: tooltip on No arguments in the Command line row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Prozess wurde nur mit seinem Programm gestartet, das oben unter Pfad steht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The process was started with only its program, shown in Path above."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le processus a été lancé avec son seul programme, indiqué ci-dessus dans Chemin."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该进程启动时只有其程序本身，即上方“路径”中显示的程序。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Процесс запущен только со своей программой, указанной выше в поле «Путь»."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

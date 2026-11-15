@@ -6,6 +6,14 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Changed
+
+- **The Command line row says "No arguments" when there are none.** Most
+  background services, such as the XPC services macOS starts for Metal, are
+  started with only their program, so the row repeated the Path above it and
+  looked as if the arguments were missing. It now says "No arguments", and
+  shows the full line only when the process was given some.
+
 ## [2.8.0] - 2026-11-15
 
 ### Added
