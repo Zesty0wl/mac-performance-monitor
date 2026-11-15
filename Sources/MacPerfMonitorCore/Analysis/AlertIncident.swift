@@ -245,6 +245,7 @@ public final class AlertIncidentTracker {
         case .highCPU, .sustainedProcessCPU: return "cpu"
         case .highGPU: return "gpu"
         case .thermalThrottle: return "thermal"
+        case .lowDiskSpace: return "disk"
         }
     }
 

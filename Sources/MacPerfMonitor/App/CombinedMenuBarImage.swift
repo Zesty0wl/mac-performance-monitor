@@ -21,6 +21,8 @@ extension MenuBarMetric {
             return activeKinds.contains(.thermalThrottle)
         case .gpu:
             return activeKinds.contains(.highGPU)
+        case .freeSpace:
+            return activeKinds.contains(.lowDiskSpace)
         case .energy, .network, .disk:
             return false
         }
@@ -77,6 +79,13 @@ enum CombinedMenuBarReadouts {
                 "\(ByteFormat.rateCompact(rates.readBytesPerSec))↓",
                 "\(ByteFormat.rateCompact(rates.writeBytesPerSec))↑"
             )
+        case .freeSpace:
+            // Same compact scale as the rates ("42G", "1.2T"): the cell has no
+            // room for "GB", and the dropdown spells it out.
+            let value = (model.liveSystem?.bootVolumeUsableBytes).map {
+                ByteFormat.rateCompact(Double($0))
+            }
+            return (value ?? "--", nil)
         }
     }
 }
@@ -272,11 +281,12 @@ enum CombinedMenuBarImage {
         let value = attributed(compactValue, font: font, color: color)
         // Width-stability sample per unit family, so a cell never jitters as
         // digits change: percent readouts size against "100", temperature
-        // against "100°", wattage against "199W".
+        // against "100°", wattage against "199W", free space against "999G".
         let sampleText =
             readout.value.hasSuffix("%")
             ? "100"
-            : readout.value.hasSuffix("°") ? "100°" : "199W"
+            : readout.value.hasSuffix("°")
+                ? "100°" : readout.metric == .freeSpace ? "999G" : "199W"
         let sample = attributed(sampleText, font: font, color: color)
         let labelSize = label.size()
         let valueSize = value.size()

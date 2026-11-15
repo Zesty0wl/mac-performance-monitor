@@ -23,6 +23,7 @@ struct DiskMenuBarContentView: View {
             )
             .frame(height: MenuChart.networkHeight)
             if let disk = model.latestDisk { activitySummary(disk) }
+            startupSpace
             Divider()
             devices
             Divider()
@@ -63,6 +64,34 @@ struct DiskMenuBarContentView: View {
         }
         .font(.caption.monospacedDigit())
         .foregroundStyle(.secondary)
+    }
+
+    /// One line of free space, so the activity panel answers "is it filling
+    /// up?" too. The Free Space panel has the detail.
+    @ViewBuilder private var startupSpace: some View {
+        if let system = model.liveSystem, let total = system.bootVolumeTotalBytes, total > 0,
+            let available = system.bootVolumeUsableBytes
+        {
+            let low = model.activeAlertKinds.contains(.lowDiskSpace)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack {
+                    Text("Startup disk")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(
+                        t(
+                            "%1$@ available of %2$@", ByteFormat.string(available),
+                            ByteFormat.string(total))
+                    )
+                    .foregroundStyle(low ? Color.red : Color.primary)
+                }
+                .font(.caption.monospacedDigit())
+                FreeSpaceBar(
+                    usedFraction: 1 - FreeSpaceMenuBarContentView.fraction(available, total),
+                    tint: low ? .red : .accentColor)
+            }
+            .accessibilityElement(children: .combine)
+        }
     }
 
     @ViewBuilder private var devices: some View {

@@ -407,6 +407,14 @@ public final class BootVolumeReader {
     public struct Capacity: Sendable, Equatable {
         public var totalBytes: UInt64
         public var freeBytes: UInt64
+        /// What Finder calls Available: free space plus purgeable space macOS
+        /// will reclaim on demand (caches, local snapshots, optimised iCloud
+        /// files). Nil when the volume does not report it.
+        public var availableBytes: UInt64? = nil
+
+        /// The figure to show and alert on: Finder's Available when known, so
+        /// the menu bar agrees with Finder and the Disk page, else `freeBytes`.
+        public var usableBytes: UInt64 { availableBytes ?? freeBytes }
     }
 
     private let source: () -> Capacity?
@@ -443,8 +451,17 @@ public final class BootVolumeReader {
         var fs = FSStatBuffer()
         guard statfs("/", &fs) == 0 else { return nil }
         let blockSize = UInt64(fs.f_bsize)
+        let total = fs.f_blocks * blockSize
+        let free = UInt64(max(0, fs.f_bavail)) * blockSize
+        // A fresh URL each time: resource values are cached per URL object.
+        let important = try? URL(fileURLWithPath: "/", isDirectory: true)
+            .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+            .volumeAvailableCapacityForImportantUsage
+        let available = VolumeReader.sanitizedImportantUsage(
+            important.map { UInt64(max(0, $0)) }, totalBytes: total)
         return Capacity(
-            totalBytes: fs.f_blocks * blockSize,
-            freeBytes: UInt64(max(0, fs.f_bavail)) * blockSize)
+            totalBytes: total, freeBytes: free,
+            // Purgeable space only ever adds to what statfs reports free.
+            availableBytes: available.map { min(total, max(free, $0)) })
     }
 }

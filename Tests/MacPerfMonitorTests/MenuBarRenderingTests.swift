@@ -1,8 +1,8 @@
 import AppKit
-import MacPerfMonitorCore
 import XCTest
 
 @testable import MacPerfMonitor
+@testable import MacPerfMonitorCore
 
 @MainActor
 final class MenuBarRenderingTests: XCTestCase {
@@ -18,6 +18,7 @@ final class MenuBarRenderingTests: XCTestCase {
                 isAlarm: false),
             .init(
                 metric: .disk, value: "12M\u{2193}", secondaryValue: "2M\u{2191}", isAlarm: false),
+            .init(metric: .freeSpace, value: "42G", isAlarm: false),
         ]
     }
 
@@ -80,13 +81,53 @@ final class MenuBarRenderingTests: XCTestCase {
             }
         }
         XCTAssertEqual(CombinedMenuBarImage.cachedLayoutCount, MenuBarMetric.allCases.count)
-        let directional = try XCTUnwrap(values.last)
+        let directional = try XCTUnwrap(values.first { $0.metric == .disk })
         let first = CombinedMenuBarImage.layout(for: directional)
         var changed = directional
         changed.secondaryValue = "123M\u{2191}"
         XCTAssertFalse(CombinedMenuBarImage.layout(for: changed) === first)
         changed.secondaryValue = nil
         XCTAssertFalse(CombinedMenuBarImage.layout(for: changed) === first)
+    }
+
+    func testFreeSpaceCellKeepsItsWidthAsTheFigureChanges() {
+        let narrow = CombinedMenuBarImage.layout(
+            for: .init(metric: .freeSpace, value: "8.5G", isAlarm: false))
+        let wide = CombinedMenuBarImage.layout(
+            for: .init(metric: .freeSpace, value: "999G", isAlarm: false))
+        XCTAssertEqual(narrow.width, wide.width)
+    }
+
+    func testFreeSpaceAlarmFollowsTheLowSpaceAlert() {
+        XCTAssertTrue(MenuBarMetric.freeSpace.isAlarm(in: [.lowDiskSpace]))
+        XCTAssertFalse(MenuBarMetric.freeSpace.isAlarm(in: [.highCPU]))
+        XCTAssertFalse(MenuBarMetric.disk.isAlarm(in: [.lowDiskSpace]))
+    }
+
+    func testFreeSpacePanelListsOnlyOtherWritableUserVolumes() {
+        func volume(
+            _ mount: String, role: VolumeRole, root: Bool = false, readOnly: Bool = false
+        ) -> VolumeInfo {
+            VolumeInfo(
+                mountPoint: mount, name: (mount as NSString).lastPathComponent, bsdName: nil,
+                fsTypeName: "apfs", volumeUUID: nil, role: role, isRoot: root, isLocal: true,
+                isReadOnly: readOnly, isInternal: nil, isEjectable: nil, isEncrypted: nil,
+                totalBytes: 1_000, freeBytes: 500, availableBytes: 500,
+                importantUsageAvailableBytes: nil, purgeableBytes: nil, containerBSDName: nil,
+                blockSize: 4096)
+        }
+        let listed = FreeSpaceVolumesModel.otherVolumes(in: [
+            volume("/", role: .system, root: true),
+            volume("/System/Volumes/Data", role: .data),
+            volume("/System/Volumes/VM", role: .vm),
+            volume("/Volumes/Recovery", role: .recovery),
+            volume("/dev", role: .user),
+            volume("/Users/someone/Library/Developer/CoreDevice/DeviceFS", role: .user),
+            volume("/Volumes/Installer", role: .user, readOnly: true),
+            volume("/Volumes/Projects", role: .user),
+            volume("/Volumes/Archive", role: .user),
+        ])
+        XCTAssertEqual(listed.map(\.name), ["Archive", "Projects"])
     }
 
     private func checkImage(_ image: NSImage, name: String) throws {

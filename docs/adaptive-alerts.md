@@ -112,6 +112,31 @@ Ask uses the same rules (`SustainedCPU`), replaying a day of recorded minutes,
 so the Processor tile and answers name the program, raise the status, and
 replace "it usually settles" with the same advice.
 
+## Low Disk Space
+
+A full startup disk stalls app saves, macOS updates and swap, and it can fill
+quickly when an AI tool downloads a model or writes a large cache. The rule
+reads the startup disk once a minute, the same reading that records free-space
+history, so it costs nothing extra.
+
+It uses Finder's Available figure: free space plus purgeable space that macOS
+frees on its own when it needs room (caches, local Time Machine snapshots,
+optimised iCloud files). Strict free space alone would warn about a disk
+Finder says is fine. When Available is not reported, the rule falls back to
+strict free space.
+
+The alert is raised when available space is below the threshold, 10% of
+capacity by default (5% to 25% in steps of 5% under Settings > Alerts). One
+reading is enough, because free space moves slowly. It becomes critical, with
+another notice, below half the threshold. It clears once available space is
+2 percentage points above the threshold, so a disk hovering at the line does
+not keep notifying. A missing reading leaves an open alert unknown rather
+than recovered. Clicking the notice opens the Disk tab, where Disk Map shows
+what is using the space.
+
+The rule is on by default. Settings saved by an earlier version turn it on
+too, unless every default alert had been switched off.
+
 ## Incidents And Notices
 
 Each incident has a stable identity, current evidence, and a phase. The phases
@@ -237,6 +262,12 @@ Run focused checks:
 
 ```sh
 swift test --filter 'Alert.*Tests|AdaptiveAlertEngineTests|Swap.*Tests|ProcessGrowthMonitorTests|LeakDetectorTests|LeakBoardTests'
+```
+
+Check the low disk space rule and the Free Space read-out:
+
+```sh
+swift test --filter 'LowDiskSpaceAlertTests|MenuBarRenderingTests'
 ```
 
 Check accessory battery rules, saved settings, and background polling:

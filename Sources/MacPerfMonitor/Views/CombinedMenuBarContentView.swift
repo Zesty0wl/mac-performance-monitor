@@ -178,8 +178,13 @@ struct CombinedMenuBarContentView: View {
                 inspectAlert: { alert in
                     guard let request = AlertInvestigation(alerts: [alert]) else { return }
                     dismiss()
-                    appState.alertInvestigation = request
-                    appState.requestedMainTab = .analytics
+                    if request.opensDisk {
+                        appState.alertInvestigation = nil
+                        appState.requestedMainTab = .diskUsage
+                    } else {
+                        appState.alertInvestigation = request
+                        appState.requestedMainTab = .analytics
+                    }
                     NotificationCenter.default.post(
                         name: .macperfmonitorShowMainWindow, object: nil)
                     NSApp.activate(ignoringOtherApps: true)
@@ -203,6 +208,8 @@ struct CombinedMenuBarContentView: View {
             NetworkMenuBarContentView(dismiss: dismiss, embedded: true)
         case .metric(.disk):
             DiskMenuBarContentView(dismiss: dismiss)
+        case .metric(.freeSpace):
+            FreeSpaceMenuBarContentView()
         case .metric(.temperature):
             TemperatureMenuBarContentView(embedded: true)
         }
@@ -311,7 +318,7 @@ struct CombinedMenuBarContentView: View {
         case .metric(.cpu): return .processes
         case .metric(.energy): return .battery
         case .metric(.network): return .network
-        case .metric(.disk): return .diskUsage
+        case .metric(.disk), .metric(.freeSpace): return .diskUsage
         case .metric(.gpu): return .gpu
         case .metric(.pressure): return .dashboard
         // The Thermals section lives on the Energy tab.

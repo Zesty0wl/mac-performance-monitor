@@ -117,6 +117,21 @@ Notable changes to Mac Performance Monitor. This project follows
 - **Type to find a process.** Click the Processes list and type the first
   letters of a name to jump to it, as in Finder.
 
+- **Know when the startup disk is filling up.** A new **Low disk space**
+  alert notifies you when the startup disk has less than 10% of its capacity
+  left, and again as a critical alert below 5%. It counts the space macOS can
+  free on its own (caches, local snapshots, optimised iCloud files), as Finder
+  does, and clears once the disk is 2 points above the threshold, so a disk
+  hovering at the line does not keep alerting. It is on by default; choose 5%
+  to 25% in Settings > Alerts. Clicking it opens the Disk tab. Handy on a
+  small disk where AI tools can download models or caches without warning.
+
+- **Free space in the menu bar.** Add **Free Space** in Settings > Menu Bar to
+  show the space left on the startup disk (for example "42G") beside the other
+  read-outs. Its menu shows the startup disk's available and purgeable space
+  and the free space on any other drives you have connected. The Disk menu
+  also shows a startup disk line under its activity chart.
+
 ### Fixed
 
 - **The main window fits smaller screens in every language**

@@ -10,6 +10,8 @@ enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
     case temperature
     case network
     case disk
+    /// Space left on the startup disk. Off by default; new in 2.7.
+    case freeSpace
 
     var id: String { rawValue }
 
@@ -22,6 +24,7 @@ enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
         case .temperature: return t("Temperature")
         case .network: return t("Network")
         case .disk: return t("Disk")
+        case .freeSpace: return t("Free Space")
         }
     }
 
@@ -34,6 +37,7 @@ enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
         case .temperature: return "TMP"
         case .network: return "NET"
         case .disk: return "DSK"
+        case .freeSpace: return "FREE"
         }
     }
 
@@ -46,6 +50,7 @@ enum MenuBarMetric: String, CaseIterable, Codable, Identifiable {
         case .temperature: return "thermometer.medium"
         case .network: return "network"
         case .disk: return "internaldrive"
+        case .freeSpace: return "chart.pie"
         }
     }
 }

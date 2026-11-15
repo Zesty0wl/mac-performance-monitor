@@ -951,6 +951,7 @@ public final class Sampler {
             diskUtilizationPercent: disk?.utilizationPercent,
             bootVolumeTotalBytes: bootVolume?.totalBytes,
             bootVolumeFreeBytes: bootVolume?.freeBytes,
+            bootVolumeAvailableBytes: bootVolume?.availableBytes,
             gpuUtilization: gpu?.utilization,
             gpuPowerWatts: gpu?.gpuPowerWatts,
             anePowerWatts: gpu?.anePowerWatts,

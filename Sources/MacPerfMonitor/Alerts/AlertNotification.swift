@@ -9,6 +9,9 @@ struct AlertInvestigation: Codable, Equatable, Sendable {
     var kinds: Set<Alert.Kind>
     var records: [Alert]? = nil
 
+    /// Only a low-space alert: open the Disk tab rather than the timeline.
+    var opensDisk: Bool { kinds == [.lowDiskSpace] }
+
     init?(alerts: [Alert]) {
         guard let latest = alerts.map({ $0.evidence?.end ?? $0.date }).max(),
             let earliest = alerts.map({ $0.evidence?.start ?? $0.date }).min()

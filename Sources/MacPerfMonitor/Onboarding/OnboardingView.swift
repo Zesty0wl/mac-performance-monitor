@@ -590,6 +590,7 @@ private struct OnboardingMenuBarStep: View {
         case .temperature: return "CPU and GPU die temperature, fan speed, and throttling."
         case .network: return "Download, upload, latency, and top network apps."
         case .disk: return "Physical read and write activity, devices, and top processes."
+        case .freeSpace: return "Space left on the startup disk and other drives."
         }
     }
 }

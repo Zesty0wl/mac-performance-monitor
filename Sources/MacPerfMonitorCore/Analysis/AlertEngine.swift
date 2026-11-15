@@ -29,6 +29,14 @@ public struct AlertConfig: Sendable, Equatable, Codable {
     /// such as a part of macOS stuck in a loop. On by default: unlike total
     /// CPU, this is rarely normal. See `SustainedCPU`.
     public var sustainedProcessCPUEnabled: Bool
+    /// Notify when the startup disk's available space (Finder's figure, so
+    /// purgeable space counts as available) falls below
+    /// `lowDiskSpaceThresholdPercent` of its capacity. On by default: a full
+    /// startup disk stalls apps, updates and swap, and is rarely intended.
+    public var lowDiskSpaceEnabled: Bool
+    /// Percent of the startup disk's capacity (5...25) below which the
+    /// low-space alert fires.
+    public var lowDiskSpaceThresholdPercent: Int
     public var observeGrowthOnly: Bool
     public var accessoryBatteryEnabled: Bool
     public var accessoryBatteryThresholdPercent: Int
@@ -38,7 +46,11 @@ public struct AlertConfig: Sendable, Equatable, Codable {
     public var anyEnabled: Bool {
         criticalPressureEnabled || swapEnabled || processCeilingEnabled || leakEnabled
             || highCPUEnabled || highGPUEnabled || thermalEnabled || sustainedProcessCPUEnabled
+            || lowDiskSpaceEnabled
     }
+
+    /// The range Settings offers for the low-space threshold.
+    public static let lowDiskSpaceThresholdRange = 5...25
 
     public init(
         criticalPressureEnabled: Bool = true,
@@ -53,6 +65,8 @@ public struct AlertConfig: Sendable, Equatable, Codable {
         highGPUThresholdPercent: Int = 85,
         thermalEnabled: Bool = false,
         sustainedProcessCPUEnabled: Bool = true,
+        lowDiskSpaceEnabled: Bool = true,
+        lowDiskSpaceThresholdPercent: Int = 10,
         observeGrowthOnly: Bool = false,
         accessoryBatteryEnabled: Bool = false,
         accessoryBatteryThresholdPercent: Int = 20
@@ -69,6 +83,9 @@ public struct AlertConfig: Sendable, Equatable, Codable {
         self.highGPUThresholdPercent = highGPUThresholdPercent
         self.thermalEnabled = thermalEnabled
         self.sustainedProcessCPUEnabled = sustainedProcessCPUEnabled
+        self.lowDiskSpaceEnabled = lowDiskSpaceEnabled
+        self.lowDiskSpaceThresholdPercent = Self.clampedLowDiskThreshold(
+            lowDiskSpaceThresholdPercent)
         self.observeGrowthOnly = observeGrowthOnly
         self.accessoryBatteryEnabled = accessoryBatteryEnabled
         self.accessoryBatteryThresholdPercent = min(50, max(5, accessoryBatteryThresholdPercent))
@@ -110,6 +127,13 @@ public struct AlertConfig: Sendable, Equatable, Codable {
         sustainedProcessCPUEnabled =
             try c.decodeIfPresent(Bool.self, forKey: .sustainedProcessCPUEnabled)
             ?? (criticalPressureEnabled || leakEnabled)
+        // Same rule for the low-space alert, added later still.
+        lowDiskSpaceEnabled =
+            try c.decodeIfPresent(Bool.self, forKey: .lowDiskSpaceEnabled)
+            ?? (criticalPressureEnabled || leakEnabled)
+        lowDiskSpaceThresholdPercent = Self.clampedLowDiskThreshold(
+            try c.decodeIfPresent(Int.self, forKey: .lowDiskSpaceThresholdPercent)
+                ?? d.lowDiskSpaceThresholdPercent)
         observeGrowthOnly = try c.decodeIfPresent(Bool.self, forKey: .observeGrowthOnly) ?? false
         accessoryBatteryEnabled =
             try c.decodeIfPresent(Bool.self, forKey: .accessoryBatteryEnabled) ?? false
@@ -120,6 +144,12 @@ public struct AlertConfig: Sendable, Equatable, Codable {
     }
 
     public static let `default` = AlertConfig()
+
+    private static func clampedLowDiskThreshold(_ percent: Int) -> Int {
+        min(
+            lowDiskSpaceThresholdRange.upperBound,
+            max(lowDiskSpaceThresholdRange.lowerBound, percent))
+    }
 }
 
 /// One alert the engine decided to raise this tick. The app turns these into
@@ -135,6 +165,7 @@ public struct Alert: Sendable, Equatable, Identifiable, Codable {
         case highGPU
         case thermalThrottle
         case sustainedProcessCPU
+        case lowDiskSpace
     }
 
     public var kind: Kind
@@ -177,6 +208,7 @@ public struct Alert: Sendable, Equatable, Identifiable, Codable {
         // By program, not run: a stuck daemon restarts under new pids.
         case .sustainedProcessCPU:
             return "cpu.process.\(executablePath ?? processName ?? "unknown")"
+        case .lowDiskSpace: return "disk.low"
         }
     }
 
@@ -382,6 +414,11 @@ public final class AlertEngine {
         } else {
             sustained.reset()
         }
+        if config.lowDiskSpaceEnabled {
+            appendLowDiskSpace(
+                system: system, thresholdPercent: config.lowDiskSpaceThresholdPercent,
+                fresh: systemFresh, conditions: &conditions, unknown: &unknown)
+        }
         if config.highCPUEnabled {
             appendTimed(
                 kind: .highCPU, value: cpu.map { $0.totalUsage * 100 }, timestamp: cpu?.timestamp,
@@ -459,6 +496,56 @@ public final class AlertEngine {
     ) -> Bool {
         let age = now.timeIntervalSince(timestamp)
         return age.isFinite && age >= -lead && age <= maximumGap
+    }
+
+    /// How far above the threshold available space must climb, in percentage
+    /// points of capacity, before an open low-space alert clears. Stops a disk
+    /// hovering at the line from alerting every time a cache is written.
+    static let lowDiskRecoveryMargin = 2.0
+
+    /// Startup-disk space below the threshold. Free space is read once a
+    /// minute and moves slowly, so one reading is enough to raise it; it is
+    /// critical below half the threshold (5% at the default 10%).
+    private func appendLowDiskSpace(
+        system: SystemSample, thresholdPercent: Int, fresh: Bool,
+        conditions: inout [AlertCondition], unknown: inout Set<String>
+    ) {
+        let id = Alert(kind: .lowDiskSpace, title: "", body: "", date: system.timestamp).id
+        guard fresh, let total = system.bootVolumeTotalBytes, total > 0,
+            let available = system.bootVolumeUsableBytes
+        else {
+            unknown.insert(id)
+            return
+        }
+        let percent = Double(min(available, total)) / Double(total) * 100
+        let threshold = Double(thresholdPercent)
+        let open =
+            tracker.snapshot.incidents[id].map {
+                $0.phase != .resolved && $0.phase != .watching
+            } ?? false
+        let limit = open ? threshold + Self.lowDiskRecoveryMargin : threshold
+        guard percent < limit else { return }
+        let critical = percent < threshold / 2
+        conditions.append(
+            AlertCondition(
+                Alert(
+                    kind: .lowDiskSpace,
+                    title: critical
+                        ? t("Startup disk is almost full")
+                        : t("Startup disk is running low on space"),
+                    body: t(
+                        "%1$@ of %2$@ is left (%3$@). Open the Disk tab to see what is using the space.",
+                        ByteFormat.string(available), ByteFormat.string(total),
+                        // Rounded down: "9.6%" must not read as "10%" in an
+                        // alert about being under 10%.
+                        ByteFormat.percent(percent.rounded(.down) / 100)),
+                    date: system.timestamp,
+                    severity: critical ? .critical : .warning,
+                    evidence: AlertEvidence(
+                        start: tracker.snapshot.incidents[id]?.startedAt ?? system.timestamp,
+                        end: system.timestamp, baseline: threshold, current: percent,
+                        unit: "percent")),
+                recoveryDelay: 0))
     }
 
     private func appendTimed(

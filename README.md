@@ -103,7 +103,9 @@ first waiting for usage to fall below an old fixed limit.
 Process-growth checks reject stale readings and growth that has settled.
 Modest findings stay as quiet observations, not a diagnosis of a memory leak.
 A separate fast-growth check can catch runaway use without waiting 20 minutes,
-and a program that keeps about a core busy for an hour is flagged too.
+and a program that keeps about a core busy for an hour is flagged too. A low
+disk space alert warns when the startup disk drops below 10% free (you choose
+the level), and the menu bar can show the space left.
 
 Click the menu bar alert badge for active issues and their evidence. Snooze an
 ordinary alert for an hour, or open it in Explorer at the relevant time.

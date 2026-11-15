@@ -996,6 +996,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
             appState.alertInvestigation = nil
             appState.navigationTarget = nil
             appState.requestedMainTab = .battery
+        } else if let investigation = AlertUserInfo.investigation(from: userInfo),
+            investigation.opensDisk
+        {
+            // Low disk space has no process or timeline to inspect; the Disk
+            // tab shows what is using the space.
+            appState.alertInvestigation = nil
+            appState.navigationTarget = nil
+            appState.requestedMainTab = .diskUsage
         } else if let investigation = AlertUserInfo.investigation(from: userInfo) {
             appState.alertInvestigation = investigation
             appState.requestedMainTab = .analytics

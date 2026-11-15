@@ -104,6 +104,16 @@ public struct SystemSample: Sendable, Codable {
     /// free pool, the number that matters when the disk fills up.
     public var bootVolumeTotalBytes: UInt64?
     public var bootVolumeFreeBytes: UInt64?
+    /// Finder's Available figure for the root volume (free plus purgeable),
+    /// from the same once-a-minute read. Live only: history keeps
+    /// `bootVolumeFreeBytes`.
+    public var bootVolumeAvailableBytes: UInt64?
+
+    /// Space left on the startup disk as Finder reports it, falling back to
+    /// the strict free figure. What the menu bar and the low-space alert use.
+    public var bootVolumeUsableBytes: UInt64? {
+        bootVolumeAvailableBytes ?? bootVolumeFreeBytes
+    }
     // GPU device figures, present only on ticks that read the GPU (while a
     // GPU surface is showing or history is being recorded). Optional so
     // older samples decode and "not sampled" stays distinct from 0.
@@ -199,6 +209,7 @@ public struct SystemSample: Sendable, Codable {
         diskUtilizationPercent: Double? = nil,
         bootVolumeTotalBytes: UInt64? = nil,
         bootVolumeFreeBytes: UInt64? = nil,
+        bootVolumeAvailableBytes: UInt64? = nil,
         gpuUtilization: Double? = nil,
         gpuPowerWatts: Double? = nil,
         gpuMemoryBytes: UInt64? = nil,
@@ -285,6 +296,7 @@ public struct SystemSample: Sendable, Codable {
         self.diskUtilizationPercent = diskUtilizationPercent
         self.bootVolumeTotalBytes = bootVolumeTotalBytes
         self.bootVolumeFreeBytes = bootVolumeFreeBytes
+        self.bootVolumeAvailableBytes = bootVolumeAvailableBytes
         self.gpuUtilization = gpuUtilization
         self.gpuPowerWatts = gpuPowerWatts
         self.gpuMemoryBytes = gpuMemoryBytes

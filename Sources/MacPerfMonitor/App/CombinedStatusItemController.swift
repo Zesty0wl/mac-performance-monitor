@@ -356,7 +356,7 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
         case .metric(.network): return .network
         case .metric(.disk): return .disk
         case .metric(.gpu): return .gpu
-        case .metric(.temperature): return nil
+        case .metric(.temperature), .metric(.freeSpace): return nil
         }
     }
 

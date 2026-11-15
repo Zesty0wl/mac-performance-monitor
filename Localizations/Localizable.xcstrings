@@ -17040,38 +17040,38 @@
         }
       }
     },
-    "By default, only critical pressure and process memory growth alerts are enabled. All analysis stays on your Mac." : {
+    "By default, critical pressure, process memory growth, programs busy for hours and low disk space alerts are enabled. All analysis stays on your Mac." : {
       "comment" : "Alert defaults and privacy summary. AI-generated translations; native-speaker review pending.",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Standardmäßig sind nur Warnungen bei kritischem Speicherdruck und Prozess-Speicherwachstum aktiviert. Alle Analysen bleiben auf deinem Mac."
+            "value" : "Standardmäßig sind Warnungen bei kritischem Speicherdruck, Prozess-Speicherwachstum, stundenlang beschäftigten Programmen und wenig Speicherplatz aktiviert. Alle Analysen bleiben auf deinem Mac."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "By default, only critical pressure and process memory growth alerts are enabled. All analysis stays on your Mac."
+            "value" : "By default, critical pressure, process memory growth, programs busy for hours and low disk space alerts are enabled. All analysis stays on your Mac."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Par défaut, seules les alertes de pression critique et de croissance mémoire des processus sont activées. Toute l’analyse reste sur votre Mac."
+            "value" : "Par défaut, les alertes de pression critique, de croissance mémoire des processus, de programmes occupés pendant des heures et d’espace disque faible sont activées. Toute l’analyse reste sur votre Mac."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "默认仅启用严重内存压力和进程内存增长警报。所有分析均在您的 Mac 上进行。"
+            "value" : "默认启用严重内存压力、进程内存增长、连续忙碌数小时的程序和磁盘空间不足警报。所有分析均在您的 Mac 上进行。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "По умолчанию включены только предупреждения о критической нагрузке и росте памяти процессов. Весь анализ выполняется только на вашем Mac."
+            "value" : "По умолчанию включены предупреждения о критической нагрузке на память, росте памяти процессов, программах, занятых часами, и нехватке места на диске. Весь анализ выполняется только на вашем Mac."
           }
         }
       }
@@ -114949,6 +114949,582 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Завершён"
+          }
+        }
+      }
+    },
+    "Free Space" : {
+      "comment" : "Menu bar read-out and dropdown tab for space left on the startup disk. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freier Speicher"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Free Space"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espace libre"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可用空间"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Свободное место"
+          }
+        }
+      }
+    },
+    "Startup disk" : {
+      "comment" : "Free Space and Disk dropdowns: section label for the startup volume. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Startvolume"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Startup disk"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disque de démarrage"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启动磁盘"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Загрузочный диск"
+          }
+        }
+      }
+    },
+    "%1$@ available of %2$@" : {
+      "comment" : "Disk dropdown: space available on the startup disk, of its capacity, e.g. 42 GB available of 245 GB. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ verfügbar von %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ available of %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ disponibles sur %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 可用（共 %2$@）"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Доступно %1$@ из %2$@"
+          }
+        }
+      }
+    },
+    "%@ available" : {
+      "comment" : "Free Space dropdown headline, e.g. 42 GB available. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ verfügbar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ available"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ disponibles"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 可用"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Доступно %@"
+          }
+        }
+      }
+    },
+    "%1$@ of %2$@" : {
+      "comment" : "Free Space dropdown: a share or amount of a total, e.g. 17% of 245 GB or 40 GB of 1 TB. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ von %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ of %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ sur %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ / %2$@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$@ из %2$@"
+          }
+        }
+      }
+    },
+    "Includes %@ of purgeable space that macOS frees when it is needed." : {
+      "comment" : "Free Space dropdown note under the startup disk bar. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enthält %@ bereinigbaren Speicher, den macOS bei Bedarf freigibt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Includes %@ of purgeable space that macOS frees when it is needed."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inclut %@ d’espace purgeable que macOS libère si nécessaire."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "包括 %@ 可清除空间，macOS 会在需要时释放。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Включая %@ очищаемого места, которое macOS освобождает при необходимости."
+          }
+        }
+      }
+    },
+    "Reading the startup disk..." : {
+      "comment" : "Free Space dropdown placeholder before the first reading. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Startvolume wird gelesen ..."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading the startup disk..."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture du disque de démarrage..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在读取启动磁盘…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Чтение загрузочного диска..."
+          }
+        }
+      }
+    },
+    "Low on space" : {
+      "comment" : "Accessibility label for the warning icon when the startup disk is low on space. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenig Speicher frei"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low on space"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espace insuffisant"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "空间不足"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Мало места"
+          }
+        }
+      }
+    },
+    "Space left on the startup disk and other drives." : {
+      "comment" : "OnboardingView: description of the Free Space menu bar read-out. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freier Speicher auf dem Startvolume und anderen Laufwerken."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Space left on the startup disk and other drives."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espace restant sur le disque de démarrage et les autres disques."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启动磁盘和其他驱动器的剩余空间。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Свободное место на загрузочном и других дисках."
+          }
+        }
+      }
+    },
+    "Low disk space" : {
+      "comment" : "Settings > Alerts toggle. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenig Speicherplatz"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low disk space"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espace disque faible"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "磁盘空间不足"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Мало места на диске"
+          }
+        }
+      }
+    },
+    "Low Disk Space" : {
+      "comment" : "Settings > Alerts section header. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenig Speicherplatz"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low Disk Space"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espace disque faible"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "磁盘空间不足"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Мало места на диске"
+          }
+        }
+      }
+    },
+    "Notify below" : {
+      "comment" : "Settings > Alerts: low disk space percentage threshold. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Benachrichtigen unter"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notify below"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifier en dessous de"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低于此比例时通知"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Уведомлять ниже"
+          }
+        }
+      }
+    },
+    "Notify when the startup disk has less than this share of its capacity left, counting space macOS can free up as Finder does. Add Free Space to the menu bar to keep an eye on it." : {
+      "comment" : "Settings > Alerts: low disk space explanation. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Benachrichtigen, wenn auf dem Startvolume weniger als dieser Anteil seiner Kapazität frei ist. Wie im Finder zählt Speicher mit, den macOS freigeben kann. Füge „Freier Speicher“ zur Menüleiste hinzu, um ihn im Blick zu behalten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notify when the startup disk has less than this share of its capacity left, counting space macOS can free up as Finder does. Add Free Space to the menu bar to keep an eye on it."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifier lorsqu’il reste sur le disque de démarrage moins que cette part de sa capacité, en comptant l’espace que macOS peut libérer, comme le Finder. Ajoutez Espace libre à la barre des menus pour le surveiller."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当启动磁盘的剩余空间低于其容量的这一比例时通知，并像访达一样计入 macOS 可释放的空间。将“可用空间”添加到菜单栏即可随时查看。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Уведомлять, когда на загрузочном диске остаётся меньше этой доли ёмкости, с учётом места, которое macOS может освободить, как в Finder. Добавьте «Свободное место» в строку меню, чтобы следить за ним."
+          }
+        }
+      }
+    },
+    "Startup disk is almost full" : {
+      "comment" : "Low disk space alert title (critical). AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Startvolume ist fast voll"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Startup disk is almost full"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le disque de démarrage est presque plein"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启动磁盘几乎已满"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Загрузочный диск почти заполнен"
+          }
+        }
+      }
+    },
+    "Startup disk is running low on space" : {
+      "comment" : "Low disk space alert title (warning). AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf dem Startvolume wird der Speicher knapp"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Startup disk is running low on space"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le disque de démarrage manque d’espace"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启动磁盘空间不足"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "На загрузочном диске заканчивается место"
+          }
+        }
+      }
+    },
+    "%1$@ of %2$@ is left (%3$@). Open the Disk tab to see what is using the space." : {
+      "comment" : "Low disk space alert body: space left, capacity, percent left. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch %1$@ von %2$@ frei (%3$@). Öffne den Tab „Festplatte“, um zu sehen, was den Speicher belegt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ of %2$@ is left (%3$@). Open the Disk tab to see what is using the space."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il reste %1$@ sur %2$@ (%3$@). Ouvrez l’onglet Disque pour voir ce qui occupe l’espace."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剩余 %1$@（共 %2$@，%3$@）。打开“磁盘”标签页查看占用空间的内容。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Осталось %1$@ из %2$@ (%3$@). Откройте вкладку «Диск», чтобы увидеть, что занимает место."
           }
         }
       }

@@ -119,6 +119,9 @@ final class DataExplorerModel: ObservableObject {
             enabled.insert("process.cpu")
         } else if request.kinds.contains(.highCPU) {
             selectedLaneID = "cpu"
+        } else if request.kinds.contains(.lowDiskSpace) {
+            selectedLaneID = "capacity"
+            enabled.insert("capacity")
         } else {
             selectedLaneID = "pressure"
         }

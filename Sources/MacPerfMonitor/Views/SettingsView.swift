@@ -373,7 +373,7 @@ struct AlertsSettingsView: View {
                 Text("Critical Memory Pressure")
             } footer: {
                 Text(
-                    "By default, only critical pressure and process memory growth alerts are enabled. All analysis stays on your Mac."
+                    "By default, critical pressure, process memory growth, programs busy for hours and low disk space alerts are enabled. All analysis stays on your Mac."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -438,6 +438,24 @@ struct AlertsSettingsView: View {
                 )
             } header: {
                 Text("Busy For Hours")
+            }
+
+            Section {
+                Toggle("Low disk space", isOn: $alertSettings.config.lowDiskSpaceEnabled)
+                    .accessibilityIdentifier("low-disk-space-alerts")
+                if alertSettings.config.lowDiskSpaceEnabled {
+                    percentStepper(
+                        t("Notify below"),
+                        percent: $alertSettings.config.lowDiskSpaceThresholdPercent,
+                        range: AlertConfig.lowDiskSpaceThresholdRange
+                    )
+                    .accessibilityIdentifier("low-disk-space-threshold")
+                }
+                caption(
+                    "Notify when the startup disk has less than this share of its capacity left, counting space macOS can free up as Finder does. Add Free Space to the menu bar to keep an eye on it."
+                )
+            } header: {
+                Text("Low Disk Space")
             }
 
             Section {
