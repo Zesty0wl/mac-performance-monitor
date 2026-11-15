@@ -20,13 +20,17 @@ Notable changes to Mac Performance Monitor. This project follows
   bar lists and the Quit and Force Quit confirmations. History keeps it, so
   exited runs are labelled too, and search and the name sort use it. Groups
   can match it too: a **Script or tool** rule such as "contains jupyter"
-  collects every Jupyter kernel, however many Pythons are running. It is read
-  once per process, only for interpreters you own. The process details also
-  gain a **Command line** row with the full arguments and a Copy button. Only
-  the short label is kept in history, never the full command line, since
-  arguments can carry tokens. AI agents see it as a new `command` column in
-  `agent_processes`, and `find_process` matches it, so asking about `train.py`
-  finds the right run. (#191)
+  collects every Jupyter kernel, however many Pythons are running. A worker
+  with no command line of its own, such as a `multiprocessing` pool worker, is
+  named after the script that started it: `Python · train.py (worker)`. A
+  process that renamed itself (`setproctitle` in gunicorn or celery, `$0` in
+  puma) shows the name it chose. It is read once per process, only for
+  interpreters you own. The process details also gain a **Command line** row
+  with the full arguments and a Copy button. Only the short label is kept in
+  history, never the full command line, since arguments can carry tokens. AI
+  agents see it as a new `command` column in `agent_processes`, and
+  `find_process` matches it, so asking about `train.py` finds the right run.
+  (#191)
 
 - **More ways to control a process.** The right-click menu on a process now
   has, alongside Force Quit:

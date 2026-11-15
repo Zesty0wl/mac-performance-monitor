@@ -35,7 +35,7 @@ public enum CommandLabel {
         return nil
     }
 
-    private static func interpreter(basename: String) -> Interpreter? {
+    static func interpreter(basename: String) -> Interpreter? {
         if basename.range(of: #"^python[0-9.]*w?$"#, options: .regularExpression) != nil {
             return .python
         }
@@ -65,22 +65,6 @@ public enum CommandLabel {
         }
     }
 
-    /// The label for a live process: its command line is read only when it
-    /// is an interpreter or launcher this user owns. Everything else is
-    /// skipped before any read, since its command line is either not worth
-    /// reading or (another user's) not readable without privilege.
-    public static func read(
-        pid: pid_t, name: String, executablePath: String?, uid: uid_t
-    )
-        -> String?
-    {
-        guard uid == getuid(), isInterpreter(name: name, executablePath: executablePath)
-        else { return nil }
-        return derive(
-            name: name, executablePath: executablePath,
-            arguments: ProcessArguments.read(pid: pid))
-    }
-
     /// The label for a process's command line, or nil when there is nothing
     /// to add (not an interpreter, an interactive shell, inline `-c` code).
     public static func derive(
@@ -91,9 +75,10 @@ public enum CommandLabel {
         guard let arguments, let first = arguments.first,
             let kind = interpreter(name: name, executablePath: executablePath)
         else { return nil }
-        // Node tools that set `process.title` overwrite argv with it: one string
-        // ("npm exec @scope/tool", "pi") followed by empty arguments.
-        if kind == .node, isNodeTitle(arguments) { return nodeTitle(first).flatMap(clean) }
+        // A process that renamed itself (Node's `process.title`, Python's
+        // `setproctitle`, `$0 =` in Ruby and Perl) has overwritten argv with
+        // the title: use the name it chose.
+        if isTitle(arguments, kind: kind) { return title(first).flatMap(clean) }
         guard arguments.count > 1 else { return nil }
         let rest = Array(arguments.dropFirst())
         let label: String?

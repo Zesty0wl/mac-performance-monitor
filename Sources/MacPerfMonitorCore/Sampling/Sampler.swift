@@ -178,10 +178,8 @@ public final class Sampler {
         /// `teamIDResolvePerTick`) and should be retried on a later tick — as
         /// distinct from a genuine nil (an unsigned binary), where it is true.
         var teamIDResolved: Bool = false
-        /// `CommandLabel`, read under kernel name `commandLabelName`: an exec
-        /// keeps pid and start time, so a new name means a fresh read.
-        var commandLabel: String? = nil
-        var commandLabelName: String? = nil
+        /// What an interpreter is running (`CommandLabel.State`).
+        var label = CommandLabel.State()
     }
     private var staticCache: [ProcessIdentity: StaticInfo] = [:]
 
@@ -746,12 +744,14 @@ public final class Sampler {
                 responsiblePID: processReader.responsiblePID(pid),
                 teamIDResolved: resolveTeam)
         }
-        if staticInfo.commandLabelName != info.name {
-            staticInfo.commandLabelName = info.name
-            staticInfo.commandLabel = CommandLabel.read(
-                pid: pid, name: info.name, executablePath: staticInfo.executablePath,
-                uid: info.uid)
-        }
+        let ppid = info.ppid
+        staticInfo.label.update(
+            name: info.name, executablePath: staticInfo.executablePath, uid: info.uid,
+            arguments: { ProcessArguments.read(pid: pid) },
+            parent: {
+                (newStaticCache.first { $0.key.pid == ppid }
+                    ?? staticCache.first { $0.key.pid == ppid })?.value.label
+            })
         newStaticCache[identity] = staticInfo
 
         return ProcessSample(
@@ -798,7 +798,7 @@ public final class Sampler {
             responsiblePID: staticInfo.responsiblePID,
             isSuspended: info.isSuspended,
             nice: info.nice,
-            commandLabel: staticInfo.commandLabel
+            commandLabel: staticInfo.label.label
         )
     }
 

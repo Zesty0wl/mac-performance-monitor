@@ -125,6 +125,45 @@ final class SamplerLiveTests: XCTestCase {
         XCTAssertNil(own?.commandLabel, "not an interpreter, so its arguments are never read")
     }
 
+    func testLabelsAPythonPoolWorkerAfterItsParentScript() throws {
+        guard FileManager.default.isExecutableFile(atPath: "/usr/bin/python3") else {
+            throw XCTSkip("no python3")
+        }
+        let script = FileManager.default.temporaryDirectory
+            .appendingPathComponent("pool-probe-\(UUID().uuidString.prefix(8)).py")
+        try """
+        import multiprocessing, time
+        def work(_):
+            time.sleep(30)
+        if __name__ == "__main__":
+            multiprocessing.set_start_method("spawn")
+            with multiprocessing.Pool(1) as pool:
+                pool.map(work, [0])
+        """.write(to: script, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: script) }
+        let child = Process()
+        child.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        child.arguments = [script.path]
+        try child.run()
+        // The pool's worker and resource tracker are the script's children:
+        // stop them as well as the script.
+        var children: [pid_t] = []
+        defer {
+            for pid in children { Darwin.kill(pid, SIGKILL) }
+            child.terminate()
+        }
+
+        let sampler = Sampler()
+        var worker: ProcessSample?
+        for _ in 0..<20 where worker?.commandLabel == nil {
+            Thread.sleep(forTimeInterval: 0.25)
+            let spawned = sampler.tick().processes.filter { $0.ppid == child.processIdentifier }
+            children = spawned.map(\.pid)
+            worker = spawned.first { $0.commandLabel?.contains("(worker)") == true }
+        }
+        XCTAssertEqual(worker?.commandLabel, "\(script.lastPathComponent) (worker)")
+    }
+
     func testHasBaselineOnlyAfterAFirstTick() {
         let sampler = Sampler()
         XCTAssertFalse(sampler.hasBaseline, "nothing to difference against before the first tick")

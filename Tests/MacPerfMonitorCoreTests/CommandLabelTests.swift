@@ -158,6 +158,33 @@ final class CommandLabelTests: XCTestCase {
         XCTAssertEqual(label(["go", "test", "./..."]), "test")
     }
 
+    func testSelfChosenTitlesForEveryInterpreter() {
+        // Python's setproctitle (gunicorn, celery), Ruby and Perl's `$0 =`:
+        // the title, then empty strings where the other arguments were.
+        XCTAssertEqual(
+            label(
+                ["gunicorn: worker [app]", "", "", ""], name: "Python",
+                path: "/opt/homebrew/bin/python3"),
+            "gunicorn: worker [app]")
+        XCTAssertEqual(
+            label(["celery", "", ""], name: "python3", path: "/usr/bin/python3"), "celery")
+        XCTAssertEqual(
+            label(
+                ["puma: cluster worker 0: 4242 [blog]", "", ""], name: "ruby",
+                path: "/usr/bin/ruby"),
+            "puma: cluster worker 0: 4242 [blog]")
+        XCTAssertEqual(
+            label(["my-daemon", ""], name: "perl", path: "/usr/bin/perl"), "my-daemon")
+        // Real command lines are not titles, even when argv[0] has a space.
+        XCTAssertEqual(
+            label(
+                ["/Applications/My App.app/Contents/MacOS/python3", "serve.py"],
+                name: "python3", path: "/Applications/My App.app/Contents/MacOS/python3"),
+            "serve.py")
+        XCTAssertNil(label(["/usr/bin/python3", ""], name: "python3", path: "/usr/bin/python3"))
+        XCTAssertNil(label(["-zsh", ""], name: "zsh", path: "/bin/zsh"), "shells never retitle")
+    }
+
     func testOnlyInterpretersAreLabelled() {
         XCTAssertFalse(
             CommandLabel.isInterpreter(

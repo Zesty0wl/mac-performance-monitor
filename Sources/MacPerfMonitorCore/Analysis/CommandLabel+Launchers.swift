@@ -136,27 +136,6 @@ extension CommandLabel {
         }
     }
 
-    /// Whether a Node process's argv is a `process.title` rather than a real
-    /// command line: a title with spaces, or one word followed only by the
-    /// empty arguments left where the original ones were. A bare `node` (the
-    /// REPL) is not a title.
-    static func isNodeTitle(_ arguments: [String]) -> Bool {
-        guard let first = arguments.first, !first.isEmpty else { return false }
-        if first.contains(" ") { return true }
-        let rest = arguments.dropFirst()
-        let base = (first as NSString).lastPathComponent.lowercased()
-        return !rest.isEmpty && rest.allSatisfy(\.isEmpty) && base != "node" && base != "nodejs"
-    }
-
-    /// A Node process title: "npm exec @scope/tool" and "npm run dev" are
-    /// named as npm would be; any other title ("pi") is the name the
-    /// program chose for itself.
-    static func nodeTitle(_ title: String) -> String? {
-        let words = title.split(separator: " ").map(String.init)
-        guard let tool = words.first.flatMap(packageManager(scriptPath:)) else { return title }
-        return nodePackageManager(tool, Array(words.dropFirst()))
-    }
-
     // MARK: Compiled languages
 
     /// `cargo run --bin server` is `server`; `cargo build` is `build`.
