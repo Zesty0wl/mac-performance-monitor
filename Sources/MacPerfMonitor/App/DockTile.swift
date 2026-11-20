@@ -72,8 +72,9 @@ enum DockTileRange: Int, CaseIterable, Identifiable {
 }
 
 /// How big the Dock trend draws. Standard keeps the margin every app icon
-/// has, so the tile sits in line with its neighbours; Large trades some of that
-/// margin for a bigger plate and text that reads at a small Dock size.
+/// has, so the tile sits in line with its neighbours; Large is the size of
+/// Activity Monitor's Dock views, nearly filling the tile, with text that
+/// reads at a small Dock size.
 enum DockTileSize: String, CaseIterable, Identifiable {
     case standard
     case large
@@ -94,15 +95,23 @@ enum DockTileSize: String, CaseIterable, Identifiable {
     var plate: CGRect {
         switch self {
         case .standard: return CGRect(x: 12.5, y: 11.5, width: 103, height: 103)
-        case .large: return CGRect(x: 6, y: 5, width: 116, height: 116)
+        // Activity Monitor's Dock views cover about 118 points, centred: the
+        // Dock draws the running indicator just under the tile, and a plate
+        // that reaches the canvas edge sits on top of it.
+        case .large: return CGRect(x: 5, y: 5, width: 118, height: 118)
         }
     }
 
-    var cornerRadius: CGFloat { self == .standard ? 23 : 26 }
+    /// Apple's icon corner is about 22.5% of the body's width.
+    var cornerRadius: CGFloat { self == .standard ? 23 : 26.5 }
+    /// Standard draws the soft shadow app icons carry in their margin. Large
+    /// keeps only a thin clear band, like Activity Monitor's views, and no
+    /// shadow.
+    var hasShadow: Bool { self == .standard }
     /// Text size relative to Standard.
     var textScale: CGFloat { self == .standard ? 1 : 1.5 }
     /// Caption margin from the plate's sides.
-    var inset: CGFloat { self == .standard ? 11 : 9 }
+    var inset: CGFloat { 11 }
 
     /// Large reads better at the sizes the Dock usually draws, so it is the
     /// default.

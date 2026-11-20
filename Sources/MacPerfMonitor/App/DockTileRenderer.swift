@@ -30,9 +30,11 @@ enum DockTileRenderer {
 
         // The plate, with the soft drop shadow other Dock icons carry.
         context.saveGState()
-        context.setShadow(
-            offset: CGSize(width: 0, height: 1.5), blur: 3,
-            color: NSColor.black.withAlphaComponent(0.35).cgColor)
+        if size.hasShadow {
+            context.setShadow(
+                offset: CGSize(width: 0, height: 1.5), blur: 3,
+                color: NSColor.black.withAlphaComponent(0.35).cgColor)
+        }
         context.addPath(platePath)
         context.setFillColor(NSColor(white: 0.11, alpha: 1).cgColor)
         context.fillPath()
@@ -66,7 +68,12 @@ enum DockTileRenderer {
         context.restoreGState()
 
         // A hairline edge, so the plate holds its shape against a dark Dock.
-        context.addPath(platePath)
+        // Drawn just inside the plate, so a plate that fills the tile does
+        // not lose half of it off the edge.
+        let edge = plate.insetBy(dx: 0.375, dy: 0.375)
+        context.addPath(
+            RoundedRectangle(cornerRadius: size.cornerRadius - 0.375, style: .continuous)
+                .path(in: edge).cgPath)
         context.setStrokeColor(NSColor.white.withAlphaComponent(0.10).cgColor)
         context.setLineWidth(0.75)
         context.strokePath()
