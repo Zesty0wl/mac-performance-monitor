@@ -14,12 +14,16 @@ final class DiskChartScaleTests: XCTestCase {
     /// one-sample burst every 20 samples (about every half minute).
     private func copyHour(steady: Double, burst: Double) -> [SystemHistoryPoint] {
         let start = Date(timeIntervalSince1970: 1_800_000_000)
-        return (0..<2118).map { i in
-            SystemHistoryPoint(
-                date: start.addingTimeInterval(Double(i) * 1.7), pressurePercent: 0,
-                appMemory: 0, wired: 0, compressed: 0, cachedFiles: 0, swapUsed: 0,
-                diskReadBytesPerSec: i % 400 == 200 ? burst : 0.2 * mb,
-                diskWriteBytesPerSec: i % 20 == 10 ? burst : steady)
+        // Typed and split up: as one expression, the macOS 15 toolchain gives
+        // up type-checking it.
+        return (0..<2118).map { (i: Int) -> SystemHistoryPoint in
+            let date: Date = start.addingTimeInterval(Double(i) * 1.7)
+            let read: Double = i % 400 == 200 ? burst : 0.2 * mb
+            let write: Double = i % 20 == 10 ? burst : steady
+            return SystemHistoryPoint(
+                date: date, pressurePercent: 0, appMemory: 0, wired: 0, compressed: 0,
+                cachedFiles: 0, swapUsed: 0, diskReadBytesPerSec: read,
+                diskWriteBytesPerSec: write)
         }
     }
 

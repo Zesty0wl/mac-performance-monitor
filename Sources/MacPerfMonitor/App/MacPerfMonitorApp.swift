@@ -499,7 +499,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     private var combinedStatusItem: CombinedStatusItemController?
     /// Owns the activation policy: regular while a window is open, accessory
     /// otherwise, pinned regular if the user asked for a permanent Dock icon.
-    private let presenceController = PresenceController()
+    fileprivate let presenceController = PresenceController()
+    /// Draws the chosen metric's trend on the Dock icon.
+    fileprivate var dockTileController: DockTileController?
     private var cancellables = Set<AnyCancellable>()
 
     /// An Ask chart card: open the main window's Explorer on those charts.
@@ -578,6 +580,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
 
         // Follow the windows: regular application while one is open, background
         // agent when the last one closes, unless the user pinned the Dock icon.
+        startDockTile()
         presenceController.start()
         WindowOpenBridge.shared.onWindowRequested = { [presenceController] in
             presenceController.scheduleApply()
@@ -1367,5 +1370,30 @@ extension NSAppearance {
     /// won't invert them for us).
     var isDarkMenuBar: Bool {
         bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+    }
+}
+
+// MARK: - Dock icon trend
+
+extension AppDelegate {
+    /// Start drawing the chosen metric on the Dock icon. Runs before the
+    /// presence controller starts, so the Dock mode it reads is already in
+    /// step with the old switch.
+    fileprivate func startDockTile() {
+        DockPresenceMode.reconcile()
+        let dockTileController = DockTileController(model: model)
+        presenceController.onPolicyChange = { [weak dockTileController] in
+            dockTileController?.presenceChanged()
+        }
+        dockTileController.start()
+        self.dockTileController = dockTileController
+    }
+
+    /// The Dock's context menu: choose what the Dock icon shows.
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        guard let dockTileController else { return nil }
+        let menu = NSMenu()
+        menu.addItem(dockTileController.dockMenuItem())
+        return menu
     }
 }

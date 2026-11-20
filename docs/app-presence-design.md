@@ -4,6 +4,30 @@ Design note for issue #21. Status: built for 2.0.0 on the `2.0.0` branch. See
 "What was actually built" at the end for the two places the work departed from
 the plan.
 
+## Dock trend update, November 2026
+
+The Dock icon can show a live trend of one metric in place of the app icon
+(Settings > Menu Bar & Dock, or the Dock icon's menu). That made the single
+"keep in the Dock" switch too coarse, so it is now a mode with three choices:
+While a window is open (the default, unchanged behaviour), Always (the old
+switch turned on), and While showing a trend, which keeps the icon only while
+it shows a metric. `PresenceController` stays regular with no window open when
+the mode keeps the icon for the chosen metric.
+
+The mode is stored as `dockPresenceMode`. The old `showDockIcon` key is kept
+as its mirror, on exactly when the mode is Always, so an older version after a
+downgrade still reads the right answer. At launch the two are reconciled: with
+no mode saved, `showDockIcon` decides; if they disagree, the switch was changed
+outside this version (a downgrade, imported preferences, `defaults write`) and
+wins. On means Always; off ends Always but leaves While showing a trend, which
+an older version cannot express. Reconciling happens only at launch, because
+while the app runs the mode is written first and mirrored after.
+
+While a trend is on the Dock, the sampler counts the Dock as watching, so its
+per-tick history keeps filling with no window or menu bar item open. When a
+trend would only show while a window is open, Settings says so and offers to
+switch the mode.
+
 ## Startup update, September 2026
 
 **Start minimised** is on by default in Settings > General > Startup. After
@@ -127,6 +151,7 @@ so that a login-item launch stays quiet and no Dock icon flashes on the way up.
 A single preference remains, off by default: keep the Dock icon while running in
 the background. It pins the regular policy for people who want the app in the
 Dock permanently. The old "show icon in the Dock" toggle is replaced by it.
+(Since November 2026 this is a three-way mode; see "Dock trend update" above.)
 
 **3. The app quits when it has nothing to do.** When the last window closes, the
 app keeps running only if the menu bar item is on, or history logging is on.

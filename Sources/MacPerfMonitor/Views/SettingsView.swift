@@ -210,9 +210,14 @@ private struct MenuBarDockSettingsView: View {
     @EnvironmentObject private var model: SamplerModel
     @EnvironmentObject private var menuBar: CombinedMenuBarConfiguration
     @EnvironmentObject private var components: AppComponentsManager
-    /// Shared with `PresenceController`. Off by default: the Dock icon comes and
-    /// goes with the windows unless the user asks for it to stay.
-    @AppStorage(PresenceController.pinDefaultsKey) private var pinDockIcon = false
+    /// Shared with `PresenceController`. By default the Dock icon comes and goes
+    /// with the windows unless the user asks for it to stay.
+    @AppStorage(DockPresenceMode.defaultsKey) private var dockMode = DockPresenceMode.withWindows
+    @AppStorage(DockTileMetric.defaultsKey) private var dockMetric = DockTileMetric.appIcon
+    @AppStorage(DockTileRange.defaultsKey) private var dockRange = DockTileRange.five
+    @AppStorage(DockTileText.labelKey) private var dockShowsLabel = true
+    @AppStorage(DockTileSize.defaultsKey) private var dockSize = DockTileSize.large
+    @AppStorage(DockTileText.valueKey) private var dockShowsValue = true
 
     var body: some View {
         Form {
@@ -285,12 +290,71 @@ private struct MenuBarDockSettingsView: View {
             .disabled(!components.menuBarItem)
 
             Section {
-                Toggle("Keep in the Dock in the background", isOn: $pinDockIcon)
+                Picker("Show in the Dock", selection: $dockMode) {
+                    ForEach(DockPresenceMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
                 caption(
-                    "\(AppInfo.displayName) appears in the Dock whenever one of its windows is open, which is also what gives it the usual menus. Turn this on to keep it in the Dock while it runs in the background with no window open."
+                    "\(AppInfo.displayName) appears in the Dock, with its usual menus, whenever one of its windows is open. Choose Always to keep it there with no window open, or While showing a trend to keep it there while the Dock icon shows a trend."
                 )
             } header: {
                 Text("Dock")
+            }
+
+            Section {
+                Picker("Metric", selection: $dockMetric) {
+                    ForEach(DockTileMetric.allCases) { metric in
+                        Label(metric.title, systemImage: metric.symbolName).tag(metric)
+                    }
+                }
+                Picker("Time range", selection: $dockRange) {
+                    ForEach(DockTileRange.allCases) { range in
+                        Text(range.title).tag(range)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .disabled(!dockMetric.showsTrend)
+                Picker("Size", selection: $dockSize) {
+                    ForEach(DockTileSize.allCases) { size in
+                        Text(size.title).tag(size)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .disabled(!dockMetric.showsTrend)
+                Toggle("Show the label", isOn: $dockShowsLabel)
+                    .disabled(!dockMetric.showsTrend)
+                Toggle("Show the value", isOn: $dockShowsValue)
+                    .disabled(!dockMetric.showsTrend)
+                if dockMetric.showsTrend {
+                    HStack {
+                        Text("Preview")
+                        Spacer()
+                        DockTilePreview(
+                            model: model, metric: dockMetric, range: dockRange,
+                            text: DockTileText(label: dockShowsLabel, value: dockShowsValue),
+                            size: dockSize)
+                    }
+                }
+                if dockMetric.showsTrend && !dockMode.keepsIcon(showing: dockMetric) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Label(
+                            "Only visible while a window is open.",
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        Spacer()
+                        Button("Keep in Dock") { dockMode = .whileShowingTrend }
+                            .controlSize(.small)
+                    }
+                }
+            } header: {
+                Text("Dock Icon")
+            } footer: {
+                Text(
+                    "Shows the chosen metric's recent trend in place of the app icon. It redraws only when the trend moves on, which is less often on longer ranges."
+                )
             }
         }
         .formStyle(.grouped)
@@ -350,6 +414,42 @@ private struct MenuBarDockSettingsView: View {
         let readouts = CombinedMenuBarReadouts.current(for: metrics, model: model)
         return CombinedMenuBarImage.image(
             readouts: readouts, presentation: menuBar.presentation)
+    }
+}
+
+/// The Dock trend as it would draw now, from the history already sampled.
+///
+/// It takes the sampler as a plain value rather than observing it, so the
+/// Settings window's updates do not re-render it. It redraws once per slot of
+/// the chosen range, the same cadence as the Dock tile itself.
+private struct DockTilePreview: View {
+    let model: SamplerModel
+    let metric: DockTileMetric
+    let range: DockTileRange
+    let text: DockTileText
+    let size: DockTileSize
+    @State private var bitmap = ChartBitmap()
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: DockTileBuckets.width(for: range))) { timeline in
+            if let image = image(at: timeline.date) {
+                Image(nsImage: image)
+                    .resizable()
+                    .frame(width: 64, height: 64)
+                    .accessibilityLabel("Dock icon preview")
+            }
+        }
+    }
+
+    private func image(at now: Date) -> NSImage? {
+        guard
+            let content = DockTileContent.make(
+                metric: metric,
+                samples: DockTileContent.recent(
+                    model.systemHistory.elements(), now: now, range: range),
+                now: now, range: range, text: text)
+        else { return nil }
+        return DockTileRenderer.image(content, size: size, bitmap: bitmap)
     }
 }
 

@@ -154,6 +154,9 @@ final class SamplerModel: ObservableObject {
     /// filling, or the chart the window shows on its return has a hole in it for
     /// however long it was hidden.
     private var windowOpen = false
+    /// Whether the Dock icon is showing a metric trend. It reads
+    /// `systemHistory`, so it counts as watching like the menu bar item does.
+    private var dockTileVisible = false
     /// The visible-surface cadence: `liveTick` (charts, the menu-bar image)
     /// and the on-screen row re-reads follow the refresh dial, while the 1 Hz
     /// system heartbeat keeps running underneath for logging and smoothing.
@@ -738,6 +741,12 @@ final class SamplerModel: ObservableObject {
         queue.async { self.menuBarItemVisible = visible }
     }
 
+    /// Tell the sampler whether the Dock icon shows a metric trend. See
+    /// `dockTileVisible`.
+    func setDockTileVisible(_ visible: Bool) {
+        queue.async { self.dockTileVisible = visible }
+    }
+
     /// Tell the sampler whether a main window exists, covered or not. See
     /// `windowOpen`.
     func setWindowOpen(_ open: Bool) {
@@ -1317,12 +1326,12 @@ final class SamplerModel: ObservableObject {
         // Publish the fresh system sample every tick, independent of any scan:
         // the full-rate heartbeat the menu bar and the live charts read. Skip
         // the hop to the main thread only when there is genuinely nobody: no
-        // menu bar item, no popover, and no window at all. A window that is
+        // menu bar item, no popover, no window and no Dock trend. A window that is
         // merely covered still counts, because it will show this history the
         // moment it is uncovered, and a hole in that line would read as "we
         // stopped measuring" rather than "you were in another app".
         let diagnostics = self.diagnostics
-        let anythingWatching = menuBarItemVisible || interactive || windowOpen
+        let anythingWatching = menuBarItemVisible || interactive || windowOpen || dockTileVisible
         if anythingWatching {
             DispatchQueue.main.async {
                 let publishStart = TickDiagnostics.now()
