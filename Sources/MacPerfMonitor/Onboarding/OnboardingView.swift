@@ -511,7 +511,7 @@ private struct OnboardingPermissionsStep: View {
 private struct OnboardingMenuBarStep: View {
     @EnvironmentObject private var menuBar: CombinedMenuBarConfiguration
     @EnvironmentObject private var components: AppComponentsManager
-    @AppStorage(PresenceController.pinDefaultsKey) private var pinDockIcon = false
+    @AppStorage(DockPresenceMode.defaultsKey) private var dockMode = DockPresenceMode.withWindows
     @AppStorage(SamplerModel.tableIntervalKey) private var tableInterval =
         SamplerModel.defaultTableInterval
 
@@ -541,7 +541,7 @@ private struct OnboardingMenuBarStep: View {
                 OnboardingToggleRow(
                     symbol: "dock.rectangle", title: "Dock icon",
                     subtitle: "Keep \(AppInfo.displayName) in the Dock even with no window open.",
-                    isOn: $pinDockIcon)
+                    isOn: pinDockIcon)
 
                 HStack(spacing: 10) {
                     Image(systemName: "timer")
@@ -569,6 +569,22 @@ private struct OnboardingMenuBarStep: View {
             }
             .padding(.top, 4)
         }
+    }
+
+    /// The onboarding switch: whether the icon stays with no window open.
+    /// It reads on only when the current mode really keeps it (the trend mode
+    /// does not while the Dock shows the app icon). Off returns to the
+    /// default; on chooses Always unless the mode already keeps the icon.
+    private var pinDockIcon: Binding<Bool> {
+        Binding(
+            get: { dockMode.keepsIcon(showing: DockTileMetric.current()) },
+            set: { keep in
+                if !keep {
+                    dockMode = .withWindows
+                } else if !dockMode.keepsIcon(showing: DockTileMetric.current()) {
+                    dockMode = .always
+                }
+            })
     }
 
     private var presentationBinding: Binding<MenuBarPresentation> {

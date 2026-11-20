@@ -22608,38 +22608,38 @@
         }
       }
     },
-    "%@ appears in the Dock whenever one of its windows is open, which is also what gives it the usual menus. Turn this on to keep it in the Dock while it runs in the background with no window open." : {
-      "comment" : "SettingsView",
+    "%@ appears in the Dock, with its usual menus, whenever one of its windows is open. Choose Always to keep it there with no window open, or While showing a trend to keep it there while the Dock icon shows a trend." : {
+      "comment" : "SettingsView: Dock presence caption. AI-generated translations; native-speaker review pending.",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ erscheint im Dock, sobald eines seiner Fenster geöffnet ist; das ist auch der Grund, warum es dann die üblichen Menüs hat. Aktiviere dies, um es im Dock zu behalten, während es ohne geöffnetes Fenster im Hintergrund läuft."
+            "value" : "%@ erscheint mit seinen üblichen Menüs im Dock, sobald eines seiner Fenster offen ist. Wähle „Immer“, damit es auch ohne offenes Fenster dort bleibt, oder „Solange ein Verlauf angezeigt wird“, damit es dort bleibt, solange das Dock-Symbol einen Verlauf zeigt."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ appears in the Dock whenever one of its windows is open, which is also what gives it the usual menus. Turn this on to keep it in the Dock while it runs in the background with no window open."
+            "value" : "%@ appears in the Dock, with its usual menus, whenever one of its windows is open. Choose Always to keep it there with no window open, or While showing a trend to keep it there while the Dock icon shows a trend."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ apparaît dans le Dock dès qu’une de ses fenêtres est ouverte, ce qui lui donne aussi les menus habituels. Activez cette option pour le garder dans le Dock pendant qu’il fonctionne en arrière-plan sans fenêtre ouverte."
+            "value" : "%@ apparaît dans le Dock, avec ses menus habituels, dès qu’une de ses fenêtres est ouverte. Choisissez Toujours pour l’y garder sans fenêtre ouverte, ou Pendant l’affichage d’une tendance pour l’y garder tant que l’icône du Dock affiche une tendance."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "只要 %@ 的任一窗口处于打开状态，它就会出现在程序坞中，这也是它拥有常规菜单的原因。开启此项可让它在后台无窗口运行时仍保留在程序坞中。"
+            "value" : "只要打开了 %@ 的任一窗口，它就会连同常用菜单一起出现在程序坞中。选择“始终”可在没有打开窗口时也保留在程序坞中；选择“显示趋势时”可在程序坞图标显示趋势时保留在程序坞中。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "%@ отображается в Dock, когда открыто хотя бы одно из его окон; это также дает доступ к стандартным меню. Включите этот параметр, чтобы оставлять его в Dock при работе в фоновом режиме без открытых окон."
+            "value" : "%@ появляется в Dock вместе с обычными меню, когда открыто любое его окно. Выберите «Всегда», чтобы он оставался там и без открытых окон, или «Пока показан график», чтобы он оставался там, пока значок в Dock показывает график."
           }
         }
       }
@@ -58990,42 +58990,6 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Хранить"
-          }
-        }
-      }
-    },
-    "Keep in the Dock in the background" : {
-      "comment" : "SettingsView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Im Hintergrund im Dock behalten"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keep in the Dock in the background"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Garder dans le Dock en arrière-plan"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在后台时保留在程序坞中"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Оставлять в Dock в фоновом режиме"
           }
         }
       }
@@ -115597,6 +115561,726 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Когда база данных достигает этого размера, сначала удаляются самые старые данные, подробные раньше долгосрочного тренда. Последний час, день и неделя, которые показывают диапазоны истории, сохраняются."
+          }
+        }
+      }
+    },
+    "Application Icon" : {
+      "comment" : "Dock icon choice that keeps the normal app icon. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App-Symbol"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Application Icon"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Icône de l’app"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用图标"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Значок приложения"
+          }
+        }
+      }
+    },
+    "%lld min" : {
+      "comment" : "Dock trend time range, in minutes. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Min."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 分钟"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld мин"
+          }
+        }
+      }
+    },
+    "While a window is open" : {
+      "comment" : "Dock presence mode: the icon comes and goes with the windows. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solange ein Fenster offen ist"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "While a window is open"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tant qu’une fenêtre est ouverte"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有窗口打开时"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Пока открыто окно"
+          }
+        }
+      }
+    },
+    "Always" : {
+      "comment" : "Dock presence mode: always in the Dock. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Immer"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Always"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toujours"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "始终"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Всегда"
+          }
+        }
+      }
+    },
+    "While showing a trend" : {
+      "comment" : "Dock presence mode: in the Dock while the icon shows a metric trend. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solange ein Verlauf angezeigt wird"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "While showing a trend"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pendant l’affichage d’une tendance"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示趋势时"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Пока показан график"
+          }
+        }
+      }
+    },
+    "Show in the Dock" : {
+      "comment" : "SettingsView: Dock presence mode picker. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Dock anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show in the Dock"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher dans le Dock"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在程序坞中显示"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Показывать в Dock"
+          }
+        }
+      }
+    },
+    "Time range" : {
+      "comment" : "SettingsView: Dock trend time range picker. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeitraum"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time range"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Période"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时间范围"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Период"
+          }
+        }
+      }
+    },
+    "Only visible while a window is open." : {
+      "comment" : "SettingsView: warning that the Dock trend is hidden with no window open. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur sichtbar, solange ein Fenster offen ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only visible while a window is open."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visible uniquement lorsqu’une fenêtre est ouverte."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅在有窗口打开时可见。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Видно, только пока открыто окно."
+          }
+        }
+      }
+    },
+    "Keep in Dock" : {
+      "comment" : "SettingsView: button that keeps the app in the Dock while it shows a trend. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Dock behalten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep in Dock"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Garder dans le Dock"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留在程序坞中"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Оставить в Dock"
+          }
+        }
+      }
+    },
+    "Dock Icon" : {
+      "comment" : "SettingsView: section header for the Dock icon trend. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dock-Symbol"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dock Icon"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Icône du Dock"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "程序坞图标"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Значок в Dock"
+          }
+        }
+      }
+    },
+    "Dock icon preview" : {
+      "comment" : "SettingsView: accessibility label for the Dock icon preview image. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorschau des Dock-Symbols"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dock icon preview"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aperçu de l’icône du Dock"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "程序坞图标预览"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Предпросмотр значка в Dock"
+          }
+        }
+      }
+    },
+    "Shows the chosen metric's recent trend in place of the app icon. It redraws only when the trend moves on, which is less often on longer ranges." : {
+      "comment" : "SettingsView: footer for the Dock icon trend. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt anstelle des App-Symbols den jüngsten Verlauf des gewählten Messwerts. Es wird nur neu gezeichnet, wenn der Verlauf weiterrückt, bei längeren Zeiträumen also seltener."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows the chosen metric's recent trend in place of the app icon. It redraws only when the trend moves on, which is less often on longer ranges."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche la tendance récente de la mesure choisie à la place de l’icône de l’app. Elle n’est redessinée que lorsque la tendance avance, donc moins souvent sur les périodes longues."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以所选指标的近期趋势代替应用图标。仅在趋势向前推进时重绘，时间范围越长，重绘越少。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Показывает недавний график выбранного показателя вместо значка приложения. Он перерисовывается, только когда график сдвигается, поэтому на длинных периодах реже."
+          }
+        }
+      }
+    },
+    "Show the label" : {
+      "comment" : "SettingsView: switch for the label on the Dock icon trend (CPU, RAM, or the ↓ ↑ and R W marks). AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bezeichnung anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show the label"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher le libellé"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示标签"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Показывать подпись"
+          }
+        }
+      }
+    },
+    "Show the value" : {
+      "comment" : "SettingsView: switch for the current value on the Dock icon trend. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wert anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show the value"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher la valeur"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示数值"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Показывать значение"
+          }
+        }
+      }
+    },
+    "Show Label" : {
+      "comment" : "Dock menu: switch for the label on the Dock icon trend. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bezeichnung anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Label"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher le libellé"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示标签"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Показывать подпись"
+          }
+        }
+      }
+    },
+    "Show Value" : {
+      "comment" : "Dock menu: switch for the current value on the Dock icon trend. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wert anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Value"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher la valeur"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示数值"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Показывать значение"
+          }
+        }
+      }
+    },
+    "Standard" : {
+      "comment" : "Dock icon trend size that keeps the usual app icon margin. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标准"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Стандартный"
+          }
+        }
+      }
+    },
+    "Large" : {
+      "comment" : "Dock icon trend size with a bigger plate and text. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Groß"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Large"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grand"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Крупный"
+          }
+        }
+      }
+    },
+    "Load Average" : {
+      "comment" : "Dock icon trend metric: the 1-minute load average. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durchschnittslast"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load Average"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge moyenne"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平均负载"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Средняя нагрузка"
+          }
+        }
+      }
+    },
+    "Power Draw" : {
+      "comment" : "Dock icon trend metric: whole-Mac power draw in watts. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leistungsaufnahme"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Power Draw"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consommation électrique"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "功耗"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Потребляемая мощность"
           }
         }
       }

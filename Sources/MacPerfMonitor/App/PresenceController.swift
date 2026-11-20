@@ -17,10 +17,10 @@ import Combine
 /// nothing sits in the Dock while it is only recording history in the
 /// background.
 ///
-/// One preference pins the regular policy for people who want the app in the
-/// Dock permanently. It is off by default and keeps the old `showDockIcon` key,
-/// because the old meaning, "also show a Dock icon while running", is exactly
-/// the case the pin now covers.
+/// The Dock mode can pin the regular policy: always, for people who want the
+/// app in the Dock permanently, or only while the Dock icon shows a metric
+/// trend (`DockPresenceMode`). It is off by default. The old `showDockIcon`
+/// switch is kept as a mirror of `always`, so older versions read it right.
 ///
 /// The policy only ever changes between windows, never under one (#178).
 /// Switching policy while a window is being ordered in or torn down is what
@@ -30,10 +30,9 @@ import Combine
 /// has settled and no window has been asked for in the meantime.
 @MainActor
 final class PresenceController {
-    /// UserDefaults key shared with the Settings toggle. Reads as `false` when
-    /// unset, so the Dock icon comes and goes with the windows until the user
-    /// asks for it to stay.
-    static let pinDefaultsKey = "showDockIcon"
+    /// The old "keep in the Dock" switch, now a mirror of the `always` Dock
+    /// mode that older versions read (see `DockPresenceMode.reconcile`).
+    static let pinDefaultsKey = DockPresenceMode.legacyPinKey
 
     /// How long the app stays regular after its last window closes. Long
     /// enough for the window server to finish tearing the window down, short
@@ -73,9 +72,14 @@ final class PresenceController {
         apply()
     }
 
-    /// Whether the user has pinned the Dock icon for the background case.
+    /// Called after the activation policy changes, so the Dock trend can draw
+    /// as soon as the icon appears.
+    var onPolicyChange: (() -> Void)?
+
+    /// Whether the app keeps its Dock icon with no window open: always, or
+    /// while the icon shows a metric trend, depending on the Dock mode.
     private var isPinned: Bool {
-        UserDefaults.standard.bool(forKey: Self.pinDefaultsKey)
+        DockPresenceMode.current().keepsIcon(showing: DockTileMetric.current())
     }
 
     /// A window is about to be opened. Become regular now, before it is ordered
@@ -174,6 +178,7 @@ final class PresenceController {
             "activation policy: \(Self.name(desired), privacy: .public)\(accepted ? "" : " (refused)", privacy: .public)"
         )
         verifyPolicy(desired)
+        onPolicyChange?()
         return true
     }
 

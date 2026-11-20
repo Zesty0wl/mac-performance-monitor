@@ -6,6 +6,25 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Added
+
+- **The Dock icon can show a live trend.** Settings > Menu Bar & Dock and the
+  Dock icon's menu can swap the app icon for the recent trend of one metric:
+  load average, CPU, memory pressure, GPU, power draw, network (↓ and ↑) or
+  disk (R and W), over 2, 5, 10 or 15 minutes. The label and the current
+  value can each be turned off, and a Large size makes the text readable at
+  small Dock sizes. CPU, memory and GPU use a fixed 0 to 100% scale and load
+  is scaled to the core count; network, disk and power fit their averaged
+  line, so one short burst does not flatten the rest. The tile redraws only
+  when the trend moves on, about once a second on 2 minutes and every few
+  seconds on 15, which costs the Dock about as much as Activity Monitor's
+  icon.
+- **The Dock icon can stay while it shows a trend.** "Show in the Dock" has
+  a third choice, While showing a trend, next to While a window is open and
+  Always. Settings warns when a trend would only show while a window is
+  open, with a button to keep it in the Dock. The old switch is still kept
+  in step, so going back to an earlier version keeps an Always setting.
+
 ## [2.8.1] - 2026-11-15
 
 ### Fixed
