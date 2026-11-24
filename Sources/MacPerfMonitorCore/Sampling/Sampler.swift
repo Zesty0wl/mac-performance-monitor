@@ -959,6 +959,7 @@ public final class Sampler {
             // record survives even when no thermal surface is active.
             thermalPressure: ThermalPressureState(ProcessInfo.processInfo.thermalState)
         )
+        sample.compressorStoredBytes = vm?.compressorStored
         sample.swapSampleValid = swap != nil
         sample.pressureSampleValid = pressureReading != nil
         sample.swapInBytesPerSecond = activity?.rateIn

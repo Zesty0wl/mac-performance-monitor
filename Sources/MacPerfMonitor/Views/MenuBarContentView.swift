@@ -2,10 +2,11 @@ import AppKit
 import MacPerfMonitorCore
 import SwiftUI
 
-/// The menubar dropdown panel (window style): a pressure summary with a live
+/// The menubar dropdown panel (window style): a memory summary with a live
 /// sparkline, the top ten processes by footprint, and the standard actions.
 struct MenuBarContentView: View {
     @EnvironmentObject private var model: SamplerModel
+    @EnvironmentObject private var configuration: CombinedMenuBarConfiguration
     @EnvironmentObject private var menuLists: MenuListsModel
     @EnvironmentObject private var updateController: UpdateController
     @EnvironmentObject private var menuClock: MenuClock
@@ -44,9 +45,15 @@ struct MenuBarContentView: View {
 
     // MARK: - Header
 
+    /// The figure the RAM read-out shows (see `MemoryReadout`), coloured by
+    /// macOS's pressure level in either case, so the colour still says whether
+    /// the Mac is coping.
     private var header: some View {
         let system = model.liveSystem
         let level = system?.pressureLevel ?? .normal
+        let readout = configuration.memoryReadout
+        let values = model.systemHistory.elements().map { readout.percent(of: $0) }
+        let scale = Self.chartScale(readout: readout, values: values)
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Image(systemName: level.symbolName)
@@ -55,22 +62,22 @@ struct MenuBarContentView: View {
                     .font(.headline)
                     .foregroundStyle(level.color)
                 Spacer()
-                if let percent = system?.pressurePercent {
-                    Text("\(Int(percent.rounded()))%")
+                if let system {
+                    Text(readout.text(for: system))
                         .font(.headline.monospacedDigit())
                 }
             }
 
             MenuTrendChart(
-                values: model.systemHistory.elements().map(\.pressurePercent),
+                values: values,
                 sampleCapacity: model.systemHistory.capacity, color: level.color,
-                domain: 0...100, ticks: [0, 50, 100], label: { "\(Int($0))" }
+                domain: scale.domain, ticks: scale.ticks, label: { "\(Int($0))" }
             )
             .frame(height: MenuChart.height)
 
             if let system {
                 HStack {
-                    Text("\(ByteFormat.string(usedBytes(system))) used")
+                    Text(usageCaption(system))
                     Spacer()
                     Text("\(ByteFormat.string(system.totalRAM)) total")
                 }
@@ -80,10 +87,24 @@ struct MenuBarContentView: View {
         }
     }
 
-    /// Activity Monitor's "Memory Used": app memory plus wired plus compressed.
-    /// Cached files are reclaimable and excluded.
-    private func usedBytes(_ system: SystemSample) -> UInt64 {
-        system.appMemory &+ system.wired &+ system.compressed
+    /// The chart's Y scale. The pressure index, and memory usage while it
+    /// fits in RAM, keep the fixed 0 to 100 scale. Usage past 100 stretches it
+    /// in steps of 50, with a gridline left at 100 to mark installed RAM.
+    static func chartScale(
+        readout: MemoryReadout, values: [Double]
+    ) -> (domain: ClosedRange<Double>, ticks: [Double]) {
+        let peak = values.max() ?? 0
+        guard readout == .usage, peak > 100 else { return (0...100, [0, 50, 100]) }
+        let top = (peak / 50).rounded(.up) * 50
+        return (0...top, top <= 150 ? [0, 50, 100, 150] : [0, 100, top])
+    }
+
+    /// Memory in use, compressed memory counted at its original size (see
+    /// `MemoryUsage`). Past installed RAM it is what the apps need rather
+    /// than what fits, so it says so.
+    private func usageCaption(_ system: SystemSample) -> LocalizedStringKey {
+        let bytes = ByteFormat.string(system.memoryUsageBytes)
+        return system.memoryUsageBytes > system.totalRAM ? "\(bytes) needed" : "\(bytes) used"
     }
 
     // MARK: - Top processes

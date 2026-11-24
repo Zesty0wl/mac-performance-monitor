@@ -13,6 +13,10 @@ public struct VMStatistics: Sendable {
     public var wired: UInt64
     public var speculative: UInt64
     public var compressed: UInt64
+    /// The original size of everything the compressor holds, including the
+    /// part it has moved out to swap (vm_stat's "Pages stored in compressor").
+    /// `compressed` is the RAM that data takes up once squeezed.
+    public var compressorStored: UInt64
     public var purgeable: UInt64
     public var external: UInt64  // file-backed pages
     public var `internal`: UInt64  // anonymous pages
@@ -73,6 +77,7 @@ public struct SystemMemoryReader: Sendable {
             wired: bytes(stats.wire_count),
             speculative: bytes(stats.speculative_count),
             compressed: bytes(stats.compressor_page_count),
+            compressorStored: bytes(stats.total_uncompressed_pages_in_compressor),
             purgeable: bytes(stats.purgeable_count),
             external: bytes(stats.external_page_count),
             internal: bytes(stats.internal_page_count),

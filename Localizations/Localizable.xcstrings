@@ -115600,6 +115600,222 @@
           }
         }
       }
+    },
+    "Memory Usage" : {
+      "comment" : "Menu bar RAM read-out: memory usage against installed RAM, or the pressure index. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speicherauslastung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memory Usage"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisation de la mémoire"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内存使用率"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Использование памяти"
+          }
+        }
+      }
+    },
+    "Memory read-out" : {
+      "comment" : "Menu bar RAM read-out: memory usage against installed RAM, or the pressure index. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speicher-Messwert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memory read-out"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesure de la mémoire"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内存读数"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Показатель памяти"
+          }
+        }
+      }
+    },
+    "The share of installed RAM in use, counting compressed memory at its original size. Above 100 percent, apps need more memory than the Mac has, and macOS keeps the rest compressed or in swap." : {
+      "comment" : "Menu bar RAM read-out: memory usage against installed RAM, or the pressure index. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der belegte Anteil des installierten RAMs, wobei komprimierter Speicher mit seiner ursprünglichen Größe zählt. Über 100 Prozent brauchen Apps mehr Speicher, als der Mac hat, und macOS hält den Rest komprimiert oder im Swap."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The share of installed RAM in use, counting compressed memory at its original size. Above 100 percent, apps need more memory than the Mac has, and macOS keeps the rest compressed or in swap."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La part de la RAM installée qui est utilisée, la mémoire compressée comptant pour sa taille d’origine. Au-delà de 100 pour cent, les apps ont besoin de plus de mémoire que le Mac n’en a, et macOS garde le reste compressé ou dans le swap."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已安装内存中正在使用的比例，被压缩内存按原始大小计算。超过百分之百时，应用所需的内存多于这台 Mac 的内存，macOS 会将其余部分压缩或放入交换空间。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Доля занятой установленной RAM, где сжатая память учитывается в исходном размере. Свыше 100 процентов приложениям нужно больше памяти, чем есть у Mac, и macOS держит остальное в сжатом виде или в Swap."
+          }
+        }
+      }
+    },
+    "The 0 to 100 pressure index from the Dashboard. It stays near 0 until macOS compresses or swaps heavily, however much RAM is in use." : {
+      "comment" : "Menu bar RAM read-out: memory usage against installed RAM, or the pressure index. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Druckindex von 0 bis 100 aus dem Dashboard. Er bleibt nahe 0, bis macOS stark komprimiert oder in den Swap auslagert, egal wie viel RAM belegt ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The 0 to 100 pressure index from the Dashboard. It stays near 0 until macOS compresses or swaps heavily, however much RAM is in use."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’indice de pression de 0 à 100 du tableau de bord. Il reste proche de 0 tant que macOS ne compresse pas ou ne recourt pas beaucoup au swap, quelle que soit la quantité de RAM utilisée."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仪表盘中的 0 到 100 压力指数。在 macOS 大量压缩内存或使用交换空间之前，无论使用了多少内存，它都接近 0。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Индекс нагрузки от 0 до 100 с панели мониторинга. Он остаётся около 0, пока macOS не начнёт активно сжимать память или использовать Swap, сколько бы RAM ни было занято."
+          }
+        }
+      }
+    },
+    "%@ needed" : {
+      "comment" : "Menu bar RAM read-out: memory usage against installed RAM, or the pressure index. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ benötigt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ needed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ nécessaires"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要 %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Требуется: %@"
+          }
+        }
+      }
+    },
+    "Memory in use against installed RAM, and the largest processes." : {
+      "comment" : "Menu bar RAM read-out: memory usage against installed RAM, or the pressure index. AI-generated translations; native-speaker review pending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Belegter Speicher im Verhältnis zum installierten RAM und die größten Prozesse."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memory in use against installed RAM, and the largest processes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La mémoire utilisée par rapport à la RAM installée, et les plus gros processus."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已用内存占已安装内存的比例，以及占用最多的进程。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Занятая память относительно установленной RAM и самые крупные процессы."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
