@@ -6,6 +6,19 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Changed
+
+- **The menu bar's RAM read-out shows how much memory is in use.** It used
+  to show the pressure index, which only moves once macOS compresses or swaps
+  heavily, so a Mac with plenty of RAM read 0 however much was in use. RAM
+  now shows memory in use as a share of installed RAM: app memory, wired
+  memory, and compressed memory at its original size. Above 100, apps need
+  more memory than the Mac has, and macOS keeps the rest compressed or in
+  swap. The panel's chart follows it, stretching past 100 when needed, and
+  its colour still follows macOS's pressure level. Memory read-out in
+  Settings > Menu Bar & Dock switches back to the pressure index, which the
+  Dashboard, Explorer and alerts keep using.
+
 ## [2.8.1] - 2026-11-15
 
 ### Fixed

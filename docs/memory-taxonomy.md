@@ -106,6 +106,38 @@ slices are scaled proportionally to fill `total_ram` and `free` is zero, so the
 bar still sums to exactly `total_ram`. This guarantee is covered by a unit test
 (`TaxonomyBreakdownTests`).
 
+## Memory usage: the menu bar's RAM read-out
+
+The RAM read-out shows how much memory is in use as a share of installed RAM:
+
+```
+compressorStored   = total_uncompressed_pages_in_compressor * pageSize
+memoryUsage        = appMemory + wired + compressorStored
+memoryUsagePercent = memoryUsage / total_ram * 100
+```
+
+`compressorStored` is the original size of everything the compressor holds,
+including the pages it has moved out to swap (`swapped_count` counts those, as
+a subset). While everything fits in RAM, the figure reads close to Activity
+Monitor's Memory Used (`appMemory + wired + compressed`), which counts
+compressed memory at the size it takes up instead; the gap is what compression
+saved.
+
+Unlike Memory Used, it is not capped by installed RAM. Above 100 percent, apps
+need more memory than the Mac has, and the excess is what macOS keeps
+compressed or in swap. Cached files stay out because macOS frees them on
+demand.
+
+It measures load, not strain. Compression is cheap on Apple silicon, so a Mac
+can sit above 100 percent and stay responsive. The panel colours the figure by
+the kernel's pressure level, and the [pressure index](pressure-index.md) stays
+the measure of strain on the Dashboard, in Explorer and in the alerts.
+Settings > Menu Bar & Dock can put the index back in the menu bar.
+
+`compressorStored` is read live and is not part of the recorded history, so
+samples read back from it fall back to `compressed`. The arithmetic is
+unit-tested in `MemoryUsageTests`.
+
 ## Tolerance against Activity Monitor
 
 MacPerfMonitor and Activity Monitor read the same kernel counters, so the categories

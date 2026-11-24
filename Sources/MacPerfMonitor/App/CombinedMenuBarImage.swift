@@ -32,10 +32,10 @@ extension MenuBarMetric {
 @MainActor
 enum CombinedMenuBarReadouts {
     static func current(
-        for metrics: [MenuBarMetric], model: SamplerModel
+        for metrics: [MenuBarMetric], model: SamplerModel, memoryReadout: MemoryReadout
     ) -> [CombinedMenuBarReadout] {
         metrics.map { metric in
-            let values = values(for: metric, model: model)
+            let values = values(for: metric, model: model, memoryReadout: memoryReadout)
             return CombinedMenuBarReadout(
                 metric: metric, value: values.0, secondaryValue: values.1,
                 isAlarm: metric.isAlarm(in: model.activeAlertKinds))
@@ -43,11 +43,11 @@ enum CombinedMenuBarReadouts {
     }
 
     private static func values(
-        for metric: MenuBarMetric, model: SamplerModel
+        for metric: MenuBarMetric, model: SamplerModel, memoryReadout: MemoryReadout
     ) -> (String, String?) {
         switch metric {
         case .pressure:
-            let value = model.liveSystem.map { "\(Int($0.pressurePercent.rounded()))%" } ?? "--"
+            let value = model.liveSystem.map { memoryReadout.text(for: $0) } ?? "--"
             return (value, nil)
         case .cpu:
             let value = model.smoothedCPU.map { "\(Int(($0.totalUsage * 100).rounded()))%" } ?? "--"

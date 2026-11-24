@@ -111,3 +111,12 @@ index             = 34 + 0.168*33       ≈ 39.5
 So the timeline reads ~40, clearly in the lower part of the "warning" band,
 consistent with the kernel's level but with a visible slope as compression
 climbs. The exact arithmetic is unit-tested in `PressureIndexTests`.
+
+## Where the index is shown
+
+The Dashboard, Explorer and the alerts use the index. The menu bar's RAM
+read-out shows memory usage by default instead (see
+[memory usage](memory-taxonomy.md#memory-usage-the-menu-bars-ram-read-out)):
+on a Mac with plenty of RAM, the index stays at 0 until macOS compresses or
+swaps heavily, however much RAM is in use. Memory read-out in Settings > Menu
+Bar & Dock puts the index back in the menu bar.

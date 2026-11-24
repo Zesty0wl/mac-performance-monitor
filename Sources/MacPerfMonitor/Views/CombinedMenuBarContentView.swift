@@ -66,7 +66,8 @@ struct CombinedMenuBarContentView: View {
     private var metricSelector: some View {
         let readouts = Dictionary(
             uniqueKeysWithValues: CombinedMenuBarReadouts.current(
-                for: MenuBarMetric.allCases, model: model
+                for: MenuBarMetric.allCases, model: model,
+                memoryReadout: configuration.memoryReadout
             ).map { ($0.metric, $0) })
         return HStack(spacing: 0) {
             ForEach(MenuBarMetric.allCases) { metric in
@@ -112,16 +113,16 @@ struct CombinedMenuBarContentView: View {
                 }
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
-                // Built with t() rather than interpolated: `metric.title` is a
+                // Built with t() rather than interpolated: the title is a
                 // String, so the ternary types as String and the interpolated
                 // literal would never be looked up, leaving ", shown in the menu
                 // bar" in English beside an already-translated title.
                 .help(
                     configuration.isSelected(metric)
-                        ? t("%@, shown in the menu bar", metric.title)
-                        : metric.title
+                        ? t("%@, shown in the menu bar", configuration.title(for: metric))
+                        : configuration.title(for: metric)
                 )
-                .accessibilityLabel(metric.title)
+                .accessibilityLabel(configuration.title(for: metric))
                 .accessibilityValue(readout?.value ?? "Unavailable")
             }
         }

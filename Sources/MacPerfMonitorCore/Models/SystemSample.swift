@@ -13,6 +13,10 @@ public struct SystemSample: Sendable, Codable {
     public var wired: UInt64
     public var speculative: UInt64
     public var compressed: UInt64
+    /// The original size of everything the compressor holds, swapped-out
+    /// pages included. Live only: history does not record it, so samples read
+    /// back from it leave this nil. See `MemoryUsage`.
+    public var compressorStoredBytes: UInt64? = nil
 
     // Derived taxonomy categories (bytes). See docs/memory-taxonomy.md.
     public var appMemory: UInt64

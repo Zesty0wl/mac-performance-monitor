@@ -15,6 +15,9 @@ final class SamplerLiveTests: XCTestCase {
         // The categories should not individually exceed total RAM.
         XCTAssertLessThanOrEqual(snapshot.system.wired, snapshot.system.totalRAM)
         XCTAssertLessThanOrEqual(snapshot.system.compressed, snapshot.system.totalRAM)
+        // The RAM read-out's figure: read live, and never 0 on a running Mac.
+        XCTAssertNotNil(snapshot.system.compressorStoredBytes)
+        XCTAssertGreaterThan(snapshot.system.memoryUsagePercent, 0)
     }
 
     func testEnumeratesProcessesAndOwnFootprint() {

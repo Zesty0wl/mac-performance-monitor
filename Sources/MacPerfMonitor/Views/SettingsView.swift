@@ -251,6 +251,17 @@ private struct MenuBarDockSettingsView: View {
                     }
                 }
 
+                Picker("Memory read-out", selection: memoryReadoutBinding) {
+                    ForEach(MemoryReadout.allCases) { readout in
+                        Text(readout.title).tag(readout)
+                    }
+                }
+                caption(
+                    menuBar.memoryReadout == .usage
+                        ? "The share of installed RAM in use, counting compressed memory at its original size. Above 100 percent, apps need more memory than the Mac has, and macOS keeps the rest compressed or in swap."
+                        : "The 0 to 100 pressure index from the Dashboard. It stays near 0 until macOS compresses or swaps heavily, however much RAM is in use."
+                )
+
                 HStack {
                     Text("Preview")
                     Spacer()
@@ -308,6 +319,10 @@ private struct MenuBarDockSettingsView: View {
         Binding(get: { menuBar.focusedMetric }, set: { menuBar.focusedMetric = $0 })
     }
 
+    private var memoryReadoutBinding: Binding<MemoryReadout> {
+        Binding(get: { menuBar.memoryReadout }, set: { menuBar.memoryReadout = $0 })
+    }
+
     private func selectionBinding(_ metric: MenuBarMetric) -> Binding<Bool> {
         Binding(
             get: { menuBar.isSelected(metric) },
@@ -347,7 +362,8 @@ private struct MenuBarDockSettingsView: View {
         let metrics =
             menuBar.presentation == .focus
             ? [menuBar.focusedMetric] : menuBar.selectedMetrics
-        let readouts = CombinedMenuBarReadouts.current(for: metrics, model: model)
+        let readouts = CombinedMenuBarReadouts.current(
+            for: metrics, model: model, memoryReadout: menuBar.memoryReadout)
         return CombinedMenuBarImage.image(
             readouts: readouts, presentation: menuBar.presentation)
     }

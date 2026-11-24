@@ -166,7 +166,8 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
         let metrics =
             configuration.presentation == .focus
             ? [configuration.focusedMetric] : configuration.selectedMetrics
-        let readouts = CombinedMenuBarReadouts.current(for: metrics, model: model)
+        let readouts = CombinedMenuBarReadouts.current(
+            for: metrics, model: model, memoryReadout: configuration.memoryReadout)
         let alarmCount = model.activeAlerts.count
         let signature =
             "\(configuration.presentation.rawValue)|\(alarmCount)|"
@@ -182,7 +183,8 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
             shownAlarmCount = alarmCount
         }
         let summary = readouts.map {
-            [$0.metric.title, $0.value, $0.secondaryValue].compactMap { $0 }.joined(separator: " ")
+            [configuration.title(for: $0.metric), $0.value, $0.secondaryValue]
+                .compactMap { $0 }.joined(separator: " ")
         }.joined(separator: ", ")
         let alarmSuffix =
             alarmCount > 0 ? ", " + t("Active alerts: %@", alarmCount.formatted()) : ""
@@ -274,7 +276,8 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
             configuration.presentation == .focus
             ? [configuration.focusedMetric] : configuration.selectedMetrics
         guard !metrics.isEmpty else { return nil }
-        let readouts = CombinedMenuBarReadouts.current(for: metrics, model: model)
+        let readouts = CombinedMenuBarReadouts.current(
+            for: metrics, model: model, memoryReadout: configuration.memoryReadout)
         let local: NSPoint
         if let event = NSApp.currentEvent,
             (event.type == .leftMouseDown || event.type == .leftMouseUp),
