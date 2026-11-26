@@ -6,6 +6,18 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Clicking the menu bar item opens its panel again when the panel was lost
+  off screen.** The panel could end up open but out of sight: the RAM panel
+  hid its own window when it lost focus, without telling the popover that
+  holds it, a leftover from when it was a separate menu bar item. The item
+  still took the panel for open, so a click only switched or closed a panel
+  nobody could see, and nothing appeared. The RAM panel no longer hides
+  itself, and a click now opens the panel beside the item whenever it is not
+  on screen, whether its window was hidden or left on another Space or
+  display.
+
 ## [2.8.1] - 2026-11-15
 
 ### Fixed

@@ -211,18 +211,84 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
         return title
     }
 
+    /// What a click on the status item does.
+    enum ClickAction: Equatable {
+        /// Show the popover, on the clicked panel when the click landed on one.
+        case open
+        /// The popover is open and on screen: show the clicked panel in it.
+        case switchPanel(CombinedMenuBarPanel)
+        /// The popover is open and on screen, and the click was on its own panel.
+        case close
+        /// NSPopover still reports the popover open, but its window is not where
+        /// the user can see it: close it and open it again beside the item.
+        case reopen
+    }
+
+    /// Decides what a click does. Whether the popover is on screen is asked
+    /// separately from whether NSPopover reports it shown, because the two can
+    /// disagree: NSPopover keeps reporting itself shown after its window was
+    /// ordered out behind its back, or was left behind on another Space or
+    /// display. Trusting `isShown` alone, the click then only switched the panel
+    /// of, or closed, a popover nobody could see, so nothing appeared.
+    static func clickAction(
+        popoverShown: Bool, popoverOnScreen: Bool,
+        clicked: CombinedMenuBarPanel?, current: CombinedMenuBarPanel
+    ) -> ClickAction {
+        guard popoverShown else { return .open }
+        guard popoverOnScreen else { return .reopen }
+        if let clicked, clicked != current { return .switchPanel(clicked) }
+        return .close
+    }
+
+    /// Why the popover's window is not where the user can see it, or nil when it
+    /// is: ordered in, on the active Space, and on the status item's display.
+    private static func offScreenReason(
+        of popover: NSPopover, beside button: NSStatusBarButton
+    ) -> String? {
+        guard let window = popover.contentViewController?.view.window else { return "no window" }
+        if !window.isVisible { return "window ordered out" }
+        if !window.isOnActiveSpace { return "window on another Space" }
+        if let display = displayID(of: window.screen),
+            let buttonDisplay = displayID(of: button.window?.screen), display != buttonDisplay
+        {
+            return "window on another display"
+        }
+        return nil
+    }
+
+    private static func displayID(of screen: NSScreen?) -> CGDirectDisplayID? {
+        screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+    }
+
     @objc private func togglePopover(_ sender: Any?) {
         guard let button = statusItem?.button else { return }
         let panel = clickedPanel(in: button)
+        var offScreen: String?
         if let popover, popover.isShown {
-            if let panel, panel != currentPanel {
-                panelSelection.panel = panel
-                selectPanel(panel)
-                popover.contentViewController?.view.window?.makeKey()
-                return
-            }
-            popover.performClose(sender)
+            offScreen = Self.offScreenReason(of: popover, beside: button)
+        }
+        switch Self.clickAction(
+            popoverShown: popover?.isShown == true, popoverOnScreen: offScreen == nil,
+            clicked: panel, current: currentPanel)
+        {
+        case .switchPanel(let panel):
+            panelSelection.panel = panel
+            selectPanel(panel)
+            popover?.contentViewController?.view.window?.makeKey()
             return
+        case .close:
+            popover?.performClose(sender)
+            return
+        case .reopen:
+            AppLog.ui.notice(
+                "status item clicked while its popover was open but off screen (\(offScreen ?? "unknown", privacy: .public)); reopening it"
+            )
+            popover?.close()
+            // Drops the closed popover with its SwiftUI content, so the open
+            // below builds a fresh one.
+            reconcileMenuClock()
+        case .open:
+            break
         }
         if let panel {
             panelSelection.panel = panel
