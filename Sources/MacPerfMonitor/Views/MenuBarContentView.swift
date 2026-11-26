@@ -22,7 +22,6 @@ struct MenuBarContentView: View {
         _ = menuClock.tick
         return
             panel
-            .background(MenuBarDismissOnResignKey())
             .onAppear { if !embedded { menuClock.open() } }
             .onDisappear { if !embedded { menuClock.close() } }
     }
@@ -298,46 +297,5 @@ struct MenuActionButtonStyle: ButtonStyle {
             .contentShape(Rectangle())
             .onHover { hovering = $0 }
             .opacity(configuration.isPressed ? 0.6 : 1)
-    }
-}
-
-/// Closes the memory MenuBarExtra's `.window` panel when it stops being the key
-/// window — the user clicked another menu-bar item, a window, or the desktop.
-/// SwiftUI's `.window`-style `MenuBarExtra` does not dismiss itself when the click
-/// lands on another status item (the CPU/Energy/Network items, which are AppKit
-/// popovers), so without this the pressure panel would stay open. Ordering the
-/// panel out matches what SwiftUI itself does when the label is toggled closed, so
-/// the next click on the label reopens it normally.
-private struct MenuBarDismissOnResignKey: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        DispatchQueue.main.async { context.coordinator.attach(to: view.window) }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        if context.coordinator.window == nil {
-            DispatchQueue.main.async { context.coordinator.attach(to: nsView.window) }
-        }
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    final class Coordinator {
-        private(set) weak var window: NSWindow?
-        private var token: NSObjectProtocol?
-
-        func attach(to window: NSWindow?) {
-            guard let window, self.window !== window else { return }
-            self.window = window
-            if let token { NotificationCenter.default.removeObserver(token) }
-            token = NotificationCenter.default.addObserver(
-                forName: NSWindow.didResignKeyNotification, object: window, queue: .main
-            ) { [weak window] _ in
-                window?.orderOut(nil)
-            }
-        }
-
-        deinit { if let token { NotificationCenter.default.removeObserver(token) } }
     }
 }
