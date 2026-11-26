@@ -347,7 +347,13 @@ private struct MenuBarDockSettingsView: View {
         let metrics =
             menuBar.presentation == .focus
             ? [menuBar.focusedMetric] : menuBar.selectedMetrics
-        let readouts = CombinedMenuBarReadouts.current(for: metrics, model: model)
+        // The preview shows the read-outs alone. Like the alerts marker, the
+        // red leak marker is drawn by the status item, so its room is left out.
+        let readouts = CombinedMenuBarReadouts.current(for: metrics, model: model).map {
+            var readout = $0
+            readout.showsLeakMarker = false
+            return readout
+        }
         return CombinedMenuBarImage.image(
             readouts: readouts, presentation: menuBar.presentation)
     }

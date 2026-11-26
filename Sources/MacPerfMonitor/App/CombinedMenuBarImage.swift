@@ -6,9 +6,20 @@ struct CombinedMenuBarReadout: Equatable {
     var value: String
     var secondaryValue: String?
     var isAlarm: Bool
+    /// Whether the cell keeps room on its left for the red memory growth
+    /// marker. The read-out image is a template and cannot carry colour, so the
+    /// status item lays the red triangle over that room.
+    var showsLeakMarker = false
 }
 
 extension MenuBarMetric {
+    /// Only RAM carries the memory growth marker, and only while a memory
+    /// growth (leak) alert is active: it follows that alert, and so its switch
+    /// in Settings. Like the red badge, it stays while the alert is snoozed.
+    func showsLeakMarker(in activeKinds: Set<Alert.Kind>) -> Bool {
+        self == .pressure && activeKinds.contains(.leak)
+    }
+
     func isAlarm(in activeKinds: Set<Alert.Kind>) -> Bool {
         switch self {
         case .pressure:
@@ -38,7 +49,8 @@ enum CombinedMenuBarReadouts {
             let values = values(for: metric, model: model)
             return CombinedMenuBarReadout(
                 metric: metric, value: values.0, secondaryValue: values.1,
-                isAlarm: metric.isAlarm(in: model.activeAlertKinds))
+                isAlarm: metric.isAlarm(in: model.activeAlertKinds),
+                showsLeakMarker: metric.showsLeakMarker(in: model.activeAlertKinds))
         }
     }
 
@@ -97,6 +109,10 @@ enum CombinedMenuBarImage {
     private static let itemHeight: CGFloat = 22
     /// Matched figure size for every two-line cell (caption+value and ↓/↑).
     private static let stackedFigureSize: CGFloat = 9.5
+    /// The red memory growth marker: the same 12 point triangle as the alerts
+    /// marker, with a 2 point gap before the cell it marks.
+    static let leakMarkerSize: CGFloat = 12
+    static let leakMarkerGap: CGFloat = 2
     // One layout per metric, not one per changing readout value.
     private static var layoutCache:
         [MenuBarMetric: (readout: CombinedMenuBarReadout, layout: CellLayout)] = [:]
@@ -144,8 +160,40 @@ enum CombinedMenuBarImage {
         return readouts.last?.metric
     }
 
+    /// Where the red memory growth marker goes, in the item image's coordinates:
+    /// one rectangle for each cell that keeps room for it, in the room on that
+    /// cell's left, vertically centred.
+    static func leakMarkerRects(
+        readouts: [CombinedMenuBarReadout], presentation: MenuBarPresentation
+    ) -> [NSRect] {
+        func marker(atX x: CGFloat) -> NSRect {
+            NSRect(
+                x: x, y: (itemHeight - leakMarkerSize) / 2,
+                width: leakMarkerSize, height: leakMarkerSize)
+        }
+        switch presentation {
+        case .focus:
+            guard let first = readouts.first, first.showsLeakMarker else { return [] }
+            return [marker(atX: 0)]
+        case .strip:
+            var rects: [NSRect] = []
+            var x: CGFloat = 0
+            for readout in readouts {
+                if readout.showsLeakMarker { rects.append(marker(atX: x)) }
+                x += layout(for: readout).width + stripSeparatorWidth
+            }
+            return rects
+        }
+    }
+
+    /// The room a cell keeps on its left for the leak marker, or 0.
+    private static func leadingRoom(for readout: CombinedMenuBarReadout) -> CGFloat {
+        readout.showsLeakMarker ? leakMarkerSize + leakMarkerGap : 0
+    }
+
     private static func focusImage(readout: CombinedMenuBarReadout) -> NSImage {
         let color = NSColor.black
+        let lead = leadingRoom(for: readout)
         let label = attributed(
             readout.metric.shortTitle,
             font: MenuBarReadoutImage.valueFont(size: 8, weight: .semibold), color: color)
@@ -169,18 +217,18 @@ enum CombinedMenuBarImage {
             let secondarySize = secondary.size()
             let valuesWidth = ceil(
                 max(primarySize.width, secondarySize.width, sample.size().width))
-            let width = labelWidth + gap + valuesWidth + 1
+            let width = lead + labelWidth + gap + valuesWidth + 1
 
             return MenuBarReadoutImage.render(width: width, height: itemHeight) { size in
                 drawSymbol(
                     readout.metric.symbolName,
-                    in: NSRect(x: 0, y: (size.height - 13) / 2, width: 13, height: 13),
+                    in: NSRect(x: lead, y: (size.height - 13) / 2, width: 13, height: 13),
                     color: color, pointSize: 11)
                 drawStackedLines(
                     top: primary, bottom: secondary, topSize: primarySize,
                     bottomSize: secondarySize,
-                    topX: labelWidth + gap + valuesWidth - primarySize.width,
-                    bottomX: labelWidth + gap + valuesWidth - secondarySize.width,
+                    topX: lead + labelWidth + gap + valuesWidth - primarySize.width,
+                    bottomX: lead + labelWidth + gap + valuesWidth - secondarySize.width,
                     height: size.height)
             }
         }
@@ -189,13 +237,13 @@ enum CombinedMenuBarImage {
         let primary = attributed(readout.value, font: valueFont, color: color)
         let primarySize = primary.size()
         let valuesWidth = ceil(primarySize.width)
-        let width = labelWidth + gap + valuesWidth + 1
+        let width = lead + labelWidth + gap + valuesWidth + 1
 
         return MenuBarReadoutImage.render(width: width, height: itemHeight) { size in
-            label.draw(at: NSPoint(x: 0, y: (size.height - labelSize.height) / 2))
+            label.draw(at: NSPoint(x: lead, y: (size.height - labelSize.height) / 2))
             primary.draw(
                 at: NSPoint(
-                    x: labelWidth + gap,
+                    x: lead + labelWidth + gap,
                     y: (size.height - primarySize.height) / 2))
         }
     }
@@ -240,6 +288,7 @@ enum CombinedMenuBarImage {
 
     private static func makeLayout(for readout: CombinedMenuBarReadout) -> CellLayout {
         let color = NSColor.black
+        let lead = leadingRoom(for: readout)
         if let secondary = readout.secondaryValue {
             let labelWidth: CGFloat = 14
             let figureFont = MenuBarReadoutImage.valueFont(
@@ -256,16 +305,16 @@ enum CombinedMenuBarImage {
             let bottomSize = bottom.size()
             let figuresWidth = ceil(max(topSize.width, bottomSize.width, sample.size().width))
             let gap: CGFloat = 5
-            let width = labelWidth + gap + figuresWidth + 1
+            let width = lead + labelWidth + gap + figuresWidth + 1
             return CellLayout(width: width) { x, height in
                 drawSymbol(
                     readout.metric.symbolName,
-                    in: NSRect(x: x, y: (height - 13) / 2, width: 13, height: 13),
+                    in: NSRect(x: x + lead, y: (height - 13) / 2, width: 13, height: 13),
                     color: color, pointSize: 11)
                 drawStackedLines(
                     top: top, bottom: bottom, topSize: topSize, bottomSize: bottomSize,
-                    topX: x + labelWidth + gap + figuresWidth - topSize.width,
-                    bottomX: x + labelWidth + gap + figuresWidth - bottomSize.width,
+                    topX: x + lead + labelWidth + gap + figuresWidth - topSize.width,
+                    bottomX: x + lead + labelWidth + gap + figuresWidth - bottomSize.width,
                     height: height)
             }
         }
@@ -290,15 +339,15 @@ enum CombinedMenuBarImage {
         let sample = attributed(sampleText, font: font, color: color)
         let labelSize = label.size()
         let valueSize = value.size()
-        let width = ceil(max(valueSize.width, sample.size().width, labelSize.width)) + 1
-        return CellLayout(width: width) { x, height in
+        let contentWidth = ceil(max(valueSize.width, sample.size().width, labelSize.width)) + 1
+        return CellLayout(width: lead + contentWidth) { x, height in
             label.draw(
                 at: NSPoint(
-                    x: x + (width - labelSize.width) / 2,
+                    x: x + lead + (contentWidth - labelSize.width) / 2,
                     y: height - labelSize.height + 1))
             value.draw(
                 at: NSPoint(
-                    x: x + (width - valueSize.width) / 2,
+                    x: x + lead + (contentWidth - valueSize.width) / 2,
                     y: 0))
         }
     }

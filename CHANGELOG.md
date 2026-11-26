@@ -6,6 +6,16 @@ Notable changes to Mac Performance Monitor. This project follows
 
 ## [Unreleased]
 
+### Added
+
+- **A red triangle beside RAM in the menu bar while a process's memory keeps
+  growing.** When the process memory growth alert fires, the RAM read-out
+  shows the same red triangle as the alerts marker, on its left, wherever RAM
+  sits in the strip, so a possible leak is visible without opening the panel.
+  The tooltip and VoiceOver add "Possible memory leak" after the RAM value.
+  The triangle clears with the alert, and turning off Process memory growth in
+  Settings > Alerts turns it off.
+
 ## [2.8.1] - 2026-11-15
 
 ### Fixed
