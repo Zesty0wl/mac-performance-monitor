@@ -18,6 +18,13 @@ what changed. Modest growth appears under **Observations**, outside the red
 count. An issue that is settling goes there too. So does a wait for fresh data.
 Neither state sends a new banner.
 
+While a process growth alert is active, the menu bar also puts a red triangle
+on the left of the RAM read-out, wherever RAM sits in the strip, and its
+tooltip and VoiceOver label add "Possible memory leak". It clears when the
+alert does, and turning off **Process memory growth** turns it off. Like the
+red badge, it stays while the alert's notices are snoozed. Observations do not
+show it.
+
 Click an alert title to open Explorer at its evidence window. It selects the
 relevant charts and processes. The inspector also keeps the captured alert
 values. Those values remain useful when full history is off; missing chart

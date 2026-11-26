@@ -46,6 +46,13 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
     private var cancellables = Set<AnyCancellable>()
     private var shownSignature: String?
     private var shownAlarmCount: Int?
+    /// The read-outs last drawn, so the leak marker can follow the image when
+    /// the item changes width.
+    private var shownReadouts: [CombinedMenuBarReadout] = []
+    /// The red memory growth marker, laid over the room the RAM cell keeps for
+    /// it: the read-out image is a template, so it cannot carry the red itself.
+    private var leakMarker: StatusItemMarkerView?
+    private var buttonFrameObserver: NSObjectProtocol?
     private var activeConsumer: MenuListKind?
     private var gpuSamplingActive = false
     /// Whether the open popover is showing the GPU panel, which is registered
@@ -118,6 +125,7 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
             menuClock.close()
             popover?.performClose(nil)
             popover = nil
+            removeLeakMarker()
             if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
             statusItem = nil
             shownSignature = nil
@@ -131,6 +139,16 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
         item.button?.target = self
         item.button?.action = #selector(togglePopover(_:))
         item.button?.imagePosition = .imageOnly
+        if let button = item.button {
+            // The image moves inside the button when the item grows or shrinks,
+            // so the leak marker is placed again whenever the button resizes.
+            button.postsFrameChangedNotifications = true
+            buttonFrameObserver = NotificationCenter.default.addObserver(
+                forName: NSView.frameDidChangeNotification, object: button, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.placeLeakMarker() }
+            }
+        }
         statusItem = item
         shownAlarmCount = nil
         refreshImage()
@@ -140,6 +158,7 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
         menuClock.close()
         popover?.performClose(nil)
         popover = nil
+        removeLeakMarker()
         if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
         statusItem = nil
         model.setGPUSamplingEnabled(false)
@@ -172,6 +191,7 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
             "\(configuration.presentation.rawValue)|\(alarmCount)|"
             + readouts.map {
                 "\($0.metric.rawValue):\($0.value):\($0.secondaryValue ?? ""):\($0.isAlarm)"
+                    + ":\($0.showsLeakMarker)"
             }.joined(separator: "|")
         guard signature != shownSignature else { return }
         button.image = CombinedMenuBarImage.image(
@@ -181,8 +201,14 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
             button.attributedTitle = alarmTitle(count: alarmCount)
             shownAlarmCount = alarmCount
         }
-        let summary = readouts.map {
-            [$0.metric.title, $0.value, $0.secondaryValue].compactMap { $0 }.joined(separator: " ")
+        shownReadouts = readouts
+        placeLeakMarker()
+        // The marker is drawn over the image, so it is spelled out here for
+        // the tooltip and VoiceOver, right after the read-out it marks.
+        let summary = readouts.map { readout in
+            let text = [readout.metric.title, readout.value, readout.secondaryValue]
+                .compactMap { $0 }.joined(separator: " ")
+            return readout.showsLeakMarker ? text + ", " + t("Possible memory leak") : text
         }.joined(separator: ", ")
         let alarmSuffix =
             alarmCount > 0 ? ", " + t("Active alerts: %@", alarmCount.formatted()) : ""
@@ -209,6 +235,45 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
                     ]))
         }
         return title
+    }
+
+    /// Lays the red memory growth marker over the room the marked cell keeps for
+    /// it, or hides it. Runs after each redraw and whenever the button resizes,
+    /// since the image moves inside the button when the item changes width.
+    private func placeLeakMarker() {
+        guard let button = statusItem?.button else { return }
+        guard
+            let rect = CombinedMenuBarImage.leakMarkerRects(
+                readouts: shownReadouts, presentation: configuration.presentation
+            ).first
+        else {
+            leakMarker?.isHidden = true
+            return
+        }
+        let marker = leakMarker ?? makeLeakMarker(in: button)
+        let imageRect =
+            (button.cell as? NSButtonCell)?.imageRect(forBounds: button.bounds) ?? button.bounds
+        marker.frame = NSRect(
+            x: imageRect.minX + rect.minX, y: imageRect.midY - rect.height / 2,
+            width: rect.width, height: rect.height)
+        marker.isHidden = false
+    }
+
+    private func makeLeakMarker(in button: NSStatusBarButton) -> StatusItemMarkerView {
+        let marker = StatusItemMarkerView(image: Self.alarmImage)
+        button.addSubview(marker)
+        leakMarker = marker
+        return marker
+    }
+
+    private func removeLeakMarker() {
+        if let buttonFrameObserver {
+            NotificationCenter.default.removeObserver(buttonFrameObserver)
+        }
+        buttonFrameObserver = nil
+        leakMarker?.removeFromSuperview()
+        leakMarker = nil
+        shownReadouts = []
     }
 
     @objc private func togglePopover(_ sender: Any?) {
@@ -395,4 +460,29 @@ final class CombinedStatusItemController: NSObject, NSPopoverDelegate {
     func popoverDidClose(_ notification: Notification) {
         reconcileMenuClock()
     }
+}
+
+/// A marker drawn over the status item's button, such as the red memory growth
+/// triangle. Clicks pass through to the button, so a click on it opens the
+/// panel of the cell it marks, and it stays out of the accessibility tree,
+/// since the button's label says it in words.
+private final class StatusItemMarkerView: NSView {
+    private let image: NSImage
+
+    init(image: NSImage) {
+        self.image = image
+        super.init(frame: .zero)
+        setAccessibilityElement(false)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("StatusItemMarkerView does not support NSCoder")
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        image.draw(in: bounds)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
